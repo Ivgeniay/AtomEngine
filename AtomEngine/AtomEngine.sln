@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35312.102
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AtomEngine", "AtomEngine.csproj", "{7A82FD67-3F5F-449A-9E82-17DC3E382F9C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Client", "..\Client\Client.csproj", "{604BB07F-B314-4E86-8254-B4C7912D8FFD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenGLCore", "..\OpenGL\OpenGLCore.csproj", "{CF989891-7C72-4D27-A0C0-DEDE2108B223}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7A82FD67-3F5F-449A-9E82-17DC3E382F9C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A82FD67-3F5F-449A-9E82-17DC3E382F9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A82FD67-3F5F-449A-9E82-17DC3E382F9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A82FD67-3F5F-449A-9E82-17DC3E382F9C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{604BB07F-B314-4E86-8254-B4C7912D8FFD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{604BB07F-B314-4E86-8254-B4C7912D8FFD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{604BB07F-B314-4E86-8254-B4C7912D8FFD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{604BB07F-B314-4E86-8254-B4C7912D8FFD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CF989891-7C72-4D27-A0C0-DEDE2108B223}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF989891-7C72-4D27-A0C0-DEDE2108B223}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF989891-7C72-4D27-A0C0-DEDE2108B223}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF989891-7C72-4D27-A0C0-DEDE2108B223}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F53DF629-7D4A-4FB3-B04A-7E2634195C5C}
+	EndGlobalSection
+EndGlobal
