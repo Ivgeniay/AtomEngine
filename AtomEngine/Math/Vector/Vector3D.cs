@@ -112,7 +112,7 @@ namespace AtomEngine.Math
 
         public override string ToString()
         {
-            return "X: " + X + " Y: " + Y + "Z: " + Z;
+            return "X: " + X + " Y: " + Y + " Z: " + Z;
         }
 
     }
@@ -205,6 +205,42 @@ namespace AtomEngine.Math
             }
             return false;
         }
-        public override string ToString() => "X: " + X + " Y: " + Y + "Z: " + Z; 
+        public override string ToString() => "X: " + X + " Y: " + Y + " Z: " + Z;
+
+        internal static Vector3D Parse(string v)
+        {
+            v = v.Trim();
+            string[] parts = v.Split(' ');
+
+            double x = 0, y = 0, z = 0;
+
+            foreach (string part in parts)
+            {
+                string[] keyValue = part.Split(':');
+                if (keyValue.Length == 2)
+                {
+                    string key = keyValue[0].Trim();
+                    string value = keyValue[1].Trim();
+
+                    switch (key.ToUpper())
+                    {
+                        case "X":
+                            if (!double.TryParse(value, out x))
+                                throw new FormatException("Invalid X value");
+                            break;
+                        case "Y":
+                            if (!double.TryParse(value, out y))
+                                throw new FormatException("Invalid Y value");
+                            break;
+                        case "Z":
+                            if (!double.TryParse(value, out z))
+                                throw new FormatException("Invalid Z value");
+                            break;
+                    }
+                }
+            }
+
+            return new Vector3D(x, y, z);
+        }
     }
 }

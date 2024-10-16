@@ -1,7 +1,22 @@
 ﻿namespace AtomEngine.Utilits
 {
-    internal static class FileFinder
+    public static class FileFinder
     {
+        public static string? FindFile(string name, string type)
+        {
+            try
+            {
+                string fileName = $"{name}.{type}";
+                string projectRoot = GetProjectRoot();
+                string? filePath = FindFileInDirectory(projectRoot, fileName);
+
+                return filePath != null ? filePath : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
         public static string? FindAndReadFile(string name, string type)
         {
             try

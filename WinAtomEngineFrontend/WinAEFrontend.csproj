@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.WindowsForms" Version="6.0.553" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RazorAEFrontendLib\RazorAEFrontendLib.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="wwwroot\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup> 
+
+  <Target Name="CopyWWWRoot" BeforeTargets="PrepareForBuild">
+    <ItemGroup>
+      <WWWRootFiles Include="..\RazorAEFrontendLib\wwwroot\**\*.*" />
+    </ItemGroup>
+    <Message Text="COPY: Source wwwroot path: @(WWWRootFiles)" Importance="high" />
+    <Message Text="COPY: Destination wwwroot path: $(ProjectDir)wwwroot" Importance="high" />
+    <Copy SourceFiles="@(WWWRootFiles)"
+          DestinationFolder="$(ProjectDir)wwwroot\%(RecursiveDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

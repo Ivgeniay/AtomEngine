@@ -27,10 +27,9 @@ namespace AtomEngine.Reactive
                 }
             }
         }
-
         public IObservable<T> AsObservable() => _subject.AsObservable();
         public IDisposable Subscribe(IObserver<T> observer) => _subject.Subscribe(observer);
-
+        public void SetValueAndWithotNotify(T value) => _value = value; 
         public void Dispose()
         {
             Dispose(true);
@@ -39,10 +38,13 @@ namespace AtomEngine.Reactive
 
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
-            {
-                _subject?.Dispose();
-            }
+            if (disposing) 
+                _subject?.Dispose(); 
+        }
+
+        public override string ToString()
+        {
+            return $"ReactiveProperty of type: \"{typeof(T).FullName}\" with value: \"{_value?.ToString()}\"";
         }
     }
 }

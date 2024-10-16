@@ -8,6 +8,17 @@ namespace AtomEngine
     public class AtomObject : ISerializable, IDisposable
     {
         public string ID { get; internal set; } = Guid.CreateVersion7().ToString();
+        public TransformComponent Transform { get
+            {
+                if (_transform == null)
+                {
+                    _transform = GetComponent<TransformComponent>();
+                    if (_transform == null) _transform = AddComponent(new TransformComponent()); 
+                }
+                return _transform;
+            }
+        } 
+        private TransformComponent _transform;
         internal Scene Scene { get; set; }
         internal int Length => componentsStorage.Count;
 

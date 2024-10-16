@@ -11,26 +11,26 @@ namespace Client
 
         protected override void OnLoadHandler()
         {
-            logger?.LogInformation("SceneTwo loaded");
+            _logger?.LogInformation("SceneTwo loaded");
         }
 
         protected override void OnRenderHandler(double value) { }
 
         protected override void OnResizeHandler(Vector2D<int> value)
         {
-            logger?.LogInformation("SceneTwo resized");
+            _logger?.LogInformation("SceneTwo resized");
         }
 
         protected override void OnUnloadHandler()
         {
-            logger?.LogInformation("SceneTwo unloaded");
+            _logger?.LogInformation("SceneTwo unloaded");
         }
 
         protected override void OnUpdateHandler(double value)
         {
             if (InputManager.IsKeyPressed(key: OpenTK.Windowing.GraphicsLibraryFramework.Keys.Space))
             {
-                logger?.LogInformation("Space key pressed from scene two");
+                _logger?.LogInformation("Space key pressed from scene two");
             } 
         }
     }

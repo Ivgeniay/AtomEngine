@@ -12,6 +12,7 @@ namespace AtomEngine.Geometry
         {
             if (vertice.Length != Constants.VerticesPerTriangle) throw new ArgumentException("Triangle must have 3 vertices");
             this.Vertice = vertice;
+            CalculateNormal();
         }
 
         private void CalculateNormal()
