@@ -1,0 +1,27 @@
+﻿@namespace AtomEngineEditor.Components
+@inherits AtomEngineEditor.Components.ModalComponentBase
+
+<div class="modal-overlay @(_isVisible ? "visible" : "")"> @* @onclick="HandleOverlayClick"> *@    
+    <div class="modal-dialog @GetAnimationClass() @(_isMinimized ? "minimized" : "")">
+        <div  class="modal-header">
+            <h3 >@Options.Title</h3>
+            <div class="modal-controls">
+                @if (Options.ShowMinimizeButton){
+                    <button @onclick="ToggleMinimize" @onclick:stopPropagation> @(_isMinimized ? "+" : "-") </button>
+                }
+                @if(Options.ShowCloseButton){
+                    <button @onclick="CloseModal" @onclick:stopPropagation>X</button>
+                } 
+            </div>
+        </div> 
+        @if(!_isMinimized){
+            <div class = "modal-content">@((MarkupString)Options.Content)</div>
+            <div class="modal-footer">                
+                @foreach(var button in Options.Buttons)            
+                {                
+                    <button @onclick="@(() => OnButtonClick(button))">@button.Text</button>        
+                }       
+            </div>  
+        }
+    </div>
+</div>

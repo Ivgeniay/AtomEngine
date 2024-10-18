@@ -1,4 +1,6 @@
-using Editor.Data;
+using AtomEngineEditor.Data;
+using AtomEngineEditor.Services;
+using AtomEngineEditor.Services.Console;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace WinAtomEngineFrontend
@@ -21,7 +23,9 @@ namespace WinAtomEngineFrontend
             services.AddWindowsFormsBlazorWebView();
             services.AddBlazorWebViewDeveloperTools();
 
-            services.AddSingleton<WeatherForecastService>(); 
+            services.AddSingleton<WeatherForecastService>();
+            services.AddScoped<IModalService, ModalService>();
+            services.AddScoped<IConsoleService, ConsoleService>();
 
             using var serviceProvider = services.BuildServiceProvider();
 

@@ -7,7 +7,7 @@ namespace AtomEngine
 {
     public class AtomObject : ISerializable, IDisposable
     {
-        public string ID { get; internal set; } = Guid.CreateVersion7().ToString();
+        public string ID { get; internal set; } = Guid.NewGuid().ToString();
         public TransformComponent Transform { get
             {
                 if (_transform == null)

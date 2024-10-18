@@ -1,9 +1,35 @@
-﻿@page "/"
+﻿@using AtomEngineEditor.Components
+@using AtomEngineEditor.Services
+@using AtomEngineEditor.Services.Modal
+@inject IModalService ModalService
 
-<PageTitle>Index</PageTitle>
+@page "/" 
 
-<h1>Hello, world!</h1>
+<PageTitle>Index</PageTitle> 
 
-Welcome to your new app.
+<Debug/>
+ 
+<button @onclick="ShowModal">Show Modal</button>
+<ModalDialogueContainer/>
+<OpenTkWindow/>
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+
+@code {
+    private void ShowModal()
+    {
+        var options = new ModalOptions
+            {
+                Title = "TITLE",
+                Content = "This is an example modal dialog.",
+                Buttons = new List<ModalButton>
+                {
+                    new ModalButton { Text = "OK", OnClick = () => { } },
+                    new ModalButton { Text = "Cancel", OnClick = () => { } }
+                },
+                ShowCloseButton = true,
+                AnimationType = ModalAnimationType.PopInOut
+            };
+
+        var modal = ModalService.Show(options);
+    }
+}

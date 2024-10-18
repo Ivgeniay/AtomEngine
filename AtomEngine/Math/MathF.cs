@@ -44,5 +44,8 @@ namespace AtomEngine.Math
 
             return result;
         }
+        public static double Lerp(double a, double b, double t) => a + (b - a) * t;
+        public static int LerpInt(int a, int b, double t) => (int)(a + (b - a) * t);
+
     }
 }

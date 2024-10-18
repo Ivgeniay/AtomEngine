@@ -1,0 +1,94 @@
+﻿/* Стили для основного контейнера консоли */
+.console {
+    background-color: #1e1e1e;
+    color: #f0f0f0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    border-radius: 5px;
+    padding: 10px;
+    min-height: 50px;
+    max-height: 150px;
+    width: contain;
+    overflow-y: auto;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.console-component { 
+    display: flex;
+    flex-direction: column;
+}
+
+.atom-btn {
+    background-color: #2E2E2E;
+    color: white;
+    border: none;
+    padding: 0.35rem 0.35rem;
+    margin: 2px;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
+
+/* Стили для сообщений консоли */
+.console-message {
+    margin: 2px 0;
+    padding: 2px 5px;
+    border-radius: 3px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+    /* Чередование цветов фона для лучшей читаемости */
+    .console-message:nth-child(odd) {
+        background-color: #252525;
+    }
+
+    /* Стили для различных типов сообщений */
+    .console-message.trace {
+        color: yellow;
+    }
+
+    .console-message.debug {
+        color: white;
+    }
+
+    .console-message.information {
+        color: #58a6ff;
+    }
+
+    .console-message.warning {
+        color: #d29922;
+    }
+
+    .console-message.error {
+        color: #f85149;
+    }
+
+    .console-message.critical {
+        color: orangered;
+    }
+
+
+
+/* Стили для скроллбара */
+.console::-webkit-scrollbar {
+    width: 8px;
+}
+
+.console::-webkit-scrollbar-track {
+    background: #252525;
+}
+
+.console::-webkit-scrollbar-thumb {
+    background-color: #4d4d4d;
+    border-radius: 4px;
+}
+
+    .console::-webkit-scrollbar-thumb:hover {
+        background-color: #5a5a5a;
+    }
+
+@media (max-width: 640.98px) {
+
+    .console {
+        height: 150px;
+    }
+}

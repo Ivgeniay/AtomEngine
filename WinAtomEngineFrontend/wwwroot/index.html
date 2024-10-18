@@ -23,5 +23,24 @@
     </div>-->
 
     <script src="_framework/blazor.webview.js"></script>
+    <script>
+        function addGlobalMouseEventListeners(dotnetHelper) {
+            window.onmousemove = (e) => {
+                dotnetHelper.invokeMethodAsync('OnMouseMove', e.clientX, e.clientY);
+            };
+            window.onmouseup = () => {
+                dotnetHelper.invokeMethodAsync('OnMouseUp');
+            };
+        }
+
+        function removeGlobalMouseEventListeners() {
+            window.onmousemove = null;
+            window.onmouseup = null;
+        }
+
+        window.updateImage = (img, src) => {
+            img.src = src;
+        };
+    </script>
 </body>
 </html>

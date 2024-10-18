@@ -35,22 +35,24 @@ namespace WinAtomEngineFrontend
             // 
             // workSpace
             // 
-            workSpace.Location = new Point(10, 50);
+            workSpace.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            workSpace.AutoScroll = true;
+            workSpace.Location = new Point(1, -1);
             workSpace.Name = "workSpace";
-            workSpace.Size = new Size(800, 450);
+            workSpace.Size = new Size(1260, 712);
             workSpace.TabIndex = 0;
             workSpace.Text = "workSpace";
             workSpace.Click += blazorWebView1_Click;
-            Controls.Add(workSpace);
-
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(1262, 713);
+            Controls.Add(workSpace);
             Name = "Form1";
             Text = "Form1";
+            Load += Form1_Load;
             ResumeLayout(false);
         }
 

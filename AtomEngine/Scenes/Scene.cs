@@ -9,7 +9,7 @@ namespace AtomEngine.Scenes
 {
     public abstract class Scene : ISerializable
     {
-        public string ID { get; internal set; } = Guid.CreateVersion7().ToString();
+        public string ID { get; internal set; } = Guid.NewGuid().ToString();
         public string Name { get; private set; } = string.Empty;
         public bool IsLoaded { get; private set; }
 

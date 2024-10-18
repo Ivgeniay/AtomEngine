@@ -1,0 +1,9 @@
+﻿@namespace AtomEngineEditor.Components
+@inherits AtomEngineEditor.Components.ModalDialogueContainerComponent
+@implements IDisposable
+
+@foreach (var modal in ModalService.Modals)
+{
+    <Modal Options="modal.Options" Id="modal.Id" />
+}
+

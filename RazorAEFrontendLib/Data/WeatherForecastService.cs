@@ -1,5 +1,5 @@
 
-namespace Editor.Data
+namespace AtomEngineEditor.Data
 {
     public class WeatherForecastService
     {
