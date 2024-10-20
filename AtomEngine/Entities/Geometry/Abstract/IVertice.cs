@@ -4,6 +4,6 @@ namespace AtomEngine.Geometry
 {
     public interface IVertice
     {
-        public Vector4D Position { get; }
+        public Vector3D Position { get; }
     }
 }

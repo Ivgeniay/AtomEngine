@@ -2,19 +2,8 @@
 
 namespace AtomEngine
 {
-    public sealed class MeshRendererComponent : BaseComponent
+    public abstract class MeshRendererComponent : BaseComponent
     {
-        public MeshRendererComponent() : base()
-        {
-        }
-
-        public override void OnDeserialize(JsonObject json)
-        { 
-        }
-
-        public override JsonObject OnSerialize()
-        {
-            return new JsonObject();
-        }
+        protected MeshFilterComponent? meshFilter;
     }
 }

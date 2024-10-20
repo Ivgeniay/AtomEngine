@@ -1,6 +1,7 @@
-﻿using AtomEngine.Scenes;
+﻿using System.Text.Json.Nodes;
 using AtomEngine.Serialize;
-using System.Text.Json.Nodes;
+using AtomEngine.Scenes;
+using AtomEngine.Math;
 
 namespace AtomEngine
 {
@@ -21,9 +22,9 @@ namespace AtomEngine
         public virtual void Render() { }
         public virtual void OnUnload() { }
         public virtual void Dispose() { }
+        public virtual void WindowResize(Vector2D<int> size) { }
 
-        public T Instantiale<T>(params object[] constructParams) where T : AtomObject =>
-            AtomObject.Instantiale<T>(constructParams);
+        public T Instantiale<T>() where T : AtomObject => AtomObject.Instantiale<T>();
 
         public abstract JsonObject OnSerialize();
         public abstract void OnDeserialize(JsonObject json);

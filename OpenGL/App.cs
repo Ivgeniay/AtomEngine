@@ -13,23 +13,33 @@ namespace OpenGLCore
                 if (lazy == null) lazy = new App();
                 return lazy; 
             }}
-        public SceneDisposer SceneDisposer { get; private set; }
+
+
         internal Window? Window;
+        internal ISceneDisposer SceneDisposer { get; private set; }
         public Scene? CurrentSceen => SceneDisposer.CurrentScene;
         protected readonly ILogger? logger;
-        public App(ILogger logger = null) 
-        {
-            this.logger = logger;
-            SceneDisposer = new SceneDisposer(logger);
-        }
 
+        private App() :this (new SceneDisposer(), new AppConfiguration() { Resolution = new Vector2D<int>(1024, 720) }) { } 
+        public App(ISceneDisposer sceneDisposer, AppConfiguration appConfiguration, ILogger logger = null) 
+        {
+            if (lazy == null) lazy = this;
+
+            this.logger = logger; 
+            SceneDisposer = sceneDisposer;
+
+            CreateWindow(
+                resolution: appConfiguration.Resolution, 
+                title: appConfiguration.Title, 
+                updateFrequency: appConfiguration.UpdateFrequency);
+        }
 
         public void CreateWindow(Vector2D<int> resolution, string title = null, double updateFrequency = 60)
         {
             CreateWindow(resolution.X, resolution.Y, title, updateFrequency);
         }
 
-        public void CreateWindow(int width, int height, string title = null, double updateFrequency = 60)
+        private void CreateWindow(int width, int height, string title = null, double updateFrequency = 60)
         {
             GameWindowSettings gameWindowSettings = new()
             {
@@ -77,5 +87,12 @@ namespace OpenGLCore
         {
             Window?.Dispose();
         }
+    }
+
+    public class AppConfiguration
+    {
+        public Vector2D<int> Resolution { get; set; }
+        public string? Title { get; set; } = null;
+        public double UpdateFrequency { get; set; } = 60;
     }
 }

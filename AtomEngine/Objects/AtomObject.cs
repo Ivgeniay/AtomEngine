@@ -2,6 +2,10 @@
 using AtomEngine.Serialize; 
 using AtomEngine.Scenes;
 using System.Text.Json;
+using AtomEngine.Math;
+using AtomEngine.Services;
+using AtomEngine.Diagnostic;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AtomEngine
 {
@@ -12,18 +16,35 @@ namespace AtomEngine
             {
                 if (_transform == null)
                 {
-                    _transform = GetComponent<TransformComponent>();
+                    _transform = this.GetComponent<TransformComponent>();
                     if (_transform == null) _transform = AddComponent(new TransformComponent()); 
                 }
                 return _transform;
             }
         } 
         private TransformComponent _transform;
-        internal Scene Scene { get; set; }
         internal int Length => componentsStorage.Count;
+        protected List<Diction> componentsStorage = new List<Diction>();
+        protected readonly AtomObjectContainer _diContainer;
+        protected readonly ILogger? _logger;
+        protected readonly Scene _scene;
 
-        private List<Diction> componentsStorage = new List<Diction>();
-        public AtomObject() { }
+        public AtomObject(SceneDIContainer sceneDIContainer, ILogger logger = null) 
+        { 
+            _diContainer = new AtomObjectContainer(sceneDIContainer);
+            ContainerSetup(_diContainer.GetServiceCollection());
+            _diContainer.BuildContainer();
+
+            _scene = _diContainer.GetService<Scene>();
+            _transform = AddComponent(new TransformComponent());
+        } 
+
+        private void ContainerSetup(IServiceCollection sceneServicesCollection)
+        {
+            sceneServicesCollection
+                .AddSingleton<AtomObjectContainer>(this._diContainer)
+                .AddSingleton<AtomObject, AtomObject>(options => this);
+        }
 
         public virtual void Start() => componentsStorage.ForEach(e => e?.Component?.Start());
         public virtual void Awake() => componentsStorage.ForEach(e => e?.Component?.Awake()); 
@@ -34,9 +55,8 @@ namespace AtomEngine
         public virtual void OnDisable() => componentsStorage.ForEach(e => e?.Component?.OnDisable()); 
         public virtual void Render() => componentsStorage.ForEach(e => e?.Component?.Render());
         public virtual void OnUnload() => componentsStorage.ForEach(e => e?.Component?.OnUnload());
-
-        public T Instantiale<T>(params object[] constructParams) where T : AtomObject =>
-            Scene.Instantiate<T>(constructParams);
+        public virtual void WindowResize(Vector2D<int> size) => componentsStorage.ForEach(e => e?.Component?.WindowResize(size));
+        public T Instantiale<T>() where T : AtomObject => _scene.Instantiate<T>();
 
 
         public T AddComponent<T>(T component) where T : BaseComponent
@@ -52,22 +72,21 @@ namespace AtomEngine
         {
             var result = componentsStorage
                 .FirstOrDefault(e => typeof(T).IsAssignableFrom(e?.Component?.GetType()));
-            return result == null ? default(T) : (T)result.Component;
+            return result == null ? null : (T)result.Component;
         }
 
         public T? GetComponent<T>() where T : BaseComponent
         { 
             var result = componentsStorage
                 .FirstOrDefault(e => e.Type == typeof(T).FullName);
-            return result == null ? default(T) : (T)result.Component;
+            return result == null ? null : (T)result.Component;
         }
 
-        public List<T> GetComponents<T>() where T : BaseComponent
-        { 
+        public IEnumerable<T> GetComponents<T>() where T : BaseComponent
+        {
             return componentsStorage
-                    .Where(e => e?.Component is T)
-                    .Select(e => (T)e.Component)
-                    .ToList();
+                    .Where(e => e.Component is T)
+                    .Select(e => (T)e.Component);
         }
 
         public void RemovedComponents<T>() where T : BaseComponent
@@ -76,7 +95,7 @@ namespace AtomEngine
         }
 
         public void Dispose() {
-            componentsStorage.ForEach(e => e.Component.Dispose());
+            componentsStorage.ForEach(e => e.Component?.Dispose());
         }
 
         public IDisposable AsDisposable() => this;
@@ -101,11 +120,11 @@ namespace AtomEngine
                 })
                 .ToList();
         }
-         
-        private class Diction : ISerializable
+
+        protected class Diction : ISerializable
         {
             public string Type { get; set; } = string.Empty;
-            public BaseComponent? Component { get; set; } = default(BaseComponent);
+            public BaseComponent Component { get; set; } = default(BaseComponent);
 
             public JsonObject OnSerialize()
             {

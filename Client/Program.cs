@@ -1,5 +1,8 @@
-﻿using AtomEngine.Diagnostic;
-using AtomEngine.Math; 
+﻿using Microsoft.Extensions.DependencyInjection;
+using AtomEngine.Diagnostic;
+using AtomEngine.Services;
+using AtomEngine.Scenes;
+using AtomEngine.Math;
 using OpenGLCore;
 
 namespace Client
@@ -8,15 +11,35 @@ namespace Client
     { 
         static void Main(string[] args)
         { 
-            ILogger logger = new Logger();
+            using(DIContainer di = new DIContainer()) {
+                di.GetServiceCollection()
+                    .AddSingleton<DIContainer>(di)
+                    .AddSingleton<ILogger, Logger>()
+                    .AddSingleton<ISceneDisposer, SceneDisposer>()
+                    .AddScoped<SceneDIContainer>()
+                    .AddTransient<AppConfiguration>(options => 
+                        new AppConfiguration() {
+                            Resolution = new Vector2D<int>(1024, 768),
+                            Title = "Atom Engine",
+                            UpdateFrequency = 144})
+                    .AddSingleton<App>()
+                    .AddSingleton<GLScene>();
 
-            using (App core = new App(logger)) {
-                core.CreateWindow(new Vector2D<int>(1024, 768), updateFrequency: 144);
-                core.SceneDisposer.AddScene(new SceneOne("SceneOne", logger));
-                core.SceneDisposer.AddScene(new SceneTwo("SceneTwo", logger));
-                core.SceneDisposer.LoadScene("SceneOne");
-                core.Run();
-            } 
+                di.BuildContainer();
+                
+                App core = di.GetService<App>();
+                using (core)
+                {
+
+                    GLScene scene = new GLScene(di, di.GetService<ILogger>());
+                    //var glScene = di.GetService<GLScene>();
+                    var sceneDisposer = di.GetService<ISceneDisposer>();
+                    sceneDisposer.AddScene(scene);
+                    sceneDisposer.LoadScene(scene);
+
+                    core.Run();
+                } 
+            }
         }
     }
 

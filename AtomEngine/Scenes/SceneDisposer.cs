@@ -3,7 +3,7 @@ using AtomEngine.Math;
 
 namespace AtomEngine.Scenes
 {
-    public sealed class SceneDisposer
+    public sealed class SceneDisposer : ISceneDisposer
     {
         private readonly List<Scene> _scenes = new List<Scene>();
         private Scene? _currentScene;
@@ -20,7 +20,7 @@ namespace AtomEngine.Scenes
             if (!_scenes.Contains(scene))
             {
                 _scenes.Add(scene);
-                logger?.Log($"Scene {scene.Name} added to SceneDisposer");
+                logger?.Log($"Scene {scene.ID} added to SceneDisposer");
             }
         }
 
@@ -29,7 +29,7 @@ namespace AtomEngine.Scenes
             foreach (var scene in scenes)
             {
                 AddScene(scene);
-                logger?.Log($"Scene {scene.Name} added to SceneDisposer");
+                logger?.Log($"Scene {scene.ID} added to SceneDisposer");
             }
         }
 
@@ -40,7 +40,7 @@ namespace AtomEngine.Scenes
                 if (_currentScene == scene)
                 {
                     _currentScene = null;
-                    logger?.Log($"Scene {scene.Name} removed from SceneDisposer");
+                    logger?.Log($"Scene {scene.ID} removed from SceneDisposer");
                 }
 
                 scene.Unload(); 
@@ -48,13 +48,13 @@ namespace AtomEngine.Scenes
             }
         }
 
-        public void RemoveScene(string name)
+        public void RemoveScene(string id)
         {
-            Scene? scene = _scenes.Find(scene => scene.Name == name);
+            Scene? scene = _scenes.Find(scene => scene.ID == id);
             if (scene != null)
             {
                 RemoveScene(scene);
-                logger?.Log($"Scene {scene.Name} removed from SceneDisposer");
+                logger?.Log($"Scene {scene.ID} removed from SceneDisposer");
             }
         }
 
@@ -63,17 +63,32 @@ namespace AtomEngine.Scenes
             foreach (var scene in scenes)
             {
                 RemoveScene(scene);
-                logger?.Log($"Scene {scene.Name} removed from SceneDisposer");
+                logger?.Log($"Scene {scene.ID} removed from SceneDisposer");
             } 
         }
 
-        public void LoadScene(string name)
+        public void LoadScene(string id)
         {
-            if (_currentScene?.Name == name && _currentScene.IsLoaded) return;
+            if (_currentScene?.ID == id && _currentScene.IsLoaded) return;
 
             _currentScene?.Unload();
 
-            _currentScene = _scenes.Find(scene => scene.Name == name);
+            _currentScene = _scenes.Find(scene => scene.ID == id);
+            _currentScene?.Load();
+        }
+
+        public void LoadScene(Scene scene)
+        {
+            if (_currentScene?.ID == scene.ID && _currentScene.IsLoaded) return;
+
+            _currentScene?.Unload();
+
+            _currentScene = _scenes.FirstOrDefault(scene => scene.ID == scene.ID);
+            if (_currentScene == null)
+            {
+                _scenes.Add(scene);
+                _currentScene = scene;
+            }
             _currentScene?.Load();
         }
 

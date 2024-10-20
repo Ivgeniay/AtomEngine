@@ -53,6 +53,6 @@
                 currentDirectory = Directory.GetParent(currentDirectory)?.FullName;
             }
             throw new DirectoryNotFoundException("Could not find project root directory.");
-        }
+        } 
     }
 }

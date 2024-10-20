@@ -47,5 +47,10 @@ namespace AtomEngine.Math
         public static double Lerp(double a, double b, double t) => a + (b - a) * t;
         public static int LerpInt(int a, int b, double t) => (int)(a + (b - a) * t);
 
+        public static float DegToRad(float degrees) => degrees * ((float)Constants.PI / 180f); 
+        public static double DegToRad(double degrees) => degrees * (Constants.PI / 180f); 
+        public static float RadToDeg(float radians) => radians * (180f / (float)Constants.PI); 
+        public static double RadToDeg(double radians) => radians * (180f / Constants.PI); 
+
     }
 }

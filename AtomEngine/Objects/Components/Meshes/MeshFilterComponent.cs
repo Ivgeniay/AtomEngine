@@ -6,11 +6,12 @@ namespace AtomEngine
     {
         public Mesh? Mesh;
         public MeshFilterComponent() : base() { }
-
-
+        
 
         public override void OnDeserialize(JsonObject json)
-        { }
+        { 
+
+        }
 
         public override JsonObject OnSerialize()
         {
