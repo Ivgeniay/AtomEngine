@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EngineLib
+namespace EngineLib.Tests
 {
-    internal class Entity
+    public class ResourceManagerTests
     {
     }
 }

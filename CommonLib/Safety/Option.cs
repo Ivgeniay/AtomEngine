@@ -1,110 +1,73 @@
-﻿public struct Option<TValue>
+﻿public readonly struct Option<T>
 {
-    private readonly Some<TValue>? Some;
-    private readonly None? None; 
+    private readonly T _value;
+    private readonly bool _hasValue;
 
-    public Option(TValue? value)
+    private Option(T value, bool hasValue)
     {
-        if (value == null) 
-            None = new None();
-        else
-        {
-            Some = new Some<TValue>(value);
-        }
+        _value = value;
+        _hasValue = hasValue;
     }
 
-    public Option(None none)
-    {
-        None = none;
-    }
-
-    public Option(Some<TValue> value)
+    public static Option<T> Some(T value)
     {
         if (value == null)
-            throw new NullValue("Some value is null");
+            throw new ArgumentNullException(nameof(value), "Cannot create Some with null value");
+        return new Option<T>(value, true);
+    }
+    public static Option<T> None() => new Option<T>(default!, false);
+    
+    public T Unwrap()
+    {
+        if (!_hasValue)
+            throw new InvalidOperationException("Cannot unwrap None value");
+        return _value;
+    }
+    public T Expect(string message)
+    {
+        if (!_hasValue)
+            throw new InvalidOperationException(message);
+        return _value;
+    }
+    public T UnwrapOr(T defaultValue) => _hasValue ? _value : defaultValue;
+    public T UnwrapOrElse(Func<T> provider) => _hasValue ? _value : provider();
 
-        Some = value;
+    public bool IsSome() => _hasValue;
+    public bool IsNone() => !_hasValue;
+
+    // Преобразование значений
+    public Option<TResult> Map<TResult>(Func<T, TResult> mapper) where TResult : notnull
+    {
+        if (!_hasValue)
+            return Option<TResult>.None();
+        return Option<TResult>.Some(mapper(_value));
     }
 
-    public Option(Some value)
+    // Операторы преобразования
+    public static implicit operator Option<T>(T value) =>
+        value == null ? None() : Some(value);
+
+    // Методы для сравнения
+    public override bool Equals(object? obj)
     {
-        if (value == null)
-            throw new NullValue("Some value is null");
-        try
+        if (obj is Option<T> other)
         {
-            Some = new Some<TValue>((TValue)value.Value);
+            if (!_hasValue && !other._hasValue)
+                return true;
+            if (_hasValue && other._hasValue)
+                return EqualityComparer<T>.Default.Equals(_value, other._value);
         }
-        catch (Exception e)
-        {
-            throw new InvalidType($"Some value has invalid type.\n{e}");
-        }
-        finally
-        {
-            Some = null;
-            None = new None();
-        }
+        return false;
     }
 
-    public TValue Unwrap()
+    public override int GetHashCode()
     {
-        if (Some == null) throw new NullValue("Option is None");
-        return Some.Value;
+        if (!_hasValue)
+            return 0;
+        return _value?.GetHashCode() ?? 0;
     }
 
-    public TValue Expect(string message)
-    {
-        if (Some == null)
-        {
-            throw new NullValue(message);
-        }
-        return Some.Value;
-    }
-
-    public TValue UnwrapOrElse(Func<TValue> action)
-    {
-        if (Some == null)
-        {
-            return action();
-        }
-        return Some.Value;
-    }
-
-    public TValue UnwrapOr(TValue default_v)
-    {
-        if (Some == null)
-        {
-            return default_v;
-        }
-        return Some.Value;
-    }
-
-    public bool IsSome()
-    {
-        return Some != null;
-    }
-
-    public bool IsNone()
-    {
-        return None != null;
-    }
+    // Строковое представление
+    public override string ToString() =>
+        _hasValue ? $"Some({_value})" : "None";
 }
-
-public class Some
-{
-    public readonly object Value;
-    public Some(object v)
-    {
-        Value = v;
-    }
-}
-
-public class Some<T>
-{
-    public readonly T Value;
-    public Some(T v)
-    {
-        Value = v;
-    }
-}
-
-public class None{}

@@ -1,9 +1,10 @@
-﻿using Silk.NET.Maths;
+﻿using EngineLib.RenderEntity;
+using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 
 namespace OpenglLib
 {
-    public class Shader : IDisposable
+    public class Shader : ShaderBase
     {
         private readonly uint _handle;
         private readonly GL _gl;
@@ -85,12 +86,12 @@ void main()
             }
         }
 
-        public void Use()
+        public override void Use()
         {
             _gl.UseProgram(_handle);
         }
 
-        public void SetUniform(string name, object value)
+        public override void SetUniform(string name, object value)
         {
             if (!_uniformLocations.TryGetValue(name, out int location))
             {
@@ -264,7 +265,7 @@ void main()
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             _gl.DeleteProgram(_handle);
         }

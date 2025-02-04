@@ -1,14 +1,10 @@
-﻿using OpenglLib.Buffers;
+﻿using EngineLib.RenderEntity;
+using OpenglLib.Buffers;
 using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace OpenglLib
 {
-    public class Mesh : IDisposable
+    public class Mesh : MeshBase
     {
         private readonly GL _gl;
         private readonly VAO _vao;
@@ -54,7 +50,7 @@ namespace OpenglLib
                 .WithAttribute(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
         }
 
-        public unsafe void Draw(Shader shader)
+        public override unsafe void Draw(ShaderBase shader)
         {
             shader.Use();
             _vao.Bind();
@@ -71,7 +67,7 @@ namespace OpenglLib
             _vao.Unbind();
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             _vao.Dispose();
             _vbo.Dispose();

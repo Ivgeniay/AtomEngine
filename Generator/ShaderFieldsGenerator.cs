@@ -106,8 +106,6 @@ namespace Generator
             }
         }
 
-        
-
         public void Initialize(GeneratorInitializationContext context) { }
     }
 

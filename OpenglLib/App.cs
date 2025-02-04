@@ -15,6 +15,7 @@ namespace OpenglLib
         private IWindow? _window;
         private IInputContext? _input;
         private ILogger? _logger;
+        private AppOptions appOptions;
         private GL? _gl;
 
         private Queue<double> _fpsHistory = new Queue<double>();
@@ -23,6 +24,7 @@ namespace OpenglLib
 
         public App(AppOptions options)
         {
+            appOptions = options;
             this._logger = options.Logger;
             GLSLTypeManager.Instance.Logger = this._logger;
             GLSLTypeManager.Instance.LazyInitializer();
@@ -116,8 +118,9 @@ void main()
 
         private void OnRender(double deltaTime)
         {
-            _gl?.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-            _gl?.Clear((uint)ClearBufferMask.ColorBufferBit);
+            //_gl?.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+            _gl?.ClearColor(appOptions.BackgroundColor.Item1, appOptions.BackgroundColor.Item2, appOptions.BackgroundColor.Item3, appOptions.BackgroundColor.Item4);
+            _gl?.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
 
         private void OnClose()
@@ -150,6 +153,7 @@ void main()
         public bool Debug { get; set; } = false;
         public ILogger? Logger { get; set; }
         public Platform Platform { get; set; } = Platform.Exe;
+        public Tuple<float, float, float, float> BackgroundColor { get; set; } = Tuple.Create<float, float, float, float> ( 0.1f, 0.1f, 0.1f, 0.1f );
     }
 
     public enum Platform
