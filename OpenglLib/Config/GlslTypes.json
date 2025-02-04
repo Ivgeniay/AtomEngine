@@ -1,0 +1,638 @@
+{
+  "float": {
+    "gl_code": 5126,
+    "gl_define": "GL_FLOAT",
+    "glsl_mark": "float",
+    "std140": 4,
+    "std430": 4,
+    "default": 0,
+    "version": 1
+  },
+  "int": {
+    "gl_code": 5124,
+    "gl_define": "GL_INT",
+    "glsl_mark": "int",
+    "std140": 4,
+    "std430": 4,
+    "default": 0,
+    "version": 1
+  },
+  "bool": {
+    "gl_code": 35670,
+    "gl_define": "GL_BOOL",
+    "glsl_mark": "bool",
+    "std140": 4,
+    "std430": 4,
+    "default": false,
+    "version": 1
+  },
+  "vec2": {
+    "gl_code": 35664,
+    "gl_define": "GL_FLOAT_VEC2",
+    "glsl_mark": "vec2",
+    "std140": 8,
+    "std430": 8,
+    "default": [
+      0,
+      0
+    ],
+    "version": 1
+  },
+  "vec3": {
+    "gl_code": 35665,
+    "gl_define": "GL_FLOAT_VEC3",
+    "glsl_mark": "vec3",
+    "std140": 16,
+    "std430": 12,
+    "default": [
+      0,
+      0,
+      0
+    ],
+    "version": 1
+  },
+  "vec4": {
+    "gl_code": 35666,
+    "gl_define": "GL_FLOAT_VEC4",
+    "glsl_mark": "vec4",
+    "std140": 16,
+    "std430": 16,
+    "default": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "version": 1
+  },
+  "ivec2": {
+    "gl_code": 35667,
+    "gl_define": "GL_INT_VEC2",
+    "glsl_mark": "ivec2",
+    "std140": 8,
+    "std430": 8,
+    "default": [
+      0,
+      0
+    ],
+    "version": 1
+  },
+  "ivec3": {
+    "gl_code": 35668,
+    "gl_define": "GL_INT_VEC3",
+    "glsl_mark": "ivec3",
+    "std140": 16,
+    "std430": 12,
+    "default": [
+      0,
+      0,
+      0
+    ],
+    "version": 1
+  },
+  "ivec4": {
+    "gl_code": 35669,
+    "gl_define": "GL_INT_VEC4",
+    "glsl_mark": "ivec4",
+    "std140": 16,
+    "std430": 16,
+    "default": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "version": 1
+  },
+  "bvec2": {
+    "gl_code": 35670,
+    "gl_define": "GL_BOOL_VEC2",
+    "glsl_mark": "bvec2",
+    "std140": 8,
+    "std430": 8,
+    "default": [
+      false,
+      false
+    ],
+    "version": 1
+  },
+  "bvec3": {
+    "gl_code": 35671,
+    "gl_define": "GL_BOOL_VEC3",
+    "glsl_mark": "bvec3",
+    "std140": 16,
+    "std430": 12,
+    "default": [
+      false,
+      false,
+      false
+    ],
+    "version": 1
+  },
+  "bvec4": {
+    "gl_code": 35672,
+    "gl_define": "GL_BOOL_VEC4",
+    "glsl_mark": "bvec4",
+    "std140": 16,
+    "std430": 16,
+    "default": [
+      false,
+      false,
+      false,
+      false
+    ],
+    "version": 1
+  },
+  "mat2": {
+    "gl_code": 35674,
+    "gl_define": "GL_FLOAT_MAT2",
+    "glsl_mark": "mat2",
+    "std140": 32,
+    "std430": 16,
+    "default": [
+      1,
+      0,
+      0,
+      1
+    ],
+    "version": 1
+  },
+  "mat3": {
+    "gl_code": 35675,
+    "gl_define": "GL_FLOAT_MAT3",
+    "glsl_mark": "mat3",
+    "std140": 48,
+    "std430": 36,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1
+    ],
+    "version": 1
+  },
+  "mat4": {
+    "gl_code": 35676,
+    "gl_define": "GL_FLOAT_MAT4",
+    "glsl_mark": "mat4",
+    "std140": 64,
+    "std430": 64,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    "version": 1
+  },
+  "mat2x3": {
+    "gl_code": 35685,
+    "gl_define": "GL_FLOAT_MAT2x3",
+    "glsl_mark": "mat2x3",
+    "std140": 32,
+    "std430": 24,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0
+    ],
+    "version": 2
+  },
+  "mat2x4": {
+    "gl_code": 35686,
+    "gl_define": "GL_FLOAT_MAT2x4",
+    "glsl_mark": "mat2x4",
+    "std140": 32,
+    "std430": 32,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0
+    ],
+    "version": 2
+  },
+  "mat3x2": {
+    "gl_code": 35687,
+    "gl_define": "GL_FLOAT_MAT3x2",
+    "glsl_mark": "mat3x2",
+    "std140": 48,
+    "std430": 24,
+    "default": [
+      1,
+      0,
+      0,
+      1,
+      0,
+      0
+    ],
+    "version": 2
+  },
+  "mat3x4": {
+    "gl_code": 35688,
+    "gl_define": "GL_FLOAT_MAT3x4",
+    "glsl_mark": "mat3x4",
+    "std140": 48,
+    "std430": 48,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0
+    ],
+    "version": 2
+  },
+  "mat4x2": {
+    "gl_code": 35689,
+    "gl_define": "GL_FLOAT_MAT4x2",
+    "glsl_mark": "mat4x2",
+    "std140": 64,
+    "std430": 32,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    "version": 2
+  },
+  "mat4x3": {
+    "gl_code": 35690,
+    "gl_define": "GL_FLOAT_MAT4x3",
+    "glsl_mark": "mat4x3",
+    "std140": 64,
+    "std430": 48,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    "version": 2
+  },
+  "sampler2D": {
+    "gl_code": 35678,
+    "gl_define": "GL_SAMPLER_2D",
+    "glsl_mark": "sampler2D",
+    "std140": 4,
+    "std430": 4,
+    "default": 0,
+    "version": 1
+  },
+  "sampler3D": {
+    "gl_code": 35679,
+    "gl_define": "GL_SAMPLER_3D",
+    "glsl_mark": "sampler3D",
+    "std140": 4,
+    "std430": 4,
+    "default": 0,
+    "version": 1
+  },
+  "samplerCube": {
+    "gl_code": 35680,
+    "gl_define": "GL_SAMPLER_CUBE",
+    "glsl_mark": "samplerCube",
+    "std140": 4,
+    "std430": 4,
+    "default": 0,
+    "version": 1
+  },
+  "sampler2DShadow": {
+    "gl_code": 35682,
+    "gl_define": "GL_SAMPLER_2D_SHADOW",
+    "glsl_mark": "sampler2DShadow",
+    "std140": 4,
+    "std430": 4,
+    "default": 0,
+    "version": 2
+  },
+  "sampler1D": {
+    "gl_code": 36289,
+    "gl_define": "GL_SAMPLER_1D",
+    "glsl_mark": "sampler1D",
+    "std140": 4,
+    "std430": 4,
+    "default": 0,
+    "version": 1
+  },
+  "sampler1DShadow": {
+    "gl_code": 36290,
+    "gl_define": "GL_SAMPLER_1D_SHADOW",
+    "glsl_mark": "sampler1DShadow",
+    "std140": 4,
+    "std430": 4,
+    "default": 0,
+    "version": 2
+  },
+  "samplerCubeShadow": {
+    "gl_code": 36291,
+    "gl_define": "GL_SAMPLER_CUBE_SHADOW",
+    "glsl_mark": "samplerCubeShadow",
+    "std140": 4,
+    "std430": 4,
+    "default": 0,
+    "version": 2
+  },
+  "uvec2": {
+    "gl_code": 36294,
+    "gl_define": "GL_UNSIGNED_INT_VEC2",
+    "glsl_mark": "uvec2",
+    "std140": 8,
+    "std430": 8,
+    "default": [
+      0,
+      0
+    ],
+    "version": 3
+  },
+  "uvec3": {
+    "gl_code": 36295,
+    "gl_define": "GL_UNSIGNED_INT_VEC3",
+    "glsl_mark": "uvec3",
+    "std140": 16,
+    "std430": 12,
+    "default": [
+      0,
+      0,
+      0
+    ],
+    "version": 3
+  },
+  "uvec4": {
+    "gl_code": 36296,
+    "gl_define": "GL_UNSIGNED_INT_VEC4",
+    "glsl_mark": "uvec4",
+    "std140": 16,
+    "std430": 16,
+    "default": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "version": 3
+  },
+  "double": {
+    "gl_code": 36860,
+    "gl_define": "GL_DOUBLE",
+    "glsl_mark": "double",
+    "std140": 8,
+    "std430": 8,
+    "default": 0,
+    "version": 4
+  },
+  "dvec2": {
+    "gl_code": 36861,
+    "gl_define": "GL_DOUBLE_VEC2",
+    "glsl_mark": "dvec2",
+    "std140": 16,
+    "std430": 16,
+    "default": [
+      0,
+      0
+    ],
+    "version": 4
+  },
+  "dvec3": {
+    "gl_code": 36862,
+    "gl_define": "GL_DOUBLE_VEC3",
+    "glsl_mark": "dvec3",
+    "std140": 32,
+    "std430": 24,
+    "default": [
+      0,
+      0,
+      0
+    ],
+    "version": 4
+  },
+  "dvec4": {
+    "gl_code": 36863,
+    "gl_define": "GL_DOUBLE_VEC4",
+    "glsl_mark": "dvec4",
+    "std140": 32,
+    "std430": 32,
+    "default": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "version": 4
+  },
+  "dmat2": {
+    "gl_code": 36864,
+    "gl_define": "GL_DOUBLE_MAT2",
+    "glsl_mark": "dmat2",
+    "std140": 64,
+    "std430": 32,
+    "default": [
+      1,
+      0,
+      0,
+      1
+    ],
+    "version": 4
+  },
+  "dmat3": {
+    "gl_code": 36865,
+    "gl_define": "GL_DOUBLE_MAT3",
+    "glsl_mark": "dmat3",
+    "std140": 96,
+    "std430": 72,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1
+    ],
+    "version": 4
+  },
+  "dmat4": {
+    "gl_code": 36866,
+    "gl_define": "GL_DOUBLE_MAT4",
+    "glsl_mark": "dmat4",
+    "std140": 128,
+    "std430": 128,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    "version": 4
+  },
+  "dmat2x3": {
+    "gl_code": 36867,
+    "gl_define": "GL_DOUBLE_MAT2x3",
+    "glsl_mark": "dmat2x3",
+    "std140": 64,
+    "std430": 48,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0
+    ],
+    "version": 4
+  },
+  "dmat2x4": {
+    "gl_code": 36868,
+    "gl_define": "GL_DOUBLE_MAT2x4",
+    "glsl_mark": "dmat2x4",
+    "std140": 64,
+    "std430": 64,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0
+    ],
+    "version": 4
+  },
+  "dmat3x2": {
+    "gl_code": 36869,
+    "gl_define": "GL_DOUBLE_MAT3x2",
+    "glsl_mark": "dmat3x2",
+    "std140": 96,
+    "std430": 48,
+    "default": [
+      1,
+      0,
+      0,
+      1,
+      0,
+      0
+    ],
+    "version": 4
+  },
+  "dmat3x4": {
+    "gl_code": 36870,
+    "gl_define": "GL_DOUBLE_MAT3x4",
+    "glsl_mark": "dmat3x4",
+    "std140": 96,
+    "std430": 96,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0
+    ],
+    "version": 4
+  },
+  "dmat4x2": {
+    "gl_code": 36871,
+    "gl_define": "GL_DOUBLE_MAT4x2",
+    "glsl_mark": "dmat4x2",
+    "std140": 128,
+    "std430": 64,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    "version": 4
+  },
+  "dmat4x3": {
+    "gl_code": 36872,
+    "gl_define": "GL_DOUBLE_MAT4x3",
+    "glsl_mark": "dmat4x3",
+    "std140": 128,
+    "std430": 96,
+    "default": [
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    "version": 4
+  }
+}
