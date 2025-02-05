@@ -1,5 +1,4 @@
-﻿using EngineLib.Componentns;
-
+﻿
 namespace EngineLib.Tests
 {
     public class WorldTests
@@ -14,7 +13,7 @@ namespace EngineLib.Tests
             var entity = world.CreateEntity();
 
             // Assert
-            Assert.True(world.IsEntityValid(entity));
+            Assert.True(world.IsEntityValid(ref entity));
         }
 
         [Fact]
@@ -26,11 +25,12 @@ namespace EngineLib.Tests
             var component = new TransformComponent(entity);
 
             // Act
-            world.AddComponent(entity, component);
+            world.AddComponent(ref entity, component);
 
             // Assert
-            var result = world.GetComponentOrNone<TransformComponent>(entity);
-            Assert.True(result.IsSome());
+            var result = world.GetComponent<TransformComponent>(ref entity);
+            var exception = Record.Exception(() => world.GetComponent<TransformComponent>(ref entity));
+            Assert.Null(exception);
         }
 
         [Fact]
@@ -41,10 +41,10 @@ namespace EngineLib.Tests
             var entity = world.CreateEntity();
 
             // Act
-            world.DestroyEntity(entity);
+            world.DestroyEntity(ref entity);
 
             // Assert
-            Assert.False(world.IsEntityValid(entity));
+            Assert.False(world.IsEntityValid(ref entity));
         }
     }
 }

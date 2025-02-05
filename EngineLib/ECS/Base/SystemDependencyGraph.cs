@@ -6,22 +6,22 @@
         private readonly Dictionary<System, HashSet<System>> _dependents = new();
         private readonly HashSet<System> _allSystems = new();
 
+        public void AddSystem(System system)
+        {
+            _allSystems.Add(system);
+            if (!_dependencies.ContainsKey(system))
+                _dependencies[system] = new HashSet<System>();
+            if (!_dependents.ContainsKey(system))
+                _dependents[system] = new HashSet<System>();
+        }
+
         public void AddDependency(System dependent, System dependency)
         {
-            _allSystems.Add(dependent);
-            _allSystems.Add(dependency);
+            if (dependent == null || dependency == null)
+                throw new ArgumentNullException();
 
-            if (!_dependencies.ContainsKey(dependent))
-                _dependencies[dependent] = new HashSet<System>();
-
-            if (!_dependencies.ContainsKey(dependency))
-                _dependencies[dependency] = new HashSet<System>();
-
-            if (!_dependents.ContainsKey(dependent))
-                _dependents[dependent] = new HashSet<System>();
-
-            if (!_dependents.ContainsKey(dependency))
-                _dependents[dependency] = new HashSet<System>();
+            AddSystem(dependent);
+            AddSystem(dependency);
 
             _dependencies[dependent].Add(dependency);
             _dependents[dependency].Add(dependent);

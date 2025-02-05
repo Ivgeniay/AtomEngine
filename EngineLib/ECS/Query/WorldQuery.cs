@@ -27,87 +27,17 @@
             }
         }
 
-
-        public bool HasComponent(Entity entity, Type componentType)
+        public bool HasComponent(ref Entity entity, Type componentType)
         {
+            if (!IsEntityValid(ref entity))
+                return false;
+
             if (!componentType.IsValueType || !typeof(IComponent).IsAssignableFrom(componentType))
             {
                 throw new ArgumentException($"Type {componentType} must be a struct implementing IComponent");
             }
 
-            return _components.TryGetValue(componentType, out var components) &&
-                   components.ContainsKey(entity.Id);
-        }
-        public bool HasComponent<T>(Entity entity) where T : struct, IComponent
-        {
-            return HasComponent(entity, typeof(T));
-        }
-
-
-        public IEnumerable<Entity> GetEntitiesWith<T1, T2>()
-            where T1 : struct, IComponent
-            where T2 : struct, IComponent
-        {
-            return CreateQuery()
-                .With<T1>()
-                .With<T2>()
-                .Build();
-        }
-        public IEnumerable<Entity> GetEntitiesWith<T1, T2, T3>()
-            where T1 : struct, IComponent
-            where T2 : struct, IComponent
-            where T3 : struct, IComponent
-        {
-            return CreateQuery()
-                .With<T1>()
-                .With<T2>()
-                .With<T3>()
-                .Build();
-        }
-        public IEnumerable<Entity> GetEntitiesWith<T1, T2, T3, T4>()
-            where T1 : struct, IComponent
-            where T2 : struct, IComponent
-            where T3 : struct, IComponent
-            where T4 : struct, IComponent
-        {
-            return CreateQuery()
-                .With<T1>()
-                .With<T2>()
-                .With<T3>()
-                .With<T4>()
-                .Build();
-        }
-        public IEnumerable<Entity> GetEntitiesWith<T1, T2, T3, T4, T5>()
-            where T1 : struct, IComponent
-            where T2 : struct, IComponent
-            where T3 : struct, IComponent
-            where T4 : struct, IComponent
-            where T5 : struct, IComponent
-        {
-            return CreateQuery()
-                .With<T1>()
-                .With<T2>()
-                .With<T3>()
-                .With<T4>()
-                .With<T5>()
-                .Build();
-        }
-        public IEnumerable<Entity> GetEntitiesWith<T1, T2, T3, T4, T5, T6>()
-            where T1 : struct, IComponent
-            where T2 : struct, IComponent
-            where T3 : struct, IComponent
-            where T4 : struct, IComponent
-            where T5 : struct, IComponent
-            where T6 : struct, IComponent
-        {
-            return CreateQuery()
-                .With<T1>()
-                .With<T2>()
-                .With<T3>()
-                .With<T4>()
-                .With<T5>()
-                .With<T6>()
-                .Build();
+            return _componentPool.HasComponentOfType(entity.Id, componentType);
         }
 
         internal IEnumerable<Entity> GetEntitiesWith(Type componentType)
@@ -117,14 +47,14 @@
                 throw new ArgumentException($"Type {componentType} must be a struct implementing IComponent");
             }
 
-            if (_components.TryGetValue(componentType, out var components))
+            // Получаем все entityId для данного типа компонента напрямую из ComponentPool
+            var entityIds = _componentPool.GetAllEntitiesWithType(componentType);
+
+            foreach (var entityId in entityIds)
             {
-                foreach (var entityId in components.Keys)
+                if (_entityVersions.TryGetValue(entityId, out var version))
                 {
-                    if (_entityVersions.TryGetValue(entityId, out var version))
-                    {
-                        yield return new Entity(entityId, version);
-                    }
+                    yield return new Entity(entityId, version);
                 }
             }
         }
@@ -136,5 +66,75 @@
                 _activeQueries.RemoveAll(q => q == null);
             }
         }
+
+        // Вспомогательные методы для получения архетипов
+        public ReadOnlySpan<uint> GetArchetypeEntities<T>()
+            where T : struct, IComponent
+        {
+            return _archetypePool.GetEntitiesWith<T>();
+        }
+
+        public ReadOnlySpan<uint> GetArchetypeEntities<T1, T2>()
+            where T1 : struct, IComponent
+            where T2 : struct, IComponent
+        {
+            return _archetypePool.GetEntitiesWith<T1, T2>();
+        }
+
+        public ReadOnlySpan<uint> GetArchetypeEntities<T1, T2, T3>()
+            where T1 : struct, IComponent
+            where T2 : struct, IComponent
+            where T3 : struct, IComponent
+        {
+            return _archetypePool.GetEntitiesWith<T1, T2, T3>();
+        }
+
+        public ReadOnlySpan<uint> GetArchetypeEntities<T1, T2, T3, T4>()
+            where T1 : struct, IComponent
+            where T2 : struct, IComponent
+            where T3 : struct, IComponent
+            where T4 : struct, IComponent
+        {
+            return _archetypePool.GetEntitiesWith<T1, T2, T3, T4>();
+        }
+
+        // Методы для получения отфильтрованных сущностей через Query
+        public List<Entity> GetEntitiesWith<T1, T2>()
+            where T1 : struct, IComponent
+            where T2 : struct, IComponent
+        {
+            return CreateQuery()
+                .With<T1>()
+                .With<T2>()
+                .Build();
+        }
+
+        public List<Entity> GetEntitiesWith<T1, T2, T3>()
+            where T1 : struct, IComponent
+            where T2 : struct, IComponent
+            where T3 : struct, IComponent
+        {
+            return CreateQuery()
+                .With<T1>()
+                .With<T2>()
+                .With<T3>()
+                .Build();
+        }
+
+        public List<Entity> GetEntitiesWith<T1, T2, T3, T4>()
+            where T1 : struct, IComponent
+            where T2 : struct, IComponent
+            where T3 : struct, IComponent
+            where T4 : struct, IComponent
+        {
+            return CreateQuery()
+                .With<T1>()
+                .With<T2>()
+                .With<T3>()
+                .With<T4>()
+                .Build();
+        }
     }
+
+
 }

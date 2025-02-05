@@ -1,6 +1,4 @@
-﻿
-
-namespace EngineLib.RenderEntity
+﻿namespace EngineLib.RenderEntity
 {
     public abstract class MeshBase : IDisposable
     {

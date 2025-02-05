@@ -1,6 +1,6 @@
 ﻿using EngineLib.RenderEntity;
 
-namespace EngineLib.Componentns
+namespace EngineLib
 {
     public struct MeshComponent : IComponent, IDisposable
     {

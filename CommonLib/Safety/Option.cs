@@ -33,21 +33,16 @@
     public T UnwrapOrElse(Func<T> provider) => _hasValue ? _value : provider();
 
     public bool IsSome() => _hasValue;
-    public bool IsNone() => !_hasValue;
-
-    // Преобразование значений
+    public bool IsNone() => !_hasValue; 
     public Option<TResult> Map<TResult>(Func<T, TResult> mapper) where TResult : notnull
     {
         if (!_hasValue)
             return Option<TResult>.None();
         return Option<TResult>.Some(mapper(_value));
     }
-
-    // Операторы преобразования
+     
     public static implicit operator Option<T>(T value) =>
-        value == null ? None() : Some(value);
-
-    // Методы для сравнения
+        value == null ? None() : Some(value); 
     public override bool Equals(object? obj)
     {
         if (obj is Option<T> other)
@@ -65,9 +60,7 @@
         if (!_hasValue)
             return 0;
         return _value?.GetHashCode() ?? 0;
-    }
-
-    // Строковое представление
+    } 
     public override string ToString() =>
         _hasValue ? $"Some({_value})" : "None";
 }

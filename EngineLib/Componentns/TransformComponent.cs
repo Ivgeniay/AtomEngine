@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 
-namespace EngineLib.Componentns
+namespace EngineLib
 {
     public struct TransformComponent : IComponent
     {

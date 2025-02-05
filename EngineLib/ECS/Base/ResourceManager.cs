@@ -14,7 +14,7 @@
             resources.Add(resource);
         }
 
-        public void CleanupEntity(Entity entity)
+        public void CleanupEntity(ref Entity entity)
         {
             if (_resources.TryGetValue(entity, out var resources))
             {

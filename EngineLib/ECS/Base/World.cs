@@ -2,14 +2,17 @@
 
 namespace EngineLib
 {
-    public partial class World
+    public partial class World : IDisposable
     {
         private uint _nextEntityId = 0;
         private readonly List<System> _systems = new();
         private readonly SystemDependencyGraph _dependencyGraph = new();
         private readonly ResourceManager _resourceManager = new ResourceManager();
         private readonly ConcurrentDictionary<uint, uint> _entityVersions = new();
-        private readonly ConcurrentDictionary<Type, ConcurrentDictionary<uint, IComponent>> _components = new();
+        private readonly ComponentPool _componentPool = new();
+        private readonly ArchetypePool _archetypePool = new();
+        private readonly ConcurrentDictionary<uint, Archetype> _entityArchetypes = new();
+        private bool _isDisposed;
 
         public Entity CreateEntity()
         {
@@ -17,124 +20,144 @@ namespace EngineLib
             _entityVersions.TryAdd(id, 0);
             return new Entity(id, 0);
         }
-        public void AddComponent<T>(Entity entity, T component) where T : struct, IComponent
+        public ref T GetComponent<T>(ref Entity entity) where T : struct, IComponent
         {
-            var type = typeof(T);
-            var components = _components.GetOrAdd(type, _ => new ConcurrentDictionary<uint, IComponent>());
-            components[entity.Id] = component;
+            if (!IsEntityValid(ref entity))
+                throw new ArgumentException($"Entity {entity.Id} is not valid");
 
+            return ref _componentPool.GetComponent<T>(entity.Id);
+        }
+        public bool HasComponent<T>(ref Entity entity) where T : struct, IComponent
+        {
+            if (!IsEntityValid(ref entity))
+                return false;
+
+            return _componentPool.HasComponent<T>(entity.Id);
+        }
+        public ref T AddComponent<T>(ref Entity entity, in T component) where T : struct, IComponent
+        {
+            if (!IsEntityValid(ref entity))
+                throw new ArgumentException($"Entity {entity.Id} is not valid");
+
+            // Добавляем в ComponentPool
+            ref var addedComponent = ref _componentPool.AddComponent(entity.Id, component);
+            _entityArchetypes.TryRemove(entity.Id, out _);
+
+            // Если компонент реализует IDisposable, регистрируем его в ResourceManager
             if (component is IDisposable disposable)
             {
                 _resourceManager.RegisterResource(entity, disposable);
             }
 
+            // Добавляем в ArchetypePool, если нужно
+            Archetype currentArchetype = GetEntityArchetype(ref entity);
+            Type[] componentTypes = currentArchetype.Metadata
+                .Select(m => m.Type)
+                .Append(typeof(T))
+                .Distinct()
+                .ToArray();
+
+            ReadOnlySpan<IComponent> components = GatherComponents(ref entity, componentTypes);
+            _archetypePool.AddEntityToArchetype(entity.Id, components, componentTypes);
+
             InvalidateQueries();
+            return ref addedComponent;
         }
-        public Option<T> GetComponentOrNone<T>(Entity entity) where T : struct, IComponent
+        public void RemoveComponent<T>(ref Entity entity) where T : struct, IComponent
         {
-            var type = typeof(T);
-            if (_components.TryGetValue(type, out var components) &&
-                components.TryGetValue(entity.Id, out var component))
-            {
-                return Option<T>.Some((T)component);
-            }
-            return Option<T>.None();
-        }
-        public Result<T, ComponentError> GetComponent<T>(Entity entity) where T : struct, IComponent
-        {
-            var type = typeof(T);
-            if (!_components.TryGetValue(type, out var components))
-                return Result<T, ComponentError>.Err(new ComponentError($"Component type {type} not found"));
+            if (!IsEntityValid(ref entity))
+                return;
 
-            if (!components.TryGetValue(entity.Id, out var component))
-                return Result<T, ComponentError>.Err(new ComponentError($"Component not found for entity {entity.Id}"));
+            if (!_componentPool.TryGetComponent<T>(entity.Id, out T component))
+                return;
 
-            return Result<T, ComponentError>.Ok((T)component);
-        }
-        public Result<bool, ComponentError> RemoveComponent<T>(Entity entity) where T : struct, IComponent
-        {
-            if (!IsEntityValid(entity))
-            {
-                return Result<bool, ComponentError>.Err(
-                    new ComponentError($"Entity {entity.Id} is not valid"));
-            }
-
-            var type = typeof(T);
-
-            if (!_components.TryGetValue(type, out var components))
-            {
-                return Result<bool, ComponentError>.Err(
-                    new ComponentError($"Component type {type.Name} not registered"));
-            }
-            if (!components.TryRemove(entity.Id, out var component))
-            {
-                return Result<bool, ComponentError>.Err(
-                    new ComponentError($"Entity {entity.Id} doesn't have component {type.Name}"));
-            }
-
+            // Если компонент реализует IDisposable, очищаем ресурс
             if (component is IDisposable disposable)
             {
                 _resourceManager.CleanupResource(entity, disposable);
             }
 
+            _componentPool.RemoveComponent<T>(entity.Id);
+            _entityArchetypes.TryRemove(entity.Id, out _);
+
+            // Обновляем архетип
+            var currentArchetype = GetEntityArchetype(ref entity);
+            var componentTypes = currentArchetype.Metadata
+                .Select(m => m.Type)
+                .Where(t => t != typeof(T))
+                .ToArray();
+
+            if (componentTypes.Length > 0)
+            {
+                var components = GatherComponents(ref entity, componentTypes);
+                _archetypePool.AddEntityToArchetype(entity.Id, components, componentTypes);
+            }
+
             InvalidateQueries();
-            return Result<bool, ComponentError>.Ok(true);
         }
-
-
-        public void AddSystem(System system)
+        public void DestroyEntity(ref Entity entity)
         {
-            _systems.Add(system);
-        }
-        public void AddSystemDependency(System dependent, System dependency)
-        {
-            _dependencyGraph.AddDependency(dependent, dependency);
-        }
+            if (!IsEntityValid(ref entity))
+                return;
 
-        public async Task UpdateAsync(float deltaTime)
-        {
-            var systemLevels = _dependencyGraph.GetExecutionLevels();
-
-            foreach (var level in systemLevels)
-            {
-                var systemTasks = level.Select(system =>
-                    Task.Run(() => system.Update(deltaTime))
-                );
-                await Task.WhenAll(systemTasks);
-            }
-        }
-        public void Update(float deltaTime)
-        {
-            UpdateAsync(deltaTime).GetAwaiter().GetResult();
-        }
-
-        public IEnumerable<Entity> GetEntitiesWith<T>() where T : IComponent
-        {
-            var type = typeof(T);
-            if (_components.TryGetValue(type, out var components))
-            {
-                foreach (var entityId in components.Keys)
-                {
-                    yield return new Entity(entityId, _entityVersions[entityId]);
-                }
-            }
-        }
-
-        public void DestroyEntity(Entity entity)
-        {
-            _resourceManager.CleanupEntity(entity);
-
-            foreach (var components in _components.Values)
-            {
-                components.TryRemove(entity.Id, out _);
-            }
+            _resourceManager.CleanupEntity(ref entity);
+            _componentPool.DestroyEntityComponents(entity.Id);
+            _archetypePool.RemoveEntity(entity.Id);
             _entityVersions.AddOrUpdate(entity.Id, 1, (_, v) => v + 1);
+            _entityArchetypes.TryRemove(entity.Id, out _);
+
             InvalidateQueries();
         }
-        public bool IsEntityValid(Entity entity)
+        public bool IsEntityValid(ref Entity entity)
         {
             return _entityVersions.TryGetValue(entity.Id, out uint version) &&
                    version == entity.Version;
+        }
+
+        private Archetype GetEntityArchetype(ref Entity entity)
+        {
+            // Пробуем получить из кэша
+            if (_entityArchetypes.TryGetValue(entity.Id, out var cachedArchetype))
+            {
+                return cachedArchetype;
+            }
+
+            // Собираем типы всех компонентов сущности
+            var componentTypes = new List<Type>();
+            foreach (var componentDict in _componentPool.GetAllComponentTypes())
+            {
+                if (componentDict.Value.ContainsKey(entity.Id))
+                {
+                    componentTypes.Add(componentDict.Key);
+                }
+            }
+
+            var archetype = new Archetype(componentTypes.ToArray());
+            _entityArchetypes[entity.Id] = archetype;
+            return archetype;
+        }
+        private ReadOnlySpan<IComponent> GatherComponents(ref Entity entity, Type[] types)
+        {
+            var components = new IComponent[types.Length];
+
+            for (int i = 0; i < types.Length; i++)
+            {
+                if (_componentPool.TryGetComponentByType(entity.Id, types[i], out var component))
+                {
+                    components[i] = component;
+                }
+            }
+
+            return components;
+        }
+
+        public void Dispose()
+        {
+            if (_isDisposed) return;
+
+            _componentPool.Dispose();
+            _archetypePool.Dispose();
+            _isDisposed = true;
         }
     }
 }

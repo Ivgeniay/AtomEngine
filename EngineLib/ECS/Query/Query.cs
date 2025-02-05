@@ -4,16 +4,18 @@ namespace EngineLib
 {
     public class Query
     {
+        public delegate bool QueryFilter(ref Entity entity);
+        public delegate TResult QuerySelector<TResult>(ref Entity entity);
+
         private readonly HashSet<Type> _requiredComponents = new();
         private readonly HashSet<Type> _excludedComponents = new();
-        private readonly List<Func<Entity, bool>> _filters = new();
+        private readonly List<QueryFilter> _filters = new();
         private readonly World _world;
-        private IEnumerable<Entity>? _cachedResult;
+        private List<Entity>? _cachedResult;
         private bool _isDirty = true;
         private int? _limit;
-        private Func<Entity, object>? _orderBySelector;
+        private QuerySelector<object>? _orderBySelector;
         private bool _orderDescending;
-        private Func<Entity, object>? _groupBySelector;
 
         internal Query(World world)
         {
@@ -41,113 +43,143 @@ namespace EngineLib
             return this;
         }
 
-        public Query OrderBy<TKey>(Func<Entity, TKey> keySelector)
+        public Query OrderBy<TKey>(QuerySelector<TKey> keySelector)
         {
-            _orderBySelector = e => keySelector(e)!;
+            _orderBySelector = (ref Entity e) => keySelector(ref e)!;
             _orderDescending = false;
             _isDirty = true;
             return this;
         }
 
-        public Query OrderByDescending<TKey>(Func<Entity, TKey> keySelector)
+        public Query OrderByDescending<TKey>(QuerySelector<TKey> keySelector)
         {
-            _orderBySelector = e => keySelector(e)!;
+            _orderBySelector = (ref Entity e) => keySelector(ref e)!;
             _orderDescending = true;
-            _isDirty = true;
-            return this;
-        }
-
-        public Query GroupBy<TKey>(Func<Entity, TKey> keySelector)
-        {
-            _groupBySelector = e => keySelector(e)!;
             _isDirty = true;
             return this;
         }
 
         public Query Where<T>(Func<T, bool> predicate) where T : struct, IComponent
         {
-            _filters.Add(entity =>
+            _filters.Add(FilterComponent);
+
+            bool FilterComponent(ref Entity entity)
             {
-                //var componentOption = _world.GetComponentOrNone<T>(entity);
-                //return componentOption.HasValue && predicate(componentOption.Value);
-                Option<T> mb_componentOption = _world.GetComponentOrNone<T>(entity);
-                T componentOption = mb_componentOption.Unwrap();
-                return predicate(componentOption);
-            });
+                try
+                {
+                    ref var component = ref _world.GetComponent<T>(ref entity);
+                    return predicate(component);
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
             _isDirty = true;
             return this;
         }
 
-        public IEnumerable<Entity> Build()
+        public List<Entity> Build()
         {
             if (!_isDirty && _cachedResult != null)
                 return _cachedResult;
 
             if (_requiredComponents.Count == 0)
             {
-                _cachedResult = Enumerable.Empty<Entity>();
+                _cachedResult = new List<Entity>();
                 return _cachedResult;
             }
 
             // Базовая фильтрация
-            var query = FilterEntities();
-
-            // Применяем сортировку
-            if (_orderBySelector != null)
+            var results = new List<Entity>();
+            foreach (var entity in FilterEntities())
             {
-                query = _orderDescending
-                    ? query.OrderByDescending(_orderBySelector)
-                    : query.OrderBy(_orderBySelector);
+                results.Add(entity);
             }
 
-            // Применяем лимит
-            if (_limit.HasValue)
+            // Применяем сортировку если есть
+            if (_orderBySelector != null)
             {
-                query = query.Take(_limit.Value);
+                // Создаем список пар (entity, key) для сортировки
+                var sortableList = new List<(Entity entity, object key)>(results.Count);
+                foreach (var entity in results)
+                {
+                    var e = entity;
+                    sortableList.Add((entity, _orderBySelector(ref e)));
+                }
+
+                // Сортируем
+                if (_orderDescending)
+                {
+                    sortableList.Sort((a, b) => Comparer<object>.Default.Compare(b.key, a.key));
+                }
+                else
+                {
+                    sortableList.Sort((a, b) => Comparer<object>.Default.Compare(a.key, b.key));
+                }
+
+                // Обновляем результаты
+                results = sortableList.Select(x => x.entity).ToList();
+            }
+
+            // Применяем лимит если есть
+            if (_limit.HasValue && results.Count > _limit.Value)
+            {
+                results.RemoveRange(_limit.Value, results.Count - _limit.Value);
             }
 
             // Кэшируем и возвращаем результат
-            _cachedResult = query.ToList();
+            _cachedResult = results;
             _isDirty = false;
-            return _cachedResult;
-        }
-
-        public IEnumerable<IGrouping<object, Entity>> BuildGrouped()
-        {
-            if (_groupBySelector == null)
-            {
-                throw new InvalidOperationException("GroupBy selector not specified");
-            }
-
-            var entities = Build();
-            return entities.GroupBy(_groupBySelector);
+            return results;
         }
 
         private IEnumerable<Entity> FilterEntities()
         {
             var firstType = _requiredComponents.First();
-            return _world.GetEntitiesWith(firstType).Where(entity =>
+            var entities = _world.GetEntitiesWith(firstType);
+
+            foreach (var entity in entities)
             {
-                // Проверяем наличие всех требуемых компонентов
+                var e = entity;
+                bool isValid = true;
+
                 foreach (var type in _requiredComponents.Skip(1))
                 {
-                    if (!_world.HasComponent(entity, type))
-                        return false;
+                    if (!_world.HasComponent(ref e, type))
+                    {
+                        isValid = false;
+                        break;
+                    }
                 }
 
-                // Проверяем отсутствие исключенных компонентов
+                if (!isValid) continue;
                 foreach (var type in _excludedComponents)
                 {
-                    if (_world.HasComponent(entity, type))
-                        return false;
+                    if (_world.HasComponent(ref e, type))
+                    {
+                        isValid = false;
+                        break;
+                    }
                 }
 
-                // Применяем все фильтры
-                return _filters.All(filter => filter(entity));
-            });
-        }
+                if (!isValid) continue;
+                foreach (var filter in _filters)
+                {
+                    if (!filter(ref e))
+                    {
+                        isValid = false;
+                        break;
+                    }
+                }
 
-        // Сброс кэша
+                if (isValid)
+                {
+                    yield return entity;
+                }
+            }
+        }
         internal void InvalidateCache()
         {
             _isDirty = true;
