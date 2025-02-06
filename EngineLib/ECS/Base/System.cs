@@ -1,12 +1,12 @@
 ﻿namespace EngineLib
 {
-    public abstract class System
+    public abstract class System : ISystem
     {
-        protected World World { get; }
-        protected System(World world)
-        {
-            World = world;
-        }
+        private World _world;
+        IWorld ISystem.World => _world;
+
+        protected System(World world) =>
+            _world = world;
 
         public abstract void Update(float deltaTime);
     }

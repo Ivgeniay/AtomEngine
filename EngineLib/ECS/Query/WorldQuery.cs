@@ -27,16 +27,6 @@
             }
         }
 
-        public bool HasComponent(Entity entity, Type componentType)
-        {
-            if (!componentType.IsValueType || !typeof(IComponent).IsAssignableFrom(componentType))
-            {
-                throw new ArgumentException($"Type {componentType} must be a struct implementing IComponent");
-            }
-
-            return _componentPool.HasComponentOfType(entity.Id, componentType);
-        }
-
         internal IEnumerable<Entity> QueryEntities(Type componentType)
         {
             if (!componentType.IsValueType || !typeof(IComponent).IsAssignableFrom(componentType))
@@ -63,37 +53,7 @@
             }
         }
 
-        // Вспомогательные методы для получения архетипов
-        public ReadOnlySpan<uint> GetEntitiesByArchetype<T>()
-            where T : struct, IComponent
-        {
-            return _archetypePool.GetEntitiesWith<T>();
-        }
-
-        public ReadOnlySpan<uint> GetEntitiesByArchetype<T1, T2>()
-            where T1 : struct, IComponent
-            where T2 : struct, IComponent
-        {
-            return _archetypePool.GetEntitiesWith<T1, T2>();
-        }
-
-        public ReadOnlySpan<uint> GetEntitiesByArchetype<T1, T2, T3>()
-            where T1 : struct, IComponent
-            where T2 : struct, IComponent
-            where T3 : struct, IComponent
-        {
-            return _archetypePool.GetEntitiesWith<T1, T2, T3>();
-        }
-
-        public ReadOnlySpan<uint> GetEntitiesByArchetype<T1, T2, T3, T4>()
-            where T1 : struct, IComponent
-            where T2 : struct, IComponent
-            where T3 : struct, IComponent
-            where T4 : struct, IComponent
-        {
-            return _archetypePool.GetEntitiesWith<T1, T2, T3, T4>();
-        }
-
+        
     }
 
 

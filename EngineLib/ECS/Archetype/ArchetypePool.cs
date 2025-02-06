@@ -11,10 +11,7 @@ namespace EngineLib
     /// </summary>
     public sealed partial class ArchetypePool : IDisposable
     {
-        // Хранит все существующие архетипы и их данные
         private readonly Dictionary<Archetype, ArchetypeData> _archetypeData = new();
-
-        // Отслеживает, к какому архетипу принадлежит каждая сущность
         private readonly Dictionary<uint, EntityLocation> _entityLocations = new();
 
         private bool _isDisposed;
@@ -22,17 +19,22 @@ namespace EngineLib
 
         public void AddEntityToArchetype(uint entityId, ReadOnlySpan<IComponent> components, Type[] componentTypes)
         {
-            var archetype = new Archetype(componentTypes);
-            var data = GetOrCreateArchetypeData(archetype);
+            var newArchetype = new Archetype(componentTypes);
 
-            // Если сущность уже где-то есть, перемещаем её
-            if (_entityLocations.TryGetValue(entityId, out var location))
+            if (_entityLocations.TryGetValue(entityId, out var oldLocation))
             {
-                MoveEntityToArchetype(entityId, location, archetype);
+                var oldData = _archetypeData[oldLocation.Archetype];
+                oldData.RemoveEntity(entityId);
+                if (oldData.Count == 0)
+                {
+                    oldData.Dispose();
+                    _archetypeData.Remove(oldLocation.Archetype);
+                }
             }
 
-            data.AddEntity(entityId, components, archetype);
-            _entityLocations[entityId] = new EntityLocation(archetype, data.Count - 1);
+            var data = GetOrCreateArchetypeData(newArchetype);
+            data.AddEntity(entityId, components, newArchetype);
+            _entityLocations[entityId] = new EntityLocation(newArchetype, data.Count - 1);
         }
 
         public void RemoveEntity(uint entityId)
@@ -42,7 +44,12 @@ namespace EngineLib
 
             var data = _archetypeData[location.Archetype];
             data.RemoveEntity(entityId);
-            _entityLocations.Remove(entityId);
+            _entityLocations.Remove(entityId); 
+            if (data.Count == 0)
+            {
+                data.Dispose();
+                _archetypeData.Remove(location.Archetype);
+            }
         }
 
         public ref T GetComponent<T>(uint entityId, int typeIndex) where T : struct, IComponent
@@ -52,14 +59,6 @@ namespace EngineLib
 
             var data = _archetypeData[location.Archetype];
             return ref data.GetComponent<T>(entityId, typeIndex);
-        }
-
-        private void MoveEntityToArchetype(uint entityId, EntityLocation currentLocation, Archetype newArchetype)
-        {
-            // TODO: Реализовать перемещение сущности между архетипами
-            // 1. Собрать все компоненты из текущего архетипа
-            // 2. Добавить сущность в новый архетип
-            // 3. Удалить сущность из старого архетипа
         }
 
         private ArchetypeData GetOrCreateArchetypeData(Archetype archetype)
@@ -109,8 +108,7 @@ namespace EngineLib
         {
             private readonly Archetype _archetype;          // Добавляем архетип
             private MemoryBlock _componentData;             // Блок памяти для хранения компонентов
-            private readonly List<uint> _entityIds;         // Список ID сущностей
-            private readonly Dictionary<uint, int> _entityToRow;  // Маппинг ID сущности -> индекс строки
+            private readonly List<uint> _entityIds;         // Список ID сущностей в архетипе
             private readonly int _rowSize;                  // Размер одной строки (всех компонентов сущности)
             private bool _isDisposed;
 
@@ -125,7 +123,6 @@ namespace EngineLib
                 _rowSize = archetype.GetTotalSize();
                 _componentData = new MemoryBlock(_rowSize * initialCapacity);
                 _entityIds = new List<uint>(initialCapacity);
-                _entityToRow = new Dictionary<uint, int>(initialCapacity);
             }
 
             // Добавляет новую сущность в архетип
@@ -133,6 +130,9 @@ namespace EngineLib
             {
                 if (_isDisposed)
                     throw new ObjectDisposedException(nameof(ArchetypeData));
+
+                if (components.Length != archetype.Metadata.Count)
+                    throw new ArgumentException("Components count doesn't match archetype metadata count");
 
                 // Проверяем необходимость увеличения буфера
                 if (_entityIds.Count * _rowSize >= _componentData.Size)
@@ -142,7 +142,6 @@ namespace EngineLib
 
                 int row = _entityIds.Count;
                 _entityIds.Add(entityId);
-                _entityToRow[entityId] = row;
 
                 // Копируем компоненты в память
                 byte* rowPtr = (byte*)_componentData.GetPointer() + row * _rowSize;
@@ -158,35 +157,50 @@ namespace EngineLib
             // Удаляет сущность из архетипа
             public unsafe void RemoveEntity(uint entityId)
             {
-                if (!_entityToRow.TryGetValue(entityId, out int row))
-                    return;
+                // Находим индекс сущности в списке
+                int index = _entityIds.IndexOf(entityId);
+                if (index == -1) return;
 
-                int lastRow = _entityIds.Count - 1;
-                if (row != lastRow)
+                int lastIndex = _entityIds.Count - 1;
+                if (index != lastIndex)
                 {
-                    // Перемещаем последнюю сущность на место удаляемой
-                    uint lastEntityId = _entityIds[lastRow];
+                    // Получаем указатели на память
+                    byte* data = (byte*)_componentData.GetPointer();
+                    byte* srcRow = data + lastIndex * _rowSize;
+                    byte* dstRow = data + index * _rowSize;
 
-                    byte* sourcePtr = (byte*)_componentData.GetPointer() + lastRow * _rowSize;
-                    byte* destPtr = (byte*)_componentData.GetPointer() + row * _rowSize;
-                    Buffer.MemoryCopy(sourcePtr, destPtr, _rowSize, _rowSize);
+                    // Копируем последнюю строку на место удаляемой
+                    Buffer.MemoryCopy(srcRow, dstRow, _rowSize, _rowSize);
 
-                    _entityIds[row] = lastEntityId;
-                    _entityToRow[lastEntityId] = row;
+                    // Перемещаем последний ID на место удаляемого
+                    _entityIds[index] = _entityIds[lastIndex];
                 }
 
-                _entityIds.RemoveAt(lastRow);
-                _entityToRow.Remove(entityId);
+                // Удаляем последний элемент
+                _entityIds.RemoveAt(lastIndex);
             }
 
             // Получает компонент для сущности по индексу типа
             public unsafe ref T GetComponent<T>(uint entityId, int typeIndex) where T : struct, IComponent
             {
-                if (!_entityToRow.TryGetValue(entityId, out int row))
+                // Получаем индекс сущности в списке
+                int entityIndex = _entityIds.IndexOf(entityId);
+                if (entityIndex == -1)
                     throw new KeyNotFoundException($"Entity {entityId} not found");
 
-                byte* rowPtr = (byte*)_componentData.GetPointer() + row * _rowSize;
-                byte* componentPtr = rowPtr + _archetype.Metadata[typeIndex].Offset;
+                // Проверяем корректность индекса типа
+                if (typeIndex < 0 || typeIndex >= _archetype.Metadata.Count)
+                    throw new ArgumentOutOfRangeException(nameof(typeIndex));
+
+                // Получаем метаданные компонента
+                var metadata = _archetype.Metadata[typeIndex];
+                if (metadata.Type != typeof(T))
+                    throw new ArgumentException($"Type mismatch: expected {typeof(T)}, got {metadata.Type}");
+
+                // Вычисляем указатель на компонент
+                byte* rowPtr = (byte*)_componentData.GetPointer() + entityIndex * _rowSize;
+                byte* componentPtr = rowPtr + metadata.Offset;
+
                 return ref Unsafe.AsRef<T>(componentPtr);
             }
 
@@ -424,105 +438,66 @@ namespace EngineLib
     public sealed partial class ArchetypePool : IDisposable
     {
         /// Поиск Entities, которые имеют указанные компоненты
-        public IEnumerable<ReadOnlyMemory<uint>> GetEntitiesHaving<T>() where T : struct, IComponent
+        public IEnumerable<uint> GetEntitiesHaving<T>() where T : struct, IComponent
         {
             var componentType = typeof(T);
             foreach (var (archetype, data) in _archetypeData)
             {
                 if (archetype.HasComponent(componentType))
                 {
-                    yield return data.GetEntityMemory();
+                    foreach (var entityId in data.EntityIds)
+                    {
+                        yield return entityId;
+                    }
                 }
             }
         }
 
-        public IEnumerable<ReadOnlyMemory<uint>> GetEntitiesHaving<T1, T2>()
+        public IEnumerable<uint> GetEntitiesHaving<T1, T2>()
             where T1 : struct, IComponent
             where T2 : struct, IComponent
         {
-            var type1 = typeof(T1);
-            var type2 = typeof(T2);
-
-            foreach (var (archetype, data) in _archetypeData)
-            {
-                if (archetype.HasComponent(type1) &&
-                    archetype.HasComponent(type2))
-                {
-                    yield return data.GetEntityMemory();
-                }
-            }
+            return GetEntitiesHaving<T1>()
+                .Intersect(GetEntitiesHaving<T2>());
         }
 
-        public IEnumerable<ReadOnlyMemory<uint>> GetEntitiesHaving<T1, T2, T3>()
+        public IEnumerable<uint> GetEntitiesHaving<T1, T2, T3>()
             where T1 : struct, IComponent
             where T2 : struct, IComponent
             where T3 : struct, IComponent
         {
-            var type1 = typeof(T1);
-            var type2 = typeof(T2);
-            var type3 = typeof(T3);
-
-            foreach (var (archetype, data) in _archetypeData)
-            {
-                if (archetype.HasComponent(type1) &&
-                    archetype.HasComponent(type2) &&
-                    archetype.HasComponent(type3))
-                {
-                    yield return data.GetEntityMemory();
-                }
-            }
+            return GetEntitiesHaving<T1>()
+                .Intersect(GetEntitiesHaving<T2>())
+                .Intersect(GetEntitiesHaving<T3>());
         }
 
-        public IEnumerable<ReadOnlyMemory<uint>> GetEntitiesHaving<T1, T2, T3, T4>()
+        public IEnumerable<uint> GetEntitiesHaving<T1, T2, T3, T4>()
             where T1 : struct, IComponent
             where T2 : struct, IComponent
             where T3 : struct, IComponent
             where T4 : struct, IComponent
         {
-            var type1 = typeof(T1);
-            var type2 = typeof(T2);
-            var type3 = typeof(T3);
-            var type4 = typeof(T4);
-
-            foreach (var (archetype, data) in _archetypeData)
-            {
-                if (archetype.HasComponent(type1) &&
-                    archetype.HasComponent(type2) &&
-                    archetype.HasComponent(type3) &&
-                    archetype.HasComponent(type4))
-                {
-                    yield return data.GetEntityMemory();
-                }
-            }
+            return GetEntitiesHaving<T1>()
+                .Intersect(GetEntitiesHaving<T2>())
+                .Intersect(GetEntitiesHaving<T3>())
+                .Intersect(GetEntitiesHaving<T4>());
         }
 
-        public IEnumerable<ReadOnlyMemory<uint>> GetEntitiesHaving<T1, T2, T3, T4, T5>()
+        public IEnumerable<uint> GetEntitiesHaving<T1, T2, T3, T4, T5>()
             where T1 : struct, IComponent
             where T2 : struct, IComponent
             where T3 : struct, IComponent
             where T4 : struct, IComponent
             where T5 : struct, IComponent
         {
-            var type1 = typeof(T1);
-            var type2 = typeof(T2);
-            var type3 = typeof(T3);
-            var type4 = typeof(T4);
-            var type5 = typeof(T5);
-
-            foreach (var (archetype, data) in _archetypeData)
-            {
-                if (archetype.HasComponent(type1) &&
-                    archetype.HasComponent(type2) &&
-                    archetype.HasComponent(type3) &&
-                    archetype.HasComponent(type4) &&
-                    archetype.HasComponent(type5))
-                {
-                    yield return data.GetEntityMemory();
-                }
-            }
+            return GetEntitiesHaving<T1>()
+                .Intersect(GetEntitiesHaving<T2>())
+                .Intersect(GetEntitiesHaving<T3>())
+                .Intersect(GetEntitiesHaving<T4>())
+                .Intersect(GetEntitiesHaving<T5>());
         }
 
-        public IEnumerable<ReadOnlyMemory<uint>> GetEntitiesHaving<T1, T2, T3, T4, T5, T6>()
+        public IEnumerable<uint> GetEntitiesHaving<T1, T2, T3, T4, T5, T6>()
             where T1 : struct, IComponent
             where T2 : struct, IComponent
             where T3 : struct, IComponent
@@ -530,25 +505,12 @@ namespace EngineLib
             where T5 : struct, IComponent
             where T6 : struct, IComponent
         {
-            var type1 = typeof(T1);
-            var type2 = typeof(T2);
-            var type3 = typeof(T3);
-            var type4 = typeof(T4);
-            var type5 = typeof(T5);
-            var type6 = typeof(T6);
-
-            foreach (var (archetype, data) in _archetypeData)
-            {
-                if (archetype.HasComponent(type1) &&
-                    archetype.HasComponent(type2) &&
-                    archetype.HasComponent(type3) &&
-                    archetype.HasComponent(type4) &&
-                    archetype.HasComponent(type5) &&
-                    archetype.HasComponent(type6))
-                {
-                    yield return data.GetEntityMemory();
-                }
-            }
+            return GetEntitiesHaving<T1>()
+                .Intersect(GetEntitiesHaving<T2>())
+                .Intersect(GetEntitiesHaving<T3>())
+                .Intersect(GetEntitiesHaving<T4>())
+                .Intersect(GetEntitiesHaving<T5>())
+                .Intersect(GetEntitiesHaving<T6>());
         }
     }
 }
