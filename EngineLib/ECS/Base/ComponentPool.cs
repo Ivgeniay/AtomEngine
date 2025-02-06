@@ -38,19 +38,6 @@ namespace EngineLib
             return ref GetComponentRef<T>(entityId);
         }
 
-        public bool TryGetComponent<T>(uint entityId, out T component) where T : struct, IComponent
-        {
-            component = default;
-            var type = typeof(T);
-
-            if (!_components.TryGetValue(type, out var components) ||
-                !components.TryGetValue(entityId, out var comp))
-                return false;
-
-            component = (T)comp;
-            return true;
-        }
-
         internal IEnumerable<uint> GetAllEntitiesWithType(Type componentType)
         {
             if (_components.TryGetValue(componentType, out var components))
@@ -69,9 +56,18 @@ namespace EngineLib
             }
         }
 
-        public IReadOnlyDictionary<Type, ConcurrentDictionary<uint, IComponent>> GetAllComponentTypes()
+        public IReadOnlyDictionary<Type, ConcurrentDictionary<uint, IComponent>> GetAllComponentTypes() =>
+            _components;
+
+        public IEnumerable<Type> GetAllEntityComponentTypes(uint entity_id)
         {
-            return _components;
+            foreach (var componentDict in _components)
+            {
+                if (componentDict.Value.ContainsKey(entity_id))
+                {
+                    yield return componentDict.Key;
+                }
+            }
         }
 
         public bool TryGetComponentByType(uint entityId, Type componentType, out IComponent component)

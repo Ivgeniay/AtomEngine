@@ -1,20 +1,18 @@
-﻿
-
-namespace EngineLib
+﻿namespace EngineLib
 {
     public class Query
     {
-        public delegate bool QueryFilter(ref Entity entity);
-        public delegate TResult QuerySelector<TResult>(ref Entity entity);
+        public delegate bool QueryFilter(Entity entity);
+        public delegate TResult QuerySelector<TResult>(Entity entity);
 
         private readonly HashSet<Type> _requiredComponents = new();
         private readonly HashSet<Type> _excludedComponents = new();
         private readonly List<QueryFilter> _filters = new();
         private readonly World _world;
-        private List<Entity>? _cachedResult;
+        private IEnumerable<Entity>? _cachedResult;
         private bool _isDirty = true;
         private int? _limit;
-        private QuerySelector<object>? _orderBySelector;
+        private QuerySelector<IComparable>? _orderBySelector;
         private bool _orderDescending;
 
         internal Query(World world)
@@ -43,18 +41,25 @@ namespace EngineLib
             return this;
         }
 
-        public Query OrderBy<TKey>(QuerySelector<TKey> keySelector)
+        public Query OrderBy<TKey>(QuerySelector<TKey> keySelector) where TKey : IComparable
         {
-            _orderBySelector = (ref Entity e) => keySelector(ref e)!;
+            _orderBySelector = e => keySelector(e);
             _orderDescending = false;
             _isDirty = true;
             return this;
         }
 
-        public Query OrderByDescending<TKey>(QuerySelector<TKey> keySelector)
+        public Query OrderByDescending<TKey>(QuerySelector<TKey> keySelector) where TKey : IComparable
         {
-            _orderBySelector = (ref Entity e) => keySelector(ref e)!;
+            _orderBySelector = e => keySelector(e);
             _orderDescending = true;
+            _isDirty = true;
+            return this;
+        }
+
+        public Query Where(QueryFilter filter)
+        {
+            _filters.Add(filter);
             _isDirty = true;
             return this;
         }
@@ -63,11 +68,11 @@ namespace EngineLib
         {
             _filters.Add(FilterComponent);
 
-            bool FilterComponent(ref Entity entity)
+            bool FilterComponent(Entity entity)
             {
                 try
                 {
-                    ref var component = ref _world.GetComponent<T>(ref entity);
+                    var component = _world.GetComponent<T>(entity);
                     return predicate(component);
                 }
                 catch
@@ -80,74 +85,51 @@ namespace EngineLib
             return this;
         }
 
-        public List<Entity> Build()
+        public Entity[] Build()
         {
             if (!_isDirty && _cachedResult != null)
-                return _cachedResult;
+                return _cachedResult.ToArray();
 
             if (_requiredComponents.Count == 0)
             {
-                _cachedResult = new List<Entity>();
-                return _cachedResult;
+                _cachedResult = Array.Empty<Entity>();
+                return _cachedResult.ToArray();
             }
 
-            // Базовая фильтрация
-            var results = new List<Entity>();
-            foreach (var entity in FilterEntities())
-            {
-                results.Add(entity);
-            }
+            IEnumerable<Entity> results = FilterEntities();
 
-            // Применяем сортировку если есть
             if (_orderBySelector != null)
             {
-                // Создаем список пар (entity, key) для сортировки
-                var sortableList = new List<(Entity entity, object key)>(results.Count);
-                foreach (var entity in results)
-                {
-                    var e = entity;
-                    sortableList.Add((entity, _orderBySelector(ref e)));
-                }
-
-                // Сортируем
-                if (_orderDescending)
-                {
-                    sortableList.Sort((a, b) => Comparer<object>.Default.Compare(b.key, a.key));
-                }
-                else
-                {
-                    sortableList.Sort((a, b) => Comparer<object>.Default.Compare(a.key, b.key));
-                }
-
-                // Обновляем результаты
-                results = sortableList.Select(x => x.entity).ToList();
+                results = _orderDescending
+                    ? results.OrderByDescending(e => _orderBySelector(e))
+                    : results.OrderBy(e => _orderBySelector(e));
             }
 
-            // Применяем лимит если есть
-            if (_limit.HasValue && results.Count > _limit.Value)
+            if (_limit.HasValue && results.Count() > _limit.Value)
             {
-                results.RemoveRange(_limit.Value, results.Count - _limit.Value);
+                results = results.Take(_limit.Value);
             }
 
-            // Кэшируем и возвращаем результат
             _cachedResult = results;
             _isDirty = false;
-            return results;
+            return results.ToArray();
         }
 
         private IEnumerable<Entity> FilterEntities()
         {
             var firstType = _requiredComponents.First();
-            var entities = _world.GetEntitiesWith(firstType);
-
-            foreach (var entity in entities)
+            foreach (Entity entity in _world.QueryEntities(firstType))
             {
-                var e = entity;
                 bool isValid = true;
+                if (!_world.IsEntityValid(entity.Id, entity.Version))
+                    isValid= false;
 
+                if (!isValid) continue;
+
+                // Проверяем наличие всех требуемых компонентов
                 foreach (var type in _requiredComponents.Skip(1))
                 {
-                    if (!_world.HasComponent(ref e, type))
+                    if (!_world.HasComponent(entity, type))
                     {
                         isValid = false;
                         break;
@@ -155,9 +137,11 @@ namespace EngineLib
                 }
 
                 if (!isValid) continue;
+
+                // Проверяем отсутствие исключенных компонентов
                 foreach (var type in _excludedComponents)
                 {
-                    if (_world.HasComponent(ref e, type))
+                    if (_world.HasComponent(entity, type))
                     {
                         isValid = false;
                         break;
@@ -165,9 +149,11 @@ namespace EngineLib
                 }
 
                 if (!isValid) continue;
+
+                // Применяем все фильтры
                 foreach (var filter in _filters)
                 {
-                    if (!filter(ref e))
+                    if (!filter(entity))
                     {
                         isValid = false;
                         break;
@@ -180,6 +166,7 @@ namespace EngineLib
                 }
             }
         }
+
         internal void InvalidateCache()
         {
             _isDirty = true;

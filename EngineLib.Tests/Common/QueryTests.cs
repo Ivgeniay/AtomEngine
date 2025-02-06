@@ -1,215 +1,219 @@
 ﻿
 
+using System.Numerics;
+
 namespace EngineLib.Tests
 {
+    public struct TestTransformComponent : IComponent
+    {
+        private Entity _owner;
+        public Vector3 Position { get; set; }
+        public Vector3 Rotation { get; set; }
+        public Vector3 Scale { get; set; }
+
+        public TestTransformComponent(Entity owner, Vector3 position, Vector3 rotation, Vector3 scale)
+        {
+            this._owner = owner;
+            Position = position;
+            Rotation = rotation;
+            Scale = scale;
+        }
+
+        public Entity Owner => _owner;
+    }
+    public struct TestPositionComponent : IComponent 
+    {
+
+        private Entity _owner;
+        public Vector3 Position { get; set; }
+        public TestPositionComponent(Entity owner, Vector3 position)
+        {
+            this._owner = owner;
+            Position = position;
+        }
+        public Entity Owner => _owner;
+    }
+    
+    
     public class QueryTests
     {
-        private World _world;
+        [Fact]
+        public void With_AddComponent_ToRequired()
+        {
+            using (var world = new World())
+            {
+                var entity = world.CreateEntity();
+                world.AddComponent<TestPositionComponent>(entity, new TestPositionComponent());
 
-        //public QueryTests()
-        //{
-        //    _world = new World();
-        //}
+                var query = world
+                    .CreateQuery()
+                    .With<TestPositionComponent>();
+                var queryResult = query.Build();
 
+                Assert.Contains(entity, queryResult);
+            }
+        }
 
-        //public struct TestComponent : IComponent
-        //{
-        //    public Entity Owner { get; }
-        //    public int Value;
+        [Fact]
+        public void CreateEntityAddComponent_RequestEntity()
+        {
+            using (var world = new World())
+            {
+                var entity = world.CreateEntity();
+                var entity2 = world.CreateEntity();
 
-        //    public TestComponent(Entity owner, int value)
-        //    {
-        //        Owner = owner;
-        //        Value = value;
-        //    }
-        //}
-        //public struct OtherComponent : IComponent
-        //{
-        //    public Entity Owner { get; }
-        //    public string Value;
+                world.AddComponent<TestPositionComponent>(entity, new TestPositionComponent());
+                world.AddComponent<TestPositionComponent>(entity2, new TestPositionComponent());
+                world.AddComponent<TestTransformComponent>(entity2, new TestTransformComponent());
 
-        //    public OtherComponent(Entity owner, string value)
-        //    {
-        //        Owner = owner;
-        //        Value = value;
-        //    }
-        //}
+                var queryResultWithoutTransformComponent = world
+                    .CreateQuery()
+                    .With<TestPositionComponent>()
+                    .Without<TestTransformComponent>()
+                    .Build();
 
-        //[Fact]
-        //public void With_ShouldReturnEntitiesWithComponent()
-        //{
-        //    // Arrange
-        //    var entity1 = _world.CreateEntity();
-        //    var entity2 = _world.CreateEntity();
+                var queryResultWithPositionComponent = world
+                    .CreateQuery()
+                    .With<TestPositionComponent>()
+                    .Build();
 
-        //    _world.AddComponent(entity1, new TestComponent(entity1, 1));
-        //    _world.AddComponent(entity2, new OtherComponent(entity2, "test"));
+                var queryResultWithTransformComponent = world
+                    .CreateQuery()
+                    .With<TestTransformComponent>()
+                    .Build();
 
-        //    // Act
-        //    var result = _world.CreateQuery()
-        //        .With<TestComponent>()
-        //        .Build()
-        //        .ToList();
+                Assert.Single(queryResultWithoutTransformComponent);
+                Assert.Single(queryResultWithTransformComponent);
+                Assert.Equal(2, queryResultWithPositionComponent.Length);
+                Assert.Contains(entity, queryResultWithPositionComponent);
+                Assert.Contains(entity2, queryResultWithPositionComponent);
+                Assert.Contains(entity2, queryResultWithTransformComponent);
+            }
+        }
 
-        //    // Assert
-        //    Assert.Single(result);
-        //    Assert.Equal(entity1.Id, result[0].Id);
-        //}
+        [Fact]
+        public void OrderBy_RequestEntityOrderBy()
+        {
+            using (var world = new World())
+            {
+                var entity = world.CreateEntity();
+                var entity2 = world.CreateEntity();
+                var entity3 = world.CreateEntity();
+                var entity4 = world.CreateEntity();
+                var entity5 = world.CreateEntity();
+                world.AddComponent<TestPositionComponent>(entity, new TestPositionComponent() { Position = new Vector3(0, 0, 0)});
+                world.AddComponent<TestPositionComponent>(entity2, new TestPositionComponent() { Position = new Vector3(1, 0, 0)});
+                world.AddComponent<TestPositionComponent>(entity3, new TestPositionComponent() { Position = new Vector3(200, 0, 0)});
+                world.AddComponent<TestPositionComponent>(entity4, new TestPositionComponent() { Position = new Vector3(300, 0, 0)});
+                world.AddComponent<TestPositionComponent>(entity5, new TestPositionComponent() { Position = new Vector3(100, 0, 0)});
 
-        //[Fact]
-        //public void WithMultiple_ShouldReturnEntitiesWithAllComponents()
-        //{
-        //    // Arrange
-        //    var entity1 = _world.CreateEntity();
-        //    var entity2 = _world.CreateEntity();
+                var query = world
+                    .CreateQuery()
+                    .With<TestPositionComponent>()
+                    .OrderBy(e => world.GetComponent<TestPositionComponent>(e).Position.X);
+                ;
+                var queryResult = query.Build();
 
-        //    _world.AddComponent(entity1, new TestComponent(entity1, 1));
-        //    _world.AddComponent(entity1, new OtherComponent(entity1, "test"));
-        //    _world.AddComponent(entity2, new TestComponent(entity2, 2));
+                Assert.Equal(5, queryResult.Length);
+                Assert.Equal(entity, queryResult[0]);
+                Assert.Equal(entity2, queryResult[1]);
+                Assert.Equal(entity5, queryResult[2]);
+                Assert.Equal(entity3, queryResult[3]);
+                Assert.Equal(entity4, queryResult[4]);
+            }
+        }
 
-        //    // Act
-        //    var result = _world.CreateQuery()
-        //        .With<TestComponent>()
-        //        .With<OtherComponent>()
-        //        .Build()
-        //        .ToList();
+        [Fact]
+        public void OrderByDesc_RequestEntityOrderByDesc()
+        {
+            using (var world = new World())
+            {
+                var entity = world.CreateEntity();
+                var entity2 = world.CreateEntity();
+                var entity3 = world.CreateEntity();
+                var entity4 = world.CreateEntity();
+                var entity5 = world.CreateEntity();
+                world.AddComponent<TestPositionComponent>(entity, new TestPositionComponent() { Position = new Vector3(0, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity2, new TestPositionComponent() { Position = new Vector3(1, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity3, new TestPositionComponent() { Position = new Vector3(200, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity4, new TestPositionComponent() { Position = new Vector3(300, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity5, new TestPositionComponent() { Position = new Vector3(100, 0, 0) });
 
-        //    // Assert
-        //    Assert.Single(result);
-        //    Assert.Equal(entity1.Id, result[0].Id);
-        //}
+                var query = world
+                    .CreateQuery()
+                    .With<TestPositionComponent>()
+                    .OrderByDescending(e => world.GetComponent<TestPositionComponent>(e).Position.X);
+                ;
+                var queryResult = query.Build();
 
-        //[Fact]
-        //public void Without_ShouldExcludeEntitiesWithComponent()
-        //{
-        //    // Arrange
-        //    var entity1 = _world.CreateEntity();
-        //    var entity2 = _world.CreateEntity();
+                Assert.Equal(5, queryResult.Length);
+                Assert.Equal(entity, queryResult[4]);
+                Assert.Equal(entity2, queryResult[3]);
+                Assert.Equal(entity5, queryResult[2]);
+                Assert.Equal(entity3, queryResult[1]);
+                Assert.Equal(entity4, queryResult[0]);
+            }
+        }
 
-        //    _world.AddComponent(entity1, new TestComponent(entity1, 1));
-        //    _world.AddComponent(entity2, new TestComponent(entity2, 2));
-        //    _world.AddComponent(entity2, new OtherComponent(entity2, "test"));
+        [Fact]
+        public void OrderByDescWithWeherePosMore1_RequestEntityOrderByDesc()
+        {
+            using (var world = new World())
+            {
+                var entity = world.CreateEntity();
+                var entity2 = world.CreateEntity();
+                var entity3 = world.CreateEntity();
+                var entity4 = world.CreateEntity();
+                var entity5 = world.CreateEntity();
+                world.AddComponent<TestPositionComponent>(entity, new TestPositionComponent() { Position = new Vector3(0, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity2, new TestPositionComponent() { Position = new Vector3(1, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity3, new TestPositionComponent() { Position = new Vector3(200, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity4, new TestPositionComponent() { Position = new Vector3(300, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity5, new TestPositionComponent() { Position = new Vector3(100, 0, 0) });
 
-        //    // Act
-        //    var result = _world.CreateQuery()
-        //        .With<TestComponent>()
-        //        .Without<OtherComponent>()
-        //        .Build()
-        //        .ToList();
+                var query = world
+                    .CreateQuery()
+                    .With<TestPositionComponent>()
+                    .OrderByDescending(e => world.GetComponent<TestPositionComponent>(e).Position.X)
+                    .Where(e => world.GetComponent<TestPositionComponent>(e).Position.X > 1);
+                ;
+                var queryResult = query.Build();
 
-        //    // Assert
-        //    Assert.Single(result);
-        //    Assert.Equal(entity1.Id, result[0].Id);
-        //}
+                Assert.Equal(3, queryResult.Length);
+                Assert.Equal(entity5, queryResult[2]);
+                Assert.Equal(entity3, queryResult[1]);
+                Assert.Equal(entity4, queryResult[0]);
+            }
+        }
 
-        //[Fact]
-        //public void Where_ShouldFilterByPredicate()
-        //{
-        //    // Arrange
-        //    var entity1 = _world.CreateEntity();
-        //    var entity2 = _world.CreateEntity();
+        [Fact]
+        public void OrderByDescWithLimit2_RequestEntityOrderByDesc()
+        {
+            using (var world = new World())
+            {
+                var entity = world.CreateEntity();
+                var entity2 = world.CreateEntity();
+                var entity3 = world.CreateEntity();
+                var entity4 = world.CreateEntity();
+                var entity5 = world.CreateEntity();
+                world.AddComponent<TestPositionComponent>(entity, new TestPositionComponent() { Position = new Vector3(0, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity2, new TestPositionComponent() { Position = new Vector3(1, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity3, new TestPositionComponent() { Position = new Vector3(200, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity4, new TestPositionComponent() { Position = new Vector3(300, 0, 0) });
+                world.AddComponent<TestPositionComponent>(entity5, new TestPositionComponent() { Position = new Vector3(100, 0, 0) });
 
-        //    _world.AddComponent(entity1, new TestComponent(entity1, 1));
-        //    _world.AddComponent(entity2, new TestComponent(entity2, 2));
+                var query = world
+                    .CreateQuery()
+                    .With<TestPositionComponent>()
+                    .OrderByDescending(e => world.GetComponent<TestPositionComponent>(e).Position.X)
+                    .Limit(2);
+                ;
+                var queryResult = query.Build();
 
-        //    // Act
-        //    var result = _world.CreateQuery()
-        //        .With<TestComponent>()
-        //        .Where<TestComponent>(c => c.Value > 1)
-        //        .Build()
-        //        .ToList();
-
-        //    // Assert
-        //    Assert.Single(result);
-        //    Assert.Equal(entity2.Id, result[0].Id);
-        //}
-
-        //[Fact]
-        //public void OrderBy_ShouldSortEntities()
-        //{
-        //    // Arrange
-        //    var entity1 = _world.CreateEntity();
-        //    var entity2 = _world.CreateEntity();
-
-        //    _world.AddComponent(entity1, new TestComponent(entity1, 2));
-        //    _world.AddComponent(entity2, new TestComponent(entity2, 1));
-
-        //    // Act
-        //    var result = _world.CreateQuery()
-        //        .With<TestComponent>()
-        //        .OrderBy(e => _world.GetComponent<TestComponent>(e).Unwrap().Value)
-        //        .Build()
-        //        .ToList();
-
-        //    // Assert
-        //    Assert.Equal(2, result.Count);
-        //    Assert.Equal(entity2.Id, result[0].Id);
-        //    Assert.Equal(entity1.Id, result[1].Id);
-        //}
-
-        //[Fact]
-        //public void Limit_ShouldLimitNumberOfResults()
-        //{
-        //    // Arrange
-        //    var entity1 = _world.CreateEntity();
-        //    var entity2 = _world.CreateEntity();
-
-        //    _world.AddComponent(entity1, new TestComponent(entity1, 1));
-        //    _world.AddComponent(entity2, new TestComponent(entity2, 2));
-
-        //    // Act
-        //    var result = _world.CreateQuery()
-        //        .With<TestComponent>()
-        //        .Limit(1)
-        //        .Build()
-        //        .ToList();
-
-        //    // Assert
-        //    Assert.Single(result);
-        //}
-
-        //[Fact]
-        //public void GroupBy_ShouldGroupEntitiesByKey()
-        //{
-        //    // Arrange
-        //    var entity1 = _world.CreateEntity();
-        //    var entity2 = _world.CreateEntity();
-
-        //    _world.AddComponent(entity1, new TestComponent(entity1, 1));
-        //    _world.AddComponent(entity2, new TestComponent(entity2, 1));
-
-        //    // Act
-        //    var result = _world.CreateQuery()
-        //        .With<TestComponent>()
-        //        .GroupBy(e => _world.GetComponent<TestComponent>(e).Unwrap().Value)
-        //        .BuildGrouped()
-        //        .ToList();
-
-        //    // Assert
-        //    Assert.Single(result);
-        //    Assert.Equal(2, result[0].Count());
-        //}
-
-        //[Fact]
-        //public void InvalidateCache_ShouldRebuildQueryResults()
-        //{
-        //    // Arrange
-        //    var entity1 = _world.CreateEntity();
-        //    _world.AddComponent(entity1, new TestComponent(entity1, 1));
-
-        //    var query = _world.CreateQuery().With<TestComponent>();
-        //    var firstResult = query.Build().ToList();
-
-        //    // Act
-        //    var entity2 = _world.CreateEntity();
-        //    _world.AddComponent(entity2, new TestComponent(entity2, 2));
-
-        //    var secondResult = query.Build().ToList();
-
-        //    // Assert
-        //    Assert.Single(firstResult);
-        //    Assert.Equal(2, secondResult.Count);
-        //}
+                Assert.Equal(2, queryResult.Length);
+                Assert.Equal(entity4, queryResult[0]);
+                Assert.Equal(entity3, queryResult[1]);
+            }
+        }
     }
-
 }
