@@ -1,4 +1,4 @@
-﻿namespace EngineLib
+﻿namespace AtomEngine
 {
     public static class ISystemExtensions
     {
@@ -40,5 +40,7 @@
 
         public static IEnumerable<Entity> GetEntitiesByArchetype<T1, T2, T3>(this ISystem self) where T1 : struct, IComponent where T2 : struct, IComponent where T3 : struct, IComponent =>
             self.World.GetEntitiesByArchetype<T1, T2, T3>();
+
+
     }
 }

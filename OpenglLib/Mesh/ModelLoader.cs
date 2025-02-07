@@ -1,12 +1,11 @@
-﻿using Silk.NET.Assimp;
+﻿using AtomEngine;
+using Silk.NET.Assimp;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using System.Runtime.InteropServices;
-using System.Numerics;
 
 namespace OpenglLib
-{
-
+{ 
     public class ModelLoader
     {
         private readonly Assimp _assimp;
@@ -22,6 +21,12 @@ namespace OpenglLib
         {
             try
             {
+                if (!System.IO.File.Exists(path))
+                {
+                    return new Result<Node, Error>(
+                        new MeshError($"Model file does not exist: {path}"));
+                }
+
                 Scene* scene = _assimp.ImportFile(path,
                     (uint)(PostProcessSteps.Triangulate |
                            PostProcessSteps.GenerateNormals |
@@ -29,20 +34,19 @@ namespace OpenglLib
 
                 if (scene == null)
                 {
+                    var errorMessage = Marshal.PtrToStringAnsi((IntPtr)_assimp.GetErrorString());
                     return new Result<Node, Error>(
-                        new Error($"Failed to load model: {path}. Scene is null."));
+                        new MeshError($"Failed to load model: {path}. Assimp error: {errorMessage}"));
                 }
 
-                // Начинаем с корневого узла
                 Node rootNode = ProcessNode(scene->MRootNode, scene);
-
                 _assimp.ReleaseImport(scene);
                 return new Result<Node, Error>(rootNode);
             }
             catch (Exception ex)
             {
                 return new Result<Node, Error>(
-                    new Error($"Error loading model {path}: {ex.Message}"));
+                    new MeshError($"Error loading model {path}: {ex.Message}"));
             }
         }
 
@@ -62,9 +66,26 @@ namespace OpenglLib
             }
 
             // Рекурсивно обрабатываем все дочерние узлы
-            for (int i = 0; i < assimpNode->MNumChildren; i++)
+            if (assimpNode->MChildren != null)
             {
-                newNode.Children.Add(ProcessNode(assimpNode->MChildren[i], scene));
+                for (int i = 0; i < assimpNode->MNumChildren; i++)
+                {
+                    var childNode = assimpNode->MChildren[i];
+                    if (childNode != null)
+                    {
+                        try
+                        {
+                            var processedNode = ProcessNode(childNode, scene);
+                            newNode.Children.Add(processedNode);
+                        }
+                        catch (MeshError ex)
+                        {
+                            DebLogger.Error($"{ex}");
+                            DebLogger.Error($"Processing node: {Marshal.PtrToStringAnsi((IntPtr)assimpNode->MName.Data)}");
+                            DebLogger.Error($"Number of children: {assimpNode->MNumChildren}");
+                        }
+                    }
+                }
             }
 
             return newNode;

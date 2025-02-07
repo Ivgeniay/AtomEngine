@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
-namespace EngineLib
+namespace AtomEngine
 {
     public class ComponentPool : IDisposable
     {
@@ -14,16 +14,6 @@ namespace EngineLib
             var components = _components.GetOrAdd(type, _ => new ConcurrentDictionary<uint, IComponent>());
             components[entityId] = component;
             return ref GetComponentRef<T>(entityId);
-        }
-
-        private unsafe ref T GetComponentRef<T>(uint entityId) where T : struct, IComponent
-        {
-            var type = typeof(T);
-            var components = _components[type];
-            fixed (void* ptr = &Unsafe.Unbox<T>(components[entityId]))
-            {
-                return ref Unsafe.AsRef<T>(ptr);
-            }
         }
 
         public ref T GetComponent<T>(uint entityId) where T : struct, IComponent
@@ -96,6 +86,18 @@ namespace EngineLib
         {
             return _components.TryGetValue(type, out var components) &&
                    components.ContainsKey(entityId);
+        }
+
+        private unsafe ref T GetComponentRef<T>(uint entityId) where T : struct, IComponent
+        {
+            var type = typeof(T);
+            var components = _components[type];
+            return ref Unsafe.Unbox<T>(components[entityId]);
+
+            //fixed (void* ptr = &Unsafe.Unbox<T>(components[entityId]))
+            //{
+            //    return ref Unsafe.AsRef<T>(ptr);
+            //}
         }
 
         public void Dispose()

@@ -41,17 +41,17 @@ namespace OpenglLib.Buffers
         public unsafe VAO WithAttribute(uint index, int size, VertexAttribPointerType type, bool normalized, uint stride, int offset)
         {
             Bind();
-            _gl.EnableVertexAttribArray(index);
             _gl.VertexAttribPointer(index, size, type, normalized, stride, (void*)offset);
+            _gl.EnableVertexAttribArray(index);
             return this;
         }
 
         public unsafe VAO WithInstanceAttribute(uint index, int size, VertexAttribPointerType type, bool normalized, uint stride, int offset, uint divisor)
         {
             Bind();
-            _gl.EnableVertexAttribArray(index);
             _gl.VertexAttribPointer(index, size, type, normalized, stride, (void*)offset);
             _gl.VertexAttribDivisor(index, divisor); 
+            _gl.EnableVertexAttribArray(index);
             return this;
         }
 

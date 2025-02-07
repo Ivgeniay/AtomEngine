@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using EngineLib.Memory;
+using AtomEngine.Memory;
 
-namespace EngineLib
+namespace AtomEngine
 {
     /// <summary>
     /// Управляет хранением и организацией сущностей по архетипам.

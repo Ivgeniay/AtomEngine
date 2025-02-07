@@ -1,4 +1,4 @@
-﻿namespace EngineLib
+﻿namespace AtomEngine
 {
     // Добавляем в World методы для работы с запросами
     public partial class World

@@ -1,4 +1,4 @@
-﻿namespace EngineLib.RenderEntity
+﻿namespace AtomEngine.RenderEntity
 {
     public abstract class MeshBase : IDisposable
     {

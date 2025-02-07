@@ -1,4 +1,4 @@
-﻿namespace EngineLib
+﻿namespace AtomEngine
 {
     public interface IComponent
     {

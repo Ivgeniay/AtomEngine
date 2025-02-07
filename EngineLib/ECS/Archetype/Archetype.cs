@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace EngineLib
+namespace AtomEngine
 {
     /// <summary>
     /// Организованное хранение архетипов сущностей.

@@ -1,4 +1,5 @@
-﻿using EngineLib.RenderEntity;
+﻿using AtomEngine;
+using AtomEngine.RenderEntity;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 
@@ -12,34 +13,14 @@ namespace OpenglLib
         private readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
         private readonly Dictionary<string, UniformInfo> _uniformInfo = new Dictionary<string, UniformInfo>();
 
-        public uint Handle => _handle;
-
-        string vertexShaderSource = @"
-#version 330 core
-layout (location = 0) in vec3 aPosition;
-
-void main()
-{
-    gl_Position = vec4(aPosition, 1.0);
-}";
-
-        string fragmentShaderSource = @"
-#version 330 core
-out vec4 FragColor;
-
-uniform vec3 color;
-
-void main()
-{
-    FragColor = vec4(color, 1.0);
-}";
+        public uint Handle => _handle; 
 
         public Shader(GL gl, string vertexSource = "", string fragmentSource = "")
         {
             _gl = gl;
 
-            vertexSource = string.IsNullOrEmpty(vertexSource) ? vertexShaderSource : vertexSource;
-            fragmentSource = string.IsNullOrEmpty(fragmentSource) ? fragmentShaderSource : fragmentSource;
+            vertexSource = string.IsNullOrEmpty(vertexSource) ? throw new ShaderError("Vertex shader in null or empty") : vertexSource;
+            fragmentSource = string.IsNullOrEmpty(fragmentSource) ? throw new ShaderError("Fragment shader in null or empty") : fragmentSource;
 
             Result<uint, Error> mb_vertexShader = CompileShader(ShaderType.VertexShader, vertexSource);
             uint vertexShader = mb_vertexShader.Unwrap();
@@ -47,44 +28,22 @@ void main()
             Result<uint, Error> mb_fragmentShader = CompileShader(ShaderType.FragmentShader, fragmentSource);
             uint fragmentShader = mb_fragmentShader.Unwrap();
 
-            // Создаем и линкуем программу
             _handle = _gl.CreateProgram();
             _gl.AttachShader(_handle, vertexShader);
             _gl.AttachShader(_handle, fragmentShader);
             LinkProgram();
-
-            // Очищаем ресурсы
-            _gl.DetachShader(_handle, vertexShader);
-            _gl.DetachShader(_handle, fragmentShader);
-            _gl.DeleteShader(vertexShader);
-            _gl.DeleteShader(fragmentShader);
+            CleanupResources(vertexShader, fragmentShader);
 
             CacheAttributes();
             CacheUniforms();
+
+            DebLogger.Info("==================SHADER_ATTRIBUTES=================");
+            foreach (var item in _attributeLocations) DebLogger.Info(item.Key, " : ", item.Value);
+            DebLogger.Info("===================SHADER_UNIFORMS==================");
+            foreach (var item in _uniformLocations) DebLogger.Info(item.Key, " : ", item.Value);
         }
 
-        private Result<uint, Error> CompileShader(ShaderType type, string source)
-        {
-            uint shader = _gl.CreateShader(type);
-            _gl.ShaderSource(shader, source);
-            _gl.CompileShader(shader);
-
-            string infoLog = _gl.GetShaderInfoLog(shader);
-
-            return string.IsNullOrEmpty(infoLog) ?
-                new Result<uint, Error>(shader) :
-                new Result<uint, Error>(new CompileError($"Error compiling shader of type {type}: {infoLog}"));
-        }
-
-        private void LinkProgram()
-        {
-            _gl.LinkProgram(_handle);
-            _gl.GetProgram(_handle, GLEnum.LinkStatus, out int success);
-            if (success == 0)
-            {
-                throw new Exception($"Error linking shader program: {_gl.GetProgramInfoLog(_handle)}");
-            }
-        }
+        
 
         public override void Use()
         {
@@ -231,6 +190,42 @@ void main()
         internal IReadOnlyDictionary<string, uint> GetAllAttributeLocations()
         {
             return _attributeLocations;
+        }
+
+        private void CleanupResources(uint vertexShader, uint fragmentShader)
+        {
+            _gl.DetachShader(_handle, vertexShader);
+            _gl.DetachShader(_handle, fragmentShader);
+            _gl.DeleteShader(vertexShader);
+            _gl.DeleteShader(fragmentShader);
+        }
+
+        private Result<uint, Error> CompileShader(ShaderType type, string source)
+        {
+            uint shader = _gl.CreateShader(type);
+            _gl.ShaderSource(shader, source);
+            _gl.CompileShader(shader);
+
+            string infoLog = _gl.GetShaderInfoLog(shader);
+            if (!string.IsNullOrEmpty(infoLog))
+            {
+                DebLogger.Error($"Error compiling shader of type {type}: {infoLog}");
+            }
+
+            return string.IsNullOrEmpty(infoLog) ?
+                new Result<uint, Error>(shader) :
+                new Result<uint, Error>(new CompileError($"Error compiling shader of type {type}: {infoLog}"));
+        }
+
+        private void LinkProgram()
+        {
+            _gl.LinkProgram(_handle);
+            _gl.GetProgram(_handle, GLEnum.LinkStatus, out int success);
+            if (success == 0)
+            {
+                DebLogger.Error($"Error linking shader program: {_gl.GetProgramInfoLog(_handle)}");
+                throw new Exception($"Error linking shader program: {_gl.GetProgramInfoLog(_handle)}");
+            }
         }
 
         private void CacheAttributes()

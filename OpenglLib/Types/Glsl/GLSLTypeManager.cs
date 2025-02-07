@@ -8,7 +8,6 @@ namespace OpenglLib
         private Dictionary<string, GlslTypeModel> _typesByMark= new Dictionary<string, GlslTypeModel>();
         private Dictionary<int, GlslTypeModel> _typesByCode = new Dictionary<int, GlslTypeModel>();
         private static GLSLTypeManager? _instance;
-        public ILogger? Logger { get; set; }
 
         public static GLSLTypeManager Instance
         {
@@ -34,7 +33,6 @@ namespace OpenglLib
 
                 if (types == null)
                 {
-                    Logger?.Fatal("Failed to deserialize GLSL types");
                     throw new DeserializeError("Failed to deserialize GLSL types");
                 }
 
@@ -46,7 +44,6 @@ namespace OpenglLib
             }
             catch (Exception ex)
             {
-                Logger?.Fatal("Failed to load GLSL types", ex);
                 throw new Exception("Failed to load GLSL types", ex);
 
             }

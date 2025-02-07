@@ -1,8 +1,9 @@
 ﻿using System.Collections.Concurrent;
-using System.Diagnostics;
 
-namespace EngineLib
+namespace AtomEngine
 {
+    //// TODO: Реализовать мультизависимость систем 
+    
     public partial class World : IWorld, IDisposable
     {
         // ENTITY
@@ -204,7 +205,7 @@ namespace EngineLib
         }
         #endregion
 
-        public async Task UpdateAsync(float deltaTime)
+        public async Task UpdateAsync(double deltaTime)
         {
             var systemLevels = _dependencyGraph.GetExecutionLevels();
             foreach (var level in systemLevels)
@@ -216,7 +217,7 @@ namespace EngineLib
             }
         }
 
-        private void UpdateSystemSafely(ISystem system, float deltaTime)
+        private void UpdateSystemSafely(ISystem system, double deltaTime)
         {
             try
             {
@@ -227,9 +228,14 @@ namespace EngineLib
                 DebLogger.Error($"Error updating system {system.GetType().Name}: {ex}");
             }
         }
-        public void Update(float deltaTime)
+        public void Update(double deltaTime)
         {
-            UpdateAsync(deltaTime).GetAwaiter().GetResult();
+            //UpdateAsync(deltaTime).GetAwaiter().GetResult();
+            var systemLevels = _dependencyGraph.GetExecutionLevels();
+            foreach (var level in systemLevels)
+            {
+                level.ForEach(system => UpdateSystemSafely(system, deltaTime));
+            }
         }
         public void Dispose()
         {

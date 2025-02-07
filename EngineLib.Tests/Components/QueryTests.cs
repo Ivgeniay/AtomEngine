@@ -2,7 +2,7 @@
 
 using System.Numerics;
 
-namespace EngineLib.Tests
+namespace AtomEngine.Tests
 {
    
     public struct TestTransformComponent : IComponent

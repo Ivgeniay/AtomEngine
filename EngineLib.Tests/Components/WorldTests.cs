@@ -1,5 +1,5 @@
 ﻿
-namespace EngineLib.Tests
+namespace AtomEngine.Tests
 {
     public class WorldTests : IDisposable
     {

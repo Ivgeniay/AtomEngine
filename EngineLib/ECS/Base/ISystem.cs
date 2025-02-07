@@ -1,10 +1,10 @@
 ﻿
 
-namespace EngineLib
+namespace AtomEngine
 {
     public interface ISystem
     {
         IWorld World { get; }
-        public abstract void Update(float deltaTime);
+        public abstract void Update(double deltaTime);
     }
 }

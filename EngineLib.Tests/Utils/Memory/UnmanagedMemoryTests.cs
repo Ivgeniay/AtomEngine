@@ -1,6 +1,6 @@
-﻿using EngineLib.Memory;
+﻿using AtomEngine.Memory;
 
-namespace EngineLib.Tests
+namespace AtomEngine.Tests
 {
     public class UnmanagedMemoryTests
     {

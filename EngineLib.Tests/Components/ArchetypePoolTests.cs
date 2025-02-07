@@ -1,8 +1,8 @@
 ﻿using System.Numerics;
-using EngineLib;
+using AtomEngine;
 
 
-namespace EngineLib.Tests
+namespace AtomEngine.Tests
 {
     public class ArchetypePoolTests : IDisposable
     {

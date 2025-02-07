@@ -4,7 +4,7 @@
     public void Log(string message, LogLevel logLevel);
     public void Debug(params object[] args) => Log(string.Join(" ", args), LogLevel.Debug);
     public void Info(params object[] args) => Log(string.Join(" ", args), LogLevel.Info);
-    public void Warm(params object[] args) => Log(string.Join(" ", args), LogLevel.Warn);
+    public void Warn(params object[] args) => Log(string.Join(" ", args), LogLevel.Warn);
     public void Error(params object[] args) => Log(string.Join(" ", args), LogLevel.Error);
     public void Fatal(params object[] args) => Log(string.Join(" ", args), LogLevel.Fatal);
     public void SetMaxLevelFilter(LogLevel logLevel)

@@ -1,8 +1,8 @@
 {
   "attributes": {
     "V_POS": "vertex_position",
-    "V_COLOR": "vertex_color",
-    "V_TEX": "vertex_texcoord",
+    "V_COL": "vertex_color",
+    "V_UV": "vertex_texcoord",
     "V_NORM": "vertex_normal"
   },
   "model": {
@@ -18,7 +18,10 @@
     "SCREEN_RES": "screen_resolution",
     "COLOR": "color",
     "POS": "position",
-    "DIR": "direction"
+    "DIR": "direction",
+    "VIEW": "view",
+    "PROJ": "projection",
+    "MODEL": "model"
   },
   "textures": {
     "SAM_TEXTURE00": "samp_texture00",
@@ -42,6 +45,8 @@
     "QUADRATIC": "quadratic",
     "DL_QUAN_NAME": "dirLightCount",
     "PL_QUAN_NAME": "pointLightCount",
+    "PL_QUAN": "8",
+    "DL_QUAN": "4"
   },
   "uniforms": {
     "U_MVP_M4": "uniform_mvp_m4",

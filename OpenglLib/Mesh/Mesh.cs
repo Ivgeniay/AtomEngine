@@ -1,4 +1,4 @@
-﻿using EngineLib.RenderEntity;
+﻿using AtomEngine.RenderEntity;
 using OpenglLib.Buffers;
 using Silk.NET.OpenGL;
 
@@ -18,23 +18,19 @@ namespace OpenglLib
             _gl = gl;
             _primitiveType = primitiveType;
             _indicesCount = (uint)indices.Length;
-
-            // Создаем буферы
+             
             _vao = new VAO(gl);
             _vbo = new VBO(gl);
             _ebo = new EBO(gl);
-
-            // Загружаем данные
+             
             _vbo.SetData(vertices);
             _ebo.SetData(indices);
-
-            // Настраиваем VAO с атрибутами по умолчанию для 3D позиции
+             
             _vao.WithVBO(_vbo)
                 .WithEBO(_ebo)
                 .WithAttribute(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
         }
-
-        // Конструктор для меша без индексов
+         
         public Mesh(GL gl, float[] vertices, PrimitiveType primitiveType = PrimitiveType.Triangles)
         {
             _gl = gl;

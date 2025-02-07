@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 
-namespace EngineLib
+namespace AtomEngine
 {
     public struct TransformComponent : IComponent
     {
@@ -17,6 +17,25 @@ namespace EngineLib
             Rotation = Vector3.Zero;
             Scale = Vector3.One;
             WorldMatrix = Matrix4x4.Identity;
+        }
+
+        public Matrix4x4 GetTranslationMatrix() => Matrix4x4.CreateTranslation(Position); 
+        public Matrix4x4 GetScaleMatrix() => Matrix4x4.CreateScale(Scale);
+        public Matrix4x4 GetRotationMatrix()
+        { 
+            return Matrix4x4.CreateRotationZ(Rotation.Z) *
+                   Matrix4x4.CreateRotationX(Rotation.X) *
+                   Matrix4x4.CreateRotationY(Rotation.Y);
+        } 
+
+        public Matrix4x4 GetModelMatrix(Matrix4x4? parentWorldMatrix = null)
+        {
+            var modelMatrix = GetTranslationMatrix() * GetRotationMatrix() * GetScaleMatrix(); 
+            if (parentWorldMatrix.HasValue)
+            {
+                return modelMatrix * parentWorldMatrix.Value;
+            } 
+            return modelMatrix;
         }
 
         public void UpdateWorldMatrix()

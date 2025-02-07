@@ -4,8 +4,6 @@ namespace OpenglLib.Buffers
 {
     internal class EBO : Buffer
     {
-        public uint Handle => _handle;
-
         public EBO(GL gl) : base(gl)
         { 
             _handle = _gl.GenBuffer();

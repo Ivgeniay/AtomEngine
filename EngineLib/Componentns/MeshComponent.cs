@@ -1,6 +1,6 @@
-﻿using EngineLib.RenderEntity;
+﻿using AtomEngine.RenderEntity;
 
-namespace EngineLib
+namespace AtomEngine
 {
     public struct MeshComponent : IComponent, IDisposable
     {

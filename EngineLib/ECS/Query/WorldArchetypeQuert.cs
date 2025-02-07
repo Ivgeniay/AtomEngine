@@ -1,5 +1,5 @@
 ﻿
-namespace EngineLib
+namespace AtomEngine
 {
     public partial class World
     {

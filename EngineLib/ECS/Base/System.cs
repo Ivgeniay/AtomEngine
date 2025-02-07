@@ -1,4 +1,4 @@
-﻿namespace EngineLib
+﻿namespace AtomEngine
 {
     public abstract class System : ISystem
     {
@@ -8,6 +8,6 @@
         protected System(World world) =>
             _world = world;
 
-        public abstract void Update(float deltaTime);
+        public abstract void Update(double deltaTime);
     }
 }

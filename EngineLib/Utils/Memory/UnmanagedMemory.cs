@@ -1,7 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace EngineLib.Memory
+namespace AtomEngine.Memory
 {
     /// <summary>
     /// Представляет блок неуправляемой памяти с безопасным управлением жизненным циклом

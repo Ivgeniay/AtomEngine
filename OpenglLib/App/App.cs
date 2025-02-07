@@ -14,7 +14,6 @@ namespace OpenglLib
 
         private IWindow? _window;
         private IInputContext? _input;
-        private ILogger? _logger;
         private AppOptions appOptions;
         private GL? _gl;
 
@@ -25,8 +24,6 @@ namespace OpenglLib
         public App(AppOptions options)
         {
             appOptions = options;
-            this._logger = options.Logger;
-            GLSLTypeManager.Instance.Logger = this._logger;
             GLSLTypeManager.Instance.LazyInitializer();
 
             var win_options = WindowOptions.Default;
@@ -52,55 +49,11 @@ namespace OpenglLib
 
         private void OnLoad()
         {
-            // Инициализация OpenGL
             _gl = GL.GetApi(_window);
-            // Инициализация системы ввода
-            _input = _window?.CreateInput();
 
-            string vertexShaderSource =
-            @"#version 330 core
-layout (location = 0) in vec3 aPosition;
+            _gl.Enable(EnableCap.DepthTest);
 
-uniform mat4 transform;
-
-void main()
-{
-    gl_Position = transform * vec4(aPosition, 1.0);
-}";
-
-            string fragmentShaderSource =
-            @"#version 330 core
-out vec4 FragColor;
-
-void main()
-{
-    FragColor = vec4(1.0, 0.5, 0.2, 1.0);
-}";
-
-            var shader = new Shader(_gl, vertexShaderSource, fragmentShaderSource);
-            float[] vertices = {
-             0.5f, -0.5f, 0.0f,  // Нижний правый
-            -0.5f, -0.5f, 0.0f,  // Нижний левый
-             0.0f,  0.5f, 0.0f   // Верхний
-        };
-
-            uint[] indices = { 0, 1, 2 };
-            var mesh = new Mesh(_gl, vertices, indices);
-
-            NativeWindow.Update += delta =>
-            {
-                float angle = (float)(DateTime.Now.Millisecond / 1000.0f * Math.PI * 2.0);
-                var transform = Matrix4X4.CreateRotationZ(angle);
-
-                shader.SetUniform("transform", transform);
-            };
-
-            // Обновляем логику рендеринга
-            NativeWindow.Render += delta =>
-            {
-                _gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-                mesh.Draw(shader);
-            };
+            _input = _window?.CreateInput(); 
         }
 
         private void OnUpdate(double deltaTime)
@@ -118,14 +71,13 @@ void main()
 
         private void OnRender(double deltaTime)
         {
-            //_gl?.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             _gl?.ClearColor(appOptions.BackgroundColor.Item1, appOptions.BackgroundColor.Item2, appOptions.BackgroundColor.Item3, appOptions.BackgroundColor.Item4);
             _gl?.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
         }
 
         private void OnClose()
         {
-            // Очистка ресурсов при закрытии
+            
         }
 
         private void OnResize(Vector2D<int> newSize)
@@ -143,22 +95,5 @@ void main()
             _window?.Dispose();
             _input?.Dispose();
         }
-    }
-
-    public class AppOptions
-    {
-        public int Width { get; set; } = 800;
-        public int Height { get; set; } = 600;
-        public string Title { get; set; } = "Engine";
-        public bool Debug { get; set; } = false;
-        public ILogger? Logger { get; set; }
-        public Platform Platform { get; set; } = Platform.Exe;
-        public Tuple<float, float, float, float> BackgroundColor { get; set; } = Tuple.Create<float, float, float, float> ( 0.1f, 0.1f, 0.1f, 0.1f );
-    }
-
-    public enum Platform
-    {
-        Exe,
-        Web
     }
 }

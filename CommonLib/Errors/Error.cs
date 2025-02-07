@@ -1,7 +1,9 @@
 ﻿
 
 
-public class Error: Exception
+using AtomEngine;
+
+public abstract class Error: Exception
 {
     public Error(string message) : base(message)
     {

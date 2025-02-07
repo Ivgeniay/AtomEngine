@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
 
-namespace EngineLib
+namespace AtomEngine
 {
     public class SystemDependencyGraph
     {
