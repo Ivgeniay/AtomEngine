@@ -1,5 +1,5 @@
 ﻿using Silk.NET.Assimp;
-using Silk.NET.OpenGL; 
+using Silk.NET.OpenGL;
 using System.Numerics;
 using AssimpMesh = Silk.NET.Assimp.Mesh;
 using Node = Silk.NET.Assimp.Node;
@@ -8,19 +8,20 @@ namespace OpenglLib
 {
     public class Model : IDisposable
     {
-        public Model(GL gl, string path, bool gamma = false)
+        //public Model(GL gl, string path, bool gamma = false)
+        public Model(GL gl, bool gamma = false)
         {
             var assimp = Assimp.GetApi();
             _assimp = assimp;
             _gl = gl;
-            LoadModel(path);
+            //LoadModel(path);
         }
 
         private readonly GL _gl;
         private Assimp _assimp;
-        private List<Texture> _texturesLoaded = new List<Texture>();
-        public string Directory { get; protected set; } = string.Empty;
-        public List<Mesh> Meshes { get; protected set; } = new List<Mesh>();
+        public List<Texture> _texturesLoaded = new List<Texture>();
+        public string Directory { get; set; } = string.Empty;
+        public List<Mesh> Meshes { get; set; } = new List<Mesh>();
 
         private unsafe void LoadModel(string path)
         {
@@ -190,4 +191,5 @@ namespace OpenglLib
             _texturesLoaded = null;
         }
     }
+
 }

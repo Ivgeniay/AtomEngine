@@ -13,7 +13,7 @@ namespace OpenglLib.Utils
             using (var stream = mb_stream.Unwrap())
             {
                 if (stream == null)
-                    return new Result<string, Error>(new FileNotFound($"Resource not found: {fileName}"));
+                    return new Result<string, Error>(new FileNotFoundError($"Resource not found: {fileName}"));
 
                 string result = "";
                 using (var reader = new StreamReader(stream))
@@ -27,7 +27,7 @@ namespace OpenglLib.Utils
         public static Result<string, Error> LoadAsText(string filePath, string extension)
         {
             if (!File.Exists(filePath))
-                return new Result<string, Error>(new FileNotFound($"File not found: {filePath}"));
+                return new Result<string, Error>(new FileNotFoundError($"File not found: {filePath}"));
 
             if (!filePath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
                 return new Result<string, Error>(new ArgumentError($"File must have {extension} extension"));
@@ -63,10 +63,10 @@ namespace OpenglLib.Utils
             }
             catch (UnauthorizedAccessException)
             {
-                return new Result<string, Error>(new UnauthorizedAccess($"There is no access to directory: {currentDirectory}"));
+                return new Result<string, Error>(new UnauthorizedAccessError($"There is no access to directory: {currentDirectory}"));
             }
 
-            return new Result<string, Error>(new FileNotFound($"File {fileName} not found"));
+            return new Result<string, Error>(new FileNotFoundError($"File {fileName} not found"));
         }
 
         private static string GetRootDirectory()
@@ -79,7 +79,7 @@ namespace OpenglLib.Utils
             string resourcePath = $"{assembly.GetName().Name}.Config.{fileName}";
             Stream? stream = assembly.GetManifestResourceStream(resourcePath);
             if (stream == null)
-                return new Result<Stream, Error>(new FileNotFound($"Resource not found: {fileName}"));
+                return new Result<Stream, Error>(new FileNotFoundError($"Resource not found: {fileName}"));
             return new Result<Stream, Error>(stream);
         }
     }

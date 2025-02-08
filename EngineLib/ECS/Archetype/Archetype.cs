@@ -23,7 +23,7 @@ namespace AtomEngine
         public Archetype(Type[] componentTypes)
         {
             if (componentTypes == null)
-                throw new NullValue(nameof(componentTypes));
+                throw new NullValueError(nameof(componentTypes));
 
             // Сортируем типы для обеспечения уникальности порядка
             Type[] sortedTypes = componentTypes.OrderBy(t => t.FullName).ToArray();

@@ -20,7 +20,7 @@ namespace OpenglLib
             Path = path;
             Type = type;
             _handle = _gl.GenTexture();
-            Bind();
+            Bind(); 
 
             using (var img = Image.Load<Rgba32>(path))
             {

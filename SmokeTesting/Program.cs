@@ -28,16 +28,16 @@ namespace SmokeTesting
             World world = new World();
             var camera = world.CreateEntity();
             var cameraTransform = new TransformComponent(camera);
-            cameraTransform.Position = new Vector3(0, 1, 5);
+            cameraTransform.Position = new Vector3(0, 0, 5);
             world.AddComponent(camera, cameraTransform);
             world.AddComponent(camera, new CameraComponent(camera));
 
             var cube = world.CreateEntity();
             world.AddComponent(cube, new TransformComponent(cube));
-
-            ModelLoader modelLoader = new ModelLoader(app.Gl);
-            var result = modelLoader.LoadModel("D:/Programming/CS/Engine/OpenglLib/Geometry/Standart/cube.obj");
-            OpenglLib.Mesh mesh = result.Unwrap().Children[0].Meshes[0];
+            world.AddComponent(cube, new RotateComponent(cube));
+            Result<Model, Error> mb_model = ModelLoader.LoadModel("Standart/torus.obj", app.Gl, app.Assimp);
+            var model = mb_model.Unwrap();
+            var mesh = model.Meshes[0];
             var cubeMeshComponent = new MeshComponent(cube, mesh);
             world.AddComponent(cube, cubeMeshComponent);
 
@@ -53,6 +53,7 @@ namespace SmokeTesting
             world.AddComponent(cube, new ShaderComponent(cube, shader));
 
             world.AddSystem(new RenderSystem(world));
+            world.AddSystem(new RotateSystem(world));
 
             app.NativeWindow.Render += delta =>
             {
@@ -60,7 +61,56 @@ namespace SmokeTesting
             };
         }
     }
+    public struct RotateComponent : IComponent
+    {
+        public RotateComponent(Entity owner)
+        {
+            _owner = owner;
+        }
 
+        public Entity Owner => throw new NotImplementedException();
+        Entity _owner;
+    }
+    public class RotateSystem : ISystem
+    {
+        private IWorld _world;
+        public IWorld World => _world;
+
+        public RotateSystem(IWorld world)
+        {
+            _world = world;
+        }
+
+        public void Update(double deltaTime)
+        {
+            float rotationSpeed = 1.0f;
+            float deltaRotation = (float)deltaTime * rotationSpeed;
+
+            Entity[] entities = this.CreateQuery()
+                .With<TransformComponent>()
+                .With<RotateComponent>()
+                .Build();
+
+            foreach (var entity in entities)
+            {
+                ref var transform = ref this.GetComponent<TransformComponent>(entity);
+
+                // Увеличиваем углы поворота
+                transform.Rotation += new Vector3(
+                    deltaRotation,  // вращение вокруг X
+                    deltaRotation,  // вращение вокруг Y
+                    deltaRotation   // вращение вокруг Z
+                );
+
+                // Нормализуем углы, чтобы они оставались в пределах [0, 2π]
+                transform.Rotation = new Vector3(
+                    transform.Rotation.X % (2 * MathF.PI),
+                    transform.Rotation.Y % (2 * MathF.PI),
+                    transform.Rotation.Z % (2 * MathF.PI)
+                );
+            }
+        }
+    }
     public class RenderSystem : ISystem
     {
         private IWorld _world;
@@ -123,6 +173,8 @@ namespace SmokeTesting
             }
         } 
     }
+
+    
 
     public class DefaultLogger : ILogger
     {

@@ -1,140 +1,324 @@
-﻿using AtomEngine;
-using Silk.NET.Assimp;
-using Silk.NET.Maths;
+﻿using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
+using System.Numerics;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using AssimpMesh = Silk.NET.Assimp.Mesh;
 
 namespace OpenglLib
-{ 
-    public class ModelLoader
+{
+    public static class ModelLoader
     {
-        private readonly Assimp _assimp;
-        private readonly GL _gl;
+        private const string BaseNamespace = "OpenglLib.Geometry";
+        public static string _customBasePath = AppContext.BaseDirectory;
 
-        public ModelLoader(GL gl)
+        /// <summary>
+        /// Загружает шейдер из ресурсов или файла
+        /// </summary>
+        /// <param name="modelPath"> Имя файла или часть пути относительно Shader/ShaderSource </param>
+        /// <param name="useEmbeddedResources"> Использование ресурсов (tree) или </param>
+        /// <returns></returns>
+        public static Result<Model, Error> LoadModel(string modelPath, GL gl, Assimp _assimp, bool useEmbeddedResources = true)
         {
-            _assimp = Assimp.GetApi();
-            _gl = gl;
+            if (useEmbeddedResources)
+            {
+                return LoadFromResources(modelPath, gl, _assimp);
+            }
+            return LoadFromFile(modelPath);
         }
 
-        public unsafe Result<NodeM, Error> LoadModel(string path)
+        private unsafe static Result<Model, Error> LoadFromResources(string modelPath, GL gl, Assimp _assimp)
         {
-            try
-            {
-                if (!System.IO.File.Exists(path))
-                {
-                    return new Result<NodeM, Error>(
-                        new MeshError($"Model file does not exist: {path}"));
-                }
+            Scene* scene = GetSceneFromFile(modelPath, _assimp);
 
-                Scene* scene = _assimp.ImportFile(path,
-                    (uint)(PostProcessSteps.Triangulate |
-                           PostProcessSteps.GenerateNormals |
-                           PostProcessSteps.FlipUVs));
+            Model model = new Model(gl);
+            model.Directory = modelPath;
+
+            ProcessNode(scene->MRootNode, scene, gl, _assimp, model);
+
+            return new Result<Model, Error>(model);
+        }
+
+        private static unsafe Scene* GetSceneFromFile(string modelPath, Assimp _assimp)
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var resources = assembly.GetManifestResourceNames();
+            var normalizedModelName = modelPath.Replace('/', '.').Replace('\\', '.');
+            var resourceName = resources.FirstOrDefault(r =>
+                r.StartsWith(BaseNamespace) &&
+                r.EndsWith(normalizedModelName, StringComparison.OrdinalIgnoreCase));
+
+            if (resourceName == null)
+            {
+                var availableModels = string.Join("\n", resources
+                    .Where(r => r.StartsWith(BaseNamespace))
+                    .Select(r => r.Substring(BaseNamespace.Length + 1)));
+
+                throw new ShaderError(
+                    $"Model resource not found: {modelPath}\n" +
+                    $"Available models:\n{availableModels}");
+            }
+
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+                throw new ShaderError($"Failed to load shader stream: {resourceName}");
+
+            string TrimFilename(string path)
+            {
+                var splitedStr = path.Split(".");
+                if (splitedStr.Length <= 2)
+                    return path;
+
+                var span = splitedStr.AsSpan().Slice(1, splitedStr.Length - 1);
+                var res = string.Join(".", span);
+
+                return TrimFilename(res);
+            }
+
+            string modelName = TrimFilename(normalizedModelName);
+
+            byte[] modelData = new byte[stream.Length];
+            stream.Read(modelData, 0, modelData.Length);
+
+            fixed (byte* buffer = modelData)
+            {
+                Scene* scene = _assimp.ImportFileFromMemory(
+                buffer,
+                (uint)modelData.Length,
+                (uint)(PostProcessSteps.Triangulate | PostProcessSteps.GenerateNormals | PostProcessSteps.FlipUVs),
+                (byte*)Marshal.StringToHGlobalAnsi(modelName));
 
                 if (scene == null)
                 {
                     var errorMessage = Marshal.PtrToStringAnsi((IntPtr)_assimp.GetErrorString());
-                    return new Result<NodeM, Error>(
-                        new MeshError($"Failed to load model: {path}. Assimp error: {errorMessage}"));
+                    throw new MeshError($"Failed to load model from resources: {modelName}. Assimp error: {errorMessage}");
                 }
-
-                NodeM rootNode = ProcessNode(scene->MRootNode, scene);
-                _assimp.ReleaseImport(scene);
-                return new Result<NodeM, Error>(rootNode);
+                return scene;
             }
-            catch (Exception ex)
+
+        }
+
+        private static unsafe void ProcessNode(Node* node, Scene* scene, GL gl, Assimp _assimp, Model model)
+        {
+            for (var i = 0; i < node->MNumMeshes; i++)
             {
-                return new Result<NodeM, Error>(
-                    new MeshError($"Error loading model {path}: {ex.Message}"));
+                var mesh = scene->MMeshes[node->MMeshes[i]];
+                model.Meshes.Add(ProcessMesh(mesh, scene, gl, _assimp, model));
+
+            }
+
+            for (var i = 0; i < node->MNumChildren; i++)
+            {
+                ProcessNode(node->MChildren[i], scene, gl, _assimp, model);
             }
         }
 
-        private unsafe NodeM ProcessNode(Silk.NET.Assimp.Node* assimpNode, Scene* scene)
+        private static unsafe Mesh ProcessMesh(AssimpMesh* mesh, Scene* scene, GL gl, Assimp _assimp, Model model)
         {
-            // Создаем новый узел нашего типа
-            var transform = *(Matrix4X4<float>*)&assimpNode->MTransformation;
-            var newNode = new NodeM(
-                Marshal.PtrToStringAnsi((IntPtr)assimpNode->MName.Data) ?? "unnamed",
-                transform);
+            // data to fill
+            List<Vertex> vertices = new List<Vertex>();
+            List<uint> indices = new List<uint>();
+            List<Texture> textures = new List<Texture>();
 
-            // Добавляем все меши, принадлежащие этому узлу
-            for (int i = 0; i < assimpNode->MNumMeshes; i++)
+            // walk through each of the mesh's vertices
+            for (uint i = 0; i < mesh->MNumVertices; i++)
             {
-                uint meshIndex = assimpNode->MMeshes[i];
-                newNode.Meshes.Add(MakeMesh(scene, (int)meshIndex));
+                Vertex vertex = new Vertex();
+                vertex.BoneIds = new int[Vertex.MAX_BONE_INFLUENCE];
+                vertex.Weights = new float[Vertex.MAX_BONE_INFLUENCE];
+
+                vertex.Position = mesh->MVertices[i];
+
+                // normals
+                if (mesh->MNormals != null)
+                    vertex.Normal = mesh->MNormals[i];
+                // tangent
+                if (mesh->MTangents != null)
+                    vertex.Tangent = mesh->MTangents[i];
+                // bitangent
+                if (mesh->MBitangents != null)
+                    vertex.Bitangent = mesh->MBitangents[i];
+
+                // texture coordinates
+                if (mesh->MTextureCoords[0] != null) // does the mesh contain texture coordinates?
+                {
+                    // a vertex can contain up to 8 different texture coordinates. We thus make the assumption that we won't 
+                    // use models where a vertex can have multiple texture coordinates so we always take the first set (0).
+                    Vector3 texcoord3 = mesh->MTextureCoords[0][i];
+                    vertex.TexCoords = new Vector2(texcoord3.X, texcoord3.Y);
+                }
+
+                vertices.Add(vertex);
             }
 
-            // Рекурсивно обрабатываем все дочерние узлы
-            if (assimpNode->MChildren != null)
+            // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
+            for (uint i = 0; i < mesh->MNumFaces; i++)
             {
-                for (int i = 0; i < assimpNode->MNumChildren; i++)
+                Face face = mesh->MFaces[i];
+                // retrieve all indices of the face and store them in the indices vector
+                for (uint j = 0; j < face.MNumIndices; j++)
+                    indices.Add(face.MIndices[j]);
+            }
+
+            // process materials
+            Material* material = scene->MMaterials[mesh->MMaterialIndex];
+            // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
+            // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
+            // Same applies to other texture as the following list summarizes:
+            // diffuse: texture_diffuseN
+            // specular: texture_specularN
+            // normal: texture_normalN
+
+            // 1. diffuse maps
+            var diffuseMaps = LoadMaterialTextures(material, TextureType.Diffuse, "texture_diffuse", gl, _assimp, model);
+            if (diffuseMaps.Any())
+                textures.AddRange(diffuseMaps);
+            // 2. specular maps
+            var specularMaps = LoadMaterialTextures(material, TextureType.Specular, "texture_specular", gl, _assimp, model);
+            if (specularMaps.Any())
+                textures.AddRange(specularMaps);
+            // 3. normal maps
+            var normalMaps = LoadMaterialTextures(material, TextureType.Height, "texture_normal", gl, _assimp, model);
+            if (normalMaps.Any())
+                textures.AddRange(normalMaps);
+            // 4. height maps
+            var heightMaps = LoadMaterialTextures(material, TextureType.Ambient, "texture_height", gl, _assimp, model);
+            if (heightMaps.Any())
+                textures.AddRange(heightMaps);
+
+            // return a mesh object created from the extracted mesh data
+            var result = new Mesh(gl, BuildVertices(vertices), BuildIndices(indices), textures);
+            return result;
+        }
+
+        private static unsafe List<Texture> LoadMaterialTextures(Material* mat, TextureType type, string typeName, GL gl, Assimp _assimp, Model model)
+        {
+            var textureCount = _assimp.GetMaterialTextureCount(mat, type);
+            List<Texture> textures = new List<Texture>();
+            for (uint i = 0; i < textureCount; i++)
+            {
+                AssimpString path;
+                _assimp.GetMaterialTexture(mat, type, i, &path, null, null, null, null, null, null);
+                bool skip = false;
+                for (int j = 0; j < model._texturesLoaded.Count; j++)
                 {
-                    var childNode = assimpNode->MChildren[i];
-                    if (childNode != null)
+                    if (model._texturesLoaded[j].Path == path)
                     {
-                        try
-                        {
-                            var processedNode = ProcessNode(childNode, scene);
-                            newNode.Children.Add(processedNode);
-                        }
-                        catch (MeshError ex)
-                        {
-                            DebLogger.Error($"{ex}");
-                            DebLogger.Error($"Processing node: {Marshal.PtrToStringAnsi((IntPtr)assimpNode->MName.Data)}");
-                            DebLogger.Error($"Number of children: {assimpNode->MNumChildren}");
-                        }
+                        textures.Add(model._texturesLoaded[j]);
+                        skip = true;
+                        break;
                     }
                 }
+                if (!skip)
+                {
+                    var texture = new Texture(gl, model.Directory, type);
+                    texture.Path = path;
+                    textures.Add(texture);
+                    model._texturesLoaded.Add(texture);
+                }
             }
-
-            return newNode;
+            return textures;
         }
 
-        private unsafe Mesh MakeMesh(Scene* scene, int meshIndex)
+        private static float[] BuildVertices(List<Vertex> vertexCollection)
         {
-            var mesh = scene->MMeshes[meshIndex];
             var vertices = new List<float>();
 
-            // Собираем вершины для текущего меша
-            for (int i = 0; i < mesh->MNumVertices; i++)
+            foreach (var vertex in vertexCollection)
             {
-                // Позиция
-                vertices.Add(mesh->MVertices[i].X);
-                vertices.Add(mesh->MVertices[i].Y);
-                vertices.Add(mesh->MVertices[i].Z);
+                vertices.Add(vertex.Position.X);
+                vertices.Add(vertex.Position.Y);
+                vertices.Add(vertex.Position.Z);
+                vertices.Add(vertex.TexCoords.X);
+                vertices.Add(vertex.TexCoords.Y);
+            }
 
-                // Нормали (если есть)
-                if (mesh->MNormals != null)
+            return vertices.ToArray();
+        }
+
+        private static uint[] BuildIndices(List<uint> indices)
+        {
+            return indices.ToArray();
+        }
+
+
+
+
+
+        private static Result<Model, Error> LoadFromFile(string shaderName)
+        {
+            var normalizedShaderName = NormalizePath(shaderName);
+            var basePath = _customBasePath;
+
+            // Сначала пробуем найти файл по полному пути
+            var fullPath = Path.Combine(basePath, normalizedShaderName);
+
+            if (!System.IO.File.Exists(fullPath))
+            {
+                // Если файл не найден, ищем все файлы с таким именем
+                var fileName = Path.GetFileName(normalizedShaderName);
+                var searchResults = Directory
+                    .GetFiles(basePath, fileName, SearchOption.AllDirectories)
+                    .Select(path => NormalizePath(Path.GetRelativePath(basePath, path)))
+                    .ToList();
+
+                if (!searchResults.Any())
                 {
-                    vertices.Add(mesh->MNormals[i].X);
-                    vertices.Add(mesh->MNormals[i].Y);
-                    vertices.Add(mesh->MNormals[i].Z);
+                    var availableShaders = Directory
+                        .GetFiles(basePath, "*.glsl", SearchOption.AllDirectories)
+                        .Select(path => NormalizePath(Path.GetRelativePath(basePath, path)));
+
+                    throw new ShaderError(
+                        $"Shader file not found: {shaderName}\n" +
+                        $"Searched in: {basePath}\n" +
+                        $"Available shaders:\n{string.Join("\n", availableShaders)}");
                 }
 
-                // UV координаты (если есть)
-                if (mesh->MTextureCoords[0] != null)
+                // Если найдено больше одного файла, проверяем на точное совпадение пути
+                if (searchResults.Count > 1)
                 {
-                    vertices.Add(mesh->MTextureCoords[0][i].X);
-                    vertices.Add(mesh->MTextureCoords[0][i].Y);
+                    var normalizedSearchPath = NormalizePath(normalizedShaderName);
+                    var exactMatch = searchResults
+                        .FirstOrDefault(path =>
+                            string.Equals(path, normalizedSearchPath, StringComparison.OrdinalIgnoreCase));
+
+                    if (exactMatch != null)
+                    {
+                        // Нашли точное совпадение по относительному пути
+                        fullPath = Path.Combine(basePath, exactMatch);
+                    }
+                    else
+                    {
+                        // Если файл с таким именем существует в нескольких местах и нет точного совпадения пути
+                        throw new ShaderError(
+                            $"Ambiguous shader name: {shaderName}\n" +
+                            $"Multiple matches found:\n{string.Join("\n", searchResults)}");
+                    }
+                }
+                else
+                {
+                    // Если найден только один файл, используем его
+                    fullPath = Path.Combine(basePath, searchResults[0]);
                 }
             }
 
-            // Собираем индексы
-            var indices = new List<uint>();
-            for (int i = 0; i < mesh->MNumFaces; i++)
-            {
-                var face = mesh->MFaces[i];
-                for (int j = 0; j < face.MNumIndices; j++)
-                {
-                    indices.Add(face.MIndices[j]);
-                }
-            }
+            string res = System.IO.File.ReadAllText(fullPath);
+            return new Result<Model, Error>(new NotImplementedError("Kek"));
+        }
 
-            var _mesh = new Mesh(_gl, vertices.ToArray(), indices.ToArray());
-            return _mesh;
+        private static string NormalizePath(string path)
+        {
+            string extension = Path.GetExtension(path);
+            string pathWithoutExtension = path.Substring(0, path.Length - extension.Length);
+
+            string normalizedPath = pathWithoutExtension
+                .Replace('/', Path.DirectorySeparatorChar)
+                .Replace('\\', Path.DirectorySeparatorChar)
+                .Replace('.', Path.DirectorySeparatorChar)
+                .TrimStart(Path.DirectorySeparatorChar);
+
+            return normalizedPath + extension;
         }
     }
-
 
 }

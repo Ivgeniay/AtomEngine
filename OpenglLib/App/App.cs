@@ -2,20 +2,23 @@
 using Silk.NET.OpenGL;
 using Silk.NET.Input;
 using Silk.NET.Maths;
+using Silk.NET.Assimp;
 
 namespace OpenglLib
 {
     public class App : IDisposable
     {
-        public GL Gl => _gl;
-        public IWindow NativeWindow => _window;
-        public IInputContext Input => _input;
+        public GL? Gl => _gl;
+        public Assimp? Assimp => _assimp;
+        public IWindow? NativeWindow => _window;
+        public IInputContext? Input => _input;
 
 
         private IWindow? _window;
         private IInputContext? _input;
         private AppOptions appOptions;
         private GL? _gl;
+        private Assimp? _assimp;
 
         private Queue<double> _fpsHistory = new Queue<double>();
         private const int FPS_SAMPLE_SIZE = 60;
@@ -50,8 +53,8 @@ namespace OpenglLib
         private void OnLoad()
         {
             _gl = GL.GetApi(_window);
-
             _gl.Enable(EnableCap.DepthTest);
+            _assimp = Assimp.GetApi();
 
             _input = _window?.CreateInput(); 
         }
