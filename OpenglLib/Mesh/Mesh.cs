@@ -12,25 +12,27 @@ namespace OpenglLib
         private readonly EBO? _ebo;
         private readonly uint _indicesCount;
         private readonly PrimitiveType _primitiveType;
+        public IReadOnlyList<Texture> Textures { get; private set; }
 
-        public Mesh(GL gl, float[] vertices, uint[] indices, PrimitiveType primitiveType = PrimitiveType.Triangles)
+        public Mesh(GL gl, float[] vertices, uint[] indices, List<Texture> textures = null, PrimitiveType primitiveType = PrimitiveType.Triangles)
         {
             _gl = gl;
             _primitiveType = primitiveType;
+            this.Textures = textures;
             _indicesCount = (uint)indices.Length;
-             
+
             _vao = new VAO(gl);
             _vbo = new VBO(gl);
             _ebo = new EBO(gl);
-             
+
             _vbo.SetData(vertices);
             _ebo.SetData(indices);
-             
+
             _vao.WithVBO(_vbo)
                 .WithEBO(_ebo)
                 .WithAttribute(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
         }
-         
+
         public Mesh(GL gl, float[] vertices, PrimitiveType primitiveType = PrimitiveType.Triangles)
         {
             _gl = gl;
@@ -65,8 +67,9 @@ namespace OpenglLib
 
         public override void Dispose()
         {
-            _vao.Dispose();
-            _vbo.Dispose();
+            Textures = null;
+            _vao?.Dispose();
+            _vbo?.Dispose();
             _ebo?.Dispose();
         }
     }

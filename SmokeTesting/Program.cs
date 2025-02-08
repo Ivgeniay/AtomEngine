@@ -1,9 +1,6 @@
-﻿using AtomEngine;
+﻿using System.Numerics;
+using AtomEngine;
 using OpenglLib;
-using Silk.NET.Assimp;
-using Silk.NET.Maths;
-using Silk.NET.OpenGL;
-using System.Numerics;
 
 namespace SmokeTesting
 {
@@ -24,34 +21,6 @@ namespace SmokeTesting
         {
             DebLogger.Info("Window loaded");
             Game(app);
-        //    TestF.Execute(app.Gl);
-
-            //    string vertexShaderSource = ShaderLoader.LoadShader("TestVertexShader.glsl", true);
-            //    string fragmentShaderSource = ShaderLoader.LoadShader("TestFragmentShader.glsl", true);
-
-            //    var shader = new OpenglLib.Shader(app.Gl, vertexShaderSource, fragmentShaderSource);
-            //    float[] vertices = {
-            //     0.5f, -0.5f, 0.0f,  // Нижний правый
-            //    -0.5f, -0.5f, 0.0f,  // Нижний левый
-            //     0.0f,  0.5f, 0.0f   // Верхний
-            //};
-
-            //    uint[] indices = { 0, 1, 2 };
-            //    var mesh = new OpenglLib.Mesh(app.Gl, vertices, indices);
-
-            //    app.NativeWindow.Update += delta =>
-            //    {
-            //        float angle = (float)(DateTime.Now.Millisecond / 1000.0f * Math.PI * 2.0);
-            //        var transform = Matrix4X4.CreateRotationZ(angle);
-
-            //        shader.SetUniform("transform", transform);
-            //    };
-
-            //    app.NativeWindow.Render += delta =>
-            //    {
-            //        app.Gl.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-            //        mesh.Draw(shader);
-            //    };
         }
 
         private static void Game(App app)
@@ -59,7 +28,7 @@ namespace SmokeTesting
             World world = new World();
             var camera = world.CreateEntity();
             var cameraTransform = new TransformComponent(camera);
-            cameraTransform.Position = new Vector3(0, 0, 5);
+            cameraTransform.Position = new Vector3(0, 1, 5);
             world.AddComponent(camera, cameraTransform);
             world.AddComponent(camera, new CameraComponent(camera));
 
@@ -80,7 +49,7 @@ namespace SmokeTesting
             fragmentShaderSource = ShaderParser.ProcessConstants(fragmentShaderSource);
             DebLogger.Info(vertexShaderSource);
             DebLogger.Info(fragmentShaderSource);
-            OpenglLib.Shader shader = new OpenglLib.Shader(app.Gl, vertexShaderSource, fragmentShaderSource);
+            Shader shader = new Shader(app.Gl, vertexShaderSource, fragmentShaderSource);
             world.AddComponent(cube, new ShaderComponent(cube, shader));
 
             world.AddSystem(new RenderSystem(world));

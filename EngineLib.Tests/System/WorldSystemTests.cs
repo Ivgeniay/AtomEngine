@@ -155,18 +155,18 @@ namespace AtomEngine.Tests
         private class TestSystem : ISystem
         {
             public IWorld World { get; }
-            private readonly Action<float> _updateAction;
+            private readonly Action<double> _updateAction;
 
-            public TestSystem(IWorld world, Action<float> updateAction)
+            public TestSystem(IWorld world, Action<double> updateAction)
             {
                 World = world;
                 _updateAction = updateAction;
             }
 
-            public void Update(float deltaTime)
+            public void Update(double deltaTime)
             {
                 _updateAction(deltaTime);
-            }
+            } 
         }
 
         [Fact]

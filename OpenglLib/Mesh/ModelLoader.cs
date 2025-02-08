@@ -17,13 +17,13 @@ namespace OpenglLib
             _gl = gl;
         }
 
-        public unsafe Result<Node, Error> LoadModel(string path)
+        public unsafe Result<NodeM, Error> LoadModel(string path)
         {
             try
             {
                 if (!System.IO.File.Exists(path))
                 {
-                    return new Result<Node, Error>(
+                    return new Result<NodeM, Error>(
                         new MeshError($"Model file does not exist: {path}"));
                 }
 
@@ -35,26 +35,26 @@ namespace OpenglLib
                 if (scene == null)
                 {
                     var errorMessage = Marshal.PtrToStringAnsi((IntPtr)_assimp.GetErrorString());
-                    return new Result<Node, Error>(
+                    return new Result<NodeM, Error>(
                         new MeshError($"Failed to load model: {path}. Assimp error: {errorMessage}"));
                 }
 
-                Node rootNode = ProcessNode(scene->MRootNode, scene);
+                NodeM rootNode = ProcessNode(scene->MRootNode, scene);
                 _assimp.ReleaseImport(scene);
-                return new Result<Node, Error>(rootNode);
+                return new Result<NodeM, Error>(rootNode);
             }
             catch (Exception ex)
             {
-                return new Result<Node, Error>(
+                return new Result<NodeM, Error>(
                     new MeshError($"Error loading model {path}: {ex.Message}"));
             }
         }
 
-        private unsafe Node ProcessNode(Silk.NET.Assimp.Node* assimpNode, Scene* scene)
+        private unsafe NodeM ProcessNode(Silk.NET.Assimp.Node* assimpNode, Scene* scene)
         {
             // Создаем новый узел нашего типа
             var transform = *(Matrix4X4<float>*)&assimpNode->MTransformation;
-            var newNode = new Node(
+            var newNode = new NodeM(
                 Marshal.PtrToStringAnsi((IntPtr)assimpNode->MName.Data) ?? "unnamed",
                 transform);
 
