@@ -13,7 +13,7 @@ namespace OpenglLib
         public static string _customBasePath = AppContext.BaseDirectory;
 
         /// <summary>
-        /// Загружает шейдер из ресурсов или файла
+        /// Загружает модели из ресурсов или файла
         /// </summary>
         /// <param name="modelPath"> Имя файла или часть пути относительно Shader/ShaderSource </param>
         /// <param name="useEmbeddedResources"> Использование ресурсов (tree) или </param>

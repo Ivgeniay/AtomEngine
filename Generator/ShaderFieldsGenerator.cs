@@ -3,64 +3,30 @@ using Microsoft.CodeAnalysis.Text;
 using System.Text;
 
 
-namespace Generator
+namespace OpenglLib.Generator
 {
     [Generator]
     public class ShaderFieldsGenerator : ISourceGenerator
     {
         private StringBuilder sourceBuilder = new StringBuilder();
-        private Dictionary<string, string> allFields = new Dictionary<string, string>();
-
-        private void ReportMessage(GeneratorExecutionContext context, string id, string title, string message, DiagnosticSeverity severity)
-        {
-            context.ReportDiagnostic(Diagnostic.Create(
-                new DiagnosticDescriptor(
-                    id,
-                    title,
-                    message,
-                    "ShaderGeneration",
-                    severity,  // Error, Warning или Info
-                    isEnabledByDefault: true),
-                Location.None));
-        }
-
         public void Execute(GeneratorExecutionContext context)
         {
-            ReportMessage(context, "SG100", "Generator Start", "Starting shader field generation", DiagnosticSeverity.Warning);
-
-            // Выведем список всех доступных файлов
             var allFiles = context.AdditionalFiles.Select(f => f.Path).ToList();
-            ReportMessage(context, "SG101", "Available Files",
-                $"Found {allFiles.Count} additional files: {string.Join(", ", allFiles)}",
-                DiagnosticSeverity.Warning);
 
             var configFile = context.AdditionalFiles
                 .FirstOrDefault(f => f.Path.EndsWith("ShaderConfig.json"));
 
             if (configFile == null)
             {
-                ReportMessage(context, "SG001", "Config Not Found",
-                    $"ShaderConfig.json not found in available files",
-                    DiagnosticSeverity.Error);
                 return;
             }
 
-            ReportMessage(context, "SG102", "Config Found",
-                $"Found config at: {configFile.Path}",
-                DiagnosticSeverity.Warning);
 
             var content = configFile.GetText(context.CancellationToken)?.ToString();
             if (content == null)
             {
-                ReportMessage(context, "SG002", "Empty Configuration",
-                    "ShaderConfig.json file is empty or could not be read",
-                    DiagnosticSeverity.Error);
                 return;
             }
-
-            ReportMessage(context, "SG103", "Content Read",
-                $"Read content length: {content.Length}",
-                DiagnosticSeverity.Warning);
 
             GenerateCode(context, content);
         }
@@ -93,15 +59,11 @@ namespace Generator
                 sourceBuilder.AppendLine("}");
 
                 var generatedCode = sourceBuilder.ToString();
-                context.AddSource("ShaderFields.g.cs", SourceText.From(generatedCode, Encoding.UTF8));
-
-                // Добавим отладочное сообщение
-                ReportMessage(context, "SG999", "Generation Success",
-                    $"Generated {fields.Count} fields", DiagnosticSeverity.Info);
+                context.AddSource("Generated.ShaderFields.g.cs", SourceText.From(generatedCode, Encoding.UTF8));
             }
             catch (Exception ex)
             {
-                ReportMessage(context, "SG002", "Generation Error",
+                Reporter.ReportMessage(context, "SG002", "Generation Error",
                     $"Error during generation: {ex.Message}", DiagnosticSeverity.Error);
             }
         }

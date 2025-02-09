@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmokeTesting", "SmokeTestin
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommonLib", "CommonLib\CommonLib.csproj", "{C69F70FE-2EFE-4C19-9233-23ED25984CC6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Generator", "Generator\Generator.csproj", "{652DE575-9829-4AB5-A209-4976AA6C039E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenglLib.Generator", "Generator\OpenglLib.Generator.csproj", "{652DE575-9829-4AB5-A209-4976AA6C039E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EngineLib.Tests", "EngineLib.Tests\EngineLib.Tests.csproj", "{24937D8B-C4BE-40C3-9AF6-706909CFE050}"
 EndProject

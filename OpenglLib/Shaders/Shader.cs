@@ -7,26 +7,66 @@ namespace OpenglLib
 {
     public class Shader : ShaderBase
     {
-        private readonly uint _handle;
-        private readonly GL _gl;
-        private readonly Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
-        private readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
-        private readonly Dictionary<string, UniformInfo> _uniformInfo = new Dictionary<string, UniformInfo>();
+        private uint _handle;
+        protected readonly GL _gl;
+        protected readonly Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
+        protected readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
+        protected readonly Dictionary<string, UniformInfo> _uniformInfo = new Dictionary<string, UniformInfo>();
 
-        public uint Handle => _handle; 
+        protected string VertexSource;
+        protected string FragmentSource;
 
+        public uint Handle => _handle;
         public Shader(GL gl, string vertexSource = "", string fragmentSource = "")
-        {
+        { 
             _gl = gl;
 
-            vertexSource = string.IsNullOrEmpty(vertexSource) ? throw new ShaderError("Vertex shader in null or empty") : vertexSource;
-            fragmentSource = string.IsNullOrEmpty(fragmentSource) ? throw new ShaderError("Fragment shader in null or empty") : fragmentSource;
+            //vertexSource = string.IsNullOrEmpty(vertexSource) ? VertexSource : vertexSource;
+            //fragmentSource = string.IsNullOrEmpty(fragmentSource) ? FragmentSource : fragmentSource;
+
+            //if (string.IsNullOrEmpty(vertexSource)) throw new ShaderError("Vertex shader in null or empty");
+            //if (string.IsNullOrEmpty(fragmentSource)) throw new ShaderError("Fragment shader in null or empty");
+
+            //Result<uint, Error> mb_vertexShader = CompileShader(ShaderType.VertexShader, vertexSource);
+            //uint vertexShader = mb_vertexShader.Unwrap();
+
+            //Result<uint, Error> mb_fragmentShader = CompileShader(ShaderType.FragmentShader, fragmentSource);
+            //uint fragmentShader = mb_fragmentShader.Unwrap();
+
+            //_handle = _gl.CreateProgram();
+            //_gl.AttachShader(_handle, vertexShader);
+            //_gl.AttachShader(_handle, fragmentShader);
+            //LinkProgram();
+            //CleanupResources(vertexShader, fragmentShader);
+
+            //CacheAttributes();
+            //CacheUniforms();
+
+            //DebLogger.Info("==================SHADER_ATTRIBUTES=================");
+            //foreach (var item in _attributeLocations) DebLogger.Info(item.Key, " : ", item.Value);
+            //DebLogger.Info("===================SHADER_UNIFORMS==================");
+            //foreach (var item in _uniformLocations) DebLogger.Info(item.Key, " : ", item.Value);
+        }
+
+        protected void SetUpShader(string vertexSource = "", string fragmentSource = "")
+        {
+            vertexSource = string.IsNullOrEmpty(vertexSource) ? VertexSource : vertexSource;
+            fragmentSource = string.IsNullOrEmpty(fragmentSource) ? FragmentSource : fragmentSource;
+
+            if (string.IsNullOrEmpty(vertexSource)) throw new ShaderError("Vertex shader in null or empty");
+            if (string.IsNullOrEmpty(fragmentSource)) throw new ShaderError("Fragment shader in null or empty");
+
+            //vertexSource = ShaderParser.ProcessConstants(vertexSource);
+            //fragmentSource = ShaderParser.ProcessConstants(fragmentSource);
+
+            DebLogger.Info(vertexSource + "\n" + fragmentSource);
 
             Result<uint, Error> mb_vertexShader = CompileShader(ShaderType.VertexShader, vertexSource);
             uint vertexShader = mb_vertexShader.Unwrap();
 
             Result<uint, Error> mb_fragmentShader = CompileShader(ShaderType.FragmentShader, fragmentSource);
             uint fragmentShader = mb_fragmentShader.Unwrap();
+
 
             _handle = _gl.CreateProgram();
             _gl.AttachShader(_handle, vertexShader);
@@ -42,8 +82,6 @@ namespace OpenglLib
             DebLogger.Info("===================SHADER_UNIFORMS==================");
             foreach (var item in _uniformLocations) DebLogger.Info(item.Key, " : ", item.Value);
         }
-
-        
 
         public override void Use()
         {
@@ -207,11 +245,6 @@ namespace OpenglLib
             _gl.CompileShader(shader);
 
             string infoLog = _gl.GetShaderInfoLog(shader);
-            if (!string.IsNullOrEmpty(infoLog))
-            {
-                DebLogger.Error($"Error compiling shader of type {type}: {infoLog}");
-            }
-
             return string.IsNullOrEmpty(infoLog) ?
                 new Result<uint, Error>(shader) :
                 new Result<uint, Error>(new CompileError($"Error compiling shader of type {type}: {infoLog}"));
@@ -222,8 +255,7 @@ namespace OpenglLib
             _gl.LinkProgram(_handle);
             _gl.GetProgram(_handle, GLEnum.LinkStatus, out int success);
             if (success == 0)
-            {
-                DebLogger.Error($"Error linking shader program: {_gl.GetProgramInfoLog(_handle)}");
+            { 
                 throw new Exception($"Error linking shader program: {_gl.GetProgramInfoLog(_handle)}");
             }
         }

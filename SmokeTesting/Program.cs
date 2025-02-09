@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using AtomEngine;
 using OpenglLib;
+using Silk.NET.Maths;
 
 namespace SmokeTesting
 {
@@ -25,6 +26,13 @@ namespace SmokeTesting
 
         private static void Game(App app)
         {
+            SampleMaterial sampleMaterial = new SampleMaterial(app.Gl);
+            //sampleMaterial.color.Value = new Vector4D<float>(1f,1f,1f,1f);
+            //sampleMaterial.light.Value.direction = new Vector3D<float>(2f, 2f, 2f);
+
+            //ObservableVariable<Matrix4X4<float>> projection = new ObservableVariable<Matrix4X4<float>>((e) => DebLogger.Info(e));
+
+
             World world = new World();
             var camera = world.CreateEntity();
             var cameraTransform = new TransformComponent(camera);
@@ -68,7 +76,7 @@ namespace SmokeTesting
             _owner = owner;
         }
 
-        public Entity Owner => throw new NotImplementedException();
+        public Entity Owner => _owner;
         Entity _owner;
     }
     public class RotateSystem : ISystem
@@ -165,6 +173,7 @@ namespace SmokeTesting
                 shaderComponent.Shader.SetUniform(fields.MODEL, transform.GetModelMatrix().ToSilk());
                 shaderComponent.Shader.SetUniform(fields.VIEW, cameraComponent.ViewMatrix.ToSilk());
                 shaderComponent.Shader.SetUniform(fields.PROJ, cameraComponent.CreateProjectionMatrix().ToSilk());
+
                 // Опционально: можно передавать VP матрицу одним uniform
                 // shaderComponent.Shader.SetUniform(fields.VIEW_PROJECTION, viewProjectionMatrix);
 

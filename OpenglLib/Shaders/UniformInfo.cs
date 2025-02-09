@@ -3,7 +3,7 @@ using Silk.NET.OpenGL;
 
 namespace OpenglLib
 {
-    internal struct UniformInfo
+    public struct UniformInfo
     {
         public int Location { get; set; }
         public int Size { get; set; }

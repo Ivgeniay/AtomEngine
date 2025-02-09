@@ -8,7 +8,7 @@ namespace AtomEngine.Tests
         {
             public IWorld World { get; }
             public TestSystem(IWorld world) { World = world; }
-            public void Update(float deltaTime) { }
+            public void Update(double deltaTime) { }
         }
 
         [Fact]

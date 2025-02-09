@@ -18,55 +18,39 @@
 
   <PropertyGroup>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\Generated</CompilerGeneratedFilesOutputPath>
+    <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="Config\GlslTypes.json" />
     <None Remove="Config\ShaderConfig.json" />
-    <None Remove="Geometry\Standart\cone.obj" />
-    <None Remove="Geometry\Standart\cube.obj" />
-    <None Remove="Geometry\Standart\cylinder.obj" />
-    <None Remove="Geometry\Standart\icosphere.obj" />
-    <None Remove="Geometry\Standart\sphere.obj" />
-    <None Remove="Geometry\Standart\torus.obj" />
-    <None Remove="Shaders\ShaderSource\BaseParts\LightFunctions.glsl" />
-    <None Remove="Shaders\ShaderSource\BaseParts\LightUniform.glsl" />
-    <None Remove="Shaders\ShaderSource\BaseParts\MatrixFunctions.glsl" />
-    <None Remove="Shaders\ShaderSource\BaseParts\VertexAttributes.glsl" />
-    <None Remove="Shaders\ShaderSource\BaseParts\VertexFuncs.glsl" />
-    <None Remove="Shaders\ShaderSource\BaseParts\VertexUniforms.glsl" />
-    <None Remove="Shaders\ShaderSource\Kek\TestFragmentShader.glsl" />
-    <None Remove="Shaders\ShaderSource\Kek\Vertex.glsl" />
-    <None Remove="Shaders\ShaderSource\StandartShader\Fragment.glsl" />
-    <None Remove="Shaders\ShaderSource\StandartShader\Vertex.glsl" />
-  </ItemGroup>
-
+  </ItemGroup> 
+  
   <ItemGroup>
-    <AdditionalFiles Include="Config\ShaderConfig.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </AdditionalFiles>
-  </ItemGroup>
-
-  <ItemGroup>
+    <AdditionalFiles Include="Geometry/**/*.obj" /> 
+    <EmbeddedResource Remove="Generated\**" />
+    <AdditionalFiles Include="Config\ShaderConfig.json" />
+    
+    <AdditionalFiles Include="Shaders/**/*.glsl" />
+    <AdditionalFiles Include="Shaders/**/*.vert" />
+    <AdditionalFiles Include="Shaders/**/*.frag" />
+    <None Remove="Shaders/**/*.glsl" />
+    <None Remove="Shaders/**/*.vert" />
+    <None Remove="Shaders/**/*.frag" />
+    <EmbeddedResource Include="Shaders/**/*.glsl" />
+    <EmbeddedResource Include="Shaders/**/*.vert" />
+    <EmbeddedResource Include="Shaders/**/*.frag" />
+    
     <EmbeddedResource Include="Config\GlslTypes.json" />
-    <EmbeddedResource Include="Geometry\Standart\cone.obj" />
-    <EmbeddedResource Include="Geometry\Standart\cube.obj" />
-    <EmbeddedResource Include="Geometry\Standart\cylinder.obj" />
-    <EmbeddedResource Include="Geometry\Standart\icosphere.obj" />
-    <EmbeddedResource Include="Geometry\Standart\sphere.obj" />
-    <EmbeddedResource Include="Geometry\Standart\torus.obj" />
-    <EmbeddedResource Include="Shaders\ShaderSource\BaseParts\LightFunctions.glsl" />
-    <EmbeddedResource Include="Shaders\ShaderSource\BaseParts\LightUniform.glsl" />
-    <EmbeddedResource Include="Shaders\ShaderSource\BaseParts\MatrixFunctions.glsl" />
-    <EmbeddedResource Include="Shaders\ShaderSource\BaseParts\VertexAttributes.glsl" />
-    <EmbeddedResource Include="Shaders\ShaderSource\BaseParts\VertexFuncs.glsl" />
-    <EmbeddedResource Include="Shaders\ShaderSource\BaseParts\VertexUniforms.glsl" />
-    <EmbeddedResource Include="Shaders\ShaderSource\Kek\TestFragmentShader.glsl" />
-    <EmbeddedResource Include="Shaders\ShaderSource\Kek\TestVertexShader.glsl" />
-    <EmbeddedResource Include="Shaders\ShaderSource\Kek\Ko\Vertex.glsl" />
-    <EmbeddedResource Include="Shaders\ShaderSource\StandartShader\Fragment.glsl" />
-    <EmbeddedResource Include="Shaders\ShaderSource\StandartShader\Vertex.glsl" />
+    <EmbeddedResource Include="Geometry/**/*.obj" />
+    
+    <Compile Remove="Generated\**" />
+    <None Include="Generated\**" />
+  </ItemGroup> 
+  
+  <ItemGroup>
+    <EmbeddedResource Remove="Shaders\ShaderSource\BaseParts\Common.glsl" />
+    <EmbeddedResource Remove="Shaders\ShaderSource\StandartShader\Sample.glsl" />
   </ItemGroup> 
 
   <ItemGroup>
@@ -87,7 +71,11 @@
   <ItemGroup>
     <ProjectReference Include="..\CommonLib\CommonLib.csproj" />
     <ProjectReference Include="..\EngineLib\EngineLib.csproj" />
-    <ProjectReference Include="..\Generator\Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Generator\OpenglLib.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Generated\OpenglLib.Generator\OpenglLib.Generator.MaterialGenerator\" />
   </ItemGroup>
 
 </Project>
