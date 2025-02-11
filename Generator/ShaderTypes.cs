@@ -9,7 +9,7 @@ namespace OpenglLib.Generator
         public static bool IsCustomType(string csharpType, string type) =>
             csharpType == type && type != "float" && type != "bool" && type != "int" && type != "uint" && type != "float" && type != "double";
 
-        public static string GetGetter(string cashFieldName)
+        public static string GetSimpleGetter(string cashFieldName)
         {
             StringBuilder builder = new StringBuilder();
             builder.AppendLine("            get");
@@ -19,7 +19,7 @@ namespace OpenglLib.Generator
             return builder.ToString();
         }
 
-        public static string GetPropertyForLocaleArrayr(string type, string fieldName, string locationFieldName)
+        public static string GetPropertyForLocaleArray(string type, string fieldName, string locationFieldName)
         {
             StringBuilder builder = new StringBuilder();
 

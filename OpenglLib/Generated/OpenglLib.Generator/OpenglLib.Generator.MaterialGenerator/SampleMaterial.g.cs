@@ -185,12 +185,12 @@ void main()
 }";
         public SampleMaterial(GL gl) : base(gl)
         {
-            numArray  = new LocaleArray<int>(3, _gl);
+            _numArray  = new LocaleArray<int>(3, _gl);
             _light = new DirectionalLight(_gl);
             _light2 = new DirectionalLight(_gl);
             _light33 = new DirectionalLight(_gl);
             SetUpShader(VertexSource, FragmentSource);
-            SetLocation();
+            SetupUniformLocations();
         }
 
 
@@ -425,7 +425,14 @@ void main()
              get => numArray.Location;
              set => numArray.Location = value;
         }
-        public LocaleArray<int> numArray;
+        private LocaleArray<int> _numArray;
+        public LocaleArray<int> numArray
+        {
+            get
+            {
+                return _numArray;
+            }
+        }
 
 
         public int unumLocation { get ; protected set; } = -1;

@@ -5,10 +5,9 @@ using AtomEngine;
 namespace OpenglLib
 {
     //
-    public class Matg : CustomStruct
+    public class Kek : CustomStruct
     {
-        public Matg(Silk.NET.OpenGL.GL gl) : base(gl) {
-            _kok  = new StructArray<Kek>(3, _gl);
+        public Kek(Silk.NET.OpenGL.GL gl) : base(gl) {
             _c  = new LocaleArray<float>(3, _gl);
         }
 
@@ -26,16 +25,6 @@ namespace OpenglLib
                 }
                 _ambient = value;
                 _gl.Uniform1(ambientLocation, value);
-            }
-        }
-
-
-        private StructArray<Kek> _kok;
-        public StructArray<Kek> kok
-        {
-            get
-            {
-                return _kok;
             }
         }
 

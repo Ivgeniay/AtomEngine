@@ -237,23 +237,41 @@ namespace OpenglLib.Generator
                 var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
                 if (isCustomType)
                 {
-                    builder.AppendLine($"        private {csharpType} {cashFieldName};");
-                    builder.AppendLine($"        public {csharpType} {name}");
-                    builder.AppendLine("        {");
-                    builder.Append(ShaderTypes.GetGetter(cashFieldName));
-                    builder.AppendLine("        }");
-                    constructor_lines.Add($"            {cashFieldName} = new {csharpType}(_gl);");
+                    if (arraySize.HasValue)
+                    {
+                        //builder.AppendLine($"        public StructArray<{csharpType}> {name};");
+                        //constructor_lines.Add($"            {name}  = new StructArray<{csharpType}>({arraySize.Value}, _gl);");
+
+                        //builder.AppendLine($"        public StructArray<{csharpType}> {name};");
+                        builder.AppendLine($"        private StructArray<{csharpType}> {cashFieldName};");
+                        builder.AppendLine($"        public StructArray<{csharpType}> {name}");
+                        builder.AppendLine("        {");
+                        builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
+                        builder.AppendLine("        }");
+                        constructor_lines.Add($"            {cashFieldName}  = new StructArray<{csharpType}>({arraySize.Value}, _gl);");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"        private {csharpType} {cashFieldName};");
+                        builder.AppendLine($"        public {csharpType} {name}");
+                        builder.AppendLine("        {");
+                        builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
+                        builder.AppendLine("        }");
+                        constructor_lines.Add($"            {cashFieldName} = new {csharpType}(_gl);");
+                    }
                 }
                 else
                 {
                     if (arraySize.HasValue)
                     {
-                        //builder.AppendLine($"        public {csharpType}[] {name} = new {csharpType}[{arraySize.Value}];");
-
-                        var localeProperty = ShaderTypes.GetPropertyForLocaleArrayr(csharpType, name, locationName);
+                        var localeProperty = ShaderTypes.GetPropertyForLocaleArray(csharpType, name, locationName);
                         builder.Append(localeProperty);
-                        builder.AppendLine($"        public LocaleArray<{csharpType}> {name};");
-                        constructor_lines.Add($"            {name}  = new LocaleArray<{csharpType}>({arraySize.Value}, _gl);");
+                        builder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
+                        builder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
+                        builder.AppendLine("        {");
+                        builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
+                        builder.AppendLine("        }");
+                        constructor_lines.Add($"            {cashFieldName}  = new LocaleArray<{csharpType}>({arraySize.Value}, _gl);");
                     }
                     else
                     {
@@ -281,7 +299,7 @@ namespace OpenglLib.Generator
                 }
             }
             construcBuilder.AppendLine("            SetUpShader(VertexSource, FragmentSource);");
-            construcBuilder.AppendLine("            SetLocation();");
+            construcBuilder.AppendLine("            SetupUniformLocations();");
             construcBuilder.AppendLine("        }");
             builder.Replace("*construct*", construcBuilder.ToString());
 

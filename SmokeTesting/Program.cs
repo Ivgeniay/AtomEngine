@@ -179,10 +179,18 @@ namespace SmokeTesting
                 shader.VIEW = cameraComponent.ViewMatrix.ToSilk();
                 shader.PROJ = cameraComponent.CreateProjectionMatrix().ToSilk();
 
-                shader.coloring.mat.c[0] = 1.0f;
-                shader.coloring.mat.c[1] = 1.0f;
-                shader.coloring.mat.c[2] = 0.0f;
-                shader.coloring.mat.ambient = 0.0f;
+                //shader.normals[0] = 1.0f;
+                //shader.normals[1] = 0.0f;
+                //shader.normals[2] = 0.0f;
+                //shader.coloring.mat.c[0] = 0.0f;
+                //shader.coloring.mat.c[1] = 0.0f;
+                //shader.coloring.mat.c[2] = 1.0f;
+                //shader.coloringArray[1].mat.c[0] = 0.0f;
+                //shader.coloringArray[1].mat.c[1] = 1.0f;
+                //shader.coloringArray[1].mat.c[2] = 0.0f;
+                //shader.coloringArray[0].mat.ambient = 1.0f;
+                //shader.coloringArray[1].mat.ambient = 1.0f;
+                shader.coloringArray[0].mat.kok[2].c[1] = 1.0f;
                 //shader.coloring.mat 
 
                 // Опционально: можно передавать VP матрицу одним uniform

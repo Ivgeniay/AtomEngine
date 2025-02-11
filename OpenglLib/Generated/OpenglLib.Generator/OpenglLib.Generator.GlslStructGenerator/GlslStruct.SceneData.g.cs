@@ -8,7 +8,29 @@ namespace OpenglLib
     public class SceneData : CustomStruct
     {
         public SceneData(Silk.NET.OpenGL.GL gl) : base(gl) {
-            directionData  = new LocaleArray<Vector3D<float>>(3, _gl);
+            _materials  = new StructArray<MaterialData>(3, _gl);
+            _lights  = new StructArray<LightData>(5, _gl);
+            _directionData  = new LocaleArray<Vector3D<float>>(3, _gl);
+        }
+
+
+        private StructArray<MaterialData> _materials;
+        public StructArray<MaterialData> materials
+        {
+            get
+            {
+                return _materials;
+            }
+        }
+
+
+        private StructArray<LightData> _lights;
+        public StructArray<LightData> lights
+        {
+            get
+            {
+                return _lights;
+            }
         }
 
 
@@ -17,7 +39,14 @@ namespace OpenglLib
              get => directionData.Location;
              set => directionData.Location = value;
         }
-        public LocaleArray<Vector3D<float>> directionData;
+        private LocaleArray<Vector3D<float>> _directionData;
+        public LocaleArray<Vector3D<float>> directionData
+        {
+            get
+            {
+                return _directionData;
+            }
+        }
 
 
         public int ambientColorLocation { get ; set; } = -1;

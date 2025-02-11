@@ -10,13 +10,11 @@ namespace OpenglLib
         public int Location = -1;
         private T[] array;
         private GL _gl;
-        private Type type;
             
         public LocaleArray(int size, GL gL)
         {
             array = new T[size];
             _gl = gL;
-            type = typeof(T);
         }
 
 

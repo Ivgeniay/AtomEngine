@@ -9,6 +9,7 @@ namespace OpenglLib
     {
         public Col(Silk.NET.OpenGL.GL gl) : base(gl) {
             _mat = new Matg(_gl);
+            _matArray  = new StructArray<Matg>(2, _gl);
         }
 
 
@@ -20,5 +21,17 @@ namespace OpenglLib
                 return _mat;
             }
         }
+
+
+        private StructArray<Matg> _matArray;
+        public StructArray<Matg> matArray
+        {
+            get
+            {
+                return _matArray;
+            }
+        }
+
+
     }
 }
