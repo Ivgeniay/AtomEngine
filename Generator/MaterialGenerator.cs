@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Reflection;
+using System.Collections.Generic;
 
 namespace OpenglLib.Generator
 {
@@ -163,25 +164,50 @@ namespace OpenglLib.Generator
             }
         }
 
-        private List<(string type, string name)> ExtractUniforms(string source)
+        private List<(string type, string name, int? arraySize)> ExtractUniforms(string source)
         {
-            var uniforms = new List<(string type, string name)>();
-            var uniformRegex = new Regex(@"uniform\s+(?!layout)(\w+)\s+(\w+)\s*;");
+            var uniforms = new List<(string type, string name, int? arraySize)>();
+            // Учитываем возможность массива после имени переменной
+            var uniformRegex = new Regex(@"uniform\s+(?!layout)(\w+)\s+(\w+)(?:\[(\d+)\])?\s*;");
 
             foreach (Match match in uniformRegex.Matches(source))
             {
                 var type = match.Groups[1].Value;
                 var name = match.Groups[2].Value;
-                uniforms.Add((type, name));
+                int? arraySize = null;
+
+                if (match.Groups[3].Success)
+                {
+                    arraySize = int.Parse(match.Groups[3].Value);
+                }
+
+                uniforms.Add((type, name, arraySize));
             }
 
             return uniforms;
         }
+        //private List<(string type, string name)> ExtractUniforms(string source)
+        //{
+        //    var uniforms = new List<(string type, string name)>();
+        //    var uniformRegex = new Regex(@"uniform\s+(?!layout)(\w+)\s+(\w+)\s*;");
+
+        //    foreach (Match match in uniformRegex.Matches(source))
+        //    {
+        //        var type = match.Groups[1].Value;
+        //        var name = match.Groups[2].Value;
+        //        uniforms.Add((type, name));
+        //    }
+
+        //    return uniforms;
+        //}
 
         private string GenerateMaterialClass(string materialName, string vertexSource,
-            string fragmentSource, List<(string type, string name)> uniforms)
+            string fragmentSource, List<(string type, string name, int? arraySize)> uniforms)
         {
             var builder = new StringBuilder();
+
+            var construcBuilder = new StringBuilder();
+            List<string> constructor_lines = new List<string>();
 
             builder.AppendLine("using Silk.NET.OpenGL;");
             builder.AppendLine("using Silk.NET.Maths;");
@@ -191,49 +217,73 @@ namespace OpenglLib.Generator
             builder.AppendLine("{");
             builder.AppendLine($"    public class {materialName}Material : Mat");
             builder.AppendLine("    {");
-
-            // Конструктор
             builder.AppendLine($"        protected string VertexSource = @\"{vertexSource.Replace("\"", "\"\"")}\";");
             builder.AppendLine($"        protected string FragmentSource = @\"{fragmentSource.Replace("\"", "\"\"")}\";");
-            builder.AppendLine($"        public {materialName}Material(GL gl) : base(gl)");
-            builder.AppendLine("        {");
-            builder.AppendLine("            DebLogger.Info(\"Material constructor\");");
-            builder.AppendLine("            SetUpShader(VertexSource, FragmentSource);");
-            builder.AppendLine("            SetLocation();"); 
-            builder.AppendLine("        }");
+            // Конструктор
+            builder.AppendLine("*construct*");
+            construcBuilder.AppendLine($"        public {materialName}Material(GL gl) : base(gl)");
+            construcBuilder.AppendLine("        {");
+            
             builder.AppendLine("");
 
             // Uniform свойства
-            foreach (var (type, name) in uniforms)
+            foreach (var (type, name, arraySize) in uniforms)
             {
                 string csharpType = MapGlslTypeToCSharp(type);
-                bool isCustomType = csharpType == type && type != "float" && type != "bool" && type != "int" && type != "uint" && type != "float" && type != "double";
+                bool isCustomType = ShaderTypes.IsCustomType(csharpType, type);
 
                 string cashFieldName = $"_{name}";
                 string locationName = $"{name}Location";
+                var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
                 if (isCustomType)
                 {
-                    builder.AppendLine($"        private {csharpType} {cashFieldName} = new {csharpType}();");
+                    builder.AppendLine($"        private {csharpType} {cashFieldName};");
                     builder.AppendLine($"        public {csharpType} {name}");
                     builder.AppendLine("        {");
                     builder.Append(ShaderTypes.GetGetter(cashFieldName));
                     builder.AppendLine("        }");
+                    constructor_lines.Add($"            {cashFieldName} = new {csharpType}(_gl);");
                 }
                 else
                 {
-                    builder.AppendLine($"        private {csharpType} {cashFieldName};");
-                    builder.AppendLine($"        public {csharpType} {name}"); 
-                    builder.AppendLine("        {");
-                    builder.Append(ShaderTypes.GetSetter(type, locationName, cashFieldName));
-                    builder.AppendLine("        }");
-                    builder.AppendLine($"        public int {locationName} " + "{" + " get ; protected set; } = -1;");
+                    if (arraySize.HasValue)
+                    {
+                        //builder.AppendLine($"        public {csharpType}[] {name} = new {csharpType}[{arraySize.Value}];");
+
+                        var localeProperty = ShaderTypes.GetPropertyForLocaleArrayr(csharpType, name, locationName);
+                        builder.Append(localeProperty);
+                        builder.AppendLine($"        public LocaleArray<{csharpType}> {name};");
+                        constructor_lines.Add($"            {name}  = new LocaleArray<{csharpType}>({arraySize.Value}, _gl);");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"        public int {locationName} " + "{" + " get ; protected set; } = -1;");
+                        builder.AppendLine($"        private {csharpType} {cashFieldName};");
+                        builder.AppendLine($"        public {_unsafe}{csharpType} {name}"); 
+                        builder.AppendLine("        {");
+                        builder.Append(ShaderTypes.GetSetter(type, locationName, cashFieldName));
+                        builder.AppendLine("        }");
+                    }
 
                 }
+                builder.AppendLine("");
                 builder.AppendLine("");
             }
 
             builder.AppendLine("    }");
             builder.AppendLine("}");
+
+            if (constructor_lines.Count > 0)
+            {
+                foreach (var type in constructor_lines)
+                {
+                    construcBuilder.AppendLine(type);
+                }
+            }
+            construcBuilder.AppendLine("            SetUpShader(VertexSource, FragmentSource);");
+            construcBuilder.AppendLine("            SetLocation();");
+            construcBuilder.AppendLine("        }");
+            builder.Replace("*construct*", construcBuilder.ToString());
 
             return builder.ToString();
         }

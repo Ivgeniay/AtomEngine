@@ -6,6 +6,8 @@ namespace OpenglLib.Generator
     {
         public static HashSet<string> GeneratedTypes = new HashSet<string>();
 
+        public static bool IsCustomType(string csharpType, string type) =>
+            csharpType == type && type != "float" && type != "bool" && type != "int" && type != "uint" && type != "float" && type != "double";
 
         public static string GetGetter(string cashFieldName)
         {
@@ -17,13 +19,32 @@ namespace OpenglLib.Generator
             return builder.ToString();
         }
 
+        public static string GetPropertyForLocaleArrayr(string type, string fieldName, string locationFieldName)
+        {
+            StringBuilder builder = new StringBuilder();
+
+            builder.AppendLine($"        public int {locationFieldName}");
+            builder.AppendLine($"        {{"); 
+            builder.AppendLine($"             get => {fieldName}.Location;"); 
+            builder.AppendLine($"             set => {fieldName}.Location = value;"); 
+            builder.AppendLine($"        }}"); 
+
+
+            return builder.ToString();
+        }
+
         public static string GetSetter(string type, string locationFieldName, string cashFieldName)
         {
             StringBuilder builder = new StringBuilder();
+
             builder.AppendLine("            set");
             builder.AppendLine("            {");
-            builder.AppendLine($"                if ({locationFieldName} == -1) return;");
-            builder.AppendLine($"                if ({cashFieldName} == value) return;");
+            builder.AppendLine($"                if ({locationFieldName} == -1)");
+            builder.AppendLine($"                {{");
+            builder.AppendLine($"                   DebLogger.Warn(\"You try to set value to -1 lcation field\");");
+            builder.AppendLine($"                   return;");
+            builder.AppendLine($"                }}");
+            //builder.AppendLine($"                if ({cashFieldName} == value) return;");
             builder.AppendLine($"                {cashFieldName} = value;");
             
             switch (type)
@@ -89,202 +110,55 @@ namespace OpenglLib.Generator
                     builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
                     break;
 
-                // Векторные типы double
-                case "dvec2":
-                    builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
-                    break;
-                case "dvec3":
-                    builder.AppendLine($"                _gl.Uniform3({locationFieldName}, value.X, value.Y, value.Z);");
-                    break;
-                case "dvec4":
-                    builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
-                    break;
 
                 // Матричные типы float
                 case "mat2":
                 case "mat2x2":
-                    builder.AppendLine("                var span = new Span<float>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12,");
-                    builder.AppendLine("                    value.M21, value.M22");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix2({locationFieldName}, 1, false, span);");
+                    builder.AppendLine($"                var mat2 = (Matrix2X2<float>)value;");
+                    builder.AppendLine($"                _gl.UniformMatrix2({locationFieldName}, 1, false, (float*)&mat2);");
                     break;
 
                 case "mat2x3":
-                    builder.AppendLine("                var span = new Span<float>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix2x3({locationFieldName}, 1, false, span);");
+                    builder.AppendLine($"                var mat2x3 = (Matrix2X3<float>)value;");
+                    builder.AppendLine($"                _gl.UniformMatrix2x3({locationFieldName}, 1, false, (float*)&mat2x3);");
                     break;
 
                 case "mat2x4":
-                    builder.AppendLine("                var span = new Span<float>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13, value.M14,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23, value.M24");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix2x4({locationFieldName}, 1, false, span);");
+                    builder.AppendLine($"                var mat2x4 = (Matrix2X4<float>)value;");
+                    builder.AppendLine($"                _gl.UniformMatrix2x4({locationFieldName}, 1, false, (float*)&mat2x4);");
                     break;
 
                 case "mat3":
                 case "mat3x3":
-                    builder.AppendLine("                var span = new Span<float>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23,");
-                    builder.AppendLine("                    value.M31, value.M32, value.M33");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix3({locationFieldName}, 1, false, span);");
+                    builder.AppendLine($"                var mat3 = (Matrix3X3<float>)value;");
+                    builder.AppendLine($"                _gl.UniformMatrix3({locationFieldName}, 1, false, (float*)&mat3);");
                     break;
 
                 case "mat3x2":
-                    builder.AppendLine("                var span = new Span<float>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12,");
-                    builder.AppendLine("                    value.M21, value.M22,");
-                    builder.AppendLine("                    value.M31, value.M32");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix3x2({locationFieldName}, 1, false, span);");
+                    builder.AppendLine($"                var mat3x2 = (Matrix3X2<float>)value;");
+                    builder.AppendLine($"                _gl.UniformMatrix3x2({locationFieldName}, 1, false, (float*)&mat3x2);");
                     break;
 
                 case "mat3x4":
-                    builder.AppendLine("                var span = new Span<float>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13, value.M14,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23, value.M24,");
-                    builder.AppendLine("                    value.M31, value.M32, value.M33, value.M34");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix3x4({locationFieldName}, 1, false, span);");
+                    builder.AppendLine($"                var mat3x4 = (Matrix3X4<float>)value;");
+                    builder.AppendLine($"                _gl.UniformMatrix3x4({locationFieldName}, 1, false, (float*)&mat3x4);");
                     break;
 
                 case "mat4":
                 case "mat4x4":
-                    builder.AppendLine("                var span = new Span<float>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13, value.M14,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23, value.M24,");
-                    builder.AppendLine("                    value.M31, value.M32, value.M33, value.M34,");
-                    builder.AppendLine("                    value.M41, value.M42, value.M43, value.M44");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix4({locationFieldName}, 1, false, span);");
+                    builder.AppendLine($"                var mat4 = (Matrix4X4<float>)value;");
+                    builder.AppendLine($"                _gl.UniformMatrix4({locationFieldName}, 1, false, (float*)&mat4);");
+
                     break;
 
                 case "mat4x2":
-                    builder.AppendLine("                var span = new Span<float>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12,");
-                    builder.AppendLine("                    value.M21, value.M22,");
-                    builder.AppendLine("                    value.M31, value.M32,");
-                    builder.AppendLine("                    value.M41, value.M42");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix4x2({locationFieldName}, 1, false, span);");
+                    builder.AppendLine($"                var mat4x2 = (Matrix4X2<float>)value;");
+                    builder.AppendLine($"                _gl.UniformMatrix4x2({locationFieldName}, 1, false, (float*)&mat4x2);");
                     break;
 
                 case "mat4x3":
-                    builder.AppendLine("                var span = new Span<float>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23,");
-                    builder.AppendLine("                    value.M31, value.M32, value.M33,");
-                    builder.AppendLine("                    value.M41, value.M42, value.M43");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix4x3({locationFieldName}, 1, false, span);");
-                    break;
-
-                case "dmat2":
-                case "dmat2x2":
-                    builder.AppendLine("                var span = new Span<double>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12,");
-                    builder.AppendLine("                    value.M21, value.M22");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix2({locationFieldName}, 1, false, span);");
-                    break;
-
-                case "dmat2x3":
-                    builder.AppendLine("                var span = new Span<double>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix2x3({locationFieldName}, 1, false, span);");
-                    break;
-
-                case "dmat2x4":
-                    builder.AppendLine("                var span = new Span<double>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13, value.M14,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23, value.M24");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix2x4({locationFieldName}, 1, false, span);");
-                    break;
-
-                case "dmat3":
-                case "dmat3x3":
-                    builder.AppendLine("                var span = new Span<double>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23,");
-                    builder.AppendLine("                    value.M31, value.M32, value.M33");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix3({locationFieldName}, 1, false, span);");
-                    break;
-
-                case "dmat3x2":
-                    builder.AppendLine("                var span = new Span<double>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12,");
-                    builder.AppendLine("                    value.M21, value.M22,");
-                    builder.AppendLine("                    value.M31, value.M32");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix3x2({locationFieldName}, 1, false, span);");
-                    break;
-
-                case "dmat3x4":
-                    builder.AppendLine("                var span = new Span<double>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13, value.M14,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23, value.M24,");
-                    builder.AppendLine("                    value.M31, value.M32, value.M33, value.M34");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix3x4({locationFieldName}, 1, false, span);");
-                    break;
-
-                case "dmat4":
-                case "dmat4x4":
-                    builder.AppendLine("                var span = new Span<double>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13, value.M14,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23, value.M24,");
-                    builder.AppendLine("                    value.M31, value.M32, value.M33, value.M34,");
-                    builder.AppendLine("                    value.M41, value.M42, value.M43, value.M44");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix4({locationFieldName}, 1, false, span);");
-                    break;
-
-                case "dmat4x2":
-                    builder.AppendLine("                var span = new Span<double>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12,");
-                    builder.AppendLine("                    value.M21, value.M22,");
-                    builder.AppendLine("                    value.M31, value.M32,");
-                    builder.AppendLine("                    value.M41, value.M42");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix4x2({locationFieldName}, 1, false, span);");
-                    break;
-
-                case "dmat4x3":
-                    builder.AppendLine("                var span = new Span<double>(new[]");
-                    builder.AppendLine("                {");
-                    builder.AppendLine("                    value.M11, value.M12, value.M13,");
-                    builder.AppendLine("                    value.M21, value.M22, value.M23,");
-                    builder.AppendLine("                    value.M31, value.M32, value.M33,");
-                    builder.AppendLine("                    value.M41, value.M42, value.M43");
-                    builder.AppendLine("                });");
-                    builder.AppendLine($"                _gl.UniformMatrix4x3({locationFieldName}, 1, false, span);");
+                    builder.AppendLine($"                var mat4x3 = (Matrix4X3<float>)value;");
+                    builder.AppendLine($"                _gl.UniformMatrix4x3({locationFieldName}, 1, false, (float*)&mat4x3);");
                     break;
 
                 default:
@@ -386,10 +260,6 @@ namespace OpenglLib.Generator
                 "vec3"                   => "Vector3D<float>",
                 "vec4"                   => "Vector4D<float>",
 
-                "dvec2"                  => "Vector2D<double>",
-                "dvec3"                  => "Vector3D<double>",
-                "dvec4"                  => "Vector4D<double>",
-
                 "mat2"                   => "Matrix2X2<float>",
                 "mat3"                   => "Matrix3X3<float>",
                 "mat4"                   => "Matrix4X4<float>",
@@ -403,67 +273,54 @@ namespace OpenglLib.Generator
                 "mat4x3"                 => "Matrix4X3<float>",
                 "mat4x4"                 => "Matrix4X4<float>",
 
-                "dmat2"                  => "Matrix2X2<double>",
-                "dmat3"                  => "Matrix3X3<double>",
-                "dmat4"                  => "Matrix4X4<double>",
-                "dmat2x2"                => "Matrix2X2<double>",
-                "dmat2x3"                => "Matrix2X3<double>",
-                "dmat2x4"                => "Matrix2X4<double>",
-                "dmat3x2"                => "Matrix3X2<double>",
-                "dmat3x3"                => "Matrix3X3<double>",
-                "dmat3x4"                => "Matrix3X4<double>",
-                "dmat4x2"                => "Matrix4X2<double>",
-                "dmat4x3"                => "Matrix4X3<double>",
-                "dmat4x4"                => "Matrix4X4<double>",
+                "sampler1D"              => "int",
+                "sampler2D"              => "int",
+                "sampler3D"              => "int",
+                "samplerCube"            => "int",
+                "sampler2DRect"          => "int",
+                "sampler1DArray"         => "int",
+                "sampler2DArray"         => "int",
+                "samplerCubeArray"       => "int",
+                "samplerBuffer"          => "int",
+                "sampler2DMS"            => "int",
+                "sampler2DMSArray"       => "int",
 
-                "sampler1D"              => "object",
-                "sampler2D"              => "object",
-                "sampler3D"              => "object",
-                "samplerCube"            => "object",
-                "sampler2DRect"          => "object",
-                "sampler1DArray"         => "object",
-                "sampler2DArray"         => "object",
-                "samplerCubeArray"       => "object",
-                "samplerBuffer"          => "object",
-                "sampler2DMS"            => "object",
-                "sampler2DMSArray"       => "object",
+                "sampler1DShadow"        => "int",
+                "sampler2DShadow"        => "int",
+                "samplerCubeShadow"      => "int",
+                "sampler2DRectShadow"    => "int",
+                "sampler1DArrayShadow"   => "int",
+                "sampler2DArrayShadow"   => "int",
+                "samplerCubeArrayShadow" => "int",
 
-                "sampler1DShadow"        => "object",
-                "sampler2DShadow"        => "object",
-                "samplerCubeShadow"      => "object",
-                "sampler2DRectShadow"    => "object",
-                "sampler1DArrayShadow"   => "object",
-                "sampler2DArrayShadow"   => "object",
-                "samplerCubeArrayShadow" => "object",
+                "isampler1D"             => "int",
+                "isampler2D"             => "int",
+                "isampler3D"             => "int",
+                "isamplerCube"           => "int",
+                "isampler2DRect"         => "int",
+                "isampler1DArray"        => "int",
+                "isampler2DArray"        => "int",
+                "isamplerCubeArray"      => "int",
+                "isamplerBuffer"         => "int",
+                "isampler2DMS"           => "int",
+                "isampler2DMSArray"      => "int",
 
-                "isampler1D"             => "object",
-                "isampler2D"             => "object",
-                "isampler3D"             => "object",
-                "isamplerCube"           => "object",
-                "isampler2DRect"         => "object",
-                "isampler1DArray"        => "object",
-                "isampler2DArray"        => "object",
-                "isamplerCubeArray"      => "object",
-                "isamplerBuffer"         => "object",
-                "isampler2DMS"           => "object",
-                "isampler2DMSArray"      => "object",
-
-                "usampler1D"             => "object",
-                "usampler2D"             => "object",
-                "usampler3D"             => "object",
-                "usamplerCube"           => "object",
-                "usampler2DRect"         => "object",
-                "usampler1DArray"        => "object",
-                "usampler2DArray"        => "object",
-                "usamplerCubeArray"      => "object",
-                "usamplerBuffer"         => "object",
-                "usampler2DMS"           => "object",
-                "usampler2DMSArray"      => "object",
+                "usampler1D"             => "int",
+                "usampler2D"             => "int",
+                "usampler3D"             => "int",
+                "usamplerCube"           => "int",
+                "usampler2DRect"         => "int",
+                "usampler1DArray"        => "int",
+                "usampler2DArray"        => "int",
+                "usamplerCubeArray"      => "int",
+                "usamplerBuffer"         => "int",
+                "usampler2DMS"           => "int",
+                "usampler2DMSArray"      => "int",
 
                 "atomic_uint"            => "uint",
-                "image1D"                => "object",
-                "image2D"                => "object",
-                "image3D"                => "object",
+                "image1D"                => "int",
+                "image2D"                => "int",
+                "image3D"                => "int",
 
                 "void"                   => "void",
                 "struct"                 => "struct",

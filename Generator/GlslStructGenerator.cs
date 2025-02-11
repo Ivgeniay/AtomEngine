@@ -150,33 +150,88 @@ namespace OpenglLib.Generator
         private string GenerateModelClass(GlslStructure structure, HashSet<string> generatedTypes)
         {
             var builder = new StringBuilder();
+            var construcBuilder = new StringBuilder();
+            List<string> constructor_lines = new List<string>();
 
             string aliasedName = GetAliasOrOriginal(structure.Name);
 
             builder.AppendLine("using Silk.NET.Maths;");
+            builder.AppendLine("using Silk.NET.OpenGL;");
+            builder.AppendLine("using AtomEngine;");
             builder.AppendLine();
             builder.AppendLine("namespace OpenglLib");
             builder.AppendLine("{");
+            builder.AppendLine("    //");
             builder.AppendLine($"    public class {aliasedName} : CustomStruct");
             builder.AppendLine("    {");
+            builder.AppendLine("*construct*");
+            builder.AppendLine($"");
+
+            construcBuilder.AppendLine($"        public {aliasedName}(Silk.NET.OpenGL.GL gl) : base(gl) {{");
+
 
             foreach (var (type, name, arraySize) in structure.Fields)
             {
                 var csharpType = MapGlslTypeToCSharp(type, generatedTypes);
+                bool isCustomType = ShaderTypes.IsCustomType(csharpType, type);
                 aliasedName = GetAliasOrOriginal(name);
+                string cashFieldName = $"_{aliasedName}";
+                string locationName = $"{aliasedName}Location";
 
-                if (arraySize.HasValue)
+                if (!isCustomType)
                 {
-                    builder.AppendLine($"        public {csharpType}[] {aliasedName} {{ get; set; }} = new {csharpType}[{arraySize.Value}];");
+                    if (arraySize.HasValue)
+                    {
+                        //builder.AppendLine($"        public {csharpType}[] {aliasedName} {{ get; set; }} = new {csharpType}[{arraySize.Value}];");
+
+                        var localeProperty = ShaderTypes.GetPropertyForLocaleArrayr(csharpType, name, locationName);
+                        builder.Append(localeProperty);
+                        builder.AppendLine($"        public LocaleArray<{csharpType}> {name};");
+                        constructor_lines.Add($"            {name}  = new LocaleArray<{csharpType}>({arraySize.Value}, _gl);");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"        public int {locationName} " + "{" + " get ; set; } = -1;");
+                        builder.AppendLine($"        private {csharpType} {cashFieldName};");
+                        builder.AppendLine($"        public {csharpType} {aliasedName}");
+                        builder.AppendLine("        {");
+                        builder.Append(ShaderTypes.GetSetter(type, locationName, cashFieldName));
+                        builder.AppendLine("        }");
+                    }
+
+                    builder.AppendLine("");
+                    builder.AppendLine("");
                 }
                 else
                 {
-                    builder.AppendLine($"        public {csharpType} {aliasedName} {{ get; set; }}");
+                    if (arraySize.HasValue)
+                    {
+
+                    }
+                    else
+                    {
+                        builder.AppendLine($"        private {csharpType} {cashFieldName};");
+                        builder.AppendLine($"        public {csharpType} {name}");
+                        builder.AppendLine("        {");
+                        builder.Append(ShaderTypes.GetGetter(cashFieldName));
+                        builder.AppendLine("        }");
+                        constructor_lines.Add($"            {cashFieldName} = new {csharpType}(_gl);");
+                    }
                 }
             }
 
             builder.AppendLine("    }");
             builder.AppendLine("}");
+
+            if (constructor_lines.Count > 0)
+            {
+                foreach (var type in constructor_lines)
+                {
+                    construcBuilder.AppendLine(type);
+                }
+            }
+            construcBuilder.AppendLine("        }");
+            builder.Replace("*construct*", construcBuilder.ToString());
 
             return builder.ToString();
         }

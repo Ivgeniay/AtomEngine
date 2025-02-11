@@ -48,7 +48,7 @@ namespace OpenglLib
             //foreach (var item in _uniformLocations) DebLogger.Info(item.Key, " : ", item.Value);
         }
 
-        protected void SetUpShader(string vertexSource = "", string fragmentSource = "")
+        public void SetUpShader(string vertexSource = "", string fragmentSource = "")
         {
             vertexSource = string.IsNullOrEmpty(vertexSource) ? VertexSource : vertexSource;
             fragmentSource = string.IsNullOrEmpty(fragmentSource) ? FragmentSource : fragmentSource;
@@ -91,9 +91,7 @@ namespace OpenglLib
         public override void SetUniform(string name, object value)
         {
             if (!_uniformLocations.TryGetValue(name, out int location))
-            {
                 throw new ArgumentError($"Uniform {name} not found in shader program");
-            }
 
             switch (_uniformInfo[name].Type)
             {
@@ -203,7 +201,6 @@ namespace OpenglLib
                     }
                     break;
 
-                // Сэмплеры
                 case UniformType.Sampler1D:
                 case UniformType.Sampler2D:
                 case UniformType.Sampler3D:

@@ -26,7 +26,7 @@ namespace SmokeTesting
 
         private static void Game(App app)
         {
-            SampleMaterial sampleMaterial = new SampleMaterial(app.Gl);
+            //SampleMaterial sampleMaterial = new SampleMaterial(app.Gl);
             //sampleMaterial.color.Value = new Vector4D<float>(1f,1f,1f,1f);
             //sampleMaterial.light.Value.direction = new Vector3D<float>(2f, 2f, 2f);
 
@@ -40,25 +40,28 @@ namespace SmokeTesting
             world.AddComponent(camera, cameraTransform);
             world.AddComponent(camera, new CameraComponent(camera));
 
-            var cube = world.CreateEntity();
-            world.AddComponent(cube, new TransformComponent(cube));
-            world.AddComponent(cube, new RotateComponent(cube));
+            Entity cubeEntity = world.CreateEntity();
+            world.AddComponent(cubeEntity, new TransformComponent(cubeEntity));
+            world.AddComponent(cubeEntity, new RotateComponent(cubeEntity));
             Result<Model, Error> mb_model = ModelLoader.LoadModel("Standart/torus.obj", app.Gl, app.Assimp);
             var model = mb_model.Unwrap();
             var mesh = model.Meshes[0];
-            var cubeMeshComponent = new MeshComponent(cube, mesh);
-            world.AddComponent(cube, cubeMeshComponent);
+            var cubeMeshComponent = new MeshComponent(cubeEntity, mesh);
+            world.AddComponent(cubeEntity, cubeMeshComponent);
 
-            string vertexShaderSource = ShaderLoader.LoadShader("StandartShader/Vertex.glsl", true);
-            vertexShaderSource = ShaderParser.ProcessIncludes(vertexShaderSource, "Vertex.glsl");
-            vertexShaderSource = ShaderParser.ProcessConstants(vertexShaderSource);
-            string fragmentShaderSource = ShaderLoader.LoadShader("StandartShader/Fragment.glsl", true);
-            fragmentShaderSource = ShaderParser.ProcessIncludes(fragmentShaderSource, "Fragment.glsl");
-            fragmentShaderSource = ShaderParser.ProcessConstants(fragmentShaderSource);
-            DebLogger.Info(vertexShaderSource);
-            DebLogger.Info(fragmentShaderSource);
-            Shader shader = new Shader(app.Gl, vertexShaderSource, fragmentShaderSource);
-            world.AddComponent(cube, new ShaderComponent(cube, shader));
+            //string vertexShaderSource = ShaderLoader.LoadShader("StandartShader/Vertex.glsl", true);
+            //vertexShaderSource = ShaderParser.ProcessIncludes(vertexShaderSource, "Vertex.glsl");
+            //vertexShaderSource = ShaderParser.ProcessConstants(vertexShaderSource);
+            //string fragmentShaderSource = ShaderLoader.LoadShader("StandartShader/Fragment.glsl", true);
+            //fragmentShaderSource = ShaderParser.ProcessIncludes(fragmentShaderSource, "Fragment.glsl");
+            //fragmentShaderSource = ShaderParser.ProcessConstants(fragmentShaderSource);
+            //DebLogger.Info(vertexShaderSource);
+            //DebLogger.Info(fragmentShaderSource);
+            //Shader shader = new Shader(app.Gl, vertexShaderSource, fragmentShaderSource);
+
+            TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
+            //shader.SetUpShader(vertexShaderSource, fragmentShaderSource);
+            world.AddComponent(cubeEntity, new ShaderComponent(cubeEntity, shader));
 
             world.AddSystem(new RenderSystem(world));
             world.AddSystem(new RotateSystem(world));
@@ -123,7 +126,7 @@ namespace SmokeTesting
     {
         private IWorld _world;
         public IWorld World => _world;
-        private ShaderFields fields = new ShaderFields();
+        private Random Random = new Random();
 
         public RenderSystem(IWorld world)
         {
@@ -170,9 +173,17 @@ namespace SmokeTesting
                 ref var shaderComponent = ref this.GetComponent<ShaderComponent>(entity);
 
                 // Устанавливаем uniforms
-                shaderComponent.Shader.SetUniform(fields.MODEL, transform.GetModelMatrix().ToSilk());
-                shaderComponent.Shader.SetUniform(fields.VIEW, cameraComponent.ViewMatrix.ToSilk());
-                shaderComponent.Shader.SetUniform(fields.PROJ, cameraComponent.CreateProjectionMatrix().ToSilk());
+                TestMaterialMaterial shader = (TestMaterialMaterial)shaderComponent.Shader;
+                
+                shader.MODEL = transform.GetModelMatrix().ToSilk();
+                shader.VIEW = cameraComponent.ViewMatrix.ToSilk();
+                shader.PROJ = cameraComponent.CreateProjectionMatrix().ToSilk();
+
+                shader.coloring.mat.c[0] = 1.0f;
+                shader.coloring.mat.c[1] = 1.0f;
+                shader.coloring.mat.c[2] = 0.0f;
+                shader.coloring.mat.ambient = 0.0f;
+                //shader.coloring.mat 
 
                 // Опционально: можно передавать VP матрицу одним uniform
                 // shaderComponent.Shader.SetUniform(fields.VIEW_PROJECTION, viewProjectionMatrix);

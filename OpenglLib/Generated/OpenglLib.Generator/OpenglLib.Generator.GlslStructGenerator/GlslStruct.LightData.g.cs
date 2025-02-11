@@ -5,9 +5,26 @@ using AtomEngine;
 namespace OpenglLib
 {
     //
-    public class DirectionalLight : CustomStruct
+    public class LightData : CustomStruct
     {
-        public DirectionalLight(Silk.NET.OpenGL.GL gl) : base(gl) {
+        public LightData(Silk.NET.OpenGL.GL gl) : base(gl) {
+        }
+
+
+        public int positionLocation { get ; set; } = -1;
+        private Vector3D<float> _position;
+        public Vector3D<float> position
+        {
+            set
+            {
+                if (positionLocation == -1)
+                {
+                   DebLogger.Warn("You try to set value to -1 lcation field");
+                   return;
+                }
+                _position = value;
+                _gl.Uniform3(positionLocation, value.X, value.Y, value.Z);
+            }
         }
 
 
@@ -41,23 +58,6 @@ namespace OpenglLib
                 }
                 _color = value;
                 _gl.Uniform3(colorLocation, value.X, value.Y, value.Z);
-            }
-        }
-
-
-        public int ambient_strengthLocation { get ; set; } = -1;
-        private float _ambient_strength;
-        public float ambient_strength
-        {
-            set
-            {
-                if (ambient_strengthLocation == -1)
-                {
-                   DebLogger.Warn("You try to set value to -1 lcation field");
-                   return;
-                }
-                _ambient_strength = value;
-                _gl.Uniform1(ambient_strengthLocation, value);
             }
         }
 
