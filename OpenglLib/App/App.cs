@@ -54,8 +54,9 @@ namespace OpenglLib
         {
             _gl = GL.GetApi(_window);
             _gl.Enable(EnableCap.DepthTest);
+            _gl.Enable(EnableCap.Blend);
+            _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             _assimp = Assimp.GetApi();
-
             _input = _window?.CreateInput(); 
         }
 

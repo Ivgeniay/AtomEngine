@@ -3,7 +3,6 @@ namespace AtomEngine
 {
     public partial class World
     {
-        // Вспомогательные методы для получения архетипов
         public IEnumerable<Entity> GetEntitiesByArchetype<T>() where T : struct, IComponent
         {
             return CreateEntitiesFromSpan(_archetypePool.GetEntitiesWith<T>());
@@ -104,7 +103,6 @@ namespace AtomEngine
                 }
             }
         }
-
         private Entity[] CreateEntitiesFromSpan(ReadOnlySpan<uint> entityIds)
         {
             var entities = new List<Entity>(entityIds.Length);

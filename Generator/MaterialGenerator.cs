@@ -96,6 +96,7 @@ namespace OpenglLib.Generator
 
             var construcBuilder = new StringBuilder();
             List<string> constructor_lines = new List<string>();
+            int samplers = 0;
 
             builder.AppendLine("using Silk.NET.OpenGL;");
             builder.AppendLine("using Silk.NET.Maths;");
@@ -103,7 +104,7 @@ namespace OpenglLib.Generator
             builder.AppendLine();
             builder.AppendLine("namespace OpenglLib");
             builder.AppendLine("{");
-            builder.AppendLine($"    public class {materialName}Material : Mat");
+            builder.AppendLine($"    public partial class {materialName}Material : Mat");
             builder.AppendLine("    {");
             builder.AppendLine($"        protected string VertexSource = @\"{vertexSource.Replace("\"", "\"\"")}\";");
             builder.AppendLine($"        protected string FragmentSource = @\"{fragmentSource.Replace("\"", "\"\"")}\";");
@@ -159,6 +160,11 @@ namespace OpenglLib.Generator
                     }
                     else
                     {
+                        if (type.IndexOf("sampler") != -1)
+                        {
+                            //builder.AppendLine($"        [SamplerAtrribute(\"{name}\", \"Texture{samplers++}\", \"{GeneratorHelper.GetTextureTarget(type)}\")]");
+                            builder.AppendLine($"        public void {name}_SetTexture(OpenglLib.Texture texture) => SetTexture(\"Texture{samplers}\", \"{GeneratorHelper.GetTextureTarget(type)}\", {locationName}, {samplers++}, texture);");
+                        }
                         builder.AppendLine($"        public int {locationName} " + "{" + " get ; protected set; } = -1;");
                         builder.AppendLine($"        private {csharpType} {cashFieldName};");
                         builder.AppendLine($"        public {_unsafe}{csharpType} {name}"); 

@@ -4,7 +4,7 @@ using AtomEngine;
 
 namespace OpenglLib
 {
-    public class SampleMaterial : Mat
+    public partial class SampleMaterial : Mat
     {
         protected string VertexSource = @"#version 330 core 
 

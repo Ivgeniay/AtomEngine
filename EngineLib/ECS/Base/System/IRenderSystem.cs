@@ -2,9 +2,8 @@
 
 namespace AtomEngine
 {
-    public interface IRenderSystem
-    {
-        IWorld World { get; }
+    public interface IRenderSystem : ICommonSystem
+    { 
         public void Render(double deltaTime);
         public void Resize(Vector2 size);
     }

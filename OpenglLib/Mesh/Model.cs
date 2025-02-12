@@ -8,35 +8,17 @@ namespace OpenglLib
 {
     public class Model : IDisposable
     {
-        //public Model(GL gl, string path, bool gamma = false)
         public Model(GL gl, bool gamma = false)
         {
             var assimp = Assimp.GetApi();
             _assimp = assimp;
             _gl = gl;
-            //LoadModel(path);
         }
-
         private readonly GL _gl;
         private Assimp _assimp;
         public List<Texture> _texturesLoaded = new List<Texture>();
         public string Directory { get; set; } = string.Empty;
         public List<Mesh> Meshes { get; set; } = new List<Mesh>();
-
-        private unsafe void LoadModel(string path)
-        {
-            var scene = _assimp.ImportFile(path, (uint)PostProcessSteps.Triangulate);
-
-            if (scene == null || scene->MFlags == Assimp.SceneFlagsIncomplete || scene->MRootNode == null)
-            {
-                var error = _assimp.GetErrorStringS();
-                throw new Exception(error);
-            }
-
-            Directory = path;
-
-            ProcessNode(scene->MRootNode, scene);
-        }
 
         private unsafe void ProcessNode(Node* node, Scene* scene)
         {
@@ -169,6 +151,11 @@ namespace OpenglLib
                 vertices.Add(vertex.Position.X);
                 vertices.Add(vertex.Position.Y);
                 vertices.Add(vertex.Position.Z);
+
+                vertices.Add(vertex.Normal.X);
+                vertices.Add(vertex.Normal.Y);
+                vertices.Add(vertex.Normal.Z);
+
                 vertices.Add(vertex.TexCoords.X);
                 vertices.Add(vertex.TexCoords.Y);
             }

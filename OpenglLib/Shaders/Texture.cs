@@ -1,8 +1,8 @@
-﻿using Silk.NET.Assimp;
-using Silk.NET.OpenGL;
+﻿using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using System;
+using Silk.NET.Assimp;
+using Silk.NET.OpenGL;
+using AtomEngine;
 
 namespace OpenglLib
 {
@@ -13,6 +13,7 @@ namespace OpenglLib
 
         public string Path { get; set; }
         public TextureType Type { get; }
+        public TextureTarget Target = TextureTarget.Texture2D;
 
         public unsafe Texture(GL gl, string path, TextureType type = TextureType.None)
         {
@@ -20,11 +21,13 @@ namespace OpenglLib
             Path = path;
             Type = type;
             _handle = _gl.GenTexture();
-            Bind(); 
+            Bind();
 
             using (var img = Image.Load<Rgba32>(path))
             {
-                gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgba8, (uint)img.Width, (uint)img.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, null);
+                DebLogger.Info($"Loading texture: {path}");
+                DebLogger.Info($"Size: {img.Width}x{img.Height}");
+                gl.TexImage2D(Target, 0, InternalFormat.Rgba8, (uint)img.Width, (uint)img.Height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, null);
 
                 img.ProcessPixelRows(accessor =>
                 {
@@ -32,7 +35,7 @@ namespace OpenglLib
                     {
                         fixed (void* data = accessor.GetRowSpan(y))
                         {
-                            gl.TexSubImage2D(TextureTarget.Texture2D, 0, 0, y, (uint)accessor.Width, 1, PixelFormat.Rgba, PixelType.UnsignedByte, data);
+                            gl.TexSubImage2D(Target, 0, 0, y, (uint)accessor.Width, 1, PixelFormat.Rgba, PixelType.UnsignedByte, data);
                         }
                     }
                 });
@@ -50,28 +53,32 @@ namespace OpenglLib
 
             fixed (void* d = &data[0])
             {
-                _gl.TexImage2D(TextureTarget.Texture2D, 0, (int)InternalFormat.Rgba, width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, d);
+                _gl.TexImage2D(Target, 0, (int)InternalFormat.Rgba, width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, d);
                 SetParameters();
             }
         }
 
-        private void SetParameters()
+        public void SetParameters(
+                Silk.NET.OpenGL.TextureWrapMode wrapS = Silk.NET.OpenGL.TextureWrapMode.ClampToEdge,
+                Silk.NET.OpenGL.TextureWrapMode wrapT = Silk.NET.OpenGL.TextureWrapMode.ClampToEdge,
+                TextureMinFilter minFilter = TextureMinFilter.LinearMipmapLinear,
+                TextureMagFilter magFilter = TextureMagFilter.Linear)
         {
-            _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
-            _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
-            _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.LinearMipmapLinear);
-            _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-            _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureBaseLevel, 0);
-            _gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, 8);
-            _gl.GenerateMipmap(TextureTarget.Texture2D);
+            _gl.TexParameter(Target, TextureParameterName.TextureWrapS, (int)wrapS);
+            _gl.TexParameter(Target, TextureParameterName.TextureWrapT, (int)wrapT);
+            _gl.TexParameter(Target, TextureParameterName.TextureMinFilter, (int)minFilter);
+            _gl.TexParameter(Target, TextureParameterName.TextureMagFilter, (int)magFilter);
+            //_gl.TexParameter(Target, TextureParameterName.TextureBaseLevel, 0);
+            //_gl.TexParameter(Target, TextureParameterName.TextureMaxLevel, 8);
+            _gl.GenerateMipmap(Target);
         }
 
         public void Bind(TextureUnit textureSlot = TextureUnit.Texture0)
         {
             _gl.ActiveTexture(textureSlot);
-            _gl.BindTexture(TextureTarget.Texture2D, _handle);
+            _gl.BindTexture(Target, _handle);
         }
-
+        
         public void Dispose()
         {
             _gl.DeleteTexture(_handle);

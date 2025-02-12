@@ -4,14 +4,13 @@ using AtomEngine;
 
 namespace OpenglLib
 {
-    public class TestMaterialMaterial : Mat
+    public partial class TestMaterialMaterial : Mat
     {
         protected string VertexSource = @"#version 420 core
 
 layout(location = 0) in vec3 V_POS;
-layout(location = 1) in vec3 V_COL;
-layout(location = 2) in vec2 V_UV;
-layout(location = 3) in vec3 V_NORM;
+layout(location = 1) in vec2 V_UV;
+layout(location = 2) in vec3 V_NORM;
 
 vec3 fragmentNormal(mat4 modelMatrix, vec3 vertexNormal) {
     return mat3(modelMatrix) * vertexNormal;
@@ -42,6 +41,7 @@ void main()
     vt_out.norm = vec3(1.0f, 1.0f, 1.0f);
     vt_out.frag_pos = fragmentPosition(MODEL, V_POS);
     vt_out.frag_norm = fragmentNormal(MODEL, V_NORM);
+    vt_out.uv = V_UV;
 }";
         protected string FragmentSource = @"#version 420 core
 
@@ -54,10 +54,13 @@ in VT_OUT{
 } f_in;
 
 out vec4 FragColor;
+uniform sampler2D tex;
 
 void main()
 { 
-    FragColor = vec4(f_in.col, 1.0);
+    vec4 texColor = texture(tex, f_in.uv);
+    FragColor = texColor;
+    //FragColor = vec4(f_in.uv, 1.0, 1.0);
 }";
         public TestMaterialMaterial(GL gl) : base(gl)
         {
@@ -133,6 +136,24 @@ void main()
                 }
                 _col = value;
                 _gl.Uniform3(colLocation, value.X, value.Y, value.Z);
+            }
+        }
+
+
+        public void tex_SetTexture(OpenglLib.Texture texture) => SetTexture("Texture0", "Texture2D", texLocation, 0, texture);
+        public int texLocation { get ; protected set; } = -1;
+        private int _tex;
+        public int tex
+        {
+            set
+            {
+                if (texLocation == -1)
+                {
+                   DebLogger.Warn("You try to set value to -1 lcation field");
+                   return;
+                }
+                _tex = value;
+                _gl.Uniform1(texLocation, value);
             }
         }
 

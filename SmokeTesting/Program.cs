@@ -37,13 +37,17 @@ namespace SmokeTesting
             Entity cubeEntity = world.CreateEntity();
             world.AddComponent(cubeEntity, new TransformComponent(cubeEntity));
             world.AddComponent(cubeEntity, new RotateComponent(cubeEntity));
-            Result<Model, Error> mb_model = ModelLoader.LoadModel("Standart/torus.obj", app.Gl, app.Assimp);
+            Result<Model, Error> mb_model = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
             var model = mb_model.Unwrap();
             var mesh = model.Meshes[0];
             var cubeMeshComponent = new MeshComponent(cubeEntity, mesh);
             world.AddComponent(cubeEntity, cubeMeshComponent);
 
             TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
+            Texture texture = new Texture(app.Gl, "D:\\Programming\\CS\\Engine\\OpenglLib\\Geometry\\Standart\\Textures\\wood.jpg");
+            Texture texture2 = new Texture(app.Gl, "D:\\Programming\\CS\\Engine\\OpenglLib\\Geometry\\Standart\\Textures\\icon-light-bulb.png");
+            shader.tex_SetTexture(texture);
+
             world.AddComponent(cubeEntity, new ShaderComponent(cubeEntity, shader));
 
             world.AddSystem(new RenderSystem(world));
@@ -55,7 +59,8 @@ namespace SmokeTesting
             {
                 if (key == Silk.NET.Input.Key.Space)
                 {
-                    isUpdate = !isUpdate;
+                    shader.tex_SetTexture(texture2);
+                    //isUpdate = !isUpdate;
                 }
             };
 
@@ -70,7 +75,6 @@ namespace SmokeTesting
         {
             _owner = owner;
         }
-
         public Entity Owner => _owner;
         Entity _owner;
     }
@@ -83,7 +87,7 @@ namespace SmokeTesting
         public RotateSystem(IWorld world)
         {
             _world = world;
-            queryEntity = _world.CreateEntityQuery()
+            queryEntity = this.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<RotateComponent>();
         }
@@ -99,14 +103,12 @@ namespace SmokeTesting
             {
                 ref var transform = ref this.GetComponent<TransformComponent>(entity);
 
-                // Увеличиваем углы поворота
                 transform.Rotation += new Vector3(
-                    deltaRotation,  // вращение вокруг X
-                    deltaRotation,  // вращение вокруг Y
-                    deltaRotation   // вращение вокруг Z
+                    deltaRotation,
+                    deltaRotation,
+                    deltaRotation 
                 );
 
-                // Нормализуем углы, чтобы они оставались в пределах [0, 2π]
                 transform.Rotation = new Vector3(
                     transform.Rotation.X % (2 * MathF.PI),
                     transform.Rotation.Y % (2 * MathF.PI),
@@ -120,18 +122,18 @@ namespace SmokeTesting
     {
         private IWorld _world;
         public IWorld World => _world;
-        QueryEntity queryCameraEntity;
-        QueryEntity queryRenderersEntity;
+        private QueryEntity queryCameraEntity;
+        private QueryEntity queryRenderersEntity;
 
 
         public RenderSystem(IWorld world)
-        {
+        { 
             _world = world;
-            queryCameraEntity = _world.CreateEntityQuery()
+            queryCameraEntity = this.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<CameraComponent>();
 
-            queryRenderersEntity = _world.CreateEntityQuery()
+            queryRenderersEntity = this.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<MeshComponent>()
                 .With<ShaderComponent>();
@@ -149,8 +151,8 @@ namespace SmokeTesting
             }
 
             var camera = cameras[0];
-            ref var cameraTransform = ref _world.GetComponent<TransformComponent>(camera);
-            ref var cameraComponent = ref _world.GetComponent<CameraComponent>(camera);
+            ref var cameraTransform = ref this.GetComponent<TransformComponent>(camera);
+            ref var cameraComponent = ref this.GetComponent<CameraComponent>(camera);
 
             var cameraRotation = cameraTransform.GetRotationMatrix();
             var cameraPosition = cameraTransform.GetTranslationMatrix();
@@ -163,9 +165,9 @@ namespace SmokeTesting
 
             foreach (var entity in rendererEntities)
             {
-                ref var transform = ref _world.GetComponent<TransformComponent>(entity);
-                ref var meshComponent = ref _world.GetComponent<MeshComponent>(entity);
-                ref var shaderComponent = ref _world.GetComponent<ShaderComponent>(entity);
+                ref var transform = ref this.GetComponent<TransformComponent>(entity);
+                ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);
+                ref var shaderComponent = ref this.GetComponent<ShaderComponent>(entity);
 
                 TestMaterialMaterial shader = (TestMaterialMaterial)shaderComponent.Shader;
 
@@ -173,7 +175,7 @@ namespace SmokeTesting
                 shader.VIEW = cameraComponent.ViewMatrix.ToSilk();
                 shader.PROJ = cameraComponent.CreateProjectionMatrix().ToSilk();
 
-                shader.col = new Vector3D<float>(1.0f, 1.0f, 0.0f);
+                shader.col = new Vector3D<float>(1.0f, 1.0f, 1.0f);
 
                 meshComponent.Mesh.Draw(shaderComponent.Shader);
             }
@@ -210,4 +212,9 @@ namespace SmokeTesting
             Console.Write($"{message}\n");
         }
     }
+}
+
+public static class ProjectResources2
+{
+    public static string CONE_OBJ = "Geometry.Standart.cone.obj";
 }

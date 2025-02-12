@@ -3,7 +3,7 @@
     public abstract class System : ISystem
     {
         private World _world;
-        IWorld ISystem.World => _world;
+        public IWorld World => _world;
 
         protected System(World world) =>
             _world = world;

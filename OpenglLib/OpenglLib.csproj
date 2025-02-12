@@ -77,6 +77,7 @@
 
   <ItemGroup>
     <Folder Include="Generated\OpenglLib.Generator\" />
+    <Folder Include="Generated\OpenglLib.Generator\OpenglLib.Generator.ResourcesPathGenerator\" />
     <Folder Include="Types\Custom\" />
   </ItemGroup>
 

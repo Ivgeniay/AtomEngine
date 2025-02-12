@@ -35,6 +35,20 @@ namespace OpenglLib.Generator
             return builder.ToString();
         }
 
+        public static string GetTextureSetter(string type, string locationFieldName, string cashFieldName)
+        {
+            StringBuilder builder = new StringBuilder();
+
+            builder.AppendLine("        set");
+            builder.AppendLine("            {");
+            builder.AppendLine($"                if ({locationFieldName} == -1)");
+            builder.AppendLine($"                {{");
+            builder.AppendLine($"                   DebLogger.Warn(\"You try to set value to -1 lcation field\");");
+            builder.AppendLine($"                   return;");
+            builder.AppendLine($"                }}");
+
+            return builder.ToString();
+        }
         public static string GetSetter(string type, string locationFieldName, string cashFieldName)
         {
             StringBuilder builder = new StringBuilder();
@@ -163,6 +177,136 @@ namespace OpenglLib.Generator
                     builder.AppendLine($"                _gl.UniformMatrix4x3({locationFieldName}, 1, false, (float*)&mat4x3);");
                     break;
 
+                case "sampler1D":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "sampler2D":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "sampler3D":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "samplerCube":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "sampler2DRect":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+
+                // Array samplers
+                case "sampler1DArray":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "sampler2DArray":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "samplerCubeArray":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "samplerBuffer":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+
+                // Multisample samplers
+                case "sampler2DMS":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "sampler2DMSArray":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+
+                // Shadow samplers
+                case "sampler1DShadow":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "sampler2DShadow":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "samplerCubeShadow":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "sampler2DRectShadow":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "sampler1DArrayShadow":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "sampler2DArrayShadow":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+                case "samplerCubeArrayShadow":
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    break;
+
+                // Integer samplers (signed)
+                case "isampler1D":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                case "isampler2D":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                case "isampler3D":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                case "isamplerCube":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                case "isampler2DRect":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                case "isampler1DArray":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                case "isampler2DArray":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                case "isamplerCubeArray":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                case "isamplerBuffer":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                case "isampler2DMS":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                case "isampler2DMSArray":
+                    builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+                    break;
+                     
+                case "usampler1D":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+                case "usampler2D":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+                case "usampler3D":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+                case "usamplerCube":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+                case "usampler2DRect":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+                case "usampler1DArray":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+                case "usampler2DArray":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+                case "usamplerCubeArray":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+                case "usamplerBuffer":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+                case "usampler2DMS":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+                case "usampler2DMSArray":
+                    builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+                    break;
+
                 default:
                     builder.AppendLine($"                throw new NotSupportedException(\"Unsupported uniform type: {type}\");");
                     break;
@@ -228,6 +372,7 @@ namespace OpenglLib.Generator
                 "dmat4x2" => $"_gl.UniformMatrix4x2({locationFieldName}, 1, false, ref {fielfName}.Value.M11)",
                 "dmat4x3" => $"_gl.UniformMatrix4x3({locationFieldName}, 1, false, ref {fielfName}.Value.M11)",
                 "dmat4x4" => $"_gl.UniformMatrix4({locationFieldName}, 1, false, ref {fielfName}.Value.M11)",
+                
                 _         => $"_gl.Uniform1({locationFieldName}, value)"
             };
         }
@@ -329,7 +474,59 @@ namespace OpenglLib.Generator
                 _                        => glslType
             };
         }
+        public static string GetTextureTarget(string samplerType)
+        {
+            return samplerType switch
+            {
+                "sampler1D"              => "Texture1D",
+                "sampler2D"              => "Texture2D",
+                "sampler3D"              => "Texture3D",
+                "samplerCube"            => "TextureCubeMap",
+                "sampler2DRect"          => "TextureRectangle",
 
+                "sampler1DArray"         => "Texture1DArray",
+                "sampler2DArray"         => "Texture2DArray",
+                "samplerCubeArray"       => "TextureCubeMapArray",
+                "samplerBuffer"          => "TextureBuffer",
+
+                "sampler2DMS"            => "Texture2DMultisample",
+                "sampler2DMSArray"       => "Texture2DMultisampleArray",
+
+                "sampler1DShadow"        => "Texture1D",
+                "sampler2DShadow"        => "Texture2D",
+                "samplerCubeShadow"      => "TextureCubeMap",
+                "sampler2DRectShadow"    => "TextureRectangle",
+                "sampler1DArrayShadow"   => "Texture1DArray",
+                "sampler2DArrayShadow"   => "Texture2DArray",
+                "samplerCubeArrayShadow" => "TextureCubeMapArray",
+
+                "isampler1D"             => "Texture1D",
+                "isampler2D"             => "Texture2D",
+                "isampler3D"             => "Texture3D",
+                "isamplerCube"           => "TextureCubeMap",
+                "isampler2DRect"         => "TextureRectangle",
+                "isampler1DArray"        => "Texture1DArray",
+                "isampler2DArray"        => "Texture2DArray",
+                "isamplerCubeArray"      => "TextureCubeMapArray",
+                "isamplerBuffer"         => "TextureBuffer",
+                "isampler2DMS"           => "Texture2DMultisample",
+                "isampler2DMSArray"      => "Texture2DMultisampleArray",
+
+                "usampler1D"             => "Texture1D",
+                "usampler2D"             => "Texture2D",
+                "usampler3D"             => "Texture3D",
+                "usamplerCube"           => "TextureCubeMap",
+                "usampler2DRect"         => "TextureRectangle",
+                "usampler1DArray"        => "Texture1DArray",
+                "usampler2DArray"        => "Texture2DArray",
+                "usamplerCubeArray"      => "TextureCubeMapArray",
+                "usamplerBuffer"         => "TextureBuffer",
+                "usampler2DMS"           => "Texture2DMultisample",
+                "usampler2DMSArray"      => "Texture2DMultisampleArray",
+
+                _ => throw new ArgumentException($"Unknown sampler type: {samplerType}")
+            };
+        }
 
         public static bool IsCompleteShaderFile(string source)
         {
@@ -431,10 +628,107 @@ namespace OpenglLib.Generator
 
 
     }
+
+
+
     public class UniformBlockStructure
     {
         public string Name { get; set; } = string.Empty;
         public int? Binding { get; set; } = null;
         public List<(string Type, string Name, int? ArraySize)> Fields { get; set; } = new List<(string Type, string Name, int? ArraySize)>();
+    }
+    public class SimpleJsonParser
+    {
+        private Dictionary<string, string> _fields = new Dictionary<string, string>();
+        private int _position;
+        private string _json;
+
+        public Dictionary<string, string> Parse(string json)
+        {
+            _json = json;
+            _position = 0;
+            _fields.Clear();
+            ParseObject();
+            return _fields;
+        }
+
+        private void SkipWhitespace()
+        {
+            while (_position < _json.Length && char.IsWhiteSpace(_json[_position]))
+                _position++;
+        }
+
+        private void ParseObject()
+        {
+            SkipWhitespace();
+            if (_position >= _json.Length || _json[_position] != '{')
+                return;
+
+            _position++; // Skip {
+
+            while (_position < _json.Length)
+            {
+                SkipWhitespace();
+                if (_json[_position] == '}')
+                {
+                    _position++;
+                    break;
+                }
+
+                if (_json[_position] == ',')
+                {
+                    _position++;
+                    continue;
+                }
+
+                ParseKeyValuePair();
+            }
+        }
+
+        private void ParseKeyValuePair()
+        {
+            SkipWhitespace();
+            string key = ParseString();
+
+            SkipWhitespace();
+            if (_position >= _json.Length || _json[_position] != ':')
+                return;
+            _position++; // Skip :
+
+            SkipWhitespace();
+            if (_position >= _json.Length)
+                return;
+
+            if (_json[_position] == '{')
+            {
+                ParseObject(); // Рекурсивно обрабатываем вложенный объект
+            }
+            else if (_json[_position] == '"')
+            {
+                string value = ParseString();
+                if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
+                {
+                    _fields[key] = value;
+                }
+            }
+        }
+
+        private string ParseString()
+        {
+            if (_position >= _json.Length || _json[_position] != '"')
+                return string.Empty;
+
+            _position++; // Skip opening quote
+            int start = _position;
+            while (_position < _json.Length && _json[_position] != '"')
+                _position++;
+
+            if (_position >= _json.Length)
+                return string.Empty;
+
+            string result = _json.Substring(start, _position - start);
+            _position++; // Skip closing quote
+            return result;
+        }
     }
 }

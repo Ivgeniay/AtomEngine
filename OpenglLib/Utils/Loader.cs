@@ -5,6 +5,8 @@ namespace OpenglLib.Utils
 {
     internal static class Loader
     {
+        private const string BaseNamespace = "OpenglLib";
+
         public static Result<string, Error> LoadConfigurationFileAsText(string fileName, Assembly assembly = null)
         {
             assembly = assembly ?? typeof(Loader).Assembly;
@@ -43,6 +45,35 @@ namespace OpenglLib.Utils
             string filepath = mb_filePath.Expect($"File not found: {fileName}");
             return new Result<string, Error>(filepath);
         }
+
+        public static string LoadFromResourcesAsText(string shaderName)
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var resources = assembly.GetManifestResourceNames();
+            var normalizedShaderName = shaderName.Replace('/', '.').Replace('\\', '.');
+            var resourceName = resources.FirstOrDefault(r =>
+                r.StartsWith(BaseNamespace) &&
+                r.EndsWith(normalizedShaderName, StringComparison.OrdinalIgnoreCase));
+
+            if (resourceName == null)
+            {
+                var availableShaders = string.Join("\n", resources
+                    .Where(r => r.StartsWith(BaseNamespace))
+                    .Select(r => r.Substring(BaseNamespace.Length + 1)));
+
+                throw new ShaderError(
+                    $"Shader resource not found: {shaderName}\n" +
+                    $"Available shaders:\n{availableShaders}");
+            }
+
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+                throw new ShaderError($"Failed to load shader stream: {resourceName}");
+
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+
 
         private static Result<string, Error> FindFileRecursively(string currentDirectory, string fileName)
         {

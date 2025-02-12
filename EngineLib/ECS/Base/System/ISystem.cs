@@ -1,8 +1,7 @@
 ﻿namespace AtomEngine
 {
-    public interface ISystem
+    public interface ISystem : ICommonSystem
     {
-        IWorld World { get; }
         public void Update(double deltaTime);
     }
 }
