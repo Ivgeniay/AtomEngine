@@ -1,18 +1,18 @@
 ﻿namespace AtomEngine
 {
-    // Добавляем в World методы для работы с запросами
     public partial class World
     {
-        private readonly List<Query> _activeQueries = new();
+        private readonly List<QueryEntity> _activeQueries = new();
         private readonly object _queriesLock = new object();
 
-        public Query CreateQuery()
+        public QueryEntity CreateEntityQuery()
         {
-            var query = new Query(this);
+            var query = new QueryEntity(this);
             lock (_queriesLock)
             {
                 _activeQueries.Add(query);
             }
+            WeakReference weakReference = new WeakReference(query);
             return query;
         }
 
@@ -43,7 +43,7 @@
                     yield return new Entity(entityId, version);
                 }
             }
-        }
+        } 
 
         internal void CleanupUnusedQueries()
         {
@@ -52,8 +52,6 @@
                 _activeQueries.RemoveAll(q => q == null);
             }
         }
-
-        
     }
 
 

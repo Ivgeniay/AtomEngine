@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Numerics;
 
 namespace AtomEngine
 {
@@ -14,7 +15,9 @@ namespace AtomEngine
         // SYSTEMS
         private readonly SystemDependencyGraph _dependencyGraph = new();
         private readonly List<ISystem> _systems = new();
+        private readonly List<IRenderSystem> _renderSystems = new();
         private readonly object _systemsLock = new();
+        private readonly object _renderSystemsLock = new();
         // COMPONENTS
         private readonly ConcurrentDictionary<uint, Archetype> _entityArchetypesCache = new();
         private readonly ResourceManager _resourceManager = new ResourceManager();
@@ -185,6 +188,13 @@ namespace AtomEngine
         #endregion
 
         #region Systems
+        public void AddSystem(IRenderSystem system)
+        {
+            lock (_renderSystemsLock)
+            {
+                _renderSystems.Add(system);
+            }
+        }
         public void AddSystem(ISystem system)
         {
             lock (_systemsLock)
@@ -205,7 +215,7 @@ namespace AtomEngine
         }
         #endregion
 
-        public async Task UpdateAsync(double deltaTime)
+        private async Task UpdateAsync(double deltaTime)
         {
             var systemLevels = _dependencyGraph.GetExecutionLevels();
             foreach (var level in systemLevels)
@@ -216,7 +226,6 @@ namespace AtomEngine
                 await Task.WhenAll(systemTasks);
             }
         }
-
         private void UpdateSystemSafely(ISystem system, double deltaTime)
         {
             try
@@ -230,19 +239,44 @@ namespace AtomEngine
         }
         public void Update(double deltaTime)
         {
-            //UpdateAsync(deltaTime).GetAwaiter().GetResult();
-            var systemLevels = _dependencyGraph.GetExecutionLevels();
-            foreach (var level in systemLevels)
-            {
-                level.ForEach(system => UpdateSystemSafely(system, deltaTime));
-            }
+            UpdateAsync(deltaTime).GetAwaiter().GetResult();
+            //var systemLevels = _dependencyGraph.GetExecutionLevels();
+            //foreach (var level in systemLevels)
+            //{
+            //    level.ForEach(system => UpdateSystemSafely(system, deltaTime));
+            //}
         }
+        public void Render(double deltaTime)
+        {
+            foreach (var system in _renderSystems)
+                system.Render(deltaTime);
+        }
+        public void Resize(Vector2 size)
+        {
+            foreach (var system in _renderSystems)
+                system.Resize(size);
+        }
+
         public void Dispose()
         {
             if (_isDisposed) return;
 
             _componentPool.Dispose();
             _archetypePool.Dispose();
+            foreach (var system in _systems)
+            {
+                if (system is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+            foreach (var system in _renderSystems)
+            {
+                if (system is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
             _isDisposed = true;
         }
     }

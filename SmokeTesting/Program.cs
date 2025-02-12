@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using AtomEngine;
 using OpenglLib;
+using OpenglLib.Buffers;
 using Silk.NET.Maths;
 
 namespace SmokeTesting
@@ -26,13 +27,6 @@ namespace SmokeTesting
 
         private static void Game(App app)
         {
-            //SampleMaterial sampleMaterial = new SampleMaterial(app.Gl);
-            //sampleMaterial.color.Value = new Vector4D<float>(1f,1f,1f,1f);
-            //sampleMaterial.light.Value.direction = new Vector3D<float>(2f, 2f, 2f);
-
-            //ObservableVariable<Matrix4X4<float>> projection = new ObservableVariable<Matrix4X4<float>>((e) => DebLogger.Info(e));
-
-
             World world = new World();
             var camera = world.CreateEntity();
             var cameraTransform = new TransformComponent(camera);
@@ -49,27 +43,25 @@ namespace SmokeTesting
             var cubeMeshComponent = new MeshComponent(cubeEntity, mesh);
             world.AddComponent(cubeEntity, cubeMeshComponent);
 
-            //string vertexShaderSource = ShaderLoader.LoadShader("StandartShader/Vertex.glsl", true);
-            //vertexShaderSource = ShaderParser.ProcessIncludes(vertexShaderSource, "Vertex.glsl");
-            //vertexShaderSource = ShaderParser.ProcessConstants(vertexShaderSource);
-            //string fragmentShaderSource = ShaderLoader.LoadShader("StandartShader/Fragment.glsl", true);
-            //fragmentShaderSource = ShaderParser.ProcessIncludes(fragmentShaderSource, "Fragment.glsl");
-            //fragmentShaderSource = ShaderParser.ProcessConstants(fragmentShaderSource);
-            //DebLogger.Info(vertexShaderSource);
-            //DebLogger.Info(fragmentShaderSource);
-            //Shader shader = new Shader(app.Gl, vertexShaderSource, fragmentShaderSource);
-
             TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
-            //shader.SetUpShader(vertexShaderSource, fragmentShaderSource);
             world.AddComponent(cubeEntity, new ShaderComponent(cubeEntity, shader));
 
             world.AddSystem(new RenderSystem(world));
             world.AddSystem(new RotateSystem(world));
 
-            app.NativeWindow.Render += delta =>
+            bool isUpdate = true;
+
+            app.Input.Keyboards[0].KeyDown += (keyboard, key, num) =>
             {
-                world.Update(delta);
+                if (key == Silk.NET.Input.Key.Space)
+                {
+                    isUpdate = !isUpdate;
+                }
             };
+
+            app.NativeWindow.Render += delta => { if (isUpdate) world.Render(delta); }; 
+            app.NativeWindow.Render += delta => { if (isUpdate) world.Update(delta); };
+            app.NativeWindow.Resize += size => { world.Resize(size.ToNumetrix()); };
         }
     }
     public struct RotateComponent : IComponent
@@ -86,10 +78,14 @@ namespace SmokeTesting
     {
         private IWorld _world;
         public IWorld World => _world;
+        private QueryEntity queryEntity;
 
         public RotateSystem(IWorld world)
         {
             _world = world;
+            queryEntity = _world.CreateEntityQuery()
+                .With<TransformComponent>()
+                .With<RotateComponent>();
         }
 
         public void Update(double deltaTime)
@@ -97,10 +93,7 @@ namespace SmokeTesting
             float rotationSpeed = 1.0f;
             float deltaRotation = (float)deltaTime * rotationSpeed;
 
-            Entity[] entities = this.CreateQuery()
-                .With<TransformComponent>()
-                .With<RotateComponent>()
-                .Build();
+            Entity[] entities = queryEntity.Build();
 
             foreach (var entity in entities)
             {
@@ -122,23 +115,32 @@ namespace SmokeTesting
             }
         }
     }
-    public class RenderSystem : ISystem
+
+    public class RenderSystem : IRenderSystem
     {
         private IWorld _world;
         public IWorld World => _world;
-        private Random Random = new Random();
+        QueryEntity queryCameraEntity;
+        QueryEntity queryRenderersEntity;
+
 
         public RenderSystem(IWorld world)
         {
             _world = world;
+            queryCameraEntity = _world.CreateEntityQuery()
+                .With<TransformComponent>()
+                .With<CameraComponent>();
+
+            queryRenderersEntity = _world.CreateEntityQuery()
+                .With<TransformComponent>()
+                .With<MeshComponent>()
+                .With<ShaderComponent>();
         }
 
-        public void Update(double deltaTime)
+
+        public void Render(double deltaTime)
         {
-            Entity[] cameras = this.CreateQuery()
-                .With<TransformComponent>()
-                .With<CameraComponent>()
-                .Build();
+            Entity[] cameras = queryCameraEntity.Build();
 
             if (cameras.Length == 0)
             {
@@ -147,62 +149,44 @@ namespace SmokeTesting
             }
 
             var camera = cameras[0];
-            ref var cameraTransform = ref this.GetComponent<TransformComponent>(camera);
-            ref var cameraComponent = ref this.GetComponent<CameraComponent>(camera);
+            ref var cameraTransform = ref _world.GetComponent<TransformComponent>(camera);
+            ref var cameraComponent = ref _world.GetComponent<CameraComponent>(camera);
 
-            // Вычисляем матрицу вида
             var cameraRotation = cameraTransform.GetRotationMatrix();
             var cameraPosition = cameraTransform.GetTranslationMatrix();
             Matrix4x4.Invert(cameraPosition * cameraRotation, out var resMatrix);
             cameraComponent.ViewMatrix = resMatrix;
 
-            // Вычисляем VP матрицу один раз
             var viewProjectionMatrix = cameraComponent.ViewMatrix * cameraComponent.CreateProjectionMatrix();
 
-            // Рендерим объекты
-            Entity[] rendererEntities = this.CreateQuery()
-                .With<TransformComponent>()
-                .With<MeshComponent>()
-                .With<ShaderComponent>()
-                .Build();
+            Entity[] rendererEntities = queryRenderersEntity.Build();
 
             foreach (var entity in rendererEntities)
             {
-                ref var transform = ref this.GetComponent<TransformComponent>(entity);
-                ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);
-                ref var shaderComponent = ref this.GetComponent<ShaderComponent>(entity);
+                ref var transform = ref _world.GetComponent<TransformComponent>(entity);
+                ref var meshComponent = ref _world.GetComponent<MeshComponent>(entity);
+                ref var shaderComponent = ref _world.GetComponent<ShaderComponent>(entity);
 
-                // Устанавливаем uniforms
                 TestMaterialMaterial shader = (TestMaterialMaterial)shaderComponent.Shader;
-                
+
                 shader.MODEL = transform.GetModelMatrix().ToSilk();
                 shader.VIEW = cameraComponent.ViewMatrix.ToSilk();
                 shader.PROJ = cameraComponent.CreateProjectionMatrix().ToSilk();
 
-                //shader.normals[0] = 1.0f;
-                //shader.normals[1] = 0.0f;
-                //shader.normals[2] = 0.0f;
-                //shader.coloring.mat.c[0] = 0.0f;
-                //shader.coloring.mat.c[1] = 0.0f;
-                //shader.coloring.mat.c[2] = 1.0f;
-                //shader.coloringArray[1].mat.c[0] = 0.0f;
-                //shader.coloringArray[1].mat.c[1] = 1.0f;
-                //shader.coloringArray[1].mat.c[2] = 0.0f;
-                //shader.coloringArray[0].mat.ambient = 1.0f;
-                //shader.coloringArray[1].mat.ambient = 1.0f;
-                shader.coloringArray[0].mat.kok[2].c[1] = 1.0f;
-                //shader.coloring.mat 
+                shader.col = new Vector3D<float>(1.0f, 1.0f, 0.0f);
 
-                // Опционально: можно передавать VP матрицу одним uniform
-                // shaderComponent.Shader.SetUniform(fields.VIEW_PROJECTION, viewProjectionMatrix);
-
-                // Рендерим меш
                 meshComponent.Mesh.Draw(shaderComponent.Shader);
             }
-        } 
+        }
+
+        public void Resize(Vector2 size)
+        {
+            
+        }
     }
 
-    
+
+
 
     public class DefaultLogger : ILogger
     {

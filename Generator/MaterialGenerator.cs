@@ -1,9 +1,8 @@
-﻿using Microsoft.CodeAnalysis.Text;
+﻿using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis; 
+using System.Reflection; 
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Reflection;
-using System.Collections.Generic;
 
 namespace OpenglLib.Generator
 {
@@ -41,16 +40,11 @@ namespace OpenglLib.Generator
             foreach (var file in shaderFiles)
             {
                 var sourceText = file.GetText()?.ToString() ?? string.Empty;
-                if (IsCompleteShaderFile(sourceText))
+                if (GeneratorHelper.IsCompleteShaderFile(sourceText))
                 {
                     ProcessShaderFile(context, file.Path, sourceText);
                 }
             }
-        }
-
-        private bool IsCompleteShaderFile(string source)
-        {
-            return source.Contains("#vertex") || source.Contains("#fragment");
         }
 
         private void ProcessShaderFile(GeneratorExecutionContext context, string filePath, string sourceText)
@@ -58,8 +52,8 @@ namespace OpenglLib.Generator
             try
             {
                 var materialName = Path.GetFileNameWithoutExtension(filePath);
-                var (vertexSource, fragmentSource) = ExtractShaderSources(context, sourceText);
-                ValidateMainFunctions(context, vertexSource, fragmentSource);
+                var (vertexSource, fragmentSource) = GeneratorHelper.ExtractShaderSources(context, sourceText);
+                GeneratorHelper.ValidateMainFunctions(context, vertexSource, fragmentSource);
                 var uniforms = ExtractUniforms(vertexSource + "\n" + fragmentSource);
                 var materialCode = GenerateMaterialClass(materialName, vertexSource, fragmentSource, uniforms);
                 context.AddSource($"{materialName}Material.g.cs",
@@ -72,102 +66,9 @@ namespace OpenglLib.Generator
             }
         }
 
-        private (string vertex, string fragment) ExtractShaderSources(GeneratorExecutionContext context, string source)
-        {
-            string vertexSource = "";
-            string fragmentSource = "";
-            try
-            {
-                var vertexRegex = new Regex(@"#vertex\r?\n(.*?)(?=#fragment|$)", RegexOptions.Singleline);
-                var fragmentRegex = new Regex(@"#fragment\r?\n(.*?)$", RegexOptions.Singleline);
-
-                var vertexMatch = vertexRegex.Match(source);
-                var fragmentMatch = fragmentRegex.Match(source);
-
-                if (vertexMatch.Success)
-                {
-                    vertexSource = vertexMatch.Groups[1].Value.Trim();
-                    vertexSource = ProcessIncludes(context, vertexSource);
-                }
-
-                if (fragmentMatch.Success)
-                {
-                    fragmentSource = fragmentMatch.Groups[1].Value.Trim();
-                    fragmentSource = ProcessIncludes(context, fragmentSource);
-                }
-            }
-            catch (Exception ex)
-            {
-                Reporter.ReportMessage(context, "MG304", "Extraction Error",
-                    $"Error during source extraction: {ex.Message}", DiagnosticSeverity.Error);
-                throw;
-            }
-
-            return (vertexSource, fragmentSource);
-        }
-
-        private string ProcessIncludes(GeneratorExecutionContext context, string source)
-        {
-
-            var includeRegex = new Regex(@"#include\s+""([^""]+)""");
-
-            // Получаем все доступные файлы для логирования
-            var allFiles = context.AdditionalFiles
-                .Select(f => f.Path.Replace('\\', '/'))
-                .ToList();
-
-            try
-            {
-                return includeRegex.Replace(source, match =>
-                {
-                    var includePath = match.Groups[1].Value;
-                    var foundFile = allFiles.FirstOrDefault(f =>
-                        f.EndsWith(includePath, StringComparison.OrdinalIgnoreCase));
-
-                    if (foundFile != null)
-                    {
-                        var includeFile = context.AdditionalFiles.First(f => f.Path.Replace('\\', '/') == foundFile);
-                        var content = includeFile.GetText()?.ToString() ?? string.Empty;
-                        return $"{content}";
-                    }
-
-                    Reporter.ReportMessage(context, "MG405", "Include Not Found",
-                        $"File not found for include: {includePath}\nTried to find file ending with: {includePath}\nAvailable files:\n{string.Join("\n", allFiles)}",
-                        DiagnosticSeverity.Error);
-                    throw new Exception($"Include file not found: {includePath}");
-                });
-            }
-            catch (Exception ex)
-            {
-                Reporter.ReportMessage(context, "MG406", "Include Processing Error",
-                    $"Error processing includes: {ex.Message}\nStack trace: {ex.StackTrace}",
-                    DiagnosticSeverity.Error);
-                throw;
-            }
-        }
-
-        private void ValidateMainFunctions(GeneratorExecutionContext context, string vertexSource, string fragmentSource)
-        {
-            var mainRegex = new Regex(@"void\s+main\s*\(\s*\)\s*{");
-
-            var vertexMainCount = mainRegex.Matches(vertexSource).Count;
-            var fragmentMainCount = mainRegex.Matches(fragmentSource).Count;
-
-            if (vertexMainCount != 1)
-            {
-                throw new Exception($"Vertex shader must have exactly one main function. Found: {vertexMainCount}");
-            }
-
-            if (fragmentMainCount != 1)
-            {
-                throw new Exception($"Fragment shader must have exactly one main function. Found: {fragmentMainCount}");
-            }
-        }
-
         private List<(string type, string name, int? arraySize)> ExtractUniforms(string source)
         {
             var uniforms = new List<(string type, string name, int? arraySize)>();
-            // Учитываем возможность массива после имени переменной
             var uniformRegex = new Regex(@"uniform\s+(?!layout)(\w+)\s+(\w+)(?:\[(\d+)\])?\s*;");
 
             foreach (Match match in uniformRegex.Matches(source))
@@ -186,20 +87,7 @@ namespace OpenglLib.Generator
 
             return uniforms;
         }
-        //private List<(string type, string name)> ExtractUniforms(string source)
-        //{
-        //    var uniforms = new List<(string type, string name)>();
-        //    var uniformRegex = new Regex(@"uniform\s+(?!layout)(\w+)\s+(\w+)\s*;");
 
-        //    foreach (Match match in uniformRegex.Matches(source))
-        //    {
-        //        var type = match.Groups[1].Value;
-        //        var name = match.Groups[2].Value;
-        //        uniforms.Add((type, name));
-        //    }
-
-        //    return uniforms;
-        //}
 
         private string GenerateMaterialClass(string materialName, string vertexSource,
             string fragmentSource, List<(string type, string name, int? arraySize)> uniforms)
@@ -230,7 +118,7 @@ namespace OpenglLib.Generator
             foreach (var (type, name, arraySize) in uniforms)
             {
                 string csharpType = MapGlslTypeToCSharp(type);
-                bool isCustomType = ShaderTypes.IsCustomType(csharpType, type);
+                bool isCustomType = GeneratorHelper.IsCustomType(csharpType, type);
 
                 string cashFieldName = $"_{name}";
                 string locationName = $"{name}Location";
@@ -239,14 +127,10 @@ namespace OpenglLib.Generator
                 {
                     if (arraySize.HasValue)
                     {
-                        //builder.AppendLine($"        public StructArray<{csharpType}> {name};");
-                        //constructor_lines.Add($"            {name}  = new StructArray<{csharpType}>({arraySize.Value}, _gl);");
-
-                        //builder.AppendLine($"        public StructArray<{csharpType}> {name};");
                         builder.AppendLine($"        private StructArray<{csharpType}> {cashFieldName};");
                         builder.AppendLine($"        public StructArray<{csharpType}> {name}");
                         builder.AppendLine("        {");
-                        builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
+                        builder.Append(GeneratorHelper.GetSimpleGetter(cashFieldName));
                         builder.AppendLine("        }");
                         constructor_lines.Add($"            {cashFieldName}  = new StructArray<{csharpType}>({arraySize.Value}, _gl);");
                     }
@@ -255,7 +139,7 @@ namespace OpenglLib.Generator
                         builder.AppendLine($"        private {csharpType} {cashFieldName};");
                         builder.AppendLine($"        public {csharpType} {name}");
                         builder.AppendLine("        {");
-                        builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
+                        builder.Append(GeneratorHelper.GetSimpleGetter(cashFieldName));
                         builder.AppendLine("        }");
                         constructor_lines.Add($"            {cashFieldName} = new {csharpType}(_gl);");
                     }
@@ -264,12 +148,12 @@ namespace OpenglLib.Generator
                 {
                     if (arraySize.HasValue)
                     {
-                        var localeProperty = ShaderTypes.GetPropertyForLocaleArray(csharpType, name, locationName);
+                        var localeProperty = GeneratorHelper.GetPropertyForLocaleArray(csharpType, name, locationName);
                         builder.Append(localeProperty);
                         builder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
                         builder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
                         builder.AppendLine("        {");
-                        builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
+                        builder.Append(GeneratorHelper.GetSimpleGetter(cashFieldName));
                         builder.AppendLine("        }");
                         constructor_lines.Add($"            {cashFieldName}  = new LocaleArray<{csharpType}>({arraySize.Value}, _gl);");
                     }
@@ -279,7 +163,7 @@ namespace OpenglLib.Generator
                         builder.AppendLine($"        private {csharpType} {cashFieldName};");
                         builder.AppendLine($"        public {_unsafe}{csharpType} {name}"); 
                         builder.AppendLine("        {");
-                        builder.Append(ShaderTypes.GetSetter(type, locationName, cashFieldName));
+                        builder.Append(GeneratorHelper.GetSetter(type, locationName, cashFieldName));
                         builder.AppendLine("        }");
                     }
 
@@ -306,7 +190,7 @@ namespace OpenglLib.Generator
             return builder.ToString();
         }
 
-        private string MapGlslTypeToCSharp(string glslType) => ShaderTypes.MapGlslTypeToCSharp(glslType); 
+        private string MapGlslTypeToCSharp(string glslType) => GeneratorHelper.MapGlslTypeToCSharp(glslType); 
 
         public void Initialize(GeneratorInitializationContext context) { }
     }

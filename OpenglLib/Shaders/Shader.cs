@@ -8,7 +8,7 @@ namespace OpenglLib
     public class Shader : ShaderBase
     {
         private uint _handle;
-        protected readonly GL _gl;
+        public readonly GL _gl;
         protected readonly Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
         protected readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
         protected readonly Dictionary<string, UniformInfo> _uniformInfo = new Dictionary<string, UniformInfo>();
@@ -293,5 +293,7 @@ namespace OpenglLib
         {
             _gl.DeleteProgram(_handle);
         }
+
+        public static explicit operator uint(Shader shader) => shader._handle;
     }
 }

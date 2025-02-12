@@ -55,7 +55,7 @@ namespace AtomEngine.Tests
             world.AddComponent<TestPositionComponent>(entity, new TestPositionComponent());
 
             var query = world
-                .CreateQuery()
+                .CreateEntityQuery()
                 .With<TestPositionComponent>();
             var queryResult = query.Build();
 
@@ -74,18 +74,18 @@ namespace AtomEngine.Tests
             world.AddComponent<TestTransformComponent>(entity2, new TestTransformComponent());
 
             var queryResultWithoutTransformComponent = world
-                .CreateQuery()
+                .CreateEntityQuery()
                 .With<TestPositionComponent>()
                 .Without<TestTransformComponent>()
                 .Build();
 
             var queryResultWithPositionComponent = world
-                .CreateQuery()
+                .CreateEntityQuery()
                 .With<TestPositionComponent>()
                 .Build();
 
             var queryResultWithTransformComponent = world
-                .CreateQuery()
+                .CreateEntityQuery()
                 .With<TestTransformComponent>()
                 .Build();
 
@@ -113,7 +113,7 @@ namespace AtomEngine.Tests
             world.AddComponent<TestPositionComponent>(entity5, new TestPositionComponent() { Position = new Vector3(100, 0, 0)});
 
             var query = world
-                .CreateQuery()
+                .CreateEntityQuery()
                 .With<TestPositionComponent>()
                 .OrderBy(e => world.GetComponent<TestPositionComponent>(e).Position.X);
             ;
@@ -142,7 +142,7 @@ namespace AtomEngine.Tests
             world.AddComponent<TestPositionComponent>(entity5, new TestPositionComponent() { Position = new Vector3(100, 0, 0) });
 
             var query = world
-                .CreateQuery()
+                .CreateEntityQuery()
                 .With<TestPositionComponent>()
                 .OrderByDescending(e => world.GetComponent<TestPositionComponent>(e).Position.X);
             ;
@@ -171,7 +171,7 @@ namespace AtomEngine.Tests
             world.AddComponent<TestPositionComponent>(entity5, new TestPositionComponent() { Position = new Vector3(100, 0, 0) });
 
             var query = world
-                .CreateQuery()
+                .CreateEntityQuery()
                 .With<TestPositionComponent>()
                 .OrderByDescending(e => world.GetComponent<TestPositionComponent>(e).Position.X)
                 .Where(e => world.GetComponent<TestPositionComponent>(e).Position.X > 1);
@@ -199,7 +199,7 @@ namespace AtomEngine.Tests
             world.AddComponent<TestPositionComponent>(entity5, new TestPositionComponent() { Position = new Vector3(100, 0, 0) });
 
             var query = world
-                .CreateQuery()
+                .CreateEntityQuery()
                 .With<TestPositionComponent>()
                 .OrderByDescending(e => world.GetComponent<TestPositionComponent>(e).Position.X)
                 .Limit(2);

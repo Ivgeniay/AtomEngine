@@ -76,8 +76,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Generated\OpenglLib.Generator\OpenglLib.Generator.GlslStructGenerator\" />
-    <Folder Include="Generated\OpenglLib.Generator\OpenglLib.Generator.MaterialGenerator\" />
+    <Folder Include="Generated\OpenglLib.Generator\" />
+    <Folder Include="Types\Custom\" />
   </ItemGroup>
 
 </Project>

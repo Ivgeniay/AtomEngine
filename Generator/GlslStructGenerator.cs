@@ -25,8 +25,8 @@ namespace OpenglLib.Generator
                 }
             }
 
-            ShaderTypes.GeneratedTypes = new();
-            var processedStructures = ShaderTypes.GeneratedTypes;
+            GeneratorHelper.GeneratedTypes = new();
+            var processedStructures = GeneratorHelper.GeneratedTypes;
             var pendingStructures = new List<GlslStructure>();
             var generatedTypes = new HashSet<string>();
 
@@ -173,7 +173,7 @@ namespace OpenglLib.Generator
             foreach (var (type, name, arraySize) in structure.Fields)
             {
                 var csharpType = MapGlslTypeToCSharp(type, generatedTypes);
-                bool isCustomType = ShaderTypes.IsCustomType(csharpType, type);
+                bool isCustomType = GeneratorHelper.IsCustomType(csharpType, type);
                 aliasedName = GetAliasOrOriginal(name);
                 string cashFieldName = $"_{aliasedName}";
                 string locationName = $"{aliasedName}Location";
@@ -182,12 +182,12 @@ namespace OpenglLib.Generator
                 {
                     if (arraySize.HasValue)
                     {
-                        var localeProperty = ShaderTypes.GetPropertyForLocaleArray(csharpType, name, locationName);
+                        var localeProperty = GeneratorHelper.GetPropertyForLocaleArray(csharpType, name, locationName);
                         builder.Append(localeProperty);
                         builder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
                         builder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
                         builder.AppendLine("        {");
-                        builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
+                        builder.Append(GeneratorHelper.GetSimpleGetter(cashFieldName));
                         builder.AppendLine("        }");
                         constructor_lines.Add($"            {cashFieldName}  = new LocaleArray<{csharpType}>({arraySize.Value}, _gl);");
 
@@ -198,7 +198,7 @@ namespace OpenglLib.Generator
                         builder.AppendLine($"        private {csharpType} {cashFieldName};");
                         builder.AppendLine($"        public {csharpType} {aliasedName}");
                         builder.AppendLine("        {");
-                        builder.Append(ShaderTypes.GetSetter(type, locationName, cashFieldName));
+                        builder.Append(GeneratorHelper.GetSetter(type, locationName, cashFieldName));
                         //builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
                         builder.AppendLine("        }");
                     }
@@ -211,7 +211,7 @@ namespace OpenglLib.Generator
                         builder.AppendLine($"        private StructArray<{csharpType}> {cashFieldName};");
                         builder.AppendLine($"        public StructArray<{csharpType}> {name}");
                         builder.AppendLine("        {");
-                        builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
+                        builder.Append(GeneratorHelper.GetSimpleGetter(cashFieldName));
                         builder.AppendLine("        }");
                         constructor_lines.Add($"            {cashFieldName}  = new StructArray<{csharpType}>({arraySize.Value}, _gl);");
                     }
@@ -220,7 +220,7 @@ namespace OpenglLib.Generator
                         builder.AppendLine($"        private {csharpType} {cashFieldName};");
                         builder.AppendLine($"        public {csharpType} {name}");
                         builder.AppendLine("        {");
-                        builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
+                        builder.Append(GeneratorHelper.GetSimpleGetter(cashFieldName));
                         builder.AppendLine("        }");
                         constructor_lines.Add($"            {cashFieldName} = new {csharpType}(_gl);");
                     }
@@ -246,7 +246,7 @@ namespace OpenglLib.Generator
         }
 
         private string MapGlslTypeToCSharp(string glslType, HashSet<string> generatedTypes) =>
-            ShaderTypes.MapGlslTypeToCSharp(glslType, generatedTypes);
+            GeneratorHelper.MapGlslTypeToCSharp(glslType, generatedTypes);
 
         private bool IsGlslBaseType(string type)
         {

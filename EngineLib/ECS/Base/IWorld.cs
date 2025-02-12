@@ -13,7 +13,7 @@ namespace AtomEngine
 
         public Entity CreateEntity();
         public void DestroyEntity(Entity entity);
-        public Query CreateQuery();
+        public QueryEntity CreateEntityQuery();
 
         public IEnumerable<Entity> GetEntitiesByArchetypeHaving<T1>() where T1 : struct, IComponent;
         public IEnumerable<Entity> GetEntitiesByArchetypeHaving<T1, T2>() where T1 : struct, IComponent where T2 : struct, IComponent;

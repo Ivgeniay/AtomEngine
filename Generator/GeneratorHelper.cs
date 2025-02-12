@@ -1,8 +1,10 @@
-﻿using System.Text;
+﻿using System.Text.RegularExpressions;
+using Microsoft.CodeAnalysis;
+using System.Text;
 
 namespace OpenglLib.Generator
 {
-    internal static class ShaderTypes
+    internal static class GeneratorHelper
     {
         public static HashSet<string> GeneratedTypes = new HashSet<string>();
 
@@ -327,5 +329,112 @@ namespace OpenglLib.Generator
                 _                        => glslType
             };
         }
+
+
+        public static bool IsCompleteShaderFile(string source)
+        {
+            return source.Contains("#vertex") || source.Contains("#fragment");
+        }
+
+        public static (string vertex, string fragment) ExtractShaderSources(GeneratorExecutionContext context, string source)
+        {
+            string vertexSource = "";
+            string fragmentSource = "";
+            try
+            {
+                var vertexRegex = new Regex(@"#vertex\r?\n(.*?)(?=#fragment|$)", RegexOptions.Singleline);
+                var fragmentRegex = new Regex(@"#fragment\r?\n(.*?)$", RegexOptions.Singleline);
+
+                var vertexMatch = vertexRegex.Match(source);
+                var fragmentMatch = fragmentRegex.Match(source);
+
+                if (vertexMatch.Success)
+                {
+                    vertexSource = vertexMatch.Groups[1].Value.Trim();
+                    vertexSource = ProcessIncludes(context, vertexSource);
+                }
+
+                if (fragmentMatch.Success)
+                {
+                    fragmentSource = fragmentMatch.Groups[1].Value.Trim();
+                    fragmentSource = ProcessIncludes(context, fragmentSource);
+                }
+            }
+            catch (Exception ex)
+            {
+                Reporter.ReportMessage(context, "MG304", "Extraction Error",
+                    $"Error during source extraction: {ex.Message}", DiagnosticSeverity.Error);
+                throw;
+            }
+
+            return (vertexSource, fragmentSource);
+        }
+
+        public static string ProcessIncludes(GeneratorExecutionContext context, string source)
+        {
+
+            var includeRegex = new Regex(@"#include\s+""([^""]+)""");
+
+            // Получаем все доступные файлы для логирования
+            var allFiles = context.AdditionalFiles
+                .Select(f => f.Path.Replace('\\', '/'))
+                .ToList();
+
+            try
+            {
+                return includeRegex.Replace(source, match =>
+                {
+                    var includePath = match.Groups[1].Value;
+                    var foundFile = allFiles.FirstOrDefault(f =>
+                        f.EndsWith(includePath, StringComparison.OrdinalIgnoreCase));
+
+                    if (foundFile != null)
+                    {
+                        var includeFile = context.AdditionalFiles.First(f => f.Path.Replace('\\', '/') == foundFile);
+                        var content = includeFile.GetText()?.ToString() ?? string.Empty;
+                        return $"{content}";
+                    }
+
+                    Reporter.ReportMessage(context, "MG405", "Include Not Found",
+                        $"File not found for include: {includePath}\nTried to find file ending with: {includePath}\nAvailable files:\n{string.Join("\n", allFiles)}",
+                        DiagnosticSeverity.Error);
+                    throw new Exception($"Include file not found: {includePath}");
+                });
+            }
+            catch (Exception ex)
+            {
+                Reporter.ReportMessage(context, "MG406", "Include Processing Error",
+                    $"Error processing includes: {ex.Message}\nStack trace: {ex.StackTrace}",
+                    DiagnosticSeverity.Error);
+                throw;
+            }
+        }
+
+        public static void ValidateMainFunctions(GeneratorExecutionContext context, string vertexSource, string fragmentSource)
+        {
+            var mainRegex = new Regex(@"void\s+main\s*\(\s*\)\s*{");
+
+            var vertexMainCount = mainRegex.Matches(vertexSource).Count;
+            var fragmentMainCount = mainRegex.Matches(fragmentSource).Count;
+
+            if (vertexMainCount != 1)
+            {
+                throw new Exception($"Vertex shader must have exactly one main function. Found: {vertexMainCount}");
+            }
+
+            if (fragmentMainCount != 1)
+            {
+                throw new Exception($"Fragment shader must have exactly one main function. Found: {fragmentMainCount}");
+            }
+        }
+
+
+
+    }
+    public class UniformBlockStructure
+    {
+        public string Name { get; set; } = string.Empty;
+        public int? Binding { get; set; } = null;
+        public List<(string Type, string Name, int? ArraySize)> Fields { get; set; } = new List<(string Type, string Name, int? ArraySize)>();
     }
 }

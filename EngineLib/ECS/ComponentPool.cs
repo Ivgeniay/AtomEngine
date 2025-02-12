@@ -82,6 +82,15 @@ namespace AtomEngine
                    components.ContainsKey(entityId);
         }
 
+        public IEnumerable<T> GetComponentsByType<T>() where T : struct, IComponent
+        {
+            var type = typeof(T);
+            if (_components.TryGetValue(type, out var components))
+            {
+                yield return (T)components.Values;
+            } 
+        }
+
         internal bool HasComponentOfType(uint entityId, Type type)
         {
             return _components.TryGetValue(type, out var components) &&
@@ -93,11 +102,6 @@ namespace AtomEngine
             var type = typeof(T);
             var components = _components[type];
             return ref Unsafe.Unbox<T>(components[entityId]);
-
-            //fixed (void* ptr = &Unsafe.Unbox<T>(components[entityId]))
-            //{
-            //    return ref Unsafe.AsRef<T>(ptr);
-            //}
         }
 
         public void Dispose()

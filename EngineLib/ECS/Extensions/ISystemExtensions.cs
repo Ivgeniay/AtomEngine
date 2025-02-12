@@ -20,8 +20,8 @@
         public static void DestroyEntity(this ISystem self, Entity entity) =>
             self.World.DestroyEntity(entity);
 
-        public static Query CreateQuery(this ISystem self) =>
-            self.World.CreateQuery();
+        public static QueryEntity CreateQuery(this ISystem self) =>
+            self.World.CreateEntityQuery();
 
         public static IEnumerable<Entity> GetEntitiesByArchetypeHaving<T1>(this ISystem self) where T1 : struct, IComponent =>
             self.World.GetEntitiesByArchetypeHaving<T1>();

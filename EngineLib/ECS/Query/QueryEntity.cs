@@ -1,6 +1,6 @@
 ﻿namespace AtomEngine
 {
-    public class Query
+    public class QueryEntity
     {
         public delegate bool QueryFilter(Entity entity);
         public delegate TResult QuerySelector<TResult>(Entity entity);
@@ -15,33 +15,33 @@
         private QuerySelector<IComparable>? _orderBySelector;
         private bool _orderDescending;
 
-        internal Query(World world)
+        internal QueryEntity(World world)
         {
             _world = world;
         }
 
-        public Query With<T>() where T : struct, IComponent
+        public QueryEntity With<T>() where T : struct, IComponent
         {
             _requiredComponents.Add(typeof(T));
             _isDirty = true;
             return this;
         }
 
-        public Query Without<T>() where T : struct, IComponent
+        public QueryEntity Without<T>() where T : struct, IComponent
         {
             _excludedComponents.Add(typeof(T));
             _isDirty = true;
             return this;
         }
 
-        public Query Limit(int count)
+        public QueryEntity Limit(int count)
         {
             _limit = count;
             _isDirty = true;
             return this;
         }
 
-        public Query OrderBy<TKey>(QuerySelector<TKey> keySelector) where TKey : IComparable
+        public QueryEntity OrderBy<TKey>(QuerySelector<TKey> keySelector) where TKey : IComparable
         {
             _orderBySelector = e => keySelector(e);
             _orderDescending = false;
@@ -49,7 +49,7 @@
             return this;
         }
 
-        public Query OrderByDescending<TKey>(QuerySelector<TKey> keySelector) where TKey : IComparable
+        public QueryEntity OrderByDescending<TKey>(QuerySelector<TKey> keySelector) where TKey : IComparable
         {
             _orderBySelector = e => keySelector(e);
             _orderDescending = true;
@@ -57,14 +57,14 @@
             return this;
         }
 
-        public Query Where(QueryFilter filter)
+        public QueryEntity Where(QueryFilter filter)
         {
             _filters.Add(filter);
             _isDirty = true;
             return this;
         }
 
-        public Query Where<T>(Func<T, bool> predicate) where T : struct, IComponent
+        public QueryEntity Where<T>(Func<T, bool> predicate) where T : struct, IComponent
         {
             _filters.Add(FilterComponent);
 

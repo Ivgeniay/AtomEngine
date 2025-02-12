@@ -10,15 +10,13 @@ namespace OpenglLib
     public class Mat : Shader
     {
 
-        public Mat(GL gl) : base(gl)
-        {
-        }
+        public Mat(GL gl) : base(gl) { }
 
         protected void SetupUniformLocations()
         {
             foreach (var uniform in _uniformLocations)
             {
-                ProcessUniformLocation(uniform.Key, uniform.Value);
+                if (uniform.Value > -1) ProcessUniformLocation(uniform.Key, uniform.Value); 
             }
         }
 
