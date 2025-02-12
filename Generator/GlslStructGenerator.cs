@@ -9,22 +9,9 @@ namespace OpenglLib.Generator
     public class GlslStructGenerator : ISourceGenerator
     {
         private static readonly string[] ShaderExtensions = { ".glsl", ".vert", ".frag" };
-        private Dictionary<string, string> fieldAliases = new Dictionary<string, string>();
 
         public void Execute(GeneratorExecutionContext context)
         {
-            var configFile = context.AdditionalFiles
-            .FirstOrDefault(f => f.Path.EndsWith("ShaderConfig.json"));
-
-            if (configFile != null)
-            {
-                var content = configFile.GetText()?.ToString();
-                if (content != null)
-                {
-                    LoadFieldAliases(content);
-                }
-            }
-
             GeneratorHelper.GeneratedTypes = new();
             var processedStructures = GeneratorHelper.GeneratedTypes;
             var pendingStructures = new List<GlslStructure>();
@@ -50,16 +37,15 @@ namespace OpenglLib.Generator
                 foreach (var structure in pendingStructures)
                 {
                     if (CanProcessStructure(structure, generatedTypes))
-                    {
-                        string aliasedName = GetAliasOrOriginal(structure.Name);
+                    { 
 
-                        if (!processedStructures.Add(aliasedName))
+                        if (!processedStructures.Add(structure.Name))
                         {
                             continue;
                         }
 
                         var modelCode = GenerateModelClass(structure, generatedTypes);
-                        context.AddSource($"GlslStruct.{aliasedName}.g.cs", SourceText.From(modelCode, Encoding.UTF8));
+                        context.AddSource($"GlslStruct.{structure.Name}.g.cs", SourceText.From(modelCode, Encoding.UTF8));
                         generatedTypes.Add(structure.Name);
                         processedAny = true;
                     }
@@ -77,23 +63,6 @@ namespace OpenglLib.Generator
 
                 pendingStructures = remainingStructures;
             }
-        }
-
-        private void LoadFieldAliases(string jsonContent)
-        {
-            try
-            {
-                var parser = new SimpleJsonParser();
-                fieldAliases = parser.Parse(jsonContent);
-            }
-            catch (Exception ex)
-            {
-                fieldAliases = new Dictionary<string, string>();
-            }
-        }
-        private string GetAliasOrOriginal(string originalName)
-        {
-            return fieldAliases.TryGetValue(originalName, out var alias) ? alias : originalName;
         }
 
         private class GlslStructure
@@ -153,7 +122,6 @@ namespace OpenglLib.Generator
             var construcBuilder = new StringBuilder();
             List<string> constructor_lines = new List<string>();
 
-            string aliasedName = GetAliasOrOriginal(structure.Name);
 
             builder.AppendLine("using Silk.NET.Maths;");
             builder.AppendLine("using Silk.NET.OpenGL;");
@@ -162,21 +130,20 @@ namespace OpenglLib.Generator
             builder.AppendLine("namespace OpenglLib");
             builder.AppendLine("{");
             builder.AppendLine("    //");
-            builder.AppendLine($"    public class {aliasedName} : CustomStruct");
+            builder.AppendLine($"    public class {structure.Name} : CustomStruct");
             builder.AppendLine("    {");
             builder.AppendLine("*construct*");
             builder.AppendLine($"");
 
-            construcBuilder.AppendLine($"        public {aliasedName}(Silk.NET.OpenGL.GL gl) : base(gl) {{");
+            construcBuilder.AppendLine($"        public {structure.Name}(Silk.NET.OpenGL.GL gl) : base(gl) {{");
 
 
             foreach (var (type, name, arraySize) in structure.Fields)
             {
                 var csharpType = MapGlslTypeToCSharp(type, generatedTypes);
                 bool isCustomType = GeneratorHelper.IsCustomType(csharpType, type);
-                aliasedName = GetAliasOrOriginal(name);
-                string cashFieldName = $"_{aliasedName}";
-                string locationName = $"{aliasedName}Location";
+                string cashFieldName = $"_{name}";
+                string locationName = $"{name}Location";
 
                 if (!isCustomType)
                 {
@@ -196,7 +163,7 @@ namespace OpenglLib.Generator
                     {
                         builder.AppendLine($"        public int {locationName} " + "{" + " get ; set; } = -1;");
                         builder.AppendLine($"        private {csharpType} {cashFieldName};");
-                        builder.AppendLine($"        public {csharpType} {aliasedName}");
+                        builder.AppendLine($"        public {csharpType} {name}");
                         builder.AppendLine("        {");
                         builder.Append(GeneratorHelper.GetSetter(type, locationName, cashFieldName));
                         //builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));

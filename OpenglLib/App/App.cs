@@ -3,6 +3,7 @@ using Silk.NET.OpenGL;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Assimp;
+using EngineLib;
 
 namespace OpenglLib
 {
@@ -62,14 +63,12 @@ namespace OpenglLib
 
         private void OnUpdate(double deltaTime)
         {
+            Time.Update(deltaTime);
+            Application.Update(deltaTime);
             if (debug)
             {
-                _fpsHistory.Enqueue(1 / deltaTime);
-                if (_fpsHistory.Count > FPS_SAMPLE_SIZE)
-                    _fpsHistory.Dequeue();
-                double averageFps = _fpsHistory.Average();
-
-                _window.Title = $"FPS: {averageFps:0} | Raw FPS: {1 / deltaTime:0}";
+                if (Time.SecondsSinceStart % 2 == 0)
+                    _window.Title = $"FPS: {Application.FPS:0} | Raw FPS: {Application.FPS_raw:0}";
             }
         }
 

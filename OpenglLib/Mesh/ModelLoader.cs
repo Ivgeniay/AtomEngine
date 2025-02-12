@@ -9,7 +9,7 @@ namespace OpenglLib
 {
     public static class ModelLoader
     {
-        private const string BaseNamespace = "OpenglLib.Geometry";
+        private const string BaseNamespace = "OpenglLib";
         public static string _customBasePath = AppContext.BaseDirectory;
 
         /// <summary>
@@ -44,8 +44,7 @@ namespace OpenglLib
             var assembly = Assembly.GetExecutingAssembly();
             var resources = assembly.GetManifestResourceNames();
             var normalizedModelName = modelPath.Replace('/', '.').Replace('\\', '.');
-            var resourceName = resources.FirstOrDefault(r =>
-                r.StartsWith(BaseNamespace) &&
+            var resourceName = resources.FirstOrDefault(r => 
                 r.EndsWith(normalizedModelName, StringComparison.OrdinalIgnoreCase));
 
             if (resourceName == null)
@@ -211,7 +210,7 @@ namespace OpenglLib
                 }
                 if (!skip)
                 {
-                    var texture = new Texture(gl, model.Directory, type);
+                    var texture = new Texture(gl, model.Directory, type:type);
                     texture.Path = path;
                     textures.Add(texture);
                     model._texturesLoaded.Add(texture);

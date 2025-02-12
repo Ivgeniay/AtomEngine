@@ -21,6 +21,14 @@ out VT_OUT{
     vec3 frag_norm;
 } vt_out;
 
+layout(std140, binding = 55) uniform CameraData
+{
+    mat4 view;
+    mat4 projection;
+    vec3 cameraPos;
+	float padding;
+} kek;
+
 uniform mat4 MODEL;
 uniform mat4 VIEW;
 uniform mat4 PROJ;
@@ -30,7 +38,7 @@ uniform vec3 col;
 void main()
 {
     gl_Position = PROJ * VIEW * MODEL * vec4(V_POS.xyz, 1.0);
-    vt_out.col = col;
+    vt_out.col = vec3(col.x, col.y, col.z - kek.padding);
     vt_out.norm = vec3(1.0f, 1.0f, 1.0f);
     vt_out.frag_pos = fragmentPosition(MODEL, V_POS);
     vt_out.frag_norm = fragmentNormal(MODEL, V_NORM);
@@ -54,7 +62,8 @@ uniform sampler2D tex;
 
 void main()
 { 
-    vec4 texColor = texture(tex, f_in.uv);
-    FragColor = texColor;
+    //vec4 texColor = texture(tex, f_in.uv);
+    //FragColor = texColor;
     //FragColor = vec4(f_in.uv, 1.0, 1.0);
+    FragColor = vec4(f_in.col, 1.0);
 }

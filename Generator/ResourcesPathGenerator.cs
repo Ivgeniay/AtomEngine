@@ -1,9 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Text;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
+﻿using Microsoft.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis;
 using System.Text;
 
 namespace OpenglLib.Generator
@@ -76,7 +72,7 @@ namespace OpenglLib.Generator
 
             foreach (var resourse in resourses)
             {
-                var name = resourse.Name.ToUpper();
+                var name = GeneratorHelper.ConvertToValidCSharpIdentifier(resourse.Name.ToUpper());
                 if (!string.IsNullOrEmpty(resourse.Extension)) name += "_" + resourse.Extension.ToUpper();
 
                 if (replays.TryGetValue(name, out int raplayCount))

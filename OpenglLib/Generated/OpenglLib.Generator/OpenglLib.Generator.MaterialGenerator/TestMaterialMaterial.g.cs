@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using OpenglLib.Buffers;
+using Silk.NET.OpenGL;
 using Silk.NET.Maths;
 using AtomEngine;
 
@@ -28,6 +29,14 @@ out VT_OUT{
     vec3 frag_norm;
 } vt_out;
 
+layout(std140, binding = 55) uniform CameraData
+{
+    mat4 view;
+    mat4 projection;
+    vec3 cameraPos;
+	float padding;
+} kek;
+
 uniform mat4 MODEL;
 uniform mat4 VIEW;
 uniform mat4 PROJ;
@@ -37,7 +46,7 @@ uniform vec3 col;
 void main()
 {
     gl_Position = PROJ * VIEW * MODEL * vec4(V_POS.xyz, 1.0);
-    vt_out.col = col;
+    vt_out.col = vec3(col.x, col.y, col.z - kek.padding);
     vt_out.norm = vec3(1.0f, 1.0f, 1.0f);
     vt_out.frag_pos = fragmentPosition(MODEL, V_POS);
     vt_out.frag_norm = fragmentNormal(MODEL, V_NORM);
@@ -58,12 +67,14 @@ uniform sampler2D tex;
 
 void main()
 { 
-    vec4 texColor = texture(tex, f_in.uv);
-    FragColor = texColor;
+    //vec4 texColor = texture(tex, f_in.uv);
+    //FragColor = texColor;
     //FragColor = vec4(f_in.uv, 1.0, 1.0);
+    FragColor = vec4(f_in.col, 1.0);
 }";
         public TestMaterialMaterial(GL gl) : base(gl)
         {
+            kekUbo = new UniformBufferObject<CameraData_TestMaterial>(_gl, ref _kek, 55);
             SetUpShader(VertexSource, FragmentSource);
             SetupUniformLocations();
         }
@@ -154,6 +165,18 @@ void main()
                 }
                 _tex = value;
                 _gl.Uniform1(texLocation, value);
+            }
+        }
+
+
+        private UniformBufferObject<CameraData_TestMaterial> kekUbo;
+        private CameraData_TestMaterial _kek = new CameraData_TestMaterial();
+        public CameraData_TestMaterial kek
+        {
+            set
+            {
+                _kek = value;
+                kekUbo.UpdateData(ref _kek);
             }
         }
 

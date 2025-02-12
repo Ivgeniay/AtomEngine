@@ -24,7 +24,6 @@ namespace SmokeTesting
             DebLogger.Info("Window loaded");
             Game(app);
         }
-
         private static void Game(App app)
         {
             World world = new World();
@@ -37,15 +36,16 @@ namespace SmokeTesting
             Entity cubeEntity = world.CreateEntity();
             world.AddComponent(cubeEntity, new TransformComponent(cubeEntity));
             world.AddComponent(cubeEntity, new RotateComponent(cubeEntity));
-            Result<Model, Error> mb_model = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
+            Result<Model, Error> mb_model = ModelLoader.LoadModel(PathStorage.CONE_OBJ, app.Gl, app.Assimp);
             var model = mb_model.Unwrap();
             var mesh = model.Meshes[0];
             var cubeMeshComponent = new MeshComponent(cubeEntity, mesh);
             world.AddComponent(cubeEntity, cubeMeshComponent);
 
             TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
-            Texture texture = new Texture(app.Gl, "D:\\Programming\\CS\\Engine\\OpenglLib\\Geometry\\Standart\\Textures\\wood.jpg");
-            Texture texture2 = new Texture(app.Gl, "D:\\Programming\\CS\\Engine\\OpenglLib\\Geometry\\Standart\\Textures\\icon-light-bulb.png");
+            
+            Texture texture = new Texture(app.Gl, PathStorage.WOOD_JPG);
+            Texture texture2 = new Texture(app.Gl, PathStorage.ICON_LIGHT_BULB_PNG);
             shader.tex_SetTexture(texture);
 
             world.AddComponent(cubeEntity, new ShaderComponent(cubeEntity, shader));
@@ -125,7 +125,6 @@ namespace SmokeTesting
         private QueryEntity queryCameraEntity;
         private QueryEntity queryRenderersEntity;
 
-
         public RenderSystem(IWorld world)
         { 
             _world = world;
@@ -176,6 +175,13 @@ namespace SmokeTesting
                 shader.PROJ = cameraComponent.CreateProjectionMatrix().ToSilk();
 
                 shader.col = new Vector3D<float>(1.0f, 1.0f, 1.0f);
+                shader.kek = new CameraData_TestMaterial()
+                {
+                    view = Matrix4X4<float>.Identity,
+                    projection = Matrix4X4<float>.Identity,
+                    cameraPos = Vector3D<float>.Zero,
+                    padding = 1.0f
+                };
 
                 meshComponent.Mesh.Draw(shaderComponent.Shader);
             }

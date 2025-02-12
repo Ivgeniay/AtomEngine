@@ -133,7 +133,7 @@ namespace OpenglLib
                 }
                 if (!skip)
                 {
-                    var texture = new Texture(_gl, Directory, type);
+                    var texture = new Texture(_gl, Directory, type: type);
                     texture.Path = path;
                     textures.Add(texture);
                     _texturesLoaded.Add(texture);

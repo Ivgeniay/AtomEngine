@@ -7,6 +7,12 @@ namespace OpenglLib.Generator
     internal static class GeneratorHelper
     {
         public static HashSet<string> GeneratedTypes = new HashSet<string>();
+        private static readonly IReadOnlyList<char> AllowedCharacters = new[] {
+                       'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+                       'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+                       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+                       'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+                       '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_' };
 
         public static bool IsCustomType(string csharpType, string type) =>
             csharpType == type && type != "float" && type != "bool" && type != "int" && type != "uint" && type != "float" && type != "double";
@@ -35,20 +41,6 @@ namespace OpenglLib.Generator
             return builder.ToString();
         }
 
-        public static string GetTextureSetter(string type, string locationFieldName, string cashFieldName)
-        {
-            StringBuilder builder = new StringBuilder();
-
-            builder.AppendLine("        set");
-            builder.AppendLine("            {");
-            builder.AppendLine($"                if ({locationFieldName} == -1)");
-            builder.AppendLine($"                {{");
-            builder.AppendLine($"                   DebLogger.Warn(\"You try to set value to -1 lcation field\");");
-            builder.AppendLine($"                   return;");
-            builder.AppendLine($"                }}");
-
-            return builder.ToString();
-        }
         public static string GetSetter(string type, string locationFieldName, string cashFieldName)
         {
             StringBuilder builder = new StringBuilder();
@@ -624,9 +616,91 @@ namespace OpenglLib.Generator
                 throw new Exception($"Fragment shader must have exactly one main function. Found: {fragmentMainCount}");
             }
         }
+        public static string ConvertToValidCSharpIdentifier(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return "_";
+
+            var result = new StringBuilder(); 
+            if (char.IsDigit(input[0]))
+                result.Append('_');
+
+            foreach (char c in input)
+            {
+                if (AllowedCharacters.Contains(c))
+                {
+                    result.Append(c);
+                }
+                else
+                {
+                    result.Append('_');
+                }
+            }
+
+            return result.ToString();
+        }
+
+        public static List<UniformBlockStructure> ParseUniformBlocks(string source)
+        {
+            var blocks = new List<UniformBlockStructure>();
+            var blockRegex = new Regex(@"layout\s*\(std140(?:\s*,\s*binding\s*=\s*(\d+))?\)\s*uniform\s+(\w+)?\s*\{([^}]+)\}\s*(\w+)?;", RegexOptions.Multiline);
+
+            foreach (Match match in blockRegex.Matches(source))
+            {
+                var bindingStr = match.Groups[1].Success ? match.Groups[1].Value : null;
+                int? binding = bindingStr != null ? int.Parse(bindingStr) : null;
+
+                var blockName = match.Groups[2].Success ? match.Groups[2].Value : null;
 
 
+                var instanceName = match.Groups[4].Success ? match.Groups[4].Value : null;
+                var fieldsText = match.Groups[3].Value;
 
+                // Используем имя блока или имя экземпляра
+                var name = blockName ?? instanceName;
+                if (string.IsNullOrEmpty(name))
+                {
+                    continue; // Пропускаем анонимные блоки пока не решим, как их обрабатывать
+                }
+
+                blocks.Add(new UniformBlockStructure
+                {
+                    Name = name,
+                    Binding = binding,
+                    Fields = ParseFields(fieldsText),
+                    InstanceName = instanceName
+                });
+            }
+
+            return blocks;
+        }
+
+        public static List<(string Type, string Name, int? ArraySize)> ParseFields(string fieldsText)
+        {
+            var fields = new List<(string Type, string Name, int? ArraySize)>();
+
+            // Удаляем комментарии
+            fieldsText = Regex.Replace(fieldsText, @"//.*$", "", RegexOptions.Multiline);
+            fieldsText = Regex.Replace(fieldsText, @"/\*[\s\S]*?\*/", "");
+
+            var fieldRegex = new Regex(@"(?<type>\w+)\s+(?<name>\w+)(?:\[(?<size>\d+)\])?\s*;", RegexOptions.Multiline);
+
+            foreach (Match match in fieldRegex.Matches(fieldsText))
+            {
+                var type = match.Groups["type"].Value;
+                var name = match.Groups["name"].Value;
+                int? arraySize = null;
+
+                if (match.Groups["size"].Success)
+                {
+                    arraySize = int.Parse(match.Groups["size"].Value);
+                }
+
+                fields.Add((type, name, arraySize));
+            }
+
+            return fields;
+        }
     }
 
 
@@ -635,6 +709,7 @@ namespace OpenglLib.Generator
     {
         public string Name { get; set; } = string.Empty;
         public int? Binding { get; set; } = null;
+        public string? InstanceName { get; set; } = null;
         public List<(string Type, string Name, int? ArraySize)> Fields { get; set; } = new List<(string Type, string Name, int? ArraySize)>();
     }
     public class SimpleJsonParser

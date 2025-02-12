@@ -20,38 +20,15 @@
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Remove="Config\GlslTypes.json" />
-    <None Remove="Config\ShaderConfig.json" />
-  </ItemGroup> 
   
   <ItemGroup>
-    <AdditionalFiles Include="Geometry/**/*.obj" /> 
-    <EmbeddedResource Remove="Generated\**" />
-    <AdditionalFiles Include="Config\ShaderConfig.json" />
-    
-    <AdditionalFiles Include="Shaders/**/*.glsl" />
-    <AdditionalFiles Include="Shaders/**/*.vert" />
-    <AdditionalFiles Include="Shaders/**/*.frag" />
-    <None Remove="Shaders/**/*.glsl" />
-    <None Remove="Shaders/**/*.vert" />
-    <None Remove="Shaders/**/*.frag" />
-    <EmbeddedResource Include="Shaders/**/*.glsl" />
-    <EmbeddedResource Include="Shaders/**/*.vert" />
-    <EmbeddedResource Include="Shaders/**/*.frag" />
-    
-    <EmbeddedResource Include="Config\GlslTypes.json" />
-    <EmbeddedResource Include="Geometry/**/*.obj" />
+    <EmbeddedResource Remove="Generated/**" />
+    <AdditionalFiles Include="Resources/**/*.*" />
+    <EmbeddedResource Include="Resources/**/*.*" />
+    <None Remove="Resources/**/*.*" />
     
     <Compile Remove="Generated\**" />
     <None Include="Generated\**" />
-  </ItemGroup> 
-  
-  <ItemGroup>
-    <EmbeddedResource Remove="Shaders\ShaderSource\BaseParts\Common.glsl" />
-    <EmbeddedResource Remove="Shaders\ShaderSource\StandartShader\Sample.glsl" />
-    <EmbeddedResource Remove="Shaders\ShaderSource\StandartShader\TestMaterial.glsl" />
   </ItemGroup> 
 
   <ItemGroup>
@@ -78,6 +55,7 @@
   <ItemGroup>
     <Folder Include="Generated\OpenglLib.Generator\" />
     <Folder Include="Generated\OpenglLib.Generator\OpenglLib.Generator.ResourcesPathGenerator\" />
+    <Folder Include="Generated\OpenglLib.Generator\OpenglLib.Generator.UniformBlockGenerator\" />
     <Folder Include="Types\Custom\" />
   </ItemGroup>
 

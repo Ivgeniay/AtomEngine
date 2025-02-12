@@ -8,8 +8,10 @@ namespace OpenglLib.Generator
     [Generator]
     public class UniformBlockGenerator : ISourceGenerator
     {
+        private static GeneratorExecutionContext context_;
         public void Execute(GeneratorExecutionContext context)
         {
+            context_ = context;
             var shaderFiles = context.AdditionalFiles
                 .Where(file => file.Path.EndsWith(".glsl"))
                 .ToList();
@@ -27,8 +29,8 @@ namespace OpenglLib.Generator
                     GeneratorHelper.ValidateMainFunctions(context, vertexSource, fragmentSource);
 
                     var uniformBlocks = new List<UniformBlockStructure>();
-                    uniformBlocks.AddRange(ParseUniformBlocks(vertexSource));
-                    uniformBlocks.AddRange(ParseUniformBlocks(fragmentSource));
+                    uniformBlocks.AddRange(GeneratorHelper.ParseUniformBlocks(vertexSource));
+                    uniformBlocks.AddRange(GeneratorHelper.ParseUniformBlocks(fragmentSource));
 
                     var uniqueBlocks = uniformBlocks
                         .GroupBy(block => block.Name)
@@ -52,65 +54,6 @@ namespace OpenglLib.Generator
                         DiagnosticSeverity.Error);
                 }
             }
-        }
-
-        private List<UniformBlockStructure> ParseUniformBlocks(string source)
-        {
-            var blocks = new List<UniformBlockStructure>();
-            var blockRegex = new Regex(@"layout\s*\(std140(?:\s*,\s*binding\s*=\s*(\d+))?\)\s*uniform\s+(\w+)?\s*\{([^}]+)\}\s*(\w+)?;", RegexOptions.Multiline);
-
-            foreach (Match match in blockRegex.Matches(source))
-            {
-                var bindingStr = match.Groups[1].Success ? match.Groups[1].Value : null;
-                int? binding = bindingStr != null ? int.Parse(bindingStr) : null;
-
-                var blockName = match.Groups[2].Success ? match.Groups[2].Value : null;
-                var instanceName = match.Groups[4].Success ? match.Groups[4].Value : null;
-                var fieldsText = match.Groups[3].Value;
-
-                // Используем имя блока или имя экземпляра
-                var name = blockName ?? instanceName;
-                if (string.IsNullOrEmpty(name))
-                {
-                    continue; // Пропускаем анонимные блоки пока не решим, как их обрабатывать
-                }
-
-                blocks.Add(new UniformBlockStructure
-                {
-                    Name = name,
-                    Binding = binding,
-                    Fields = ParseFields(fieldsText)
-                });
-            }
-
-            return blocks;
-        }
-
-        private List<(string Type, string Name, int? ArraySize)> ParseFields(string fieldsText)
-        {
-            var fields = new List<(string Type, string Name, int? ArraySize)>();
-
-            // Удаляем комментарии
-            fieldsText = Regex.Replace(fieldsText, @"//.*$", "", RegexOptions.Multiline);
-            fieldsText = Regex.Replace(fieldsText, @"/\*[\s\S]*?\*/", "");
-
-            var fieldRegex = new Regex(@"(?<type>\w+)\s+(?<name>\w+)(?:\[(?<size>\d+)\])?\s*;", RegexOptions.Multiline);
-
-            foreach (Match match in fieldRegex.Matches(fieldsText))
-            {
-                var type = match.Groups["type"].Value;
-                var name = match.Groups["name"].Value;
-                int? arraySize = null;
-
-                if (match.Groups["size"].Success)
-                {
-                    arraySize = int.Parse(match.Groups["size"].Value);
-                }
-
-                fields.Add((type, name, arraySize));
-            }
-
-            return fields;
         }
 
         private string GenerateUniformBlockClass(UniformBlockStructure block, string className)

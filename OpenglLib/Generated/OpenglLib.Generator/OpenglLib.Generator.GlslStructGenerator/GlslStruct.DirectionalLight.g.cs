@@ -11,70 +11,70 @@ namespace OpenglLib
         }
 
 
-        public int directionLocation { get ; set; } = -1;
-        private Vector3D<float> _direction;
-        public Vector3D<float> direction
+        public int DIRLocation { get ; set; } = -1;
+        private Vector3D<float> _DIR;
+        public Vector3D<float> DIR
         {
             set
             {
-                if (directionLocation == -1)
+                if (DIRLocation == -1)
                 {
                    DebLogger.Warn("You try to set value to -1 lcation field");
                    return;
                 }
-                _direction = value;
-                _gl.Uniform3(directionLocation, value.X, value.Y, value.Z);
+                _DIR = value;
+                _gl.Uniform3(DIRLocation, value.X, value.Y, value.Z);
             }
         }
 
 
-        public int colorLocation { get ; set; } = -1;
-        private Vector3D<float> _color;
-        public Vector3D<float> color
+        public int COLORLocation { get ; set; } = -1;
+        private Vector3D<float> _COLOR;
+        public Vector3D<float> COLOR
         {
             set
             {
-                if (colorLocation == -1)
+                if (COLORLocation == -1)
                 {
                    DebLogger.Warn("You try to set value to -1 lcation field");
                    return;
                 }
-                _color = value;
-                _gl.Uniform3(colorLocation, value.X, value.Y, value.Z);
+                _COLOR = value;
+                _gl.Uniform3(COLORLocation, value.X, value.Y, value.Z);
             }
         }
 
 
-        public int ambient_strengthLocation { get ; set; } = -1;
-        private float _ambient_strength;
-        public float ambient_strength
+        public int AMB_STRLocation { get ; set; } = -1;
+        private float _AMB_STR;
+        public float AMB_STR
         {
             set
             {
-                if (ambient_strengthLocation == -1)
+                if (AMB_STRLocation == -1)
                 {
                    DebLogger.Warn("You try to set value to -1 lcation field");
                    return;
                 }
-                _ambient_strength = value;
-                _gl.Uniform1(ambient_strengthLocation, value);
+                _AMB_STR = value;
+                _gl.Uniform1(AMB_STRLocation, value);
             }
         }
 
 
-        public int intensityLocation { get ; set; } = -1;
-        private float _intensity;
-        public float intensity
+        public int INTENSITYLocation { get ; set; } = -1;
+        private float _INTENSITY;
+        public float INTENSITY
         {
             set
             {
-                if (intensityLocation == -1)
+                if (INTENSITYLocation == -1)
                 {
                    DebLogger.Warn("You try to set value to -1 lcation field");
                    return;
                 }
-                _intensity = value;
-                _gl.Uniform1(intensityLocation, value);
+                _INTENSITY = value;
+                _gl.Uniform1(INTENSITYLocation, value);
             }
         }
 

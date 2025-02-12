@@ -55,7 +55,9 @@ namespace OpenglLib.Generator
                 var (vertexSource, fragmentSource) = GeneratorHelper.ExtractShaderSources(context, sourceText);
                 GeneratorHelper.ValidateMainFunctions(context, vertexSource, fragmentSource);
                 var uniforms = ExtractUniforms(vertexSource + "\n" + fragmentSource);
-                var materialCode = GenerateMaterialClass(materialName, vertexSource, fragmentSource, uniforms);
+                var uniform_blocks = GeneratorHelper.ParseUniformBlocks(vertexSource + "\n" + fragmentSource);
+                var materialCode = GenerateMaterialClass(materialName, vertexSource, fragmentSource, uniforms, uniform_blocks);
+
                 context.AddSource($"{materialName}Material.g.cs",
                     SourceText.From(materialCode, Encoding.UTF8));
             }
@@ -90,7 +92,7 @@ namespace OpenglLib.Generator
 
 
         private string GenerateMaterialClass(string materialName, string vertexSource,
-            string fragmentSource, List<(string type, string name, int? arraySize)> uniforms)
+            string fragmentSource, List<(string type, string name, int? arraySize)> uniforms, List<UniformBlockStructure> uniformBlocks)
         {
             var builder = new StringBuilder();
 
@@ -98,6 +100,7 @@ namespace OpenglLib.Generator
             List<string> constructor_lines = new List<string>();
             int samplers = 0;
 
+            builder.AppendLine("using OpenglLib.Buffers;");
             builder.AppendLine("using Silk.NET.OpenGL;");
             builder.AppendLine("using Silk.NET.Maths;");
             builder.AppendLine("using AtomEngine;");
@@ -176,6 +179,29 @@ namespace OpenglLib.Generator
                 }
                 builder.AppendLine("");
                 builder.AppendLine("");
+            }
+
+            foreach(var block in uniformBlocks)
+            {
+                if (block.InstanceName != null && block.Binding != null)
+                {
+                    string refStruct = $"_{block.InstanceName}";
+                    builder.AppendLine($"        private UniformBufferObject<{block.Name}_{materialName}> {block.InstanceName}Ubo;");
+                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, {block.Binding.Value});");
+
+                    builder.AppendLine($"        private {block.Name}_{materialName} {refStruct} = new {block.Name}_{materialName}();");
+                    builder.AppendLine($"        public {block.Name}_{materialName} {block.InstanceName}");
+                    builder.AppendLine("        {");
+                    builder.AppendLine("            set");
+                    builder.AppendLine("            {");
+                    builder.AppendLine($"                {refStruct} = value;");
+                    builder.AppendLine($"                {block.InstanceName}Ubo.UpdateData(ref {refStruct});");
+                    builder.AppendLine("            }");
+                    builder.AppendLine("        }");
+
+                    builder.AppendLine("");
+                    builder.AppendLine("");
+                }
             }
 
             builder.AppendLine("    }");
