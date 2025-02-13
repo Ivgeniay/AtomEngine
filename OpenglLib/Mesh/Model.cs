@@ -1,4 +1,5 @@
-﻿using Silk.NET.Assimp;
+﻿using AtomEngine;
+using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
 using System.Numerics;
 using AssimpMesh = Silk.NET.Assimp.Mesh;

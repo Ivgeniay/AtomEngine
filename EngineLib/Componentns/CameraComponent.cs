@@ -11,6 +11,8 @@ namespace AtomEngine
         public float FarPlane { get; set; }
 
         public Matrix4x4 ViewMatrix { get; set; } = Matrix4x4.Identity;
+        public Vector3 CameraUp = Vector3.UnitY; 
+        public Vector3 CameraFront = new Vector3(0.0f, 0.0f, 1.0f);
 
         public CameraComponent(Entity owner, float fieldOfView = 45.0f, float aspectRatio = 16f / 9f,
                              float nearPlane = 0.1f, float farPlane = 100.0f)
@@ -20,7 +22,8 @@ namespace AtomEngine
             AspectRatio = aspectRatio;
             NearPlane = nearPlane;
             FarPlane = farPlane; 
-        } 
+        }
+        
 
         public Matrix4x4 CreateProjectionMatrix()
         {

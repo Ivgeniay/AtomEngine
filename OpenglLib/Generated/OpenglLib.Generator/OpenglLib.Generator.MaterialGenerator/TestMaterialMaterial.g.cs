@@ -46,11 +46,11 @@ uniform vec3 col;
 void main()
 {
     gl_Position = PROJ * VIEW * MODEL * vec4(V_POS.xyz, 1.0);
+    vt_out.uv = V_UV;
     vt_out.col = vec3(col.x, col.y, col.z - kek.padding);
-    vt_out.norm = vec3(1.0f, 1.0f, 1.0f);
+    vt_out.norm = V_NORM;
     vt_out.frag_pos = fragmentPosition(MODEL, V_POS);
     vt_out.frag_norm = fragmentNormal(MODEL, V_NORM);
-    vt_out.uv = V_UV;
 }";
         protected string FragmentSource = @"#version 420 core
 
@@ -67,10 +67,9 @@ uniform sampler2D tex;
 
 void main()
 { 
-    //vec4 texColor = texture(tex, f_in.uv);
-    //FragColor = texColor;
-    //FragColor = vec4(f_in.uv, 1.0, 1.0);
-    FragColor = vec4(f_in.col, 1.0);
+    vec4 texColor = texture(tex, f_in.uv);
+    FragColor = texColor * vec4(f_in.col, 1.0);
+    FragColor = vec4(f_in.uv, 1.0, 1.0);
 }";
         public TestMaterialMaterial(GL gl) : base(gl)
         {

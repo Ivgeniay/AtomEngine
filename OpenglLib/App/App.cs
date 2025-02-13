@@ -96,7 +96,7 @@ namespace OpenglLib
         public void Dispose()
         {
             _window?.Dispose();
-            _input?.Dispose();
+            //_input?.Dispose();
         }
     }
 }

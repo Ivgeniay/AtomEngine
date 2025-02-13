@@ -15,7 +15,9 @@ namespace AtomEngine
         // SYSTEMS
         private readonly SystemDependencyGraph _dependencyGraph = new();
         private readonly List<ISystem> _systems = new();
+        private readonly List<ISystem> initialize_systems = new();
         private readonly List<IRenderSystem> _renderSystems = new();
+        private readonly List<IRenderSystem> initialize_render_systems = new();
         private readonly object _systemsLock = new();
         private readonly object _renderSystemsLock = new();
         // COMPONENTS
@@ -193,6 +195,7 @@ namespace AtomEngine
             lock (_renderSystemsLock)
             {
                 _renderSystems.Add(system);
+                initialize_render_systems.Add(system);
             }
         }
         public void AddSystem(ISystem system)
@@ -201,6 +204,7 @@ namespace AtomEngine
             {
                 _systems.Add(system);
                 _dependencyGraph.AddSystem(system);
+                initialize_systems.Add(system);
             }
         }
         public void AddSystemDependency(ISystem dependent, ISystem dependency)
@@ -239,6 +243,14 @@ namespace AtomEngine
         }
         public void Update(double deltaTime)
         {
+            if (initialize_systems.Count > 0)
+            {
+                foreach (var system in initialize_systems)
+                {
+                    system.Initialize();
+                }
+                initialize_systems.Clear();
+            }
             UpdateAsync(deltaTime).GetAwaiter().GetResult();
             //var systemLevels = _dependencyGraph.GetExecutionLevels();
             //foreach (var level in systemLevels)
@@ -248,6 +260,14 @@ namespace AtomEngine
         }
         public void Render(double deltaTime)
         {
+            if (initialize_render_systems.Count > 0)
+            {
+                foreach (var system in initialize_render_systems)
+                {
+                    system.Initialize();
+                }
+                initialize_render_systems.Clear();
+            }
             foreach (var system in _renderSystems)
                 system.Render(deltaTime);
         }

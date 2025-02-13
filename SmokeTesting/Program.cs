@@ -1,8 +1,13 @@
 ﻿using System.Numerics;
 using AtomEngine;
+using AtomEngine.RenderEntity;
 using OpenglLib;
 using OpenglLib.Buffers;
+using Silk.NET.Assimp;
+using Silk.NET.GLFW;
+using Silk.NET.Input;
 using Silk.NET.Maths;
+using Texture = OpenglLib.Texture;
 
 namespace SmokeTesting
 {
@@ -36,11 +41,15 @@ namespace SmokeTesting
             Entity cubeEntity = world.CreateEntity();
             world.AddComponent(cubeEntity, new TransformComponent(cubeEntity));
             world.AddComponent(cubeEntity, new RotateComponent(cubeEntity));
-            Result<Model, Error> mb_model = ModelLoader.LoadModel(PathStorage.CONE_OBJ, app.Gl, app.Assimp);
+            Result<Model, Error> mb_model = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
             var model = mb_model.Unwrap();
             var mesh = model.Meshes[0];
             var cubeMeshComponent = new MeshComponent(cubeEntity, mesh);
             world.AddComponent(cubeEntity, cubeMeshComponent);
+            BoudingComponent boudingComponent = new BoudingComponent(cubeEntity, mesh);
+            world.AddComponent(cubeEntity, boudingComponent);
+            BoudingMovedComponent boudingMovedComponent = new BoudingMovedComponent(cubeEntity);
+            world.AddComponent(cubeEntity, boudingMovedComponent);
 
             TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
             
@@ -50,14 +59,39 @@ namespace SmokeTesting
 
             world.AddComponent(cubeEntity, new ShaderComponent(cubeEntity, shader));
 
+            Entity cube2Entity = world.CreateEntity();
+            TransformComponent cube2Transform = new TransformComponent(cube2Entity);
+            cube2Transform.Position = new Vector3(3, 0, 0);
+            world.AddComponent(cube2Entity, cube2Transform);
+            world.AddComponent(cube2Entity, new RotateComponent(cube2Entity));
+            mb_model = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
+            model = mb_model.Unwrap();
+            mesh = model.Meshes[0];
+            cubeMeshComponent = new MeshComponent(cube2Entity, mesh);
+            world.AddComponent(cube2Entity, cubeMeshComponent);
+            var boudingComponentCube2 = new BoudingComponent(cube2Entity, mesh);
+            world.AddComponent(cube2Entity, boudingComponentCube2);
+
+            //TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
+
+            //Texture texture = new Texture(app.Gl, PathStorage.WOOD_JPG);
+            //Texture texture2 = new Texture(app.Gl, PathStorage.ICON_LIGHT_BULB_PNG);
+            //shader.tex_SetTexture(texture);
+
+            world.AddComponent(cube2Entity, new ShaderComponent(cube2Entity, shader));
+
+
             world.AddSystem(new RenderSystem(world));
-            world.AddSystem(new RotateSystem(world));
+            //world.AddSystem(new RotateSystem(world));
+            world.AddSystem(new CameraMoveSystem(world, app));
+            world.AddSystem(new BoundingInputSystem(world, app));
+            world.AddSystem(new BoundingMoveSystem(world));
 
             bool isUpdate = true;
 
             app.Input.Keyboards[0].KeyDown += (keyboard, key, num) =>
             {
-                if (key == Silk.NET.Input.Key.Space)
+                if (key == Key.Space)
                 {
                     shader.tex_SetTexture(texture2);
                     //isUpdate = !isUpdate;
@@ -78,6 +112,136 @@ namespace SmokeTesting
         public Entity Owner => _owner;
         Entity _owner;
     }
+    public struct BoudingComponent : IComponent
+    {
+        public Entity Owner => _owner;
+        Entity _owner;
+        public BoundingBox BoundingBox;
+        public BoudingComponent(Entity owner, MeshBase meshBase)
+        {
+            _owner = owner;
+            BoundingBox = new BoundingBox(meshBase);
+        }
+    }
+    public struct BoudingMovedComponent : IComponent
+    {
+        public Entity Owner => _owner;
+        Entity _owner;
+        public Vector3 Direction;
+        public BoudingMovedComponent(Entity owner)
+        {
+            _owner = owner;
+        }
+    }
+    
+    public class BoundingInputSystem : ISystem
+    {
+        public IWorld World => _world;
+        private IWorld _world; 
+        private QueryEntity queryEntity;
+        private QueryEntity queryEntity2;
+        private App app;
+        public BoundingInputSystem(IWorld world, App app)
+        {
+            this.app = app;
+            _world = world;
+            queryEntity = this.CreateEntityQuery()
+                .With<BoudingComponent>()
+                .With<BoudingMovedComponent>();
+
+            queryEntity2 = this.CreateEntityQuery()
+                .With<BoudingComponent>()
+                .Without<BoudingMovedComponent>();
+
+            app.Input.Keyboards[0].KeyDown += (keyboard, key, num) =>
+            {
+                if (key == Key.Right) IsRight = true;
+                if (key == Key.Left) IsLeft = true;
+                if (key == Key.Up) IsUp = true;
+                if (key == Key.Down) IsDown = true;
+            };
+        }
+        private bool IsRight = false;
+        private bool IsLeft = false;
+        private bool IsUp = false;
+        private bool IsDown = false;
+        public void Initialize() { }
+
+        public void Update(double deltaTime)
+        {
+            if (!IsDown && !IsUp && !IsLeft && !IsRight) return;
+
+            Entity[] moves = queryEntity.Build();
+            Entity[] boundes = queryEntity2.Build();
+            foreach (var entity in moves)
+            {
+                ref var bounding = ref this.GetComponent<BoudingComponent>(entity);
+                ref var moved = ref this.GetComponent<BoudingMovedComponent>(entity);
+                ref var transform = ref this.GetComponent<TransformComponent>(entity);
+
+                var ownBoundint = bounding.BoundingBox.Transform(transform.GetModelMatrix());
+
+                foreach (var boudingEntity in boundes)
+                {
+                    ref var bouding = ref this.GetComponent<BoudingComponent>(boudingEntity);
+                    ref var transform2 = ref this.GetComponent<TransformComponent>(boudingEntity);
+                    var otherBounding = bouding.BoundingBox.Transform(transform2.GetModelMatrix());
+
+                    bool isIntersect = ownBoundint.Intersects(otherBounding);
+                    if (isIntersect) {
+                        moved.Direction = Vector3.Zero;
+                        IsRight = false;
+                        IsLeft = false;
+                        IsUp = false;
+                        IsDown = false;
+                        return;
+                    }
+                }
+
+                if (IsRight) moved.Direction += new Vector3(1, 0, 0);
+                if (IsLeft) moved.Direction += new Vector3(-1, 0, 0);
+                if (IsUp) moved.Direction += new Vector3(0, 1, 0);
+                if (IsDown) moved.Direction += new Vector3(0, -1, 0);
+
+                IsRight = false;
+                IsLeft = false;
+                IsUp = false;
+                IsDown = false;
+            }
+        }
+    }
+    public class BoundingMoveSystem : ISystem
+    {
+        private IWorld _world;
+        public IWorld World => _world;
+        private QueryEntity queryEntity;
+
+        public BoundingMoveSystem(IWorld world)
+        {
+            _world = world;
+            queryEntity = this.CreateEntityQuery()
+                .With<BoudingMovedComponent>();
+        }
+
+        public void Update(double deltaTime)
+        {
+            Entity[] entities = queryEntity.Build();
+            foreach (var entity in entities)
+            {
+                ref var moved = ref this.GetComponent<BoudingMovedComponent>(entity);
+                ref var transform = ref this.GetComponent<TransformComponent>(entity);
+                transform.Position += moved.Direction;
+                moved.Direction = Vector3.Zero;
+            }
+        }
+
+
+        public void Initialize()
+        {
+        }
+
+    }
+
     public class RotateSystem : ISystem
     {
         private IWorld _world;
@@ -116,8 +280,9 @@ namespace SmokeTesting
                 );
             }
         }
-    }
 
+        public void Initialize() { }
+    }
     public class RenderSystem : IRenderSystem
     {
         private IWorld _world;
@@ -155,8 +320,8 @@ namespace SmokeTesting
 
             var cameraRotation = cameraTransform.GetRotationMatrix();
             var cameraPosition = cameraTransform.GetTranslationMatrix();
-            Matrix4x4.Invert(cameraPosition * cameraRotation, out var resMatrix);
-            cameraComponent.ViewMatrix = resMatrix;
+            //Matrix4x4.Invert(cameraPosition * cameraRotation, out var resMatrix);
+            cameraComponent.ViewMatrix = Matrix4x4.CreateLookAt(cameraTransform.Position, cameraTransform.Position + cameraComponent.CameraFront, cameraComponent.CameraUp);
 
             var viewProjectionMatrix = cameraComponent.ViewMatrix * cameraComponent.CreateProjectionMatrix();
 
@@ -187,10 +352,80 @@ namespace SmokeTesting
             }
         }
 
-        public void Resize(Vector2 size)
+        public void Resize(Vector2 size) { }
+
+        public void Initialize() { }
+    }
+    public class CameraMoveSystem : ISystem
+    {
+        private IWorld _world;
+        public IWorld World => _world;
+        private QueryEntity queryEntity;
+        private App app;
+        private float speed = 5f;
+        public CameraMoveSystem(IWorld world, App app)
         {
-            
+            this.app = app;
+            _world = world;
+            queryEntity = this.CreateEntityQuery()
+                .With<TransformComponent>()
+                .With<CameraComponent>();
+
+            app.Input.Mice[0].MouseMove += (mouse, point) =>
+            {
+                position = point;
+            };
         }
+
+        private Vector2 LastMousePosition = Vector2.Zero;
+        private Vector2 position = Vector2.Zero;
+        private Vector3 CameraDirection = Vector3.Zero;
+        private Vector3 CameraFront = Vector3.Zero;
+        private float CameraYaw = -90.0f;
+        private float CameraPitch = 0.0f;
+        private Vector3 Direction = Vector3.Zero;
+        public void Update(double deltaTime)
+        {
+            float moveSpeed = 1.0f;
+            float deltaMove = (float)deltaTime * moveSpeed;
+            Entity[] entities = queryEntity.Build();
+            foreach (var entity in entities)
+            {
+                var lookSensitivity = 0.1f;
+                if (LastMousePosition == default)
+                {
+                    LastMousePosition = position;
+                }
+                else
+                {
+                    var xOffset = (position.X - LastMousePosition.X) * lookSensitivity;
+                    var yOffset = (position.Y - LastMousePosition.Y) * lookSensitivity;
+                    LastMousePosition = position;
+
+                    CameraYaw += xOffset;
+                    CameraPitch -= yOffset;
+
+                    CameraPitch = Math.Clamp(CameraPitch, -89.0f, 89.0f);
+
+                    CameraDirection.X = MathF.Cos(AtomMath.DegreesToRadians(CameraYaw)) * MathF.Cos(AtomMath.DegreesToRadians(CameraPitch));
+                    CameraDirection.Y = MathF.Sin(AtomMath.DegreesToRadians(CameraPitch));
+                    CameraDirection.Z = MathF.Sin(AtomMath.DegreesToRadians(CameraYaw)) * MathF.Cos(AtomMath.DegreesToRadians(CameraPitch));
+                    CameraFront = Vector3.Normalize(CameraDirection);
+                    ref var transform = ref this.GetComponent<TransformComponent>(entity);
+                    ref var cameraComponent = ref this.GetComponent<CameraComponent>(entity);
+
+                    if (app.Input.Keyboards[0].IsKeyPressed(Key.W)) Direction += new Vector3(0, 0, -1);
+                    if (app.Input.Keyboards[0].IsKeyPressed(Key.S)) Direction += new Vector3(0, 0, 1);
+                    if (app.Input.Keyboards[0].IsKeyPressed(Key.A)) Direction += new Vector3(-1, 0, 0);
+                    if (app.Input.Keyboards[0].IsKeyPressed(Key.D)) Direction += new Vector3(1, 0, 0);
+                    transform.Rotation = new Vector3(CameraPitch, CameraYaw, 0);
+                    transform.Position += Direction * deltaMove * speed;
+                    cameraComponent.CameraFront = CameraFront;
+                    Direction = Vector3.Zero;
+                }
+            }
+        }
+        public void Initialize() { }
     }
 
 

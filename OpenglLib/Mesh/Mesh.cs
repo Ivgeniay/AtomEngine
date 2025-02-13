@@ -1,4 +1,6 @@
 ﻿using AtomEngine.RenderEntity;
+using AtomEngine;
+using EngineLib;
 using OpenglLib.Buffers;
 using Silk.NET.OpenGL; 
 
@@ -6,8 +8,6 @@ namespace OpenglLib
 {
     public class Mesh : MeshBase
     {
-        public float[] Vertices { get; private set; }
-        public uint[] Indices { get; private set; }
         public IReadOnlyList<Texture> Textures { get; private set; }
         public VertexArrayObject<float, uint> VAO { get; set; }
         public BufferObject<float> VBO { get; set; }
@@ -16,10 +16,42 @@ namespace OpenglLib
 
         public Mesh(GL gl, float[] vertices, uint[] indices, List<Texture> textures)
         {
+            if (vertices.Length % 8 != 0)
+                throw new ArgumentError("Vertices array length must be multiple of 8");
+            if (indices.Length % 3 != 0)
+                throw new ArgumentError("Indices array length must be multiple of 3");
+
             GL = gl;
             Vertices = vertices;
             Indices = indices;
             Textures = textures;
+
+            int vertexCount = vertices.Length / 8;
+            Vertices_ = new Vertex[vertexCount];
+            for (int i = 0; i < vertexCount; i++)
+            {
+                int index = i * 8;
+                Vertices_[i] = new Vertex()
+                {
+                    Position = new System.Numerics.Vector3(vertices[index], vertices[index + 1], vertices[index + 2]),
+                    Normal = new System.Numerics.Vector3(vertices[index + 3], vertices[index + 4], vertices[index + 5]),
+                    TexCoords = new System.Numerics.Vector2(vertices[index + 6], vertices[index + 7]),
+                    Index = i,
+                };
+            }
+
+            Triangles = new Triangle[indices.Length/3];
+            int iteration = 0;
+            for (int i = 0; i < indices.Length; i += 3)
+            {
+                Triangle triangle = new Triangle(
+                    Vertices_[indices[i]].Position,
+                    Vertices_[indices[i + 1]].Position,
+                    Vertices_[indices[i + 2]].Position
+                );
+                Triangles[iteration++] = triangle;
+            }
+
             SetupMesh();
         }
 
@@ -40,6 +72,13 @@ namespace OpenglLib
 
         public override void Dispose()
         {
+            if (Textures != null && Textures.Count > 0)
+            {
+                foreach (var texture in Textures)
+                {
+                    texture.Dispose();
+                }
+            }
             Textures = null;
             VAO.Dispose();
             VBO.Dispose();

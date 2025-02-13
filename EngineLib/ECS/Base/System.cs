@@ -9,5 +9,6 @@
             _world = world;
 
         public abstract void Update(double deltaTime);
+        public virtual void Initialize() { }
     }
 }
