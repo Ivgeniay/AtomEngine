@@ -1,10 +1,6 @@
 ﻿using System.Numerics;
 using AtomEngine;
-using AtomEngine.RenderEntity;
 using OpenglLib;
-using OpenglLib.Buffers;
-using Silk.NET.Assimp;
-using Silk.NET.GLFW;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Texture = OpenglLib.Texture;
@@ -33,20 +29,20 @@ namespace SmokeTesting
         {
             World world = new World();
             var camera = world.CreateEntity();
-            var cameraTransform = new TransformComponent(camera);
+            var cameraTransform = new TransformComponent(camera, world);
             cameraTransform.Position = new Vector3(0, 0, 5);
             world.AddComponent(camera, cameraTransform);
             world.AddComponent(camera, new CameraComponent(camera));
 
             Entity cubeEntity = world.CreateEntity();
-            world.AddComponent(cubeEntity, new TransformComponent(cubeEntity));
+            world.AddComponent(cubeEntity, new TransformComponent(cubeEntity, world));
             world.AddComponent(cubeEntity, new RotateComponent(cubeEntity));
             Result<Model, Error> mb_model = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
             var model = mb_model.Unwrap();
             var mesh = model.Meshes[0];
             var cubeMeshComponent = new MeshComponent(cubeEntity, mesh);
             world.AddComponent(cubeEntity, cubeMeshComponent);
-            BoudingComponent boudingComponent = new BoudingComponent(cubeEntity, mesh);
+            var boudingComponent = new BoundingComponent(cubeEntity).FromBox(mesh);
             world.AddComponent(cubeEntity, boudingComponent);
             BoudingMovedComponent boudingMovedComponent = new BoudingMovedComponent(cubeEntity);
             world.AddComponent(cubeEntity, boudingMovedComponent);
@@ -60,7 +56,7 @@ namespace SmokeTesting
             world.AddComponent(cubeEntity, new ShaderComponent(cubeEntity, shader));
 
             Entity cube2Entity = world.CreateEntity();
-            TransformComponent cube2Transform = new TransformComponent(cube2Entity);
+            TransformComponent cube2Transform = new TransformComponent(cube2Entity, world);
             cube2Transform.Position = new Vector3(3, 0, 0);
             world.AddComponent(cube2Entity, cube2Transform);
             world.AddComponent(cube2Entity, new RotateComponent(cube2Entity));
@@ -69,15 +65,8 @@ namespace SmokeTesting
             mesh = model.Meshes[0];
             cubeMeshComponent = new MeshComponent(cube2Entity, mesh);
             world.AddComponent(cube2Entity, cubeMeshComponent);
-            var boudingComponentCube2 = new BoudingComponent(cube2Entity, mesh);
+            var boudingComponentCube2 = new BoundingComponent(cube2Entity).FromBox(mesh);
             world.AddComponent(cube2Entity, boudingComponentCube2);
-
-            //TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
-
-            //Texture texture = new Texture(app.Gl, PathStorage.WOOD_JPG);
-            //Texture texture2 = new Texture(app.Gl, PathStorage.ICON_LIGHT_BULB_PNG);
-            //shader.tex_SetTexture(texture);
-
             world.AddComponent(cube2Entity, new ShaderComponent(cube2Entity, shader));
 
 
@@ -86,6 +75,7 @@ namespace SmokeTesting
             world.AddSystem(new CameraMoveSystem(world, app));
             world.AddSystem(new BoundingInputSystem(world, app));
             world.AddSystem(new BoundingMoveSystem(world));
+            //world.AddSystem(new TestSystem(world));
 
             bool isUpdate = true;
 
@@ -112,15 +102,13 @@ namespace SmokeTesting
         public Entity Owner => _owner;
         Entity _owner;
     }
-    public struct BoudingComponent : IComponent
+    public struct TestComponent<T> : IComponent where T : IBoundingVolume 
     {
         public Entity Owner => _owner;
         Entity _owner;
-        public BoundingBox BoundingBox;
-        public BoudingComponent(Entity owner, MeshBase meshBase)
+        public TestComponent(Entity owner)
         {
             _owner = owner;
-            BoundingBox = new BoundingBox(meshBase);
         }
     }
     public struct BoudingMovedComponent : IComponent
@@ -133,24 +121,48 @@ namespace SmokeTesting
             _owner = owner;
         }
     }
-    
+    public class TestSystem : ISystem
+    {
+        public IWorld World => _world;
+        private IWorld _world;
+        private QueryEntity _query;
+        public TestSystem(IWorld world)
+        {
+            _world = world;
+            _query = _world.CreateEntityQuery().With<TestComponent<IBoundingVolume>>();
+        }
+
+
+        public void Initialize()
+        { }
+
+        public void Update(double deltaTime)
+        {
+            var entity = _query.Build();
+            foreach (var item in entity)
+            {
+                ref var bounding = ref _world.GetComponent<TestComponent<BoundingBox>>(item);
+                DebLogger.Debug($"Bounding: {bounding.Owner}");
+            }
+        }
+    }
     public class BoundingInputSystem : ISystem
     {
         public IWorld World => _world;
         private IWorld _world; 
-        private QueryEntity queryEntity;
-        private QueryEntity queryEntity2;
+        private QueryEntity movedComp;
+        private QueryEntity sphereEntity;
         private App app;
         public BoundingInputSystem(IWorld world, App app)
         {
             this.app = app;
             _world = world;
-            queryEntity = this.CreateEntityQuery()
-                .With<BoudingComponent>()
+            movedComp = this.CreateEntityQuery()
+                .With<BoundingComponent>()
                 .With<BoudingMovedComponent>();
 
-            queryEntity2 = this.CreateEntityQuery()
-                .With<BoudingComponent>()
+            sphereEntity = this.CreateEntityQuery()
+                .With<BoundingComponent>()
                 .Without<BoudingMovedComponent>();
 
             app.Input.Keyboards[0].KeyDown += (keyboard, key, num) =>
@@ -171,42 +183,33 @@ namespace SmokeTesting
         {
             if (!IsDown && !IsUp && !IsLeft && !IsRight) return;
 
-            Entity[] moves = queryEntity.Build();
-            Entity[] boundes = queryEntity2.Build();
+            Entity[] moves = movedComp.Build();
+            Entity[] spheres = sphereEntity.Build();
             foreach (var entity in moves)
             {
-                ref var bounding = ref this.GetComponent<BoudingComponent>(entity);
+                //ref var bounding = ref this.GetComponent<BoxBoudingComponent>(entity);
+                ref var bounding = ref this.GetComponent<BoundingComponent>(entity);
                 ref var moved = ref this.GetComponent<BoudingMovedComponent>(entity);
-                ref var transform = ref this.GetComponent<TransformComponent>(entity);
 
-                var ownBoundint = bounding.BoundingBox.Transform(transform.GetModelMatrix());
+                if (IsRight) moved.Direction += new Vector3(1, 0, 0) * (float)deltaTime * 30;
+                if (IsLeft) moved.Direction += new Vector3(-1, 0, 0) * (float)deltaTime * 30;
+                if (IsUp) moved.Direction += new Vector3(0, 1, 0) * (float)deltaTime * 30;
+                if (IsDown) moved.Direction += new Vector3(0, -1, 0) * (float)deltaTime * 30;
+            }
 
-                foreach (var boudingEntity in boundes)
+
+            IsRight = false;
+            IsLeft = false;
+            IsUp = false;
+            IsDown = false;
+
+            if (_world is World world)
+            {
+                var r = world.GetPotentialCollisions();
+                foreach (var collision in r)
                 {
-                    ref var bouding = ref this.GetComponent<BoudingComponent>(boudingEntity);
-                    ref var transform2 = ref this.GetComponent<TransformComponent>(boudingEntity);
-                    var otherBounding = bouding.BoundingBox.Transform(transform2.GetModelMatrix());
-
-                    bool isIntersect = ownBoundint.Intersects(otherBounding);
-                    if (isIntersect) {
-                        moved.Direction = Vector3.Zero;
-                        IsRight = false;
-                        IsLeft = false;
-                        IsUp = false;
-                        IsDown = false;
-                        return;
-                    }
+                    DebLogger.Debug($"Collision: {collision.Item1} - {collision.Item2}");
                 }
-
-                if (IsRight) moved.Direction += new Vector3(1, 0, 0);
-                if (IsLeft) moved.Direction += new Vector3(-1, 0, 0);
-                if (IsUp) moved.Direction += new Vector3(0, 1, 0);
-                if (IsDown) moved.Direction += new Vector3(0, -1, 0);
-
-                IsRight = false;
-                IsLeft = false;
-                IsUp = false;
-                IsDown = false;
             }
         }
     }
@@ -427,7 +430,7 @@ namespace SmokeTesting
         }
         public void Initialize() { }
     }
-
+    
 
 
 

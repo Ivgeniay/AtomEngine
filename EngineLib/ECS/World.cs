@@ -8,23 +8,25 @@ namespace AtomEngine
     public partial class World : IWorld, IDisposable
     {
         // ENTITY
-        private readonly ConcurrentDictionary<uint, uint> _entityVersions = new();
-        private readonly Queue<uint> _recycledIds = new();
-        private readonly object _entityCreationLock = new();
+        private readonly ConcurrentDictionary<uint, uint> _entityVersions = new ConcurrentDictionary<uint, uint>();
+        private readonly Queue<uint> _recycledIds = new Queue<uint>();
+        private readonly object _entityCreationLock = new object();
         private uint _nextEntityId = 0;
         // SYSTEMS
-        private readonly SystemDependencyGraph _dependencyGraph = new();
-        private readonly List<ISystem> _systems = new();
-        private readonly List<ISystem> initialize_systems = new();
-        private readonly List<IRenderSystem> _renderSystems = new();
-        private readonly List<IRenderSystem> initialize_render_systems = new();
-        private readonly object _systemsLock = new();
-        private readonly object _renderSystemsLock = new();
+        private readonly SystemDependencyGraph _dependencyGraph = new SystemDependencyGraph();
+        private readonly List<ISystem> _systems = new List<ISystem>();
+        private readonly List<ISystem> initialize_systems = new List<ISystem>();
+        private readonly List<IRenderSystem> _renderSystems = new List<IRenderSystem>();
+        private readonly List<IRenderSystem> initialize_render_systems = new List<IRenderSystem>();
+        private readonly object _systemsLock = new object();
+        private readonly object _renderSystemsLock = new object();
         // COMPONENTS
-        private readonly ConcurrentDictionary<uint, Archetype> _entityArchetypesCache = new();
+        private readonly ConcurrentDictionary<uint, Archetype> _entityArchetypesCache = new ConcurrentDictionary<uint, Archetype>();
         private readonly ResourceManager _resourceManager = new ResourceManager();
-        private readonly ComponentPool _componentPool = new();
-        private readonly ArchetypePool _archetypePool = new();
+        private readonly ComponentPool _componentPool = new ComponentPool();
+        private readonly ArchetypePool _archetypePool = new ArchetypePool();
+        // PHYSICS
+        public readonly BVHPool BvhPool = new();
 
         private bool _isDisposed;
 
@@ -71,6 +73,13 @@ namespace AtomEngine
         #endregion
 
         #region Components
+        public ref T GetAbstractComponent<T>(Entity entity) where T : struct, IComponent
+        {
+            if (!IsEntityValid(entity.Id, entity.Version))
+                throw new ArgumentException($"Entity {entity} is not valid");
+
+            return ref _componentPool.GetComponent<T>(entity.Id);
+        }
         public ref T GetComponent<T>(Entity entity) where T : struct, IComponent
         {
             if (!IsEntityValid(entity.Id, entity.Version))
@@ -99,26 +108,29 @@ namespace AtomEngine
             if (!IsEntityValid(entity.Id, entity.Version))
                 throw new ArgumentException($"Entity {entity.Id} is not valid");
 
-            // Добавляем в ComponentPool
-            ref var addedComponent = ref _componentPool.AddComponent(entity.Id, component);
-            _entityArchetypesCache.TryRemove(entity.Id, out _);
 
-            // Если компонент реализует IDisposable, регистрируем его в ResourceManager
+            ref var addedComponent = ref _componentPool.AddComponent(entity.Id, component);
+            //_entityArchetypesCache.TryRemove(entity.Id, out _);
+
             if (component is IDisposable disposable)
             {
                 _resourceManager.RegisterResource(entity, disposable);
             }
 
-            // Добавляем в ArchetypePool, если нужно
-            Archetype currentArchetype = GetEntityArchetype(ref entity);
-            Type[] componentTypes = currentArchetype.Metadata
-                .Select(m => m.Type)
-                .Append(typeof(T))
-                .Distinct()
-                .ToArray();
+            //Archetype currentArchetype = GetEntityArchetype(ref entity);
+            //Type[] componentTypes = currentArchetype.Metadata
+            //    .Select(m => m.Type)
+            //    .Append(typeof(T))
+            //    .Distinct()
+            //    .ToArray();
 
-            ReadOnlySpan<IComponent> components = GatherComponents(ref entity, componentTypes);
-            _archetypePool.AddEntityToArchetype(entity.Id, components, componentTypes);
+            //ReadOnlySpan<IComponent> components = GatherComponents(ref entity, componentTypes);
+            //_archetypePool.AddEntityToArchetype(entity.Id, components, componentTypes);
+
+            if (typeof(IBoundingVolume).IsAssignableFrom(typeof(T)))
+            {
+                BvhPool.AddEntity(entity, (IBoundingVolume)component);
+            }
 
             InvalidateQueries();
             return ref addedComponent;
@@ -133,7 +145,6 @@ namespace AtomEngine
 
             ref T component = ref _componentPool.GetComponent<T>(entity.Id);
 
-            // Если компонент реализует IDisposable, очищаем ресурс
             if (component is IDisposable disposable)
             {
                 _resourceManager.CleanupResource(entity, disposable);
@@ -142,7 +153,6 @@ namespace AtomEngine
             _componentPool.RemoveComponent<T>(entity.Id);
             _entityArchetypesCache.TryRemove(entity.Id, out _);
 
-            // Обновляем архетип
             var currentArchetype = GetEntityArchetype(ref entity);
             var componentTypes = currentArchetype.Metadata
                 .Select(m => m.Type)
@@ -155,18 +165,21 @@ namespace AtomEngine
                 _archetypePool.AddEntityToArchetype(entity.Id, components, componentTypes);
             }
 
+            if (typeof(T) == typeof(BoundingComponent))
+            {
+                BvhPool.RemoveEntity(entity);
+            }
+
             InvalidateQueries();
         }
         
         public Archetype GetEntityArchetype(ref Entity entity)
         {
-            // Пробуем получить из кэша
             if (_entityArchetypesCache.TryGetValue(entity.Id, out var cachedArchetype))
             {
                 return cachedArchetype;
             }
 
-            // Собираем типы всех компонентов сущности
             IEnumerable<Type> componentTypes = _componentPool.GetAllEntityComponentTypes(entity.Id);
 
             var archetype = new Archetype(componentTypes.ToArray());
@@ -241,6 +254,7 @@ namespace AtomEngine
                 DebLogger.Error($"Error updating system {system.GetType().Name}: {ex}");
             }
         }
+        
         public void Update(double deltaTime)
         {
             if (initialize_systems.Count > 0)
@@ -251,13 +265,10 @@ namespace AtomEngine
                 }
                 initialize_systems.Clear();
             }
+            BvhPool.Update(this);
             UpdateAsync(deltaTime).GetAwaiter().GetResult();
-            //var systemLevels = _dependencyGraph.GetExecutionLevels();
-            //foreach (var level in systemLevels)
-            //{
-            //    level.ForEach(system => UpdateSystemSafely(system, deltaTime));
-            //}
         }
+
         public void Render(double deltaTime)
         {
             if (initialize_render_systems.Count > 0)
@@ -275,6 +286,11 @@ namespace AtomEngine
         {
             foreach (var system in _renderSystems)
                 system.Resize(size);
+        }
+
+        public ReadOnlySpan<(Entity, Entity)> GetPotentialCollisions()
+        {
+            return BvhPool.GatherCollisionPairs(this);
         }
 
         public void Dispose()

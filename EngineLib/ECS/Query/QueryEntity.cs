@@ -26,14 +26,14 @@
             _isDirty = true;
             return this;
         }
-
+        
         public QueryEntity Without<T>() where T : struct, IComponent
         {
             _excludedComponents.Add(typeof(T));
             _isDirty = true;
             return this;
         }
-
+        
         public QueryEntity Limit(int count)
         {
             _limit = count;
@@ -172,5 +172,45 @@
             _isDirty = true;
             _cachedResult = null;
         }
+
+
+
+
+        public QueryEntity With<T, T2>()
+            where T : struct, IComponent
+            where T2 : struct, IComponent
+        {
+            return With<T>().With<T2>();
+        }
+        public QueryEntity With<T, T2, T3>()
+            where T : struct, IComponent
+            where T2 : struct, IComponent
+            where T3 : struct, IComponent
+        {
+            return With<T>().With<T2>().With<T3>();
+        }
+        public QueryEntity With<T, T2, T3, T4>()
+            where T : struct, IComponent
+            where T2 : struct, IComponent
+            where T3 : struct, IComponent
+            where T4 : struct, IComponent
+        {
+            return With<T>().With<T2>().With<T3>().With<T4>();
+        }
+
+        public QueryEntity Without<T, T2>()
+            where T : struct, IComponent
+            where T2 : struct, IComponent
+        {
+            return Without<T>().Without<T2>();
+        }
+        public QueryEntity Without<T, T2, T3>()
+            where T : struct, IComponent
+            where T2 : struct, IComponent
+            where T3 : struct, IComponent
+        {
+            return Without<T>().Without<T2>().Without<T3>();
+        }
+
     }
 }

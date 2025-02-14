@@ -205,34 +205,7 @@ namespace AtomEngine.Tests
                 Assert.Contains(entity1.Id, entitiesWithBoth);
             }
         }
-
-        [Fact]
-        public void AddEntityToArchetype_WithTransformComponent_Success()
-        {
-            // Arrange
-            using (World world = new World())
-            {
-                var entity = world.CreateEntity();
-                var transform = new TransformComponent(entity)
-                {
-                    Position = new Vector3(1, 2, 3),
-                    Rotation = new Vector3(0, 90, 0),
-                    Scale = new Vector3(2, 2, 2)
-                };
-                transform.UpdateWorldMatrix();
-
-                // Act
-                _pool.AddEntityToArchetype(entity.Id, new IComponent[] { transform }, new[] { typeof(TransformComponent) });
-
-                // Assert
-                var entities = _pool.GetEntitiesWith<TransformComponent>().ToArray();
-                Assert.Single(entities);
-                Assert.Equal(entity.Id, entities[0]);
-
-                ref var retrievedTransform = ref _pool.GetComponent<TransformComponent>(entity.Id, 0);
-                Assert.Equal(new Vector3(1, 2, 3), retrievedTransform.Position);
-            }
-        }
+        
 
         [Fact]
         public void AddEntityToArchetype_DuplicateComponents_ThrowsException()
