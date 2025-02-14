@@ -8,13 +8,14 @@ namespace AtomEngine
         public Vector3 _position;
         public Vector3 _rotation;
         public Vector3 _scale;
-        public Vector3 Position { get => _position; set { _position = value; _world.BvhPool.MarkNodeDirty(Owner); IsDirty = true; } }
-        public Vector3 Rotation { get => _rotation; set { _rotation = value; _world.BvhPool.MarkNodeDirty(Owner); IsDirty = true; } }
-        public Vector3 Scale { get => _scale; set { _scale = value; _world.BvhPool.MarkNodeDirty(Owner); IsDirty = true; } }
+        public Vector3 Position { get => _position; set { _position = value; _world.BvhPool.MarkNodeDirty(Owner); IsDirtyPos = true; } }
+        public Vector3 Rotation { get => _rotation; set { _rotation = value; _world.BvhPool.MarkNodeDirty(Owner); IsDirtyRot = true; } }
+        public Vector3 Scale { get => _scale; set { _scale = value; _world.BvhPool.MarkNodeDirty(Owner); IsDirtyScale = true; } }
         
-        public Matrix4x4 WorldMatrix;
 
-        private bool IsDirty = false;
+        private bool IsDirtyPos = false;
+        private bool IsDirtyRot = false;
+        private bool IsDirtyScale = false;
         private World _world;
 
         private Matrix4x4 _translationMatrix;
@@ -29,39 +30,41 @@ namespace AtomEngine
             Position = Vector3.Zero;
             Rotation = Vector3.Zero;
             Scale = Vector3.One;
-            WorldMatrix = Matrix4x4.Identity;
         }
 
         public Matrix4x4 GetTranslationMatrix()
         {
-            if (IsDirty)
+            if (IsDirtyPos)
             {
                 _translationMatrix = Matrix4x4.CreateTranslation(Position);
+                IsDirtyPos = false;
             }
             return _translationMatrix;
         }
         public Matrix4x4 GetScaleMatrix()
         {
-            if (IsDirty)
+            if (IsDirtyScale)
             {
                 _scaleMatrix = Matrix4x4.CreateScale(Scale);
+                IsDirtyScale = false;
             }
             return _scaleMatrix;
         }
         public Matrix4x4 GetRotationMatrix()
         {
-            if (IsDirty)
+            if (IsDirtyRot)
             {
                 _rotationMatrix = Matrix4x4.CreateRotationZ(Rotation.Z) *
                                   Matrix4x4.CreateRotationX(Rotation.X) *
                                   Matrix4x4.CreateRotationY(Rotation.Y);
+                IsDirtyRot = false;
             }
             return _rotationMatrix;
         } 
 
         public Matrix4x4 GetModelMatrix(Matrix4x4? parentWorldMatrix = null)
         {
-            if (IsDirty)
+            if (IsDirtyPos || IsDirtyScale || IsDirtyRot)
             {
                 _modelMatrix = GetTranslationMatrix() * GetRotationMatrix() * GetScaleMatrix();
             }

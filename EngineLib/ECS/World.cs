@@ -26,9 +26,14 @@ namespace AtomEngine
         private readonly ComponentPool _componentPool = new ComponentPool();
         private readonly ArchetypePool _archetypePool = new ArchetypePool();
         // PHYSICS
-        public readonly BVHPool BvhPool = new();
+        public readonly BVHPool BvhPool;
 
         private bool _isDisposed;
+
+        public World()
+        {
+            BvhPool = new BVHPool(this);
+        }
 
         #region Entity
         public Entity CreateEntity()
@@ -257,6 +262,7 @@ namespace AtomEngine
         
         public void Update(double deltaTime)
         {
+            _collisionsUpdated = false;
             if (initialize_systems.Count > 0)
             {
                 foreach (var system in initialize_systems)
@@ -288,10 +294,56 @@ namespace AtomEngine
                 system.Resize(size);
         }
 
+
+        #region Physics
+        private CollisionManifold[] _currentCollisions;
+        private bool _collisionsUpdated;
+
+        public ReadOnlySpan<CollisionManifold> GetCurrentCollisions()
+        {
+            if (!_collisionsUpdated)
+            {
+                _currentCollisions = BvhPool.Update(this).ToArray();
+                _collisionsUpdated = true;
+            }
+            return new ReadOnlySpan<CollisionManifold>(_currentCollisions);
+        }
+
         public ReadOnlySpan<(Entity, Entity)> GetPotentialCollisions()
         {
-            return BvhPool.GatherCollisionPairs(this);
+            if (!_collisionsUpdated)
+            {
+                GetCurrentCollisions(); // Обновляем коллизии если нужно
+            }
+            return new ReadOnlySpan<(Entity, Entity)>(BvhPool.GatherCollisionPairs(this).ToArray());
         }
+
+        public bool IsColliding(Entity entity)
+        {
+            var collisions = GetCurrentCollisions();
+            foreach (var manifold in collisions)
+            {
+                if (manifold.BodyA == entity || manifold.BodyB == entity)
+                    return true;
+            }
+            return false;
+        }
+
+        public bool TryGetCollision(Entity entity, out CollisionManifold manifold)
+        {
+            var collisions = GetCurrentCollisions();
+            foreach (var m in collisions)
+            {
+                if (m.BodyA == entity || m.BodyB == entity)
+                {
+                    manifold = m;
+                    return true;
+                }
+            }
+            manifold = default;
+            return false;
+        }
+        #endregion
 
         public void Dispose()
         {

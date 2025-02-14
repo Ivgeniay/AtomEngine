@@ -1,6 +1,4 @@
-﻿using System.Numerics; 
-
-namespace AtomEngine
+﻿namespace AtomEngine
 {
     public interface ICommonSystem
     {

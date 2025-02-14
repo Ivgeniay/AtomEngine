@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Text;
 
 namespace AtomEngine
 {
@@ -14,6 +15,8 @@ namespace AtomEngine
             Normal = normal;
             Penetration = penetration;
         }
+
+        public override string ToString() => $"ContactPoint: Position: {Position}, Normal: {Normal}, Penetration: {Penetration}";
     }
 
     public struct CollisionManifold
@@ -97,6 +100,18 @@ namespace AtomEngine
                 maxPenetration = Math.Max(maxPenetration, Contacts[i].Penetration);
             }
             return maxPenetration;
+        }
+
+        public override string ToString()
+        {
+            StringBuilder sb = new StringBuilder($"CollisionManifold: BodyA: {BodyA}, BodyB: {BodyB}, ContactCount: {ContactCount}");
+            sb.AppendLine($"RestitutionCoefficient: {RestitutionCoefficient}, FrictionCoefficient: {FrictionCoefficient}");
+            for (int i = 0; i < ContactCount; i++)
+            {
+                sb.AppendLine($"{Contacts[i]}");
+            }
+            sb.AppendLine("-----------------------------------------------------------------------------------------");
+            return sb.ToString();
         }
     }
 }

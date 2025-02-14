@@ -42,10 +42,11 @@ namespace SmokeTesting
             var mesh = model.Meshes[0];
             var cubeMeshComponent = new MeshComponent(cubeEntity, mesh);
             world.AddComponent(cubeEntity, cubeMeshComponent);
-            var boudingComponent = new BoundingComponent(cubeEntity).FromBox(mesh);
+            var boudingComponent = new BoundingComponent(cubeEntity).FromSphere(mesh);
             world.AddComponent(cubeEntity, boudingComponent);
             BoudingMovedComponent boudingMovedComponent = new BoudingMovedComponent(cubeEntity);
             world.AddComponent(cubeEntity, boudingMovedComponent);
+            world.AddComponent(cubeEntity, new RigidbodyComponent(cubeEntity, 1));
 
             TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
             
@@ -75,6 +76,7 @@ namespace SmokeTesting
             world.AddSystem(new CameraMoveSystem(world, app));
             world.AddSystem(new BoundingInputSystem(world, app));
             world.AddSystem(new BoundingMoveSystem(world));
+            world.AddSystem(new PhysicsSystem(world));
             //world.AddSystem(new TestSystem(world));
 
             bool isUpdate = true;
@@ -205,10 +207,26 @@ namespace SmokeTesting
 
             if (_world is World world)
             {
-                var r = world.GetPotentialCollisions();
-                foreach (var collision in r)
+                var currentCol = world.GetCurrentCollisions();
+                foreach (var con in currentCol)
                 {
-                    DebLogger.Debug($"Collision: {collision.Item1} - {collision.Item2}");
+                    DebLogger.Debug(con);
+                }
+
+                var potCollisions = world.GetPotentialCollisions();
+                foreach (var collision in potCollisions)
+                {
+                    ref var boundingA = ref world.GetComponent<BoundingComponent>(collision.Item1);
+                    ref var boundingB = ref world.GetComponent<BoundingComponent>(collision.Item2);
+                    ref var transformA = ref world.GetComponent<TransformComponent>(collision.Item1);
+                    ref var transformB = ref world.GetComponent<TransformComponent>(collision.Item2);
+
+                    var worldBoundsA = boundingA.BoundingVolume.Transform(transformA.GetModelMatrix());
+                    var worldBoundsB = boundingB.BoundingVolume.Transform(transformB.GetModelMatrix());
+
+                    DebLogger.Debug($"Entity {collision.Item1} bounds: Min={worldBoundsA.Min}, Max={worldBoundsA.Max}");
+                    DebLogger.Debug($"Entity {collision.Item2} bounds: Min={worldBoundsB.Min}, Max={worldBoundsB.Max}");
+                    DebLogger.Debug($"Real intersection: {worldBoundsA.Intersects(worldBoundsB)}");
                 }
             }
         }

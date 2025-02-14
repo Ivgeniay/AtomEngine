@@ -2,12 +2,11 @@
 
 namespace AtomEngine
 {
-    public class GJKAlgorithm
-    {
-        private const float Epsilon = 1e-6f;
-        private const int MaxIterations = 32;
-
         // Вспомогательная структура для симплекса
+    public static class GJKAlgorithm
+    {
+        private const float Epsilon = 1e-4f;
+        private const int MaxIterations = 32;
         private struct Simplex
         {
             public Vector3[] Points;
@@ -26,32 +25,30 @@ namespace AtomEngine
                 Points[0] = point;
                 Count++;
             }
-        }
 
-        // Функция поиска опорной точки
-        private static Vector3 GetSupport(Vector3[] vertices, Vector3 direction)
-        {
-            float maxDot = float.MinValue;
-            Vector3 support = Vector3.Zero;
-
-            for (int i = 0; i < vertices.Length; i++)
+            public Vector3 this[int index]
             {
-                float dot = Vector3.Dot(vertices[i], direction);
-                if (dot > maxDot)
-                {
-                    maxDot = dot;
-                    support = vertices[i];
-                }
+                get => Points[index];
+                set => Points[index] = value;
             }
-
-            return support;
         }
 
-        // Проверка пересечения двух выпуклых множеств
         public static bool Intersect(Vector3[] verticesA, Vector3[] verticesB)
         {
-            // Начальное направление
-            Vector3 direction = Vector3.UnitX;
+            // Получаем начальное направление из центров объектов
+            Vector3 centerA = GetCentroid(verticesA);
+            Vector3 centerB = GetCentroid(verticesB);
+            Vector3 direction = centerB - centerA;
+
+            // Если центры совпадают, используем произвольное направление
+            if (direction.LengthSquared() < Epsilon)
+            {
+                direction = Vector3.UnitX;
+            }
+            else
+            {
+                direction = Vector3.Normalize(direction);
+            }
 
             // Инициализация симплекса
             Simplex simplex = new Simplex(4);
@@ -66,58 +63,86 @@ namespace AtomEngine
             // Основной цикл GJK
             for (int iteration = 0; iteration < MaxIterations; iteration++)
             {
+                // Нормализуем направление
+                if (direction.LengthSquared() > Epsilon)
+                {
+                    direction = Vector3.Normalize(direction);
+                }
+                else
+                {
+                    // Если direction близок к нулю, это может означать пересечение
+                    return true;
+                }
+
                 // Получаем новую опорную точку
                 support = GetSupport(verticesA, direction) - GetSupport(verticesB, -direction);
 
                 // Проверяем, продвинулись ли мы в направлении начала координат
                 float dot = Vector3.Dot(support, direction);
-                if (dot < 0)
+
+                //DebLogger.Debug($"Iteration {iteration}: Support = {support}, Direction = {direction}, Dot = {dot}");
+
+                if (dot < 0) // Используем 0 вместо Epsilon для более точной проверки
+                {
                     return false; // Нет пересечения
+                }
 
                 simplex.PushFront(support);
 
                 // Обновляем симплекс и направление поиска
-                if (UpdateSimplex(ref simplex, ref direction))
+                if (DoSimplex(ref simplex, ref direction))
+                {
                     return true; // Найдено пересечение
+                }
             }
 
-            return false;
+            return false; // Превышено максимальное количество итераций
         }
 
-        // Обновление симплекса и направления поиска
-        private static bool UpdateSimplex(ref Simplex simplex, ref Vector3 direction)
+        private static bool DoSimplex(ref Simplex simplex, ref Vector3 direction)
         {
             switch (simplex.Count)
             {
-                case 2:
-                    return Line(ref simplex, ref direction);
-                case 3:
-                    return Triangle(ref simplex, ref direction);
-                case 4:
-                    return Tetrahedron(ref simplex, ref direction);
-                default:
-                    return false;
+                case 2: return LineCase(ref simplex, ref direction);
+                case 3: return TriangleCase(ref simplex, ref direction);
+                case 4: return TetrahedronCase(ref simplex, ref direction);
+                default: return false;
             }
         }
 
-        // Обработка линии
-        private static bool Line(ref Simplex simplex, ref Vector3 direction)
+        private static bool LineCase(ref Simplex simplex, ref Vector3 direction)
         {
-            Vector3 a = simplex.Points[0];
-            Vector3 b = simplex.Points[1];
+            Vector3 a = simplex[0];
+            Vector3 b = simplex[1];
             Vector3 ab = b - a;
             Vector3 ao = -a;
 
-            direction = Vector3.Cross(Vector3.Cross(ab, ao), ab);
+            if (Vector3.Dot(ab, ao) > 0)
+            {
+                direction = Vector3.Cross(Vector3.Cross(ab, ao), ab);
+                if (direction.LengthSquared() < Epsilon)
+                {
+                    direction = Vector3.Cross(ab, Vector3.UnitX);
+                    if (direction.LengthSquared() < Epsilon)
+                    {
+                        direction = Vector3.Cross(ab, Vector3.UnitY);
+                    }
+                }
+            }
+            else
+            {
+                simplex.Count = 1;
+                direction = ao;
+            }
+
             return false;
         }
 
-        // Обработка треугольника
-        private static bool Triangle(ref Simplex simplex, ref Vector3 direction)
+        private static bool TriangleCase(ref Simplex simplex, ref Vector3 direction)
         {
-            Vector3 a = simplex.Points[0];
-            Vector3 b = simplex.Points[1];
-            Vector3 c = simplex.Points[2];
+            Vector3 a = simplex[0];
+            Vector3 b = simplex[1];
+            Vector3 c = simplex[2];
 
             Vector3 ab = b - a;
             Vector3 ac = c - a;
@@ -125,40 +150,53 @@ namespace AtomEngine
 
             Vector3 abc = Vector3.Cross(ab, ac);
 
-            if (Vector3.Dot(Vector3.Cross(abc, ac), ao) >= 0)
+            if (Vector3.Dot(Vector3.Cross(abc, ac), ao) > 0)
             {
-                simplex.Points[1] = c;
-                simplex.Count = 2;
-                direction = Vector3.Cross(Vector3.Cross(ac, ao), ac);
-            }
-            else if (Vector3.Dot(Vector3.Cross(ab, abc), ao) >= 0)
-            {
-                simplex.Points[2] = b;
-                simplex.Count = 2;
-                direction = Vector3.Cross(Vector3.Cross(ab, ao), ab);
-            }
-            else
-            {
-                if (Vector3.Dot(abc, ao) >= 0)
+                if (Vector3.Dot(ac, ao) > 0)
                 {
-                    direction = abc;
+                    simplex.Count = 2;
+                    simplex[1] = c;
+                    direction = Vector3.Cross(Vector3.Cross(ac, ao), ac);
                 }
                 else
                 {
-                    direction = -abc;
+                    simplex.Count = 2;
+                    simplex[1] = b;
+                    return LineCase(ref simplex, ref direction);
+                }
+            }
+            else
+            {
+                if (Vector3.Dot(Vector3.Cross(ab, abc), ao) > 0)
+                {
+                    simplex.Count = 2;
+                    simplex[1] = b;
+                    return LineCase(ref simplex, ref direction);
+                }
+                else
+                {
+                    if (Vector3.Dot(abc, ao) > 0)
+                    {
+                        direction = abc;
+                    }
+                    else
+                    {
+                        simplex[1] = c;
+                        simplex[2] = b;
+                        direction = -abc;
+                    }
                 }
             }
 
             return false;
         }
 
-        // Обработка тетраэдра
-        private static bool Tetrahedron(ref Simplex simplex, ref Vector3 direction)
+        private static bool TetrahedronCase(ref Simplex simplex, ref Vector3 direction)
         {
-            Vector3 a = simplex.Points[0];
-            Vector3 b = simplex.Points[1];
-            Vector3 c = simplex.Points[2];
-            Vector3 d = simplex.Points[3];
+            Vector3 a = simplex[0];
+            Vector3 b = simplex[1];
+            Vector3 c = simplex[2];
+            Vector3 d = simplex[3];
 
             Vector3 ab = b - a;
             Vector3 ac = c - a;
@@ -171,27 +209,57 @@ namespace AtomEngine
 
             if (Vector3.Dot(abc, ao) > 0)
             {
-                simplex.Points[3] = c;
-                simplex.Points[2] = b;
                 simplex.Count = 3;
-                return Triangle(ref simplex, ref direction);
+                simplex[2] = c;
+                simplex[1] = b;
+                return TriangleCase(ref simplex, ref direction);
             }
 
             if (Vector3.Dot(acd, ao) > 0)
             {
-                simplex.Points[1] = c;
                 simplex.Count = 3;
-                return Triangle(ref simplex, ref direction);
+                simplex[2] = c;
+                simplex[1] = d;
+                return TriangleCase(ref simplex, ref direction);
             }
 
             if (Vector3.Dot(adb, ao) > 0)
             {
-                simplex.Points[2] = b;
                 simplex.Count = 3;
-                return Triangle(ref simplex, ref direction);
+                simplex[2] = b;
+                simplex[1] = d;
+                return TriangleCase(ref simplex, ref direction);
             }
 
-            return true; // Начало координат внутри тетраэдра
+            return true; // Точка внутри тетраэдра
+        }
+
+        private static Vector3 GetSupport(Vector3[] vertices, Vector3 direction)
+        {
+            float maxDot = float.MinValue;
+            Vector3 support = Vector3.Zero;
+
+            foreach (var vertex in vertices)
+            {
+                float dot = Vector3.Dot(vertex, direction);
+                if (dot > maxDot)
+                {
+                    maxDot = dot;
+                    support = vertex;
+                }
+            }
+
+            return support;
+        }
+
+        private static Vector3 GetCentroid(Vector3[] vertices)
+        {
+            Vector3 center = Vector3.Zero;
+            foreach (var vertex in vertices)
+            {
+                center += vertex;
+            }
+            return center / vertices.Length;
         }
     }
 }
