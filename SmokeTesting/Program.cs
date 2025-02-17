@@ -1,8 +1,9 @@
-﻿using System.Numerics;
-using AtomEngine;
-using OpenglLib;
+﻿using AtomEngine.RenderEntity;
+using System.Numerics;
 using Silk.NET.Input;
 using Silk.NET.Maths;
+using AtomEngine;
+using OpenglLib;
 using Texture = OpenglLib.Texture;
 
 namespace SmokeTesting
@@ -22,31 +23,16 @@ namespace SmokeTesting
 
         private static void OnLoad(App app)
         {
-            DebLogger.Info("Window loaded");
             Game(app);
         }
         private static void Game(App app)
         {
             World world = new World();
             var camera = world.CreateEntity();
-            var cameraTransform = new TransformComponent(camera, world);
-            cameraTransform.Position = new Vector3(0, 0, 5);
+            var cameraTransform = new TransformComponent(camera);
+            cameraTransform.Position = new Vector3(0, -25, 30);
             world.AddComponent(camera, cameraTransform);
             world.AddComponent(camera, new CameraComponent(camera));
-
-            Entity cubeEntity = world.CreateEntity();
-            world.AddComponent(cubeEntity, new TransformComponent(cubeEntity, world));
-            world.AddComponent(cubeEntity, new RotateComponent(cubeEntity));
-            Result<Model, Error> mb_model = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
-            var model = mb_model.Unwrap();
-            var mesh = model.Meshes[0];
-            var cubeMeshComponent = new MeshComponent(cubeEntity, mesh);
-            world.AddComponent(cubeEntity, cubeMeshComponent);
-            var boudingComponent = new BoundingComponent(cubeEntity).FromSphere(mesh);
-            world.AddComponent(cubeEntity, boudingComponent);
-            BoudingMovedComponent boudingMovedComponent = new BoudingMovedComponent(cubeEntity);
-            world.AddComponent(cubeEntity, boudingMovedComponent);
-            world.AddComponent(cubeEntity, new RigidbodyComponent(cubeEntity, 1));
 
             TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
             
@@ -54,30 +40,68 @@ namespace SmokeTesting
             Texture texture2 = new Texture(app.Gl, PathStorage.ICON_LIGHT_BULB_PNG);
             shader.tex_SetTexture(texture);
 
-            world.AddComponent(cubeEntity, new ShaderComponent(cubeEntity, shader));
+            PhysicsSystem physicsSystem = new PhysicsSystem(world);
 
-            Entity cube2Entity = world.CreateEntity();
-            TransformComponent cube2Transform = new TransformComponent(cube2Entity, world);
-            cube2Transform.Position = new Vector3(3, 0, 0);
-            world.AddComponent(cube2Entity, cube2Transform);
-            world.AddComponent(cube2Entity, new RotateComponent(cube2Entity));
-            mb_model = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
-            model = mb_model.Unwrap();
-            mesh = model.Meshes[0];
-            cubeMeshComponent = new MeshComponent(cube2Entity, mesh);
-            world.AddComponent(cube2Entity, cubeMeshComponent);
-            var boudingComponentCube2 = new BoundingComponent(cube2Entity).FromBox(mesh);
-            world.AddComponent(cube2Entity, boudingComponentCube2);
-            world.AddComponent(cube2Entity, new ShaderComponent(cube2Entity, shader));
+            for (int i = 0; i < 2; i++)
+            {
+                Entity cubeEntity = world.CreateEntity();
+
+                Vector3 position = new Vector3(0, 0 + 5 * i, 0);
+                var t = new TransformComponent(cubeEntity);
+                t.Position = position;
+
+                Result<Model, Error> _mb_model1 = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
+                var _model1 = _mb_model1.Unwrap();
+                var _mesh1 = _model1.Meshes[0];
+                var _cubeMeshComponent1 = new MeshComponent(cubeEntity, _mesh1);
+                var boudingComponent = new BoundingComponent(cubeEntity).FromBox(_mesh1);
+                physicsSystem.CreateDynamicBox(ref t, new Vector3(2, 2, 2), 1);
+                BoudingMovedComponent boudingMovedComponent = new BoudingMovedComponent(cubeEntity);
+                PhysicsMaterialComponent _physicsMaterialComponent = new PhysicsMaterialComponent(cubeEntity, PhysicsMaterial.Metal);
+
+                world.AddComponent(cubeEntity, t);
+                world.AddComponent(cubeEntity, _cubeMeshComponent1);
+                world.AddComponent(cubeEntity, boudingComponent);
+                world.AddComponent(cubeEntity, boudingMovedComponent);
+                world.AddComponent(cubeEntity, new ShaderComponent(cubeEntity, shader));
+                world.AddComponent(cubeEntity, new CollisionComponent(cubeEntity));
+                world.AddComponent(cubeEntity, _physicsMaterialComponent);
+            }
+
+            Vector3 pos = new Vector3(0, -30, 0);
+            Entity platformE = world.CreateEntity();
+            TransformComponent platformTransform = new TransformComponent(platformE);
+            platformTransform.Position = pos;
+            platformTransform.Scale = new Vector3(10, 1, 10);
+            platformTransform.Rotation = new Vector3(5, 0, 0);
+            var _mb_model = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
+            var platformModel = _mb_model.Unwrap();
+            var pltfarmMesh = platformModel.Meshes[0];
+            var boudingComponentCube = new BoundingComponent(platformE).FromBox(pltfarmMesh);
+            var platformMeshComponent = new MeshComponent(platformE, pltfarmMesh);
+            world.AddComponent(platformE, platformMeshComponent);
+            world.AddComponent(platformE, platformTransform);
+            world.AddComponent(platformE, boudingComponentCube);
+            world.AddComponent(platformE, new StaticComponent(platformE));
+            world.AddComponent(platformE, new ShaderComponent(platformE, shader));
+            physicsSystem.CreateStaticBox(ref platformTransform, new Vector3(20, 2, 20));
+
+            BoundingShaderMaterial boundingShader = new BoundingShaderMaterial(app.Gl);
+            Mesh mesh1 = Mesh.CreateWireframeMesh(app.Gl, boudingComponentCube.GetVertices(), boudingComponentCube.GetIndices());
+            world.AddComponent(platformE, new BoundingRenderComponent(platformE, boundingShader, mesh1));
+            world.AddComponent(platformE, new CollisionComponent(platformE));
+            PhysicsMaterialComponent platformPhysicsMaterialComponent = new PhysicsMaterialComponent(platformE, PhysicsMaterial.Rubber);
+            world.AddComponent(platformE, platformPhysicsMaterialComponent);
 
 
             world.AddSystem(new RenderSystem(world));
-            //world.AddSystem(new RotateSystem(world));
+            world.AddSystem(new RotateSystem(world));
             world.AddSystem(new CameraMoveSystem(world, app));
             world.AddSystem(new BoundingInputSystem(world, app));
             world.AddSystem(new BoundingMoveSystem(world));
-            world.AddSystem(new PhysicsSystem(world));
-            //world.AddSystem(new TestSystem(world));
+            world.AddSystem(new BoundingRenderSystem(world));
+            world.AddSystem(physicsSystem);
+            world.AddSystem(new CollisionSystem(world));
 
             bool isUpdate = true;
 
@@ -92,6 +116,7 @@ namespace SmokeTesting
 
             app.NativeWindow.Render += delta => { if (isUpdate) world.Render(delta); }; 
             app.NativeWindow.Render += delta => { if (isUpdate) world.Update(delta); };
+            app.OnFixedUpdate += () => { world.FixedUpdate(); };
             app.NativeWindow.Resize += size => { world.Resize(size.ToNumetrix()); };
         }
     }
@@ -104,15 +129,6 @@ namespace SmokeTesting
         public Entity Owner => _owner;
         Entity _owner;
     }
-    public struct TestComponent<T> : IComponent where T : IBoundingVolume 
-    {
-        public Entity Owner => _owner;
-        Entity _owner;
-        public TestComponent(Entity owner)
-        {
-            _owner = owner;
-        }
-    }
     public struct BoudingMovedComponent : IComponent
     {
         public Entity Owner => _owner;
@@ -123,31 +139,23 @@ namespace SmokeTesting
             _owner = owner;
         }
     }
-    public class TestSystem : ISystem
+    public struct BoundingRenderComponent : IComponent
     {
-        public IWorld World => _world;
-        private IWorld _world;
-        private QueryEntity _query;
-        public TestSystem(IWorld world)
+        private Entity _owner;
+        public Entity Owner => _owner;
+        public BoundingRenderComponent(Entity entity, ShaderBase shader, Mesh mesh)
         {
-            _world = world;
-            _query = _world.CreateEntityQuery().With<TestComponent<IBoundingVolume>>();
+            _owner = entity;
+            Shader = shader;
+            Mesh = mesh;
         }
 
-
-        public void Initialize()
-        { }
-
-        public void Update(double deltaTime)
-        {
-            var entity = _query.Build();
-            foreach (var item in entity)
-            {
-                ref var bounding = ref _world.GetComponent<TestComponent<BoundingBox>>(item);
-                DebLogger.Debug($"Bounding: {bounding.Owner}");
-            }
-        }
+        public Vector3 Color { get; set; }
+        public bool IsRender { get; set; } = true;
+        public ShaderBase Shader { get; set; }
+        public Mesh Mesh { get; set; }
     }
+
     public class BoundingInputSystem : ISystem
     {
         public IWorld World => _world;
@@ -207,27 +215,27 @@ namespace SmokeTesting
 
             if (_world is World world)
             {
-                var currentCol = world.GetCurrentCollisions();
-                foreach (var con in currentCol)
-                {
-                    DebLogger.Debug(con);
-                }
+                //var currentCol = world.GetCurrentCollisions();
+                //foreach (var con in currentCol)
+                //{
+                //    DebLogger.Debug(con);
+                //}
 
-                var potCollisions = world.GetPotentialCollisions();
-                foreach (var collision in potCollisions)
-                {
-                    ref var boundingA = ref world.GetComponent<BoundingComponent>(collision.Item1);
-                    ref var boundingB = ref world.GetComponent<BoundingComponent>(collision.Item2);
-                    ref var transformA = ref world.GetComponent<TransformComponent>(collision.Item1);
-                    ref var transformB = ref world.GetComponent<TransformComponent>(collision.Item2);
+                //var potCollisions = world.GetPotentialCollisions();
+                //foreach (var collision in potCollisions)
+                //{
+                //    ref var boundingA = ref world.GetComponent<BoundingComponent>(collision.Item1);
+                //    ref var boundingB = ref world.GetComponent<BoundingComponent>(collision.Item2);
+                //    ref var transformA = ref world.GetComponent<TransformComponent>(collision.Item1);
+                //    ref var transformB = ref world.GetComponent<TransformComponent>(collision.Item2);
 
-                    var worldBoundsA = boundingA.BoundingVolume.Transform(transformA.GetModelMatrix());
-                    var worldBoundsB = boundingB.BoundingVolume.Transform(transformB.GetModelMatrix());
+                //    var worldBoundsA = boundingA.BoundingVolume.Transform(transformA.GetModelMatrix());
+                //    var worldBoundsB = boundingB.BoundingVolume.Transform(transformB.GetModelMatrix());
 
-                    DebLogger.Debug($"Entity {collision.Item1} bounds: Min={worldBoundsA.Min}, Max={worldBoundsA.Max}");
-                    DebLogger.Debug($"Entity {collision.Item2} bounds: Min={worldBoundsB.Min}, Max={worldBoundsB.Max}");
-                    DebLogger.Debug($"Real intersection: {worldBoundsA.Intersects(worldBoundsB)}");
-                }
+                //    DebLogger.Debug($"Entity {collision.Item1} bounds: Min={worldBoundsA.Min}, Max={worldBoundsA.Max}");
+                //    DebLogger.Debug($"Entity {collision.Item2} bounds: Min={worldBoundsB.Min}, Max={worldBoundsB.Max}");
+                //    DebLogger.Debug($"Real intersection: {worldBoundsA.Intersects(worldBoundsB)}");
+                //}
             }
         }
     }
@@ -293,16 +301,41 @@ namespace SmokeTesting
                     deltaRotation,
                     deltaRotation 
                 );
-
-                transform.Rotation = new Vector3(
-                    transform.Rotation.X % (2 * MathF.PI),
-                    transform.Rotation.Y % (2 * MathF.PI),
-                    transform.Rotation.Z % (2 * MathF.PI)
-                );
             }
         }
 
         public void Initialize() { }
+    }
+    public class CollisionSystem : ISystem
+    {
+        public IWorld World => _world;
+        private readonly World _world;
+        private QueryEntity queryEntity;
+
+        public CollisionSystem(World world)
+        {
+            _world = world;
+            queryEntity = this.CreateEntityQuery()
+                .With<CollisionComponent>();
+        }
+        public void Initialize() {}
+
+
+        public void Update(double deltaTime)
+        {
+            var entities = queryEntity.Build();
+            foreach (var entity in entities)
+            {
+                ref var collisionComponent = ref _world.GetComponent<CollisionComponent>(entity);
+
+                foreach (var collision in collisionComponent.Collisions)
+                {
+                    //DebLogger.Debug($"Collision detected between {entity} and {collision.OtherEntity} at {collision.ContactPoint} with normal {collision.Normal} and impulse {collision.Depth}");
+                }
+
+                collisionComponent.Collisions.Clear();
+            }
+        }
     }
     public class RenderSystem : IRenderSystem
     {
@@ -355,6 +388,7 @@ namespace SmokeTesting
                 ref var shaderComponent = ref this.GetComponent<ShaderComponent>(entity);
 
                 TestMaterialMaterial shader = (TestMaterialMaterial)shaderComponent.Shader;
+                shader.Use();
 
                 shader.MODEL = transform.GetModelMatrix().ToSilk();
                 shader.VIEW = cameraComponent.ViewMatrix.ToSilk();
@@ -380,76 +414,182 @@ namespace SmokeTesting
     public class CameraMoveSystem : ISystem
     {
         private IWorld _world;
-        public IWorld World => _world;
         private QueryEntity queryEntity;
         private App app;
-        private float speed = 5f;
+        private float moveSpeed = 5.0f;
+        private float mouseSensitivity = 0.1f;
+
+        // Состояние мыши
+        private Vector2 lastMousePosition;
+        private Vector2 currentMousePosition;
+        private bool isFirstMouseMove = true;
+
+        // Состояние камеры
+        private float yaw = -90.0f;
+        private float pitch = 0.0f;
+        private Vector3 cameraFront = new Vector3(0, 0, -1);
+        private Vector3 cameraRight = Vector3.Zero;
+        private Vector3 cameraUp = Vector3.UnitY;
+        private float run = 3f;
+
+        public IWorld World => _world;
+
         public CameraMoveSystem(IWorld world, App app)
         {
-            this.app = app;
             _world = world;
+            this.app = app;
+
             queryEntity = this.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<CameraComponent>();
 
             app.Input.Mice[0].MouseMove += (mouse, point) =>
             {
-                position = point;
+                currentMousePosition = point;
             };
         }
 
-        private Vector2 LastMousePosition = Vector2.Zero;
-        private Vector2 position = Vector2.Zero;
-        private Vector3 CameraDirection = Vector3.Zero;
-        private Vector3 CameraFront = Vector3.Zero;
-        private float CameraYaw = -90.0f;
-        private float CameraPitch = 0.0f;
-        private Vector3 Direction = Vector3.Zero;
         public void Update(double deltaTime)
         {
-            float moveSpeed = 1.0f;
-            float deltaMove = (float)deltaTime * moveSpeed;
             Entity[] entities = queryEntity.Build();
             foreach (var entity in entities)
             {
-                var lookSensitivity = 0.1f;
-                if (LastMousePosition == default)
+                ref var transform = ref this.GetComponent<TransformComponent>(entity);
+                ref var camera = ref this.GetComponent<CameraComponent>(entity);
+
+                UpdateCameraRotation();
+                UpdateCameraPosition(deltaTime, ref transform);
+                UpdateCameraVectors(ref camera);
+            }
+        }
+
+        private void UpdateCameraRotation()
+        {
+            if (isFirstMouseMove)
+            {
+                lastMousePosition = currentMousePosition;
+                isFirstMouseMove = false;
+                return;
+            }
+
+            float deltaX = currentMousePosition.X - lastMousePosition.X;
+            float deltaY = lastMousePosition.Y - currentMousePosition.Y;
+
+            deltaX *= mouseSensitivity;
+            deltaY *= mouseSensitivity;
+
+            yaw += deltaX;
+            pitch += deltaY;
+
+            pitch = Math.Clamp(pitch, -89.0f, 89.0f);
+            lastMousePosition = currentMousePosition;
+        }
+
+        private void UpdateCameraPosition(double deltaTime, ref TransformComponent transform)
+        {
+            float velocity = moveSpeed * (float)deltaTime;
+            Vector3 movement = Vector3.Zero;
+
+            if (app.Input.Keyboards[0].IsKeyPressed(Key.ShiftLeft))
+                velocity *= run;
+            if (app.Input.Keyboards[0].IsKeyPressed(Key.W))
+                movement += cameraFront ;
+            if (app.Input.Keyboards[0].IsKeyPressed(Key.S))
+                movement -= cameraFront;
+            if (app.Input.Keyboards[0].IsKeyPressed(Key.A))
+                movement -= cameraRight;
+            if (app.Input.Keyboards[0].IsKeyPressed(Key.D))
+                movement += cameraRight;
+
+            if (movement != Vector3.Zero)
+            {
+                movement = Vector3.Normalize(movement);
+                transform.Position += movement * velocity;
+            }
+        }
+
+        private void UpdateCameraVectors(ref CameraComponent camera)
+        {
+            Vector3 direction;
+            direction.X = MathF.Cos(AtomMath.DegreesToRadians(yaw)) * MathF.Cos(AtomMath.DegreesToRadians(pitch));
+            direction.Y = MathF.Sin(AtomMath.DegreesToRadians(pitch));
+            direction.Z = MathF.Sin(AtomMath.DegreesToRadians(yaw)) * MathF.Cos(AtomMath.DegreesToRadians(pitch));
+
+            cameraFront = Vector3.Normalize(direction);
+            cameraRight = Vector3.Normalize(Vector3.Cross(cameraFront, Vector3.UnitY));
+            cameraUp = Vector3.Cross(cameraRight, cameraFront);
+
+            camera.CameraFront = cameraFront;
+        }
+
+        public void Initialize() { }
+    }
+    public class BoundingRenderSystem : IRenderSystem
+    {
+        private IWorld _world;
+        public IWorld World => _world;
+        private QueryEntity boundingRenderQuery;
+        private QueryEntity queryCameraEntity;
+        public BoundingRenderSystem(IWorld world)
+        {
+            _world = world;
+            queryCameraEntity = this.CreateEntityQuery()
+                .With<TransformComponent>()
+                .With<CameraComponent>();
+
+            boundingRenderQuery = this.CreateEntityQuery()
+                .With<TransformComponent>()
+                .With<BoundingComponent>()
+                .With<BoundingRenderComponent>();
+        }
+
+        public void Initialize() { }
+
+        public void Render(double deltaTime)
+        {
+            Entity[] cameras = queryCameraEntity.Build();
+
+            if (cameras.Length == 0)
+            {
+                DebLogger.Warn("No camera found");
+                return;
+            }
+
+            var camera = cameras[0];
+            ref var cameraTransform = ref this.GetComponent<TransformComponent>(camera);
+            ref var cameraComponent = ref this.GetComponent<CameraComponent>(camera);
+
+            var cameraRotation = cameraTransform.GetRotationMatrix();
+            var cameraPosition = cameraTransform.GetTranslationMatrix();
+            cameraComponent.ViewMatrix = Matrix4x4.CreateLookAt(cameraTransform.Position, cameraTransform.Position + cameraComponent.CameraFront, cameraComponent.CameraUp);
+
+            var viewProjectionMatrix = cameraComponent.ViewMatrix * cameraComponent.CreateProjectionMatrix();
+
+            Entity[] entities = boundingRenderQuery.Build();
+            foreach (var entity in entities)
+            {
+                ref var transform = ref this.GetComponent<TransformComponent>(entity);
+                ref var bounding = ref this.GetComponent<BoundingComponent>(entity);
+                ref var render = ref this.GetComponent<BoundingRenderComponent>(entity);
+                if (render.IsRender)
                 {
-                    LastMousePosition = position;
-                }
-                else
-                {
-                    var xOffset = (position.X - LastMousePosition.X) * lookSensitivity;
-                    var yOffset = (position.Y - LastMousePosition.Y) * lookSensitivity;
-                    LastMousePosition = position;
+                    var s = (BoundingShaderMaterial)render.Shader;
+                    s.Use();
 
-                    CameraYaw += xOffset;
-                    CameraPitch -= yOffset;
+                    s.MODEL = transform.GetModelMatrix().ToSilk();
+                    s.VIEW = cameraComponent.ViewMatrix.ToSilk();
+                    s.PROJ = cameraComponent.CreateProjectionMatrix().ToSilk();
 
-                    CameraPitch = Math.Clamp(CameraPitch, -89.0f, 89.0f);
+                    s.col = Vector3D<float>.UnitY;
 
-                    CameraDirection.X = MathF.Cos(AtomMath.DegreesToRadians(CameraYaw)) * MathF.Cos(AtomMath.DegreesToRadians(CameraPitch));
-                    CameraDirection.Y = MathF.Sin(AtomMath.DegreesToRadians(CameraPitch));
-                    CameraDirection.Z = MathF.Sin(AtomMath.DegreesToRadians(CameraYaw)) * MathF.Cos(AtomMath.DegreesToRadians(CameraPitch));
-                    CameraFront = Vector3.Normalize(CameraDirection);
-                    ref var transform = ref this.GetComponent<TransformComponent>(entity);
-                    ref var cameraComponent = ref this.GetComponent<CameraComponent>(entity);
-
-                    if (app.Input.Keyboards[0].IsKeyPressed(Key.W)) Direction += new Vector3(0, 0, -1);
-                    if (app.Input.Keyboards[0].IsKeyPressed(Key.S)) Direction += new Vector3(0, 0, 1);
-                    if (app.Input.Keyboards[0].IsKeyPressed(Key.A)) Direction += new Vector3(-1, 0, 0);
-                    if (app.Input.Keyboards[0].IsKeyPressed(Key.D)) Direction += new Vector3(1, 0, 0);
-                    transform.Rotation = new Vector3(CameraPitch, CameraYaw, 0);
-                    transform.Position += Direction * deltaMove * speed;
-                    cameraComponent.CameraFront = CameraFront;
-                    Direction = Vector3.Zero;
+                    render.Mesh.DrawAs(s, Silk.NET.OpenGL.PrimitiveType.LineLoop);
                 }
             }
         }
-        public void Initialize() { }
-    }
-    
 
+        public void Resize(Vector2 size)
+        { }
+    }
 
 
     public class DefaultLogger : ILogger
@@ -469,14 +609,9 @@ namespace SmokeTesting
                 case LogLevel.Fatal: color = ConsoleColor.DarkRed; break;
             }
             Console.ForegroundColor = color;
-            Console.Write($"{logLevel}:");
+            Console.Write($"{logLevel} ({DateTime.Now}):");
             Console.ForegroundColor = enterColor;
             Console.Write($"{message}\n");
         }
     }
-}
-
-public static class ProjectResources2
-{
-    public static string CONE_OBJ = "Geometry.Standart.cone.obj";
 }

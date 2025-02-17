@@ -27,6 +27,11 @@ namespace OpenglLib.Buffers
             _gl.BindBuffer(_bufferType, _handle);
         }
 
+        public void Unbind()
+        {
+            _gl.BindBuffer(_bufferType, 0);
+        }
+
         public void Dispose()
         {
             _gl.DeleteBuffer(_handle);

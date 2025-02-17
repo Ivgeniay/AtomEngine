@@ -18,6 +18,7 @@ namespace AtomEngine
         private readonly List<ISystem> initialize_systems = new List<ISystem>();
         private readonly List<IRenderSystem> _renderSystems = new List<IRenderSystem>();
         private readonly List<IRenderSystem> initialize_render_systems = new List<IRenderSystem>();
+        private readonly List<IPhysicSystem> _physicSystems = new List<IPhysicSystem>();
         private readonly object _systemsLock = new object();
         private readonly object _renderSystemsLock = new object();
         // COMPONENTS
@@ -132,11 +133,6 @@ namespace AtomEngine
             //ReadOnlySpan<IComponent> components = GatherComponents(ref entity, componentTypes);
             //_archetypePool.AddEntityToArchetype(entity.Id, components, componentTypes);
 
-            if (typeof(IBoundingVolume).IsAssignableFrom(typeof(T)))
-            {
-                BvhPool.AddEntity(entity, (IBoundingVolume)component);
-            }
-
             InvalidateQueries();
             return ref addedComponent;
         }
@@ -223,8 +219,13 @@ namespace AtomEngine
                 _systems.Add(system);
                 _dependencyGraph.AddSystem(system);
                 initialize_systems.Add(system);
+                if (system is IPhysicSystem physicSystem)
+                {
+                    _physicSystems.Add(physicSystem);
+                }
             }
         }
+
         public void AddSystemDependency(ISystem dependent, ISystem dependency)
         {
             lock (_systemsLock)
@@ -262,7 +263,8 @@ namespace AtomEngine
         
         public void Update(double deltaTime)
         {
-            _collisionsUpdated = false;
+            BvhPool.UpdateDirtyNodes();
+
             if (initialize_systems.Count > 0)
             {
                 foreach (var system in initialize_systems)
@@ -271,8 +273,13 @@ namespace AtomEngine
                 }
                 initialize_systems.Clear();
             }
-            BvhPool.Update(this);
             UpdateAsync(deltaTime).GetAwaiter().GetResult();
+        }
+
+        public void FixedUpdate()
+        {
+            foreach (var system in _physicSystems)
+                system.FixedUpdate();
         }
 
         public void Render(double deltaTime)
@@ -296,53 +303,7 @@ namespace AtomEngine
 
 
         #region Physics
-        private CollisionManifold[] _currentCollisions;
-        private bool _collisionsUpdated;
 
-        public ReadOnlySpan<CollisionManifold> GetCurrentCollisions()
-        {
-            if (!_collisionsUpdated)
-            {
-                _currentCollisions = BvhPool.Update(this).ToArray();
-                _collisionsUpdated = true;
-            }
-            return new ReadOnlySpan<CollisionManifold>(_currentCollisions);
-        }
-
-        public ReadOnlySpan<(Entity, Entity)> GetPotentialCollisions()
-        {
-            if (!_collisionsUpdated)
-            {
-                GetCurrentCollisions(); // Обновляем коллизии если нужно
-            }
-            return new ReadOnlySpan<(Entity, Entity)>(BvhPool.GatherCollisionPairs(this).ToArray());
-        }
-
-        public bool IsColliding(Entity entity)
-        {
-            var collisions = GetCurrentCollisions();
-            foreach (var manifold in collisions)
-            {
-                if (manifold.BodyA == entity || manifold.BodyB == entity)
-                    return true;
-            }
-            return false;
-        }
-
-        public bool TryGetCollision(Entity entity, out CollisionManifold manifold)
-        {
-            var collisions = GetCurrentCollisions();
-            foreach (var m in collisions)
-            {
-                if (m.BodyA == entity || m.BodyB == entity)
-                {
-                    manifold = m;
-                    return true;
-                }
-            }
-            manifold = default;
-            return false;
-        }
         #endregion
 
         public void Dispose()

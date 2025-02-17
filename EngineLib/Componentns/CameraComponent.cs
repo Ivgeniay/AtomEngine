@@ -15,7 +15,7 @@ namespace AtomEngine
         public Vector3 CameraFront = new Vector3(0.0f, 0.0f, 1.0f);
 
         public CameraComponent(Entity owner, float fieldOfView = 45.0f, float aspectRatio = 16f / 9f,
-                             float nearPlane = 0.1f, float farPlane = 100.0f)
+                             float nearPlane = 0.1f, float farPlane = 200.0f)
         {
             Owner = owner;
             FieldOfView = fieldOfView;

@@ -4,6 +4,12 @@ namespace AtomEngine
 {
     public struct BoundingSphere : IBoundingVolume
     {
+        private const int SEGMENTS = 16;
+        private const int LONGITUDE_SEGMENTS = SEGMENTS * 2;
+
+        private Vector3[] _vertices;
+        private uint[] _indices;
+
         public Vector3 Position;
         public float Radius;
         public Vector3 Min => Position - new Vector3(Radius);
@@ -14,6 +20,7 @@ namespace AtomEngine
             Position = position;
             Radius = radius;
         }
+        
 
         public static BoundingSphere ComputeBoundingSphere(Vertex[] vertices)
         {
@@ -97,6 +104,79 @@ namespace AtomEngine
             BoundingSphere sphere => this.Intersects(in sphere),
             _ => throw new ArgumentError(nameof(Intersects) + " with " + $"{other}"),
         };
+
+        public Vector3[] GetVertices()
+        {
+            if (_vertices != null) return _vertices;
+
+            // Вычисляем количество вершин заранее для избежания ресайзов списка
+            int vertexCount = (SEGMENTS + 1) * (LONGITUDE_SEGMENTS + 1);
+            _vertices = new Vector3[vertexCount];
+            int currentVertex = 0;
+
+            // Генерируем вершины от верхнего полюса к нижнему
+            for (int lat = 0; lat <= SEGMENTS; lat++)
+            {
+                // Преобразуем индекс в угол в радианах (-π/2 до π/2)
+                float latitude = MathF.PI * (-0.5f + (float)lat / SEGMENTS);
+                float sinLat = MathF.Sin(latitude);
+                float cosLat = MathF.Cos(latitude);
+
+                // Для каждой широты генерируем точки вокруг сферы
+                for (int lon = 0; lon <= LONGITUDE_SEGMENTS; lon++)
+                {
+                    // Преобразуем индекс в угол в радианах (0 до 2π)
+                    float longitude = 2 * MathF.PI * (float)lon / LONGITUDE_SEGMENTS;
+                    float sinLon = MathF.Sin(longitude);
+                    float cosLon = MathF.Cos(longitude);
+
+                    // Вычисляем позицию точки на единичной сфере
+                    Vector3 point = new Vector3(
+                        cosLon * cosLat,  // x = r * cos(θ) * cos(φ)
+                        sinLat,           // y = r * sin(φ)
+                        sinLon * cosLat   // z = r * sin(θ) * cos(φ)
+                    );
+
+                    // Трансформируем точку с учетом позиции и радиуса сферы
+                    _vertices[currentVertex++] = Position + point * Radius;
+                }
+            }
+
+            return _vertices;
+        }
+
+        public uint[] GetIndices()
+        {
+            if (_indices != null) return _indices;
+
+            // Вычисляем количество индексов заранее
+            int lineCount = SEGMENTS * (LONGITUDE_SEGMENTS + 1) + LONGITUDE_SEGMENTS * (SEGMENTS + 1);
+            _indices = new uint[lineCount * 2];
+            int currentIndex = 0;
+
+            // Создаем индексы для параллелей (горизонтальные линии)
+            for (int lat = 0; lat <= SEGMENTS; lat++)
+            {
+                int rowStart = lat * (LONGITUDE_SEGMENTS + 1);
+                for (int lon = 0; lon < LONGITUDE_SEGMENTS; lon++)
+                {
+                    _indices[currentIndex++] = (uint)(rowStart + lon);
+                    _indices[currentIndex++] = (uint)(rowStart + lon + 1);
+                }
+            }
+
+            // Создаем индексы для меридианов (вертикальные линии)
+            for (int lon = 0; lon <= LONGITUDE_SEGMENTS; lon++)
+            {
+                for (int lat = 0; lat < SEGMENTS; lat++)
+                {
+                    _indices[currentIndex++] = (uint)(lat * (LONGITUDE_SEGMENTS + 1) + lon);
+                    _indices[currentIndex++] = (uint)((lat + 1) * (LONGITUDE_SEGMENTS + 1) + lon);
+                }
+            }
+
+            return _indices;
+        }
 
         public IBoundingVolume Transform(Matrix4x4 modelTransformMatrix)
         {

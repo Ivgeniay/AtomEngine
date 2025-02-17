@@ -294,6 +294,7 @@ namespace OpenglLib
             _gl.DeleteProgram(_handle);
         }
 
+        
         public static explicit operator uint(Shader shader) => shader._handle;
     }
 }

@@ -3,12 +3,14 @@ using Silk.NET.OpenGL;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Assimp;
-using EngineLib;
+using AtomEngine;
 
 namespace OpenglLib
 {
+    // TODO: GatherCollisionPairs в BVH сейчас обрабатывает все пары объектов, что неэффективно.
     public class App : IDisposable
     {
+        public event Action OnFixedUpdate;
         public GL? Gl => _gl;
         public Assimp? Assimp => _assimp;
         public IWindow? NativeWindow => _window;
@@ -21,9 +23,7 @@ namespace OpenglLib
         private GL? _gl;
         private Assimp? _assimp;
 
-        private Queue<double> _fpsHistory = new Queue<double>();
-        private const int FPS_SAMPLE_SIZE = 60;
-        private bool debug = false;
+        private double _accumulatedTime = 0.0;
 
         public App(AppOptions options)
         {
@@ -33,9 +33,8 @@ namespace OpenglLib
             var win_options = WindowOptions.Default;
             win_options.Size = new Vector2D<int>(options.Width, options.Height);
             win_options.Title = options.Title;
-            this.debug = options.Debug;
 
-            if (debug)
+            if (appOptions.Debug)
             {
                 win_options.VSync = false;
                 win_options.UpdatesPerSecond = 0;
@@ -65,10 +64,19 @@ namespace OpenglLib
         {
             Time.Update(deltaTime);
             Application.Update(deltaTime);
-            if (debug)
+            _accumulatedTime += deltaTime;
+            Application.MousePosition = _input.Mice[0].Position;
+
+            if (appOptions.Debug)
             {
                 if (Time.SecondsSinceStart % 2 == 0)
                     _window.Title = $"FPS: {Application.FPS:0} | Raw FPS: {Application.FPS_raw:0}";
+            }
+
+            while (_accumulatedTime >= Time.FIXED_TIME_STEP)
+            {
+                OnFixedUpdate?.Invoke();
+                _accumulatedTime -= Time.FIXED_TIME_STEP;
             }
         }
 

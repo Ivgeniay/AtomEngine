@@ -1,229 +1,344 @@
-﻿using System.Numerics;
+﻿using BepuPhysics.CollisionDetection;
+using BepuPhysics.Collidables;
+using BepuUtilities.Memory;
+using System.Numerics;
+using BepuUtilities;
+using BepuPhysics;
+using BepuPhysics.Constraints;
+using System.Runtime.CompilerServices;
 
 namespace AtomEngine
 {
-    public class PhysicsSystem : ISystem
+    public class PhysicsSystem : IPhysicSystem, IDisposable
     {
-        public IWorld World { get; }
+        private Simulation _simulation;
+        private BufferPool _bufferPool;
+        private World _world;
+        private QueryEntity queryEntity;
 
-        //private readonly Vector3 _gravity = new(0, -9.81f, 0);
-        private readonly Vector3 _gravity = new(0, -1.5f, 0);
-        private const int SOLVER_ITERATIONS = 10;
-        private const float DAMPING = 0.98f;
+        Dictionary<CollidableReference, Entity> _collidableToEntityMap = new Dictionary<CollidableReference, Entity>();
+        public IWorld World => _world;
 
-        private readonly QueryEntity _dynamicBodiesQuery;
-        private readonly QueryEntity _kinematicBodiesQuery;
-
-        public PhysicsSystem(IWorld world)
+        private struct NarrowPhaseCallbacks : INarrowPhaseCallbacks
         {
-            World = world;
+            private PhysicsSystem _physicsSystem;
 
-            // Создаем запросы для разных типов тел
-            _dynamicBodiesQuery = world.CreateEntityQuery()
-                .With<RigidbodyComponent, TransformComponent>()
-                .Where<RigidbodyComponent>(rb => rb.BodyType == BodyType.Dynamic);
+            public NarrowPhaseCallbacks(PhysicsSystem physicsSystem)
+            {
+                _physicsSystem = physicsSystem;
+            }
 
-            _kinematicBodiesQuery = world.CreateEntityQuery()
-                .With<RigidbodyComponent, TransformComponent>()
-                .Where<RigidbodyComponent>(rb => rb.BodyType == BodyType.Kinematic);
+            public void Initialize(Simulation simulation) { }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool AllowContactGeneration(int workerIndex, CollidableReference a, CollidableReference b, ref float speculativeMargin)
+            {
+                return true;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool AllowContactGeneration(int workerIndex, CollidablePair pair, int childIndexA, int childIndexB)
+            {
+                return true;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            bool INarrowPhaseCallbacks.ConfigureContactManifold<TManifold>(int workerIndex, CollidablePair pair, ref TManifold manifold, out PairMaterialProperties material)
+            {
+                float CombineMaterials(float a, float b, PhysicMaterialCombine combine)
+                {
+                    return combine switch
+                    {
+                        PhysicMaterialCombine.Average => (a + b) * 0.5f,
+                        PhysicMaterialCombine.Minimum => MathF.Min(a, b),
+                        PhysicMaterialCombine.Maximum => MathF.Max(a, b),
+                        PhysicMaterialCombine.Multiply => a * b,
+                        _ => (a + b) * 0.5f
+                    };
+                }
+
+                var materialA = PhysicsMaterial.Default;
+                var materialB = PhysicsMaterial.Default;
+
+                bool hasMatA = false;
+                bool hasMatB = false;
+
+                if (_physicsSystem._collidableToEntityMap.TryGetValue(pair.A, out Entity entityA))
+                {
+                    if (_physicsSystem._world.HasComponent<PhysicsMaterialComponent>(entityA))
+                    {
+                        materialA = _physicsSystem._world.GetComponent<PhysicsMaterialComponent>(entityA).Material;
+                        hasMatA = true;
+                    }
+                }
+
+                if (_physicsSystem._collidableToEntityMap.TryGetValue(pair.B, out Entity entityB))
+                {
+                    if (_physicsSystem._world.HasComponent<PhysicsMaterialComponent>(entityB))
+                    {
+                        materialB = _physicsSystem._world.GetComponent<PhysicsMaterialComponent>(entityB).Material;
+                        hasMatB = true;
+                    }
+                }
+
+                float combinedFriction = CombineMaterials(
+                    MathF.Sqrt(materialA.StaticFriction * materialA.DynamicFriction),
+                    MathF.Sqrt(materialB.StaticFriction * materialB.DynamicFriction),
+                    materialA.FrictionCombine
+                );
+
+                float combinedBounciness = CombineMaterials(
+                    materialA.Bounciness,
+                    materialB.Bounciness,
+                    materialA.BounceCombine
+                );
+
+                material = new PairMaterialProperties(
+                    frictionCoefficient: combinedFriction,
+                    maximumRecoveryVelocity: 2f + (combinedBounciness * 4f),
+                    springSettings: new SpringSettings(
+                        (materialA.AngularFrequency + materialB.AngularFrequency) * 0.5f,
+                        (materialA.DampingRatio + materialB.DampingRatio) * 0.5f
+                    )
+                );
+
+                DebLogger.Debug($"Contact between {entityA} and {entityB}:");
+                DebLogger.Debug($"Material A (exists: {hasMatA}): SF={materialA.StaticFriction}, DF={materialA.DynamicFriction}");
+                DebLogger.Debug($"Material B (exists: {hasMatB}): SF={materialB.StaticFriction}, DF={materialB.DynamicFriction}");
+                DebLogger.Debug($"Combined friction: {material.FrictionCoefficient}");
+
+                _physicsSystem.HandleCollision(pair, manifold);
+
+                return true;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool ConfigureContactManifold(int workerIndex, CollidablePair pair, int childIndexA, int childIndexB, ref ConvexContactManifold manifold)
+            {
+                return true;
+            }
+            public void Dispose() { }
         }
+
+        private struct PoseIntegratorCallbacks : IPoseIntegratorCallbacks
+        {
+            private PhysicsSystem _physicsSystem;
+            public readonly Vector3 Gravity;
+
+            Vector3Wide gravityWideDt;
+            Vector<float> linearDampingDt;
+            Vector<float> angularDampingDt;
+
+            public float LinearDamping;
+            public float AngularDamping;
+
+            public PoseIntegratorCallbacks(PhysicsSystem physicsSystem, Vector3 gravity, float linearDamping = .03f, float angularDamping = .03f)
+            {
+                Gravity = gravity;
+                LinearDamping = linearDamping;
+                AngularDamping = angularDamping;
+                _physicsSystem = physicsSystem;
+            }
+
+            public void Initialize(Simulation simulation)
+            {
+                gravityWideDt = Vector3Wide.Broadcast(Gravity);
+            }
+
+            public void PrepareForIntegration(float dt)
+            {
+                linearDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - LinearDamping, 0, 1), dt));
+                angularDampingDt = new Vector<float>(MathF.Pow(MathHelper.Clamp(1 - AngularDamping, 0, 1), dt));
+                gravityWideDt = Vector3Wide.Broadcast(Gravity * dt);
+            }
+
+            
+            public void IntegrateVelocity(Vector<int> bodyIndices, Vector3Wide position, QuaternionWide orientation, BodyInertiaWide localInertia, Vector<int> integrationMask, int workerIndex, Vector<float> dt, ref BodyVelocityWide velocity)
+            {
+                velocity.Linear = (velocity.Linear + gravityWideDt) * linearDampingDt;
+                velocity.Angular = velocity.Angular * angularDampingDt;
+            }
+
+            public bool AllowSubstepsForUnconstrainedBodies => false;
+
+            public void IntegrateVelocityForKinematics(Vector<int> bodyIndices, Vector3Wide position, QuaternionWide orientation, Vector<int> integrationMask, int workerIndex, Vector<float> dt, ref BodyVelocityWide velocity, ref Vector<int> inertias)
+            { }
+
+            public AngularIntegrationMode AngularIntegrationMode => AngularIntegrationMode.Nonconserving;
+
+            bool IPoseIntegratorCallbacks.IntegrateVelocityForKinematics => false;
+        }
+
+        public PhysicsSystem(World world)
+        {
+            _world = world;
+            _bufferPool = new BufferPool();
+
+            var narrowPhaseCallbacks = new NarrowPhaseCallbacks(this);
+            var poseIntegratorCallbacks = new PoseIntegratorCallbacks(this, new Vector3(0, Physic.GRAVITY, 0));
+
+            queryEntity = _world.CreateEntityQuery()
+                .With<BepuBodyComponent>();
+
+            _simulation = Simulation.Create(
+                _bufferPool,
+                narrowPhaseCallbacks,
+                poseIntegratorCallbacks,
+                new SolveDescription(8, 1));
+        }
+
+        public void FixedUpdate()
+        {
+            _simulation.Timestep(Time.FIXED_TIME_STEP);
+            Entity[] entities = queryEntity.Build();
+
+            foreach (var entity in entities)
+            {
+                ref var body = ref _world.GetComponent<BepuBodyComponent>(entity);
+                ref var transform = ref _world.GetComponent<TransformComponent>(entity);
+
+                switch (body.BodyType)
+                {
+                    case BodyType.Dynamic when body.DynamicHandle.HasValue:
+                        var dynamicBody = _simulation.Bodies[body.DynamicHandle.Value];
+                        transform.Position = new Vector3(
+                            dynamicBody.Pose.Position.X,
+                            dynamicBody.Pose.Position.Y,
+                            dynamicBody.Pose.Position.Z
+                        );
+
+                        transform.Rotation = dynamicBody.Pose.Orientation.ToEuler() ;
+                        break;
+
+                    case BodyType.Kinematic when body.DynamicHandle.HasValue:
+                        var kinematicBody = _simulation.Bodies[body.DynamicHandle.Value];
+                        kinematicBody.Pose.Position = new Vector3(
+                            transform.Position.X,
+                            transform.Position.Y,
+                            transform.Position.Z
+                        );
+
+                        kinematicBody.Pose.Orientation = Quaternion.CreateFromYawPitchRoll(
+                            transform.Rotation.Y,
+                            transform.Rotation.X,
+                            transform.Rotation.Z
+                        );
+                        break;
+
+                    case BodyType.Static when body.StaticHandle.HasValue:
+                        var staticBody = _simulation.Statics[body.StaticHandle.Value];
+                        //var staticBody = _simulation.Bodies[body.DynamicHandle.Value];
+                        staticBody.Pose.Position = new Vector3(
+                            transform.Position.X,
+                            transform.Position.Y,
+                            transform.Position.Z
+                        );
+
+                        staticBody.Pose.Orientation = Quaternion.CreateFromYawPitchRoll(
+                            transform.Rotation.Y.DegreesToRadians(),
+                            transform.Rotation.X.DegreesToRadians(),
+                            transform.Rotation.Z.DegreesToRadians()
+                        );
+                        break;
+                }
+            }
+        }
+
+        public void Update(double deltaTime) { }
 
         public void Initialize() { }
 
-        public void Update(double deltaTime)
+
+        public void HandleCollision<TManifold>(CollidablePair pair, TManifold manifold) where TManifold : unmanaged, IContactManifold<TManifold>
         {
-            float dt = (float)deltaTime;
+            var entityA = GetEntityFromCollidable(pair.A);
+            var entityB = GetEntityFromCollidable(pair.B);
 
-            IntegrateBodies(dt);
+            if (entityA == Entity.Null || entityB == Entity.Null)
+                return;
 
-            var collisions = ((World)World).GetCurrentCollisions();
+            AddCollisionEvent(entityA, entityB, manifold);
+            AddCollisionEvent(entityB, entityA, manifold);
+        }
+        
+        private Entity GetEntityFromCollidable(CollidableReference collidable) =>
+            _collidableToEntityMap[collidable];
 
-            for (int i = 0; i < SOLVER_ITERATIONS; i++)
+        private void AddCollisionEvent<TManifold>(Entity entity, Entity otherEntity, TManifold manifold)
+            where TManifold : unmanaged, IContactManifold<TManifold>
+        {
+            if (!_world.HasComponent<CollisionComponent>(entity)) return;
+
+            ref var collisionComponent = ref _world.GetComponent<CollisionComponent>(entity);
+
+            for(int i =0, count = manifold.Count; i < count; i++)
             {
-                foreach (var manifold in collisions)
+                manifold.GetContact(i, out Contact contactData);
+
+                collisionComponent.Collisions.Enqueue(new CollisionEvent
                 {
-                    ResolveCollision(manifold, dt);
-                }
-            }
-
-            UpdateTransforms(dt);
-        }
-
-        private void IntegrateBodies(float dt)
-        {
-            var bodies = _dynamicBodiesQuery.Build();
-
-            foreach (var entity in bodies)
-            {
-                ref var rb = ref World.GetComponent<RigidbodyComponent>(entity);
-
-                if (rb.IsSleeping)
-                    continue;
-
-                if (rb.IsGravityEnabled)
-                {
-                    rb.Force += rb.Mass * _gravity;
-                }
-
-                Vector3 acceleration = rb.Force * rb.InverseMass;
-                rb.LinearVelocity += acceleration * dt;
-
-                Vector3 angularAcceleration = rb.Torque * rb.InverseInertia;
-                rb.AngularVelocity += angularAcceleration * dt;
-
-                rb.LinearVelocity *= DAMPING;
-                rb.AngularVelocity *= DAMPING;
-
-                UpdateSleepState(ref rb, dt);
-
-                rb.Force = Vector3.Zero;
-                rb.Torque = Vector3.Zero;
+                    OtherEntity = otherEntity,
+                    ContactPoint = contactData.Offset,
+                    Normal = contactData.Normal,
+                    Depth = contactData.Depth
+                });
             }
         }
 
-        private void UpdateTransforms(float dt)
+        public void CreateDynamicBox(ref TransformComponent transform, Vector3 size, float mass)
         {
-            var bodies = _dynamicBodiesQuery.Build();
+            var box = new Box(size.X, size.Y, size.Z);
+            var shapeIndex = _simulation.Shapes.Add(box);
 
-            foreach (var entity in bodies)
-            {
-                ref var rb = ref World.GetComponent<RigidbodyComponent>(entity);
-                ref var transform = ref World.GetComponent<TransformComponent>(entity);
+            var inertia = box.ComputeInertia(mass);
+            var pose = new RigidPose(
+                new Vector3(transform.Position.X, transform.Position.Y, transform.Position.Z),
+                transform.Rotation.ToQuaternion());
 
-                if (rb.IsSleeping)
-                    continue;
+            var description = BodyDescription.CreateDynamic(
+                pose, 
+                inertia, 
+                new CollidableDescription(shapeIndex), 
+                0.01f);
 
-                transform.Position += rb.LinearVelocity * dt;
+            var handle = _simulation.Bodies.Add(description);
 
-                Vector3 rotationDelta = rb.AngularVelocity * dt;
-                transform.Rotation += rotationDelta;
-            }
+            CollidableReference collidableReference = new CollidableReference(CollidableMobility.Dynamic,handle);
+
+            _collidableToEntityMap.Add(collidableReference, transform.Owner);
+
+            _world.AddComponent(transform.Owner, new BepuBodyComponent(transform.Owner, handle, BodyType.Dynamic));
+            _world.AddComponent(transform.Owner, new BepuColliderComponent(transform.Owner, shapeIndex));
         }
 
-        private void ResolveCollision(CollisionManifold manifold, float dt)
+        public void CreateStaticBox(ref TransformComponent transform, Vector3 size)
         {
-            var entityA = manifold.BodyA;
-            var entityB = manifold.BodyB;
+            var box = new Box(size.X, size.Y, size.Z);
+            var shapeIndex = _simulation.Shapes.Add(box);
 
-            ref var rbA = ref World.GetComponent<RigidbodyComponent>(entityA);
-            ref var rbB = ref World.GetComponent<RigidbodyComponent>(entityB);
+            var pose = new RigidPose(
+                new Vector3(transform.Position.X, transform.Position.Y, transform.Position.Z),
+                transform.Rotation.ToQuaternion());
 
-            if (rbA.BodyType == BodyType.Static && rbB.BodyType == BodyType.Static)
-                return;
+            var description = new StaticDescription(
+                pose, 
+                shapeIndex);
 
-            Vector3 normal = manifold.GetAverageNormal();
-            float penetration = manifold.GetMaxPenetration();
-            Vector3 contactPoint = manifold.GetContactPoint();
+            var handle = _simulation.Statics.Add(description);
 
-            foreach (var contact in manifold.GetContacts())
-            {
-                ResolveContact(ref rbA, ref rbB, contact, manifold.RestitutionCoefficient, manifold.FrictionCoefficient);
-            }
+            CollidableReference collidableReference = new CollidableReference(handle);
+            _collidableToEntityMap.Add(collidableReference, transform.Owner);
+
+            _world.AddComponent(transform.Owner, new BepuBodyComponent(transform.Owner, handle));
+            _world.AddComponent(transform.Owner, new BepuColliderComponent(transform.Owner, shapeIndex));
         }
 
-        private void ResolveContact(ref RigidbodyComponent rbA, ref RigidbodyComponent rbB,
-                                  ContactPoint contact, float restitution, float friction)
+        public void Dispose()
         {
-            Vector3 relativeVelocity = rbB.LinearVelocity - rbA.LinearVelocity;
-
-            float normalImpulse = -(1.0f + restitution) * Vector3.Dot(relativeVelocity, contact.Normal);
-            normalImpulse /= rbA.InverseMass + rbB.InverseMass;
-
-            Vector3 impulse = contact.Normal * normalImpulse;
-            ApplyImpulse(ref rbA, ref rbB, impulse, contact.Position);
-
-            ApplyFriction(ref rbA, ref rbB, normalImpulse, relativeVelocity, contact.Normal, friction);
+            _simulation.Dispose();
+            _bufferPool.Clear();
         }
 
-        private void ApplyImpulse(ref RigidbodyComponent rbA, ref RigidbodyComponent rbB,
-                                Vector3 impulse, Vector3 point)
-        {
-            if (rbA.BodyType == BodyType.Dynamic)
-            {
-                rbA.LinearVelocity -= impulse * rbA.InverseMass;
-                Vector3 torque = Vector3.Cross(point, -impulse);
-                rbA.AngularVelocity -= torque * rbA.InverseInertia;
-                rbA.IsSleeping = false;
-            }
-
-            if (rbB.BodyType == BodyType.Dynamic)
-            {
-                rbB.LinearVelocity += impulse * rbB.InverseMass;
-                Vector3 torque = Vector3.Cross(point, impulse);
-                rbB.AngularVelocity += torque * rbB.InverseInertia;
-                rbB.IsSleeping = false;
-            }
-        }
-
-        public void ApplyImpulse(ref RigidbodyComponent rbA, Vector3 impulse, Vector3 point)
-        {
-            if (rbA.BodyType != BodyType.Dynamic) return;
-
-            rbA.LinearVelocity += impulse * rbA.InverseMass;
-            Vector3 arm = point;
-            rbA.AngularVelocity += Vector3.Cross(arm, impulse) * rbA.InverseInertia;
-            rbA.IsSleeping = false;
-        }
-
-        private void ApplyFriction(ref RigidbodyComponent rbA, ref RigidbodyComponent rbB,
-                                 float normalImpulse, Vector3 relativeVelocity, Vector3 normal, float friction)
-        {
-            Vector3 tangent = relativeVelocity - Vector3.Dot(relativeVelocity, normal) * normal;
-
-            if (tangent.LengthSquared() > float.Epsilon)
-            {
-                tangent = Vector3.Normalize(tangent);
-                float tangentImpulse = -Vector3.Dot(relativeVelocity, tangent);
-                tangentImpulse /= rbA.InverseMass + rbB.InverseMass;
-
-                Vector3 frictionImpulse = tangent * MathF.Min(tangentImpulse, friction * normalImpulse);
-
-                if (rbA.BodyType == BodyType.Dynamic)
-                    rbA.LinearVelocity -= frictionImpulse * rbA.InverseMass;
-
-                if (rbB.BodyType == BodyType.Dynamic)
-                    rbB.LinearVelocity += frictionImpulse * rbB.InverseMass;
-            }
-        }
-
-        private void UpdateSleepState(ref RigidbodyComponent rb, float dt)
-        {
-            if (rb.BodyType != BodyType.Dynamic)
-                return;
-
-            float speedSquared = rb.LinearVelocity.LengthSquared() +
-                               rb.AngularVelocity.LengthSquared();
-
-            if (speedSquared < RigidbodyComponent.SleepTimeout)
-            {
-                rb.IsSleeping = true;
-                rb.LinearVelocity = Vector3.Zero;
-                rb.AngularVelocity = Vector3.Zero;
-            }
-            else
-            {
-                rb.IsSleeping = false;
-            }
-        }
-
-        public void ApplyForce(Entity entity, Vector3 force)
-        {
-            ref var rb = ref World.GetComponent<RigidbodyComponent>(entity);
-            if (rb.BodyType != BodyType.Dynamic)
-                return;
-
-            rb.Force += force;
-            rb.IsSleeping = false;
-        }
-
-        public void ApplyTorque(Entity entity, Vector3 torque)
-        {
-            ref var rb = ref World.GetComponent<RigidbodyComponent>(entity);
-            if (rb.BodyType != BodyType.Dynamic)
-                return;
-
-            rb.Torque += torque;
-            rb.IsSleeping = false;
-        }
     }
+
 }

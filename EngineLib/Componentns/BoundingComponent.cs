@@ -21,7 +21,8 @@ namespace AtomEngine
         {
             _owner = owner;
         }
-
+        public Vector3[] GetVertices() => BoundingVolume.GetVertices();
+        public uint[] GetIndices() => BoundingVolume.GetIndices();
         public BoundingComponent(Entity owner, MeshBase meshBase) 
         {
             _owner = owner;
@@ -42,5 +43,6 @@ namespace AtomEngine
 
         public bool Intersects(IBoundingVolume other) => BoundingVolume.Intersects(other);
         public IBoundingVolume Transform(Matrix4x4 modelMatrix) => BoundingVolume.Transform(modelMatrix);
+
     }
 }

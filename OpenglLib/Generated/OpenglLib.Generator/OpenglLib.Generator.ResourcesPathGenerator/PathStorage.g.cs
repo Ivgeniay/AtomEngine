@@ -24,6 +24,7 @@ namespace OpenglLib
         public const string VERTEX_GLSL = "Resources.ShaderSource.Kek.Ko.Vertex.glsl";
         public const string TESTFRAGMENTSHADER_GLSL = "Resources.ShaderSource.Kek.TestFragmentShader.glsl";
         public const string TESTVERTEXSHADER_GLSL = "Resources.ShaderSource.Kek.TestVertexShader.glsl";
+        public const string BOUNDINGSHADER_GLSL = "Resources.ShaderSource.StandartShader.BoundingShader.glsl";
         public const string FRAGMENT_GLSL = "Resources.ShaderSource.StandartShader.Fragment.glsl";
         public const string SAMPLE_GLSL = "Resources.ShaderSource.StandartShader.Sample.glsl";
         public const string TESTMATERIAL_GLSL = "Resources.ShaderSource.StandartShader.TestMaterial.glsl";

@@ -2,12 +2,13 @@
 
 namespace AtomEngine
 {
-        // Вспомогательная структура для симплекса
     public static class GJKAlgorithm
     {
+        public delegate Vector3 SupportFunction(Vector3 direction);
+
         private const float Epsilon = 1e-4f;
         private const int MaxIterations = 32;
-        private struct Simplex
+        public struct Simplex
         {
             public Vector3[] Points;
             public int Count;
@@ -33,71 +34,99 @@ namespace AtomEngine
             }
         }
 
-        public static bool Intersect(Vector3[] verticesA, Vector3[] verticesB)
+        public static bool Intersect(SupportFunction shapeA, SupportFunction shapeB, out Simplex simplex)
         {
-            // Получаем начальное направление из центров объектов
-            Vector3 centerA = GetCentroid(verticesA);
-            Vector3 centerB = GetCentroid(verticesB);
-            Vector3 direction = centerB - centerA;
+            simplex = new Simplex(4);
 
-            // Если центры совпадают, используем произвольное направление
-            if (direction.LengthSquared() < Epsilon)
-            {
-                direction = Vector3.UnitX;
-            }
-            else
-            {
-                direction = Vector3.Normalize(direction);
-            }
+            // Используем произвольное начальное направление
+            Vector3 direction = Vector3.UnitX;
 
-            // Инициализация симплекса
-            Simplex simplex = new Simplex(4);
-
-            // Получаем первую опорную точку
-            Vector3 support = GetSupport(verticesA, direction) - GetSupport(verticesB, -direction);
+            // Получаем первую опорную точку с помощью support функций
+            Vector3 support = GetSupport(shapeA, shapeB, direction);
             simplex.PushFront(support);
 
-            // Меняем направление к началу координат
             direction = -support;
 
-            // Основной цикл GJK
             for (int iteration = 0; iteration < MaxIterations; iteration++)
             {
-                // Нормализуем направление
                 if (direction.LengthSquared() > Epsilon)
                 {
                     direction = Vector3.Normalize(direction);
                 }
-                else
-                {
-                    // Если direction близок к нулю, это может означать пересечение
-                    return true;
-                }
 
-                // Получаем новую опорную точку
-                support = GetSupport(verticesA, direction) - GetSupport(verticesB, -direction);
-
-                // Проверяем, продвинулись ли мы в направлении начала координат
+                support = GetSupport(shapeA, shapeB, direction);
                 float dot = Vector3.Dot(support, direction);
 
-                //DebLogger.Debug($"Iteration {iteration}: Support = {support}, Direction = {direction}, Dot = {dot}");
-
-                if (dot < 0) // Используем 0 вместо Epsilon для более точной проверки
-                {
-                    return false; // Нет пересечения
-                }
+                if (dot < 0)
+                    return false;
 
                 simplex.PushFront(support);
 
-                // Обновляем симплекс и направление поиска
                 if (DoSimplex(ref simplex, ref direction))
-                {
-                    return true; // Найдено пересечение
-                }
+                    return true;
             }
 
-            return false; // Превышено максимальное количество итераций
+            return false;
         }
+
+        public static bool Intersect(Vector3[] verticesA, Vector3[] verticesB)
+        {
+            SupportFunction supportA = direction => GetSupportFromVertices(verticesA, direction);
+            SupportFunction supportB = direction => GetSupportFromVertices(verticesB, direction);
+
+            Simplex simplex;
+            return Intersect(supportA, supportB, out simplex);
+        }
+
+        //public static bool Intersect(Vector3[] verticesA, Vector3[] verticesB)
+        //{
+        //    Vector3 centerA = GetCentroid(verticesA);
+        //    Vector3 centerB = GetCentroid(verticesB);
+
+        //    Vector3 direction = centerB - centerA;
+
+        //    if (direction.LengthSquared() < Epsilon)
+        //    {
+        //        direction = Vector3.UnitX;
+        //    }
+        //    else
+        //    {
+        //        direction = Vector3.Normalize(direction);
+        //    }
+
+        //    Simplex simplex = new Simplex(4);
+        //    Vector3 support = GetSupport(verticesA, direction) - GetSupport(verticesB, -direction);
+        //    simplex.PushFront(support);
+        //    direction = -support;
+
+        //    for (int iteration = 0; iteration < MaxIterations; iteration++)
+        //    {
+        //        if (direction.LengthSquared() > Epsilon)
+        //        {
+        //            direction = Vector3.Normalize(direction);
+        //        }
+        //        else
+        //        {
+        //            return true;
+        //        }
+
+        //        support = GetSupport(verticesA, direction) - GetSupport(verticesB, -direction);
+        //        float dot = Vector3.Dot(support, direction);
+
+        //        if (dot < 0)
+        //        {
+        //            return false;
+        //        }
+
+        //        simplex.PushFront(support);
+        //        if (DoSimplex(ref simplex, ref direction))
+        //        {
+        //            return true;
+        //        }
+        //    }
+
+        //    return false;
+        //}
 
         private static bool DoSimplex(ref Simplex simplex, ref Vector3 direction)
         {
@@ -231,10 +260,33 @@ namespace AtomEngine
                 return TriangleCase(ref simplex, ref direction);
             }
 
-            return true; // Точка внутри тетраэдра
+            return true;
         }
 
         private static Vector3 GetSupport(Vector3[] vertices, Vector3 direction)
+        {
+            float maxDot = float.MinValue;
+            Vector3 support = Vector3.Zero;
+
+            foreach (var vertex in vertices)
+            {
+                float dot = Vector3.Dot(vertex, direction);
+                if (dot > maxDot)
+                {
+                    maxDot = dot;
+                    support = vertex;
+                }
+            }
+
+            return support;
+        }
+
+        private static Vector3 GetSupport(SupportFunction shapeA, SupportFunction shapeB, Vector3 direction)
+        {
+            return shapeA(direction) - shapeB(-direction);
+        }
+
+        private static Vector3 GetSupportFromVertices(Vector3[] vertices, Vector3 direction)
         {
             float maxDot = float.MinValue;
             Vector3 support = Vector3.Zero;

@@ -1,7 +1,7 @@
 ﻿namespace AtomEngine
 {
-    public interface IPhysicSystem : ICommonSystem
+    public interface IPhysicSystem : ISystem
     {
-        public void FixedUpdate(double fixedDeltaTime);
+        public void FixedUpdate();
     } 
 }

@@ -5,22 +5,71 @@ namespace AtomEngine
 {
     public struct BoundingBox: IBoundingVolume
     {
-        private Vector3 min;
-        private Vector3 max;
-        public Vector3 Min { get => min;  }
-        public Vector3 Max { get => max; }
+        private Vector3[] _vertices;
+        private uint[] _indices;
+
+        private Vector3 _min;
+        private Vector3 _max;
+        public Vector3 Min { get => _min;  }
+        public Vector3 Max { get => _max; }
 
         public BoundingBox(Vector3 min, Vector3 max)
         {
-            this.min = min;
-            this.max = max;
+            this._min = min;
+            this._max = max;
         }
 
         public BoundingBox(MeshBase meshBase)
         {
             var box = BoundingBox.ComputeBoundingBox(meshBase.Vertices_);
-            min = box.min;
-            max = box.max;
+            _min = box._min;
+            _max = box._max;
+        }
+        public Vector3[] GetVertices()
+        {
+            if (_vertices != null) return _vertices;
+
+            _vertices = new Vector3[]
+            {
+                new Vector3(_min.X, _min.Y, _min.Z),  
+                new Vector3(_max.X, _min.Y, _min.Z),  
+                new Vector3(_max.X, _min.Y, _max.Z),  
+                new Vector3(_min.X, _min.Y, _max.Z),  
+
+                new Vector3(_min.X, _max.Y, _min.Z),  
+                new Vector3(_max.X, _max.Y, _min.Z),  
+                new Vector3(_max.X, _max.Y, _max.Z),  
+                new Vector3(_min.X, _max.Y, _max.Z)   
+            };
+
+            return _vertices;
+        }
+
+        public uint[] GetIndices()
+        {
+            if (_indices != null) return _indices;
+            _indices = new uint[]
+            {
+                0, 2, 1,
+                0, 3, 2,
+         
+                4, 5, 6,
+                4, 6, 7,
+         
+                0, 1, 4,
+                1, 5, 4,
+         
+                2, 3, 6,
+                3, 7, 6,
+         
+                1, 2, 5,
+                2, 6, 5,
+         
+                3, 0, 7,
+                0, 4, 7 
+            };
+
+            return _indices;
         }
 
         public static BoundingBox ComputeBoundingBox(Vertex[] vertices)
@@ -60,14 +109,14 @@ namespace AtomEngine
         public BoundingBox Transform2(Matrix4x4 modelTransformMatrix)
         {
             var corners = new Vector3[8];
-            corners[0] = new Vector3(min.X, min.Y, min.Z);
-            corners[1] = new Vector3(min.X, min.Y, max.Z);
-            corners[2] = new Vector3(min.X, max.Y, min.Z);
-            corners[3] = new Vector3(min.X, max.Y, max.Z);
-            corners[4] = new Vector3(max.X, min.Y, min.Z);
-            corners[5] = new Vector3(max.X, min.Y, max.Z);
-            corners[6] = new Vector3(max.X, max.Y, min.Z);
-            corners[7] = new Vector3(max.X, max.Y, max.Z);
+            corners[0] = new Vector3(_min.X, _min.Y, _min.Z);
+            corners[1] = new Vector3(_min.X, _min.Y, _max.Z);
+            corners[2] = new Vector3(_min.X, _max.Y, _min.Z);
+            corners[3] = new Vector3(_min.X, _max.Y, _max.Z);
+            corners[4] = new Vector3(_max.X, _min.Y, _min.Z);
+            corners[5] = new Vector3(_max.X, _min.Y, _max.Z);
+            corners[6] = new Vector3(_max.X, _max.Y, _min.Z);
+            corners[7] = new Vector3(_max.X, _max.Y, _max.Z);
 
             var transformedMin = Vector3.Transform(corners[0], modelTransformMatrix);
             var transformedMax = transformedMin;
@@ -82,8 +131,8 @@ namespace AtomEngine
             return new BoundingBox(transformedMin, transformedMax);
         }
 
-        public Vector3 GetCenter() => (min + max) * 0.5f;
-        public Vector3 GetExtents() => (max - min) * 0.5f;
+        public Vector3 GetCenter() => (_min + _max) * 0.5f;
+        public Vector3 GetExtents() => (_max - _min) * 0.5f;
 
         public bool Intersects(IBoundingVolume other) => other switch
         {
@@ -96,14 +145,14 @@ namespace AtomEngine
         public IBoundingVolume Transform(Matrix4x4 modelTransformMatrix)
         {
             var corners = new Vector3[8];
-            corners[0] = new Vector3(min.X, min.Y, min.Z);
-            corners[1] = new Vector3(min.X, min.Y, max.Z);
-            corners[2] = new Vector3(min.X, max.Y, min.Z);
-            corners[3] = new Vector3(min.X, max.Y, max.Z);
-            corners[4] = new Vector3(max.X, min.Y, min.Z);
-            corners[5] = new Vector3(max.X, min.Y, max.Z);
-            corners[6] = new Vector3(max.X, max.Y, min.Z);
-            corners[7] = new Vector3(max.X, max.Y, max.Z);
+            corners[0] = new Vector3(_min.X, _min.Y, _min.Z);
+            corners[1] = new Vector3(_min.X, _min.Y, _max.Z);
+            corners[2] = new Vector3(_min.X, _max.Y, _min.Z);
+            corners[3] = new Vector3(_min.X, _max.Y, _max.Z);
+            corners[4] = new Vector3(_max.X, _min.Y, _min.Z);
+            corners[5] = new Vector3(_max.X, _min.Y, _max.Z);
+            corners[6] = new Vector3(_max.X, _max.Y, _min.Z);
+            corners[7] = new Vector3(_max.X, _max.Y, _max.Z);
 
             var transformedMin = Vector3.Transform(corners[0], modelTransformMatrix);
             var transformedMax = transformedMin;
@@ -120,17 +169,17 @@ namespace AtomEngine
 
         private bool Intersects(in BoundingBox other)
         {
-            if (max.X < other.min.X || min.X > other.max.X) return false;
-            if (max.Y < other.min.Y || min.Y > other.max.Y) return false;
-            if (max.Z < other.min.Z || min.Z > other.max.Z) return false;
+            if (_max.X < other._min.X || _min.X > other._max.X) return false;
+            if (_max.Y < other._min.Y || _min.Y > other._max.Y) return false;
+            if (_max.Z < other._min.Z || _min.Z > other._max.Z) return false;
 
             return true;
         }
         private bool Intersects(in BoundingSphere sphere)
         {
-            float x = Math.Max(min.X, Math.Min(sphere.Position.X, max.X));
-            float y = Math.Max(min.Y, Math.Min(sphere.Position.Y, max.Y));
-            float z = Math.Max(min.Z, Math.Min(sphere.Position.Z, max.Z));
+            float x = Math.Max(_min.X, Math.Min(sphere.Position.X, _max.X));
+            float y = Math.Max(_min.Y, Math.Min(sphere.Position.Y, _max.Y));
+            float z = Math.Max(_min.Z, Math.Min(sphere.Position.Z, _max.Z));
             float cubeDistance = (x - sphere.Position.X) * (x - sphere.Position.X) + (y - sphere.Position.Y) * (y - sphere.Position.Y) + (z - sphere.Position.Z) * (z - sphere.Position.Z);
             return cubeDistance < sphere.Radius * sphere.Radius;
         }

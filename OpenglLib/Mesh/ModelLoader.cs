@@ -187,7 +187,8 @@ namespace OpenglLib
                 textures.AddRange(heightMaps);
 
             // return a mesh object created from the extracted mesh data
-            var result = new Mesh(gl, BuildVertices(vertices), BuildIndices(indices), textures);
+            //var result = new Mesh(gl, BuildVertices(vertices), BuildIndices(indices), textures);
+            var result = Mesh.CreateStandardMesh(gl, BuildVertices(vertices), BuildIndices(indices), textures);
             return result;
         }
 

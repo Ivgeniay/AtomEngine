@@ -2,8 +2,8 @@
 #version 420 core
 
 layout(location = 0) in vec3 V_POS;
-layout(location = 1) in vec2 V_UV;
-layout(location = 2) in vec3 V_NORM;
+layout(location = 1) in vec3 V_NORM;
+layout(location = 2) in vec2 V_UV;
 
 vec3 fragmentNormal(mat4 modelMatrix, vec3 vertexNormal) {
     return mat3(modelMatrix) * vertexNormal;

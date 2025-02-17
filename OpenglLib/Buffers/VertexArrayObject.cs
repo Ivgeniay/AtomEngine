@@ -30,6 +30,11 @@ namespace OpenglLib.Buffers
             _gl.BindVertexArray(_handle);
         }
 
+        public void Unbind()
+        {
+            _gl.BindVertexArray(0);
+        }
+
         public void Dispose()
         {
             _gl.DeleteVertexArray(_handle);

@@ -59,6 +59,11 @@ namespace OpenglLib.Buffers
             _gl.BindBuffer(BufferTargetARB.UniformBuffer, _handle);
         }
 
+        public void Unbind()
+        {
+            _gl.BindBuffer(BufferTargetARB.UniformBuffer, 0);
+        }
+
         public void Dispose()
         {
             _gl.DeleteBuffer(_handle);

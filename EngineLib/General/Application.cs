@@ -1,4 +1,6 @@
-﻿namespace EngineLib
+﻿using System.Numerics;
+
+namespace AtomEngine
 {
     public static class Application
     {
@@ -7,6 +9,7 @@
 
         public static double FPS { get; set; }
         public static double FPS_raw { get; set; }
+        public static Vector2 MousePosition { get; set; }
 
         public static void Update(double deltaTime)
         {

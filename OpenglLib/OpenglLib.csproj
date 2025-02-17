@@ -29,6 +29,10 @@
     
     <Compile Remove="Generated\**" />
     <None Include="Generated\**" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <EmbeddedResource Remove="Resources\ShaderSource\StandartShader\BoundingShader.glsl" />
   </ItemGroup> 
 
   <ItemGroup>

@@ -8,24 +8,22 @@ namespace AtomEngine
         public Vector3 _position;
         public Vector3 _rotation;
         public Vector3 _scale;
-        public Vector3 Position { get => _position; set { _position = value; _world.BvhPool.MarkNodeDirty(Owner); IsDirtyPos = true; } }
-        public Vector3 Rotation { get => _rotation; set { _rotation = value; _world.BvhPool.MarkNodeDirty(Owner); IsDirtyRot = true; } }
-        public Vector3 Scale { get => _scale; set { _scale = value; _world.BvhPool.MarkNodeDirty(Owner); IsDirtyScale = true; } }
+        public Vector3 Position { get => _position; set { _position = value;  IsDirtyPos = true; } }
+        public Vector3 Rotation { get => _rotation; set { _rotation = value;  IsDirtyRot = true; } }
+        public Vector3 Scale { get => _scale; set { _scale = value;  IsDirtyScale = true; } }
         
 
         private bool IsDirtyPos = false;
         private bool IsDirtyRot = false;
         private bool IsDirtyScale = false;
-        private World _world;
 
         private Matrix4x4 _translationMatrix;
         private Matrix4x4 _rotationMatrix;
         private Matrix4x4 _scaleMatrix;
         private Matrix4x4 _modelMatrix;
 
-        public TransformComponent(Entity owner, World world)
+        public TransformComponent(Entity owner)
         {
-            _world = world;
             Owner = owner;
             Position = Vector3.Zero;
             Rotation = Vector3.Zero;
@@ -54,9 +52,9 @@ namespace AtomEngine
         {
             if (IsDirtyRot)
             {
-                _rotationMatrix = Matrix4x4.CreateRotationZ(Rotation.Z) *
-                                  Matrix4x4.CreateRotationX(Rotation.X) *
-                                  Matrix4x4.CreateRotationY(Rotation.Y);
+                _rotationMatrix = Matrix4x4.CreateRotationZ(Rotation.Z.DegreesToRadians()) *
+                                  Matrix4x4.CreateRotationX(Rotation.X.DegreesToRadians()) *
+                                  Matrix4x4.CreateRotationY(Rotation.Y.DegreesToRadians());
                 IsDirtyRot = false;
             }
             return _rotationMatrix;
@@ -66,7 +64,7 @@ namespace AtomEngine
         {
             if (IsDirtyPos || IsDirtyScale || IsDirtyRot)
             {
-                _modelMatrix = GetTranslationMatrix() * GetRotationMatrix() * GetScaleMatrix();
+                _modelMatrix = GetScaleMatrix() * GetRotationMatrix() * GetTranslationMatrix();
             }
             if (parentWorldMatrix.HasValue)
             {
