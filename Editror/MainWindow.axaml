@@ -2,7 +2,21 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:Editor"
         x:Class="Editor.MainWindow"
-        Title="Draggable Windows Demo"
+        Title="Editor"
         Width="800" Height="600">
-  <Canvas x:Name="MainCanvas" Background="WhiteSmoke"/>
+  <Window.Styles>
+    <StyleInclude Source="/Styles/Comon.axaml"/>
+  </Window.Styles>
+
+  <Grid x:Name="MainGrid">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <Border x:Name="ToolbarContainer" Grid.Row="0" />
+    <Canvas x:Name="MainCanvas" Grid.Row="1" />
+    <Border x:Name="StatusBarContainer" Grid.Row="2" />
+  </Grid>
 </Window>

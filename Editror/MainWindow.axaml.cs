@@ -1,178 +1,90 @@
-using Avalonia;
+﻿using Avalonia.Markup.Xaml;
 using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Media;
-using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System;
 
 namespace Editor
 {
     public partial class MainWindow : Window
     {
-        private Point _startPoint;
-        private bool _isDragging;
-        private Border _currentWindow;
-        private Vector _totalOffset;
+
+        private DraggableWindowFactory _windowFactory;
+        private EditorToolbar _toolbar;
+        private EditorStatusBar _statusBar;
 
         public MainWindow()
         {
             InitializeComponent();
-            CreateWindow("���� 1", 10, 10);
-            CreateWindow("���� 2", 220, 10);
+
+            // Добавляем стили для тулбара и статусбара
+            //this.Styles.Add(AvaloniaXamlLoader.Load(new Uri("avares://Editor/Styles/Common.axaml")));
+
+            // Инициализируем компоненты
+            InitializeToolbar();
+            InitializeStatusBar();
+            InitializeWindowFactory();
+
+            _windowFactory.CreateWindow("Окно 1", null, 10, 40);
+            _windowFactory.CreateWindow("Окно 2", null, 220, 40);
         }
 
-        private void CreateWindow(string title, double left, double top)
+        private void InitializeComponent()
         {
-            var window = new Border
-            {
-                Background = Brushes.White,
-                BorderBrush = Brushes.Gray,
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(3),
-                Width = 200,
-                Height = 150
-            };
+            AvaloniaXamlLoader.Load(this);
 
-            var grid = new Grid();
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Parse("30") });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Parse("*") });
-
-            var titleBar = new Border
-            {
-                Background = Brushes.LightGray
-            };
-
-            var titleText = new TextBlock
-            {
-                Text = title,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                Margin = new Thickness(10, 0)
-            };
-
-            titleBar.Child = titleText;
-
-            titleBar.PointerPressed += OnTitleBarPointerPressed;
-            titleBar.PointerReleased += OnTitleBarPointerReleased;
-            titleBar.PointerMoved += OnTitleBarPointerMoved;
-
-            var content = new TextBlock
-            {
-                Text = $"���������� {title}",
-                Margin = new Thickness(10)
-            };
-
-            Grid.SetRow(titleBar, 0);
-            Grid.SetRow(content, 1);
-
-            grid.Children.Add(titleBar);
-            grid.Children.Add(content);
-
-            window.Child = grid;
-
-            Canvas.SetLeft(window, left);
-            Canvas.SetTop(window, top);
-
-            MainCanvas.Children.Add(window);
+            // Получаем ссылки на элементы интерфейса
+            MainCanvas = this.FindControl<Canvas>("MainCanvas");
+            ToolbarContainer = this.FindControl<Border>("ToolbarContainer");
+            StatusBarContainer = this.FindControl<Border>("StatusBarContainer");
         }
 
-        private void OnTitleBarPointerPressed(object sender, PointerPressedEventArgs e)
+        private void InitializeToolbar()
         {
-            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            _toolbar = new EditorToolbar(ToolbarContainer, OnMenuItemClicked);
+        }
+
+        private void InitializeStatusBar()
+        {
+            _statusBar = new EditorStatusBar(StatusBarContainer);
+            _statusBar.SetStatus("Ready");
+        }
+
+        private void InitializeWindowFactory()
+        {
+            _windowFactory = new DraggableWindowFactory(MainCanvas);
+        }
+
+        private void OnMenuItemClicked(string itemName)
+        {
+            _statusBar.SetStatus($"Selected: {itemName}");
+            switch (itemName)
             {
-                var titleBar = sender as Border;
-                _currentWindow = titleBar.Parent.Parent as Border;
-                _startPoint = e.GetPosition(this);
-                _isDragging = true;
-                _totalOffset = new Vector(Canvas.GetLeft(_currentWindow), Canvas.GetTop(_currentWindow));
-                titleBar.Cursor = new Cursor(StandardCursorType.DragMove);
-                e.Pointer.Capture(titleBar);
+                case "Project Explorer":
+                    _windowFactory.CreateWindow("Project Explorer", null, 10, 40, 250, 400);
+                    break;
+                case "Properties":
+                    _windowFactory.CreateWindow("Properties", null, 520, 40, 250, 400);
+                    break;
+                case "Console":
+                    _windowFactory.CreateWindow("Console", null, 10, 320, 760, 200);
+                    break;
+                case "Output":
+                    _windowFactory.CreateWindow("Output", null, 270, 40, 240, 270);
+                    break;
+                case "Exit":
+                    Close();
+                    break;
+                default:
+                    Debug.WriteLine($"Menu item clicked: {itemName}");
+                    break;
             }
         }
 
-        private void OnTitleBarPointerReleased(object sender, PointerReleasedEventArgs e)
-        {
-            var titleBar = sender as Border;
-            _isDragging = false;
-            _currentWindow = null;
-            titleBar.Cursor = new Cursor(StandardCursorType.Arrow);
-            e.Pointer.Capture(null);
-        }
 
-        private void OnTitleBarPointerMoved(object sender, PointerEventArgs e)
-        {
-            if (!_isDragging || _currentWindow == null)
-                return;
-
-            var currentPoint = e.GetPosition(this);
-            var delta = currentPoint - _startPoint;
-            var newOffset = _totalOffset + delta;
-
-            // ��������� �������
-            if (newOffset.X < 0) newOffset = newOffset.WithX(0);
-            if (newOffset.Y < 0) newOffset = newOffset.WithY(0);
-            if (newOffset.X + _currentWindow.Width > Bounds.Width)
-                newOffset = newOffset.WithX(Bounds.Width - _currentWindow.Width);
-            if (newOffset.Y + _currentWindow.Height > Bounds.Height)
-                newOffset = newOffset.WithY(Bounds.Height - _currentWindow.Height);
-
-            Canvas.SetLeft(_currentWindow, newOffset.X);
-            Canvas.SetTop(_currentWindow, newOffset.Y);
-        }
+        public Border CreateDraggableWindow(string title, Control content = null, double left = 10, double top = 10,
+            double width = 200, double height = 150) =>
+            _windowFactory.CreateWindow(title, content, left, top, width, height);
     }
 
-    public class DraggableWindow : AvaloniaObject
-    {
-        public static readonly StyledProperty<string> TitleProperty =
-            AvaloniaProperty.Register<DraggableWindow, string>(nameof(Title));
 
-        public static readonly StyledProperty<double> WidthProperty =
-            AvaloniaProperty.Register<DraggableWindow, double>(nameof(Width));
-
-        public static readonly StyledProperty<double> HeightProperty =
-            AvaloniaProperty.Register<DraggableWindow, double>(nameof(Height));
-
-        public static readonly StyledProperty<double> LeftProperty =
-            AvaloniaProperty.Register<DraggableWindow, double>(nameof(Left));
-
-        public static readonly StyledProperty<double> TopProperty =
-            AvaloniaProperty.Register<DraggableWindow, double>(nameof(Top));
-
-        public static readonly StyledProperty<string> ContentProperty =
-            AvaloniaProperty.Register<DraggableWindow, string>(nameof(Content));
-
-        public string Title
-        {
-            get => GetValue(TitleProperty);
-            set => SetValue(TitleProperty, value);
-        }
-
-        public double Width
-        {
-            get => GetValue(WidthProperty);
-            set => SetValue(WidthProperty, value);
-        }
-
-        public double Height
-        {
-            get => GetValue(HeightProperty);
-            set => SetValue(HeightProperty, value);
-        }
-
-        public double Left
-        {
-            get => GetValue(LeftProperty);
-            set => SetValue(LeftProperty, value);
-        }
-
-        public double Top
-        {
-            get => GetValue(TopProperty);
-            set => SetValue(TopProperty, value);
-        }
-
-        public string Content
-        {
-            get => GetValue(ContentProperty);
-            set => SetValue(ContentProperty, value);
-        }
-    }
 }

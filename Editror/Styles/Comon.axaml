@@ -1,0 +1,353 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <!-- Add Controls for Previewer Here -->
+    </Border>
+  </Design.PreviewWith>
+
+
+  <Style Selector="Window">
+    <Setter Property="Background" Value="#252526"/>
+  </Style>
+
+  <!-- Стили для Canvas -->
+  <Style Selector="Canvas">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <!-- Стили для Border (окна) -->
+  <Style Selector="Border.window">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="BoxShadow" Value="0 4 8 #121212"/>
+  </Style>
+
+  <!-- Стили для заголовка окна -->
+  <Style Selector="Border.titleBar">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="CornerRadius" Value="3 3 0 0"/>
+    <Setter Property="Height" Value="28"/>
+  </Style>
+
+  <Style Selector="Border.titleBar:pointerover">
+    <Setter Property="Background" Value="#44444A"/>
+  </Style>
+
+  <!-- Стили для текста заголовка -->
+  <Style Selector="TextBlock.titleText">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Margin" Value="8 0 0 0"/>
+  </Style>
+
+  <!-- Стили для содержимого окна -->
+  <Style Selector="Border.contentArea">
+    <Setter Property="Background" Value="#2A2A2D"/>
+    <Setter Property="Padding" Value="8"/>
+  </Style>
+
+  <!-- Стили для текста содержимого -->
+  <Style Selector="TextBlock.contentText">
+    <Setter Property="Foreground" Value="#DCDCDC"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <!-- Стили для кнопки закрытия -->
+  <Style Selector="Button.closeButton">
+    <Setter Property="Width" Value="15"/>
+    <Setter Property="Height" Value="15"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Margin" Value="0 0 4 0"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="#AAAAAA"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+
+  <Style Selector="Button.buttonText">
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Background" Value="#E81123"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Button.closeButton:pointerover">
+    <Setter Property="Background" Value="#E81123"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <!-- Стили для кнопок в интерфейсе -->
+  <Style Selector="Button.toolButton">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#555555"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="8 4"/>
+    <Setter Property="CornerRadius" Value="2"/>
+  </Style>
+
+  <Style Selector="Button.toolButton:pointerover">
+    <Setter Property="Background" Value="#44444A"/>
+  </Style>
+
+  <Style Selector="Button.toolButton:pressed">
+    <Setter Property="Background" Value="#2D2D30"/>
+  </Style>
+
+  <!-- Стиль для курсоров изменения размера -->
+  <Style Selector="Border.resizeHandle">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Width" Value="8"/>
+    <Setter Property="Height" Value="8"/>
+  </Style>
+
+  <!-- Стили для диалоговых окон -->
+  <Style Selector="Border.dialog">
+    <Setter Property="Background" Value="#383838"/>
+    <Setter Property="BorderBrush" Value="#4D4D4D"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="BoxShadow" Value="0 0 12 1 #15151580"/>
+    <Setter Property="Padding" Value="16"/>
+    <Setter Property="Width" Value="400"/>
+  </Style>
+
+  <!-- Заголовок диалогового окна -->
+  <Style Selector="TextBlock.dialogTitle">
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Margin" Value="0 0 0 16"/>
+  </Style>
+
+  <!-- Стили для панелей инструментов -->
+  <Style Selector="StackPanel.toolbar">
+    <Setter Property="Background" Value="#2A2A2A"/>
+    <Setter Property="Orientation" Value="Horizontal"/>
+    <Setter Property="Spacing" Value="4"/>
+  </Style>
+
+  <!-- Если нужен отступ для панели инструментов, используйте Border -->
+  <Style Selector="Border.toolbarContainer">
+    <Setter Property="Background" Value="#2A2A2A"/>
+    <Setter Property="Padding" Value="6"/>
+  </Style>
+
+  <!-- Стили для текстовых полей -->
+  <Style Selector="TextBox">
+    <Setter Property="Background" Value="#252526"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="8 4"/>
+    <Setter Property="CornerRadius" Value="2"/>
+  </Style>
+
+  <Style Selector="TextBox:focus">
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+
+  <Style Selector="TextBox:pointerover">
+    <Setter Property="BorderBrush" Value="#555555"/>
+  </Style>
+
+  <!-- Комбо-боксы -->
+  <Style Selector="ComboBox">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="8 4"/>
+    <Setter Property="CornerRadius" Value="2"/>
+  </Style>
+
+  <Style Selector="ComboBox:pointerover">
+    <Setter Property="BorderBrush" Value="#555555"/>
+  </Style>
+
+  <Style Selector="ComboBoxItem">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="Padding" Value="8 4"/>
+  </Style>
+
+  <Style Selector="ComboBoxItem:pointerover">
+    <Setter Property="Background" Value="#3E3E42"/>
+  </Style>
+
+  <Style Selector="ComboBoxItem:selected">
+    <Setter Property="Background" Value="#007ACC"/>
+  </Style>
+
+  <!-- Чекбоксы -->
+  <Style Selector="CheckBox">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="Margin" Value="0 4"/>
+  </Style>
+
+  <!-- Кнопки диалогов -->
+  <Style Selector="Button.dialogButton">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#555555"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="16 8"/>
+    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="MinWidth" Value="80"/>
+  </Style>
+
+  <Style Selector="Button.dialogButton:pointerover">
+    <Setter Property="Background" Value="#44444A"/>
+  </Style>
+
+  <Style Selector="Button.dialogButton:pressed">
+    <Setter Property="Background" Value="#2D2D30"/>
+  </Style>
+
+  <Style Selector="Button.primaryButton">
+    <Setter Property="Background" Value="#0E639C"/>
+    <Setter Property="BorderBrush" Value="#0E639C"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Button.primaryButton:pointerover">
+    <Setter Property="Background" Value="#1177BB"/>
+    <Setter Property="BorderBrush" Value="#1177BB"/>
+  </Style>
+
+  <Style Selector="Button.primaryButton:pressed">
+    <Setter Property="Background" Value="#0A4D78"/>
+    <Setter Property="BorderBrush" Value="#0A4D78"/>
+  </Style>
+
+  <!-- Скроллбары -->
+  <Style Selector="ScrollBar">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="#3E3E42"/>
+  </Style>
+
+  <Style Selector="ScrollBar:pointerover">
+    <Setter Property="Foreground" Value="#636363"/>
+  </Style>
+
+  <Style Selector="Thumb">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+
+  <Style Selector="Thumb:pointerover">
+    <Setter Property="Background" Value="#636363"/>
+  </Style>
+
+  <!-- Разделители -->
+  <Style Selector="Separator">
+    <Setter Property="Background" Value="#3F3F46"/>
+    <Setter Property="Margin" Value="0 8"/>
+    <Setter Property="Height" Value="1"/>
+  </Style>
+
+  <!-- Вкладки -->
+  <Style Selector="TabControl">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+
+  <Style Selector="TabItem">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Foreground" Value="#969696"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="12 8"/>
+    <Setter Property="Margin" Value="0"/>
+  </Style>
+
+  <Style Selector="TabItem:selected">
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+    <Setter Property="BorderThickness" Value="0 0 0 2"/>
+  </Style>
+
+  <Style Selector="TabItem:pointerover">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+  </Style>
+
+
+  <!-- Стили для Toolbar -->
+  <Style Selector="Border.toolbarBackground">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="0 0 0 1"/>
+  </Style>
+
+  <Style Selector="Button.menuButton">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+
+  <Style Selector="Button.menuButton:pointerover">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Button.menuButton:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Button.menuItem">
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+
+  <Style Selector="Button.menuItem:pointerover">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Button.menuItem:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <!-- Стили для StatusBar -->
+  <Style Selector="Border.statusBar">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="0 1 0 0"/>
+  </Style>
+
+  <Style Selector="TextBlock.statusText">
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+    <Setter Property="FontSize" Value="11"/>
+  </Style>
+
+  <Style Selector="TextBlock.statusInfoText">
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Opacity" Value="0.8"/>
+  </Style>
+
+  <!-- Стили для Flyout меню -->
+  <Style Selector="Flyout">
+    <Setter Property="Placement" Value="Bottom"/>
+    <Setter Property="ShowMode" Value="TransientWithDismissOnPointerMoveAway"/>
+  </Style>
+  
+</Styles>

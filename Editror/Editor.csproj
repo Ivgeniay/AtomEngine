@@ -21,6 +21,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AvaloniaResource Include="Styles\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CommonLib\CommonLib.csproj" />
     <ProjectReference Include="..\EngineLib\EngineLib.csproj" />
     <ProjectReference Include="..\OpenglLib\OpenglLib.csproj" />
