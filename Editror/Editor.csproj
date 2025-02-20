@@ -6,6 +6,7 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,8 +26,34 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AvaloniaXaml Remove="Styles\Console.axaml" />
+    <AvaloniaXaml Remove="Styles\Dialogues.axaml" />
+    <AvaloniaXaml Remove="Styles\Hierarchy.axaml" />
+    <AvaloniaXaml Remove="Styles\StatusBar.axaml" />
+    <AvaloniaXaml Remove="Styles\Toolbar.axaml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CommonLib\CommonLib.csproj" />
     <ProjectReference Include="..\EngineLib\EngineLib.csproj" />
     <ProjectReference Include="..\OpenglLib\OpenglLib.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Update="Styles\Console.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
+    <AvaloniaResource Update="Styles\Dialogues.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
+    <AvaloniaResource Update="Styles\Hierarchy.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
+    <AvaloniaResource Update="Styles\StatusBar.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
+    <AvaloniaResource Update="Styles\Toolbar.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
   </ItemGroup>
 </Project>

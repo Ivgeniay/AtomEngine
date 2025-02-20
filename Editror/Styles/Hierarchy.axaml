@@ -1,0 +1,224 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Editor="using:Editor">
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <!-- Add Controls for Previewer Here -->
+    </Border>
+  </Design.PreviewWith>
+
+  <!-- Стили для HierarchyController -->
+  <Style Selector="Editor|HierarchyController">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <Style Selector="Editor|HierarchyController Border.hierarchyHeader">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="0 0 0 1"/>
+    <Setter Property="Padding" Value="8 6"/>
+  </Style>
+
+  <!-- Стили для ListBox -->
+  <Style Selector="Editor|HierarchyController ListBox.entityList">
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="8 4"/>
+    <Setter Property="Margin" Value="0"/>
+  </Style>
+
+  <!-- Стиль для контейнера ScrollViewer внутри ListBox -->
+  <Style Selector="Editor|HierarchyController ListBox.entityList ScrollViewer">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <Style Selector="Editor|HierarchyController ListBox.entityList ScrollContentPresenter">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <!-- Стили для ListBoxItem -->
+  <Style Selector="Editor|HierarchyController ListBoxItem">
+    <Setter Property="Padding" Value="2 1"/>
+    <Setter Property="Margin" Value="0 1"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="MinHeight" Value="11"/>
+    <Setter Property="Height" Value="18"/>
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+  </Style>
+
+  <Style Selector="Editor|HierarchyController ListBoxItem:pointerover">
+    <Setter Property="Background" Value="#2A2D2E"/>
+  </Style>
+
+  <Style Selector="Editor|HierarchyController ListBoxItem:selected">
+    <Setter Property="Background" Value="#0D4963"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Editor|HierarchyController ListBoxItem:selected:focus">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+
+  <Style Selector="Editor|HierarchyController ListBoxItem:selected:pointerover">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+
+  <!-- Стили для значков сущностей-->
+  <Style Selector="Editor|HierarchyController TextBlock.entityIcon">
+    <Setter Property="Foreground" Value="#AAAAAA"/>
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Margin" Value="0 0 2 0"/>
+  </Style>
+
+  <Style Selector="Editor|HierarchyController TextBlock.entityName">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  
+  <!-- Стили для ячеек-->
+  <Style Selector="Editor|HierarchyController Grid.entityCell">
+    <Setter Property="Height" Value="12"/>
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  
+  <Style Selector="Editor|HierarchyController StackPanel.entityCell">
+    <Setter Property="Orientation" Value="Horizontal"/>
+    <Setter Property="Spacing" Value="4"/>
+    <Setter Property="Margin" Value="2 1"/>
+  </Style>
+
+  <!-- Стили для контекстных меню -->
+  <Style Selector="ContextMenu.hierarchyMenu">
+    <Setter Property="Background" Value="#252526"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="2"/>
+    <Setter Property="MinWidth" Value="180"/>
+  </Style>
+
+  <Style Selector="MenuItem.hierarchyMenuItem">
+    <Setter Property="Background" Value="#252526"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="Padding" Value="8 5"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <Style Selector="MenuItem.hierarchyMenuItem:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="MenuItem.hierarchyMenuItem:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="MenuItem.hierarchySeparator /template/ ContentPresenter">
+    <Setter Property="Height" Value="1"/>
+    <Setter Property="Margin" Value="2 3"/>
+    <Setter Property="Background" Value="#3F3F46"/>
+  </Style>
+
+  <!-- Стили для TextBox при переименовании -->
+  <Style Selector="TextBox.renameTextBox">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Foreground" Value="#DCDCDC"/>
+    <Setter Property="CaretBrush" Value="#007ACC"/>
+    <Setter Property="SelectionBrush" Value="#264F78"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="Padding" Value="5 1"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Height" Value="20"/>
+    <Setter Property="FontSize" Value="11"/>
+  </Style>
+
+  <Style Selector="TextBox.renameTextBox:focus">
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+
+  <Style Selector="TextBox.renameTextBox:pointerover">
+    <Setter Property="BorderBrush" Value="#555555"/>
+  </Style>
+
+
+
+
+
+  <!-- Базовые стили для скроллбара - только самое необходимое -->
+  <Style Selector="ScrollBar">
+    <Setter Property="Foreground" Value="#3E3E42"/>
+  </Style>
+
+  <Style Selector="ScrollBar:pointerover">
+    <Setter Property="Foreground" Value="#636363"/>
+  </Style>
+
+  <!-- Стили для бегунка в покое и при наведении -->
+  <Style Selector="ScrollBar Thumb">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb:pointerover">
+    <Setter Property="Background" Value="#636363"/>
+  </Style>
+
+  <!-- Критически важные стили для состояния нажатия -->
+  <Style Selector="ScrollBar:pressed">
+    <Setter Property="Foreground" Value="#636363"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+
+  <!-- Стили для кнопок прокрутки в состоянии нажатия -->
+  <Style Selector="ScrollBar /template/ RepeatButton:pressed">
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <!-- Стили для линейки скроллбара в состоянии нажатия -->
+  <Style Selector="ScrollBar /template/ Rectangle">
+    <Setter Property="IsVisible" Value="True"/>
+    <Setter Property="Fill" Value="Transparent"/>
+  </Style>
+
+  <Style Selector="ScrollBar /template/ Rectangle:pressed">
+    <Setter Property="Fill" Value="Transparent"/>
+  </Style>
+
+  <!-- Стили для скроллбара через части шаблона -->
+  <Style Selector="ScrollBar /template/ Thumb#PART_Thumb">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border
+          Background="{TemplateBinding Background}"
+          BorderBrush="{TemplateBinding BorderBrush}"
+          BorderThickness="{TemplateBinding BorderThickness}"
+          CornerRadius="{TemplateBinding CornerRadius}"/>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+
+  <Style Selector="ScrollBar /template/ Thumb#PART_Thumb:pointerover">
+    <Setter Property="Background" Value="#636363"/>
+  </Style>
+
+  <Style Selector="ScrollBar /template/ Thumb#PART_Thumb:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+  </Style>
+  
+</Styles>

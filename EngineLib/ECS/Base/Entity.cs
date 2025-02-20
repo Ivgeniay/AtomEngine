@@ -5,7 +5,7 @@
         public readonly uint Id { get;}
         public readonly uint Version { get;}
 
-        internal Entity(uint id, uint version)
+        public Entity(uint id, uint version)
         {
             Version = version;
             Id = id;

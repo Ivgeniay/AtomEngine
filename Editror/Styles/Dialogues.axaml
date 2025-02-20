@@ -1,0 +1,123 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Editor="using:Editor">
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <!-- Add Controls for Previewer Here -->
+    </Border>
+  </Design.PreviewWith>
+
+  <!-- Диалоговые окна -->
+  <Style Selector="Window.dialog">
+    <Setter Property="Background" Value="#383838"/>
+    <Setter Property="Foreground" Value="#C8C8C8"/>
+    <Setter Property="Width" Value="400"/>
+    <Setter Property="Height" Value="180"/>
+    <Setter Property="CanResize" Value="False"/>
+    <Setter Property="WindowStartupLocation" Value="CenterOwner"/>
+  </Style>
+
+  <!-- Основные кнопки -->
+  <Style Selector="Button.dialogButton">
+    <Setter Property="Width" Value="80"/>
+    <Setter Property="Height" Value="34"/>
+    <Setter Property="Margin" Value="1"/>
+    <Setter Property="Background" Value="#424242"/>
+    <Setter Property="Foreground" Value="#C8C8C8"/>
+    <Setter Property="BorderBrush" Value="#222222"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+
+  <Style Selector="Button.dialogButton:pointerover">
+    <Setter Property="Background" Value="#4F4F4F"/>
+    <Setter Property="BorderBrush" Value="#222222"/>
+  </Style>
+
+  <Style Selector="Button.dialogButton:pressed">
+    <Setter Property="Background" Value="#373737"/>
+    <Setter Property="BorderBrush" Value="#222222"/>
+  </Style>
+
+  <!-- Кнопка действия по умолчанию -->
+  <Style Selector="Button.primaryButton">
+    <Setter Property="Background" Value="#2C5D87"/>
+    <Setter Property="BorderBrush" Value="#222222"/>
+    <Setter Property="Foreground" Value="#C8C8C8"/>
+  </Style>
+
+  <Style Selector="Button.primaryButton:pointerover">
+    <Setter Property="Background" Value="#356A99"/>
+  </Style>
+
+  <Style Selector="Button.primaryButton:pressed">
+    <Setter Property="Background" Value="#1F4A6F"/>
+  </Style>
+
+  <!-- Прогресс бар -->
+  <Style Selector="ProgressBar">
+    <Setter Property="Height" Value="2"/>
+    <Setter Property="Margin" Value="0,8"/>
+    <Setter Property="Background" Value="#383838"/>
+    <Setter Property="Foreground" Value="#2C5D87"/>
+  </Style>
+
+  <!-- Текст -->
+  <Style Selector="TextBlock.dialogText">
+    <Setter Property="Foreground" Value="#C8C8C8"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Margin" Value="0,0,0,8"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+
+  <Style Selector="TextBlock.dialogHeader">
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Margin" Value="0,0,0,12"/>
+  </Style>
+
+  <!-- Панели кнопок -->
+  <Style Selector="StackPanel.dialogButtonPanel">
+    <Setter Property="Orientation" Value="Horizontal"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+    <Setter Property="Margin" Value="0,16,0,0"/>
+    <Setter Property="Spacing" Value="8"/>
+  </Style>
+
+  <!-- Контент диалога -->
+  <Style Selector="Border.dialogContent">
+    <Setter Property="Background" Value="#2A2A2A"/>
+    <Setter Property="BorderBrush" Value="#222222"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="Padding" Value="16"/>
+    <Setter Property="Margin" Value="0,8"/>
+  </Style>
+
+  <!-- Сетка прогресса -->
+  <Style Selector="Grid.progressGrid">
+    <Setter Property="Margin" Value="16"/>
+  </Style>
+
+  <!-- Текст прогресса -->
+  <Style Selector="TextBlock.progressText">
+    <Setter Property="Foreground" Value="#C8C8C8"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Margin" Value="0,0,0,8"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+
+  <!-- Статус прогресса -->
+  <Style Selector="TextBlock.progressStatus">
+    <Setter Property="Foreground" Value="#2C5D87"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Margin" Value="0,4,0,0"/>
+    <Setter Property="FontSize" Value="11"/>
+  </Style>
+  
+</Styles>

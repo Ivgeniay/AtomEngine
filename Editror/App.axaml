@@ -6,5 +6,25 @@
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="/Styles/Dialogues.axaml"/>
+        <StyleInclude Source="/Styles/Comon.axaml"/>
+        <StyleInclude Source="/Styles/Console.axaml"/>
+        <StyleInclude Source="/Styles/Toolbar.axaml"/>
+        <StyleInclude Source="/Styles/StatusBar.axaml"/>
+        <StyleInclude Source="/Styles/Hierarchy.axaml"/>
+
+      <Style Selector="TitleBar">
+        <Setter Property="Background" Value="#3D3D3D"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Foreground" Value="#CCCCCC"/>
+      </Style>
+
+      <Style Selector="Window /template/ Border#PART_TitleBar">
+        <Setter Property="Background" Value="#2D2D2D"/>
+      </Style>
+
+      <Style Selector="Window /template/ TextBlock#PART_TitleText">
+        <Setter Property="FontSize" Value="12"/>
+      </Style>
     </Application.Styles>
 </Application>

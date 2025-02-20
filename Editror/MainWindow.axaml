@@ -4,8 +4,8 @@
         x:Class="Editor.MainWindow"
         Title="Editor"
         Width="800" Height="600">
+  
   <Window.Styles>
-    <StyleInclude Source="/Styles/Comon.axaml"/>
   </Window.Styles>
 
   <Grid x:Name="MainGrid">
@@ -14,6 +14,7 @@
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
+    
 
     <Border x:Name="ToolbarContainer" Grid.Row="0" />
     <Canvas x:Name="MainCanvas" Grid.Row="1" />

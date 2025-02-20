@@ -1,5 +1,6 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Editor="using:Editor">
   <Design.PreviewWith>
     <Border Padding="20">
       <!-- Add Controls for Previewer Here -->
@@ -135,7 +136,7 @@
     <Setter Property="Spacing" Value="4"/>
   </Style>
 
-  <!-- Если нужен отступ для панели инструментов, используйте Border -->
+  <!-- Если нужен отступ для панели инструментов-->
   <Style Selector="Border.toolbarContainer">
     <Setter Property="Background" Value="#2A2A2A"/>
     <Setter Property="Padding" Value="6"/>
@@ -280,68 +281,6 @@
   <Style Selector="TabItem:pointerover">
     <Setter Property="Background" Value="#3E3E42"/>
     <Setter Property="Foreground" Value="#CCCCCC"/>
-  </Style>
-
-
-  <!-- Стили для Toolbar -->
-  <Style Selector="Border.toolbarBackground">
-    <Setter Property="Background" Value="#2D2D30"/>
-    <Setter Property="BorderBrush" Value="#3F3F46"/>
-    <Setter Property="BorderThickness" Value="0 0 0 1"/>
-  </Style>
-
-  <Style Selector="Button.menuButton">
-    <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="Foreground" Value="#CCCCCC"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="FontSize" Value="12"/>
-    <Setter Property="Cursor" Value="Hand"/>
-  </Style>
-
-  <Style Selector="Button.menuButton:pointerover">
-    <Setter Property="Background" Value="#3E3E42"/>
-    <Setter Property="Foreground" Value="#FFFFFF"/>
-  </Style>
-
-  <Style Selector="Button.menuButton:pressed">
-    <Setter Property="Background" Value="#007ACC"/>
-    <Setter Property="Foreground" Value="#FFFFFF"/>
-  </Style>
-
-  <Style Selector="Button.menuItem">
-    <Setter Property="Background" Value="#1E1E1E"/>
-    <Setter Property="Foreground" Value="#CCCCCC"/>
-    <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="FontSize" Value="12"/>
-    <Setter Property="Cursor" Value="Hand"/>
-  </Style>
-
-  <Style Selector="Button.menuItem:pointerover">
-    <Setter Property="Background" Value="#3E3E42"/>
-    <Setter Property="Foreground" Value="#FFFFFF"/>
-  </Style>
-
-  <Style Selector="Button.menuItem:pressed">
-    <Setter Property="Background" Value="#007ACC"/>
-    <Setter Property="Foreground" Value="#FFFFFF"/>
-  </Style>
-
-  <!-- Стили для StatusBar -->
-  <Style Selector="Border.statusBar">
-    <Setter Property="Background" Value="#007ACC"/>
-    <Setter Property="BorderBrush" Value="#3F3F46"/>
-    <Setter Property="BorderThickness" Value="0 1 0 0"/>
-  </Style>
-
-  <Style Selector="TextBlock.statusText">
-    <Setter Property="Foreground" Value="#FFFFFF"/>
-    <Setter Property="FontSize" Value="11"/>
-  </Style>
-
-  <Style Selector="TextBlock.statusInfoText">
-    <Setter Property="Foreground" Value="#FFFFFF"/>
-    <Setter Property="FontSize" Value="11"/>
-    <Setter Property="Opacity" Value="0.8"/>
   </Style>
 
   <!-- Стили для Flyout меню -->

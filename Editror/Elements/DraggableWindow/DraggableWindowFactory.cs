@@ -5,8 +5,10 @@ using System;
 
 namespace Editor
 {
-    public class DraggableWindowFactory
+    internal class DraggableWindowFactory
     {
+        Action<Border> OnWindowClosed;
+
         private Canvas _parentCanvas;
         private int _zIndexCounter = 1;
         private Action<Border> _onWindowCreated;
@@ -27,10 +29,10 @@ namespace Editor
         /// <param name="width">Ширина окна (по умолчанию 200)</param>
         /// <param name="height">Высота окна (по умолчанию 150)</param>
         /// <returns>Созданное окно (Border)</returns>
-        public Border CreateWindow(string title, Control content = null, double left = 10, double top = 10, double width = 200, double height = 150)
+        public DraggableWindow CreateWindow(string title, Control content = null, double left = 10, double top = 10, double width = 200, double height = 150)
         {
             // Создаем основной Border окна
-            var window = new Border
+            var window = new DraggableWindow
             {
                 Classes = { "window" },
                 Width = width,
@@ -122,6 +124,7 @@ namespace Editor
 
         private void CloseWindow(Border window)
         {
+            OnWindowClosed?.Invoke(window);
             _parentCanvas.Children.Remove(window);
         }
 

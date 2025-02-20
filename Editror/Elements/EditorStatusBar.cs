@@ -5,7 +5,7 @@ using System;
 
 namespace Editor
 {
-    public class EditorStatusBar
+    public class EditorStatusBar : IStatusProvider
     {
         private Border _container;
         private TextBlock _statusText;
@@ -18,46 +18,39 @@ namespace Editor
         {
             _container = container;
 
-            // Проверяем, что контейнер не null
             if (_container == null)
-            {
                 throw new ArgumentNullException(nameof(container), "StatusBar container cannot be null");
-            }
 
             CreateStatusBar();
+            Status.RegisterStatusProvider(this);
         }
 
         private void CreateStatusBar()
         {
-            // Повторная проверка на null (на случай, если контейнер стал null после конструктора)
             if (_container == null) return;
 
-            // Создаем контейнер
             var statusBarBorder = new Border
             {
                 Classes = { "statusBar" },
                 Height = 22
             };
 
-            // Основной грид для размещения информации
             var statusBarGrid = new Grid
             {
                 Margin = new Thickness(5, 0)
             };
 
-            // Добавляем колонки
             statusBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
             statusBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             statusBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             statusBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             statusBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            // Создаем элементы статус-бара
             _statusText = new TextBlock
             {
                 Classes = { "statusText" },
                 VerticalAlignment = VerticalAlignment.Center,
-                Text = "Ready"
+                Text = ""
             };
 
             _positionText = new TextBlock
@@ -92,7 +85,6 @@ namespace Editor
                 Text = "Normal Mode"
             };
 
-            // Добавляем элементы в грид
             Grid.SetColumn(_statusText, 0);
             Grid.SetColumn(_positionText, 1);
             Grid.SetColumn(_selectionText, 2);

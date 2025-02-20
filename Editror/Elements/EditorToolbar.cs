@@ -33,7 +33,7 @@ namespace Editor
             {
                 { "File", new List<string> { "New", "Open", "Save", "Save As...", "Exit" } },
                 { "Edit", new List<string> { "Undo", "Redo", "Cut", "Copy", "Paste", "Delete" } },
-                { "View", new List<string> { "Project Explorer", "Properties", "Console", "Output" } },
+                { "View", new List<string> { "Hierarchy", "Inspector", "Scene", "Game", "Console", "Output" } },
                 { "Build", new List<string> { "Build Project", "Build Solution", "Clean", "Rebuild All" } },
                 { "Tools", new List<string> { "Options", "Extensions", "Package Manager" } },
                 { "Help", new List<string> { "Documentation", "About" } }
@@ -46,14 +46,14 @@ namespace Editor
             var toolbarBackground = new Border
             {
                 Classes = { "toolbarBackground" },
-                Height = 28
             };
 
             var toolbarPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 2,
-                Margin = new Thickness(5, 0, 0, 0)
+                Margin = new Thickness(5, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Bottom,
             };
 
             foreach (var menuCategory in _menuItems.Keys)
