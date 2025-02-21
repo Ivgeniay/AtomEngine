@@ -1,8 +1,10 @@
-﻿using Avalonia.Markup.Xaml;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using Avalonia.Markup.Xaml;
 using Avalonia.Controls;
+using Newtonsoft.Json;
 using System.Linq;
 using AtomEngine;
-using System.Threading.Tasks;
 
 namespace Editor
 {
@@ -15,6 +17,7 @@ namespace Editor
         private ConsoleController _consoleController;
         private OpenGlController _openGlController;
         private HierarchyController _hierarchyController;
+        private WorldController _worldController;
 
         private Scene _currentScene;
 
@@ -27,21 +30,12 @@ namespace Editor
 
             InitializeToolbar();
             InitializeStatusBar();
+            InitializeConsole();
             InitializeWindowFactory();
 
-            _currentScene = new Scene();
-            _currentScene.SceneData = new SceneData()
-            {
-                SceneName = "Default",
-                Entities = new System.Collections.Generic.List<EntityData>()
-                {
-                    new EntityData() { Id = 0, Version = 0, Name = "Main Camera", },
-                    new EntityData() { Id = 1, Version = 0, Name = "Directional Light", },
-                    new EntityData() { Id = 2, Version = 0, Name = "Player", },
-                    new EntityData() { Id = 3, Version = 0, Name = "Environment", },
-                }
-            };
-
+            HandleNewScene().GetAwaiter().GetResult();
+            InitializeHierarchy();
+            WorldInitializr();
         }
 
         private void InitializeComponent()
@@ -67,7 +61,264 @@ namespace Editor
 
         private void InitializeToolbar()
         {
-            _toolbar = new EditorToolbar(ToolbarContainer, OnMenuItemClicked);
+            _toolbar = new EditorToolbar(ToolbarContainer);
+
+            EditorToolbarCategory fileCathegory = new EditorToolbarCategory()
+            {
+                Title = "File",
+                Description = "File operations",
+                Buttons = new List<EditorToolbarButton>()
+                {
+                    new EditorToolbarButton()
+                    {
+                        Text = "New",
+                        Description = "Create new scene",
+                        Action = async () =>
+                        {
+                            await HandleNewScene();
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Open",
+                        Description = "Open scene from drive",
+                        Action = async () =>
+                        {
+                            await HandleOpenScene();
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Save",
+                        Description = "Save current scene",
+                        Action = async () =>
+                        {
+                            await HandleSaveScene();
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Save As...",
+                        Description = "Save current scene as...",
+                        Action = async () =>
+                        {
+                            await HandleSaveSceneAs();
+                        }
+                    }, 
+                    new EditorToolbarButton()
+                    {
+                        Text = "Exit",
+                        Description = "Close editor",
+                        Action = () =>
+                        {
+                            Close();
+                        }
+                    }
+                }
+            };
+            EditorToolbarCategory editCategory = new EditorToolbarCategory()
+            {
+                Title = "Edit",
+                Description = "Edition",
+                Buttons = new List<EditorToolbarButton>()
+                {
+                    new EditorToolbarButton()
+                    {
+                        Text = "Undo",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Undo"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Redo",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Redo"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Cut",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Cut"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Copy",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Copy"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Paste",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Paste"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Delete",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Delete"); }
+                    },
+                }
+            };
+            EditorToolbarCategory viewCategory = new EditorToolbarCategory()
+            {
+                Title = "View",
+                Description = "Window manager",
+                Buttons = new List<EditorToolbarButton>()
+                {
+                    new EditorToolbarButton()
+                    {
+                        Text = "Hierarchy",
+                        Description = "",
+                        Action = () => {
+                            DraggableWindow window = _windowFactory?.CreateWindow("Hierarchy", _hierarchyController, 10, 40, 250, 400);
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Inspector",
+                        Description = "",
+                        Action = () => { _windowFactory.CreateWindow("Inspector", null, 520, 40, 250, 400); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "World",
+                        Description = "",
+                        Action = () => { 
+                            DraggableWindow window = _windowFactory?.CreateWindow("Worlds", _worldController, 10, 40, 250, 400);
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Systems",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Systems"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Scene",
+                        Description = "",
+                        Action = () => {
+                            if (_openGlController == null) _openGlController = new OpenGlController();
+
+                            _openGlController.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
+                            _openGlController.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch;
+
+                            var sceneWindow = _windowFactory.CreateWindow("Scene", _openGlController, 270, 320, 500, 200);
+                            sceneWindow.OnClose += (sender) => _openGlController.Dispose();
+                            _openGlController = null;
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Game",
+                        Description = "",
+                        Action = () => { _windowFactory.CreateWindow("Game", null, 10, 320, 760, 200); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Console",
+                        Description = "",
+                        Action = () => {
+                            var consoleWindow = _windowFactory?.CreateWindow("Console", _consoleController, 10, 320, 760, 250);
+                            DebLogger.AddLogger(_consoleController);
+                            consoleWindow.OnClose += (sender) => DebLogger.RemoveLogger(_consoleController);
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Output",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Undo"); }
+                    },
+
+                }
+            };
+            EditorToolbarCategory buildCategory = new EditorToolbarCategory()
+            {
+                Title = "Build",
+                Description = "Build category",
+                Buttons = new List<EditorToolbarButton>()
+                {
+                    new EditorToolbarButton()
+                    {
+                        Text = "Build Project",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Build Project"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Build Solution",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Build Solution"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Clean",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Clean"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Rebuild All",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Rebuild All"); }
+                    },
+                }
+            };
+            EditorToolbarCategory toolCategory = new EditorToolbarCategory()
+            {
+                Title = "Tools",
+                Description = "Tools",
+                Buttons = new List<EditorToolbarButton>()
+                {
+                    new EditorToolbarButton()
+                    {
+                        Text = "Options",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Options"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Extensions",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Extensions"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Package Manager",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Package Manager"); }
+                    },
+                }
+            };
+            EditorToolbarCategory helpCategory = new EditorToolbarCategory()
+            {
+                Title = "Help",
+                Description = "Help, FAQ, Documentation",
+                Buttons = new List<EditorToolbarButton>()
+                {
+                    new EditorToolbarButton()
+                    {
+                        Text = "Documentation",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("Documentation"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "About",
+                        Description = "",
+                        Action = () => { DebLogger.Debug("About"); }
+                    },
+                }
+            };
+
+            _toolbar.RegisterCathegory(fileCathegory);
+            _toolbar.RegisterCathegory(editCategory);
+            _toolbar.RegisterCathegory(viewCategory);
+            _toolbar.RegisterCathegory(buildCategory);
+            _toolbar.RegisterCathegory(toolCategory);
+            _toolbar.RegisterCathegory(helpCategory);
         }
 
         private void InitializeStatusBar()
@@ -81,81 +332,34 @@ namespace Editor
             _windowFactory = new DraggableWindowFactory(MainCanvas);
         }
         
-        private async void OnMenuItemClicked(string itemName)
+        private void InitializeHierarchy()
         {
-            _statusBar.SetStatus($"Selected: {itemName}");
-            switch (itemName)
+            _hierarchyController = new HierarchyController();
+
+            _hierarchyController.EntityCreated += (s, entity) =>
             {
-                case "New":
-                    await HandleNewScene();
-                    break;
-                case "Open":
-                    await HandleOpenScene();
-                    break;
-                case "Save":
-                    await HandleSaveScene();
-                    break;
-                case "Save As...":
-                    await HandleSaveSceneAs();
-                    break;
-                case "Hierarchy":
-                    if (_hierarchyController == null)
-                    {
-                        _hierarchyController = new HierarchyController();
+                //_currentScene.
+                Status.SetStatus($"Created entity: {entity.Name} (ID: {entity.Id})");
+            };
 
-                        _hierarchyController.EntityCreated += (s, entity) =>
-                            _statusBar?.SetStatus($"Created entity: {entity.Name} (ID: {entity.Id})");
+            _hierarchyController.EntityRenamed += (s, entity) =>
+                Status.SetStatus($"Renamed entity to: {entity.Name}");
 
-                        _hierarchyController.EntityRenamed += (s, entity) =>
-                            _statusBar?.SetStatus($"Renamed entity to: {entity.Name}");
+            _hierarchyController.EntityDeleted += (s, entity) =>
+                Status.SetStatus($"Deleted entity: {entity.Name}");
 
-                        _hierarchyController.EntityDeleted += (s, entity) =>
-                            _statusBar?.SetStatus($"Deleted entity: {entity.Name}");
-
-                        // Создаем стандартные сущности
-                        foreach(var entity in _currentScene.SceneData.Entities)
-                        {
-                            _hierarchyController.CreateNewEntity(entity.Name);
-                        }
-                    }
-
-                    _windowFactory?.CreateWindow("Hierarchy", _hierarchyController, 10, 40, 250, 400);
-                    break;
-                case "Inspector":
-                    _windowFactory.CreateWindow("Inspector", null, 520, 40, 250, 400);
-                    break;
-                case "Console":
-                    if (_consoleController == null) _consoleController = new ConsoleController();
-                    var consoleWindow = _windowFactory?.CreateWindow("Console", _consoleController, 10, 320, 760, 250);
-                    DebLogger.AddLogger(_consoleController);
-                    consoleWindow.OnClose += (sender) => DebLogger.RemoveLogger(_consoleController);
-                    break;
-                case "Output":
-                    _windowFactory.CreateWindow("Output", null, 270, 40, 240, 270);
-                    break;
-                case "Scene":
-                    if (_openGlController == null) _openGlController = new OpenGlController();
-
-                    _openGlController.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
-                    _openGlController.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch;
-
-                    var sceneWindow = _windowFactory.CreateWindow("Scene", _openGlController, 270, 320, 500, 200);
-                    sceneWindow.OnClose += (sender) => _openGlController.Dispose();
-                    _openGlController = null;
-                    break;
-
-                case "Game":
-                    _windowFactory.CreateWindow("Game", null, 10, 320, 760, 200);
-                    break;
-                case "Exit":
-                    Close();
-                    break;
-                default:
-                    DebLogger.Debug($"Menu item clicked: {itemName}");
-                    break;
-            }
+            UpdateHyerarchy();
         }
 
+        private void InitializeConsole()
+        {
+            _consoleController = new ConsoleController();
+        }
+
+        private void WorldInitializr()
+        {
+            _worldController = new WorldController(_currentScene);
+        }
 
         public Border CreateDraggableWindow(string title, Control content = null, double left = 10, double top = 10,
             double width = 200, double height = 150) =>
@@ -167,26 +371,39 @@ namespace Editor
         /// </summary>
         private async Task HandleNewScene()
         {
-            // Если есть несохраненные изменения, запрашиваем подтверждение
-            //if (_currentScene != null)
-            //{
-            //    // TODO: В будущем добавить диалог подтверждения
-            //}
+            if (_currentScene != null && _currentScene.IsDirty)
+            {
+                var res = await ConfirmationDialog.Show(
+                    this,
+                    "Worning",
+                    "There are scene changes. Do you want to safe scene?",
+                    true);
 
-            //_currentScene = SceneFileHelper.CreateNewScene();
-            //Status.SetStatus($"Created new scene: {_currentScene.SceneName}");
+                switch (res)
+                {
+                    case ConfirmationDialog.DialogResult.Cancel:
+                        return;
+                    case ConfirmationDialog.DialogResult.Yes:
+                        var t = await FileDialogService.SaveFileAsync(
+                            this,
+                            $"Safe {_currentScene.WorldName}",
+                            $"{_currentScene.WorldName}",
+                            new FileDialogService.FileFilter("scene", "scene"));
+
+                        if (t != null) Status.SetStatus($"{t}");
+                        break;
+
+                    case ConfirmationDialog.DialogResult.No:
+                        break;
+                }
+            }
 
             // Сбрасываем иерархию
-            //if (_hierarchyController != null)
-            //{
-            //    _hierarchyController.ClearEntities();
-
-            //    // Добавляем стандартные сущности из новой сцены
-            //    foreach (var entity in _currentScene.Entities)
-            //    {
-            //        _hierarchyController.CreateNewEntity(entity.Name);
-            //    }
-            //}
+            _hierarchyController?.ClearEntities();
+            WorldData standartSceneData = SceneFileHelper.CreateNewScene();
+            _currentScene = new Scene(new List<WorldData>() { standartSceneData }, standartSceneData);
+            UpdateHyerarchy();
+            Status.SetStatus($"Created new scene: {_currentScene.WorldName}");
         }
 
         /// <summary>
@@ -194,23 +411,45 @@ namespace Editor
         /// </summary>
         private async Task HandleOpenScene()
         {
-            //var loadedScene = await SceneFileHelper.OpenSceneAsync(this);
-            //if (loadedScene != null)
-            //{
-            //    _currentScene = loadedScene;
-            //    Status.SetStatus($"Opened scene: {_currentScene.SceneName}");
+            if (_currentScene != null && _currentScene.IsDirty)
+            {
+                var res = await ConfirmationDialog.Show(
+                    this,
+                    "Worning",
+                    "There are scene changes. Do you want to safe scene?",
+                    true);
 
-            //    // Обновляем иерархию, если окно Hierarchy открыто
-            //    if (_hierarchyController != null)
-            //    {
-            //        _hierarchyController.ClearEntities();
+                switch (res)
+                {
+                    case ConfirmationDialog.DialogResult.Cancel:
+                        return;
+                    case ConfirmationDialog.DialogResult.Yes:
+                        var t = await FileDialogService.SaveFileAsync(
+                            this,
+                            $"Safe {_currentScene.WorldName}",
+                            $"{_currentScene.WorldName}",
+                            new FileDialogService.FileFilter("scene", "scene"));
 
-            //        foreach (var entity in _currentScene.Entities)
-            //        {
-            //            _hierarchyController.CreateNewEntity(entity.Name);
-            //        }
-            //    }
-            //}
+                        if (t != null) Status.SetStatus($"{t}");
+                        break;
+
+                    case ConfirmationDialog.DialogResult.No:
+                        break;
+                }
+            }
+            var loadedScene = await SceneFileHelper.OpenSceneAsync(this);
+            if (loadedScene != null)
+            {
+                _currentScene = loadedScene;
+
+                if (_hierarchyController != null)
+                    UpdateHyerarchy();
+                Status.SetStatus($"Opened scene: {_currentScene.WorldName}");
+            }
+            else
+            {
+                Status.SetStatus($"Opening scene failed");
+            }
         }
 
         /// <summary>
@@ -218,21 +457,16 @@ namespace Editor
         /// </summary>
         private async Task HandleSaveScene()
         {
-            //if (_currentScene == null)
-            //{
-            //    // Если нет текущей сцены, создаем новую
-            //    _currentScene = SceneFileHelper.CreateNewScene();
-            //}
-
-            //var success = await SceneFileHelper.SaveSceneAsync(this, _currentScene);
-            bool success = true;
-            if (success)
+            if (string.IsNullOrEmpty(_currentScene.ScenePath))
             {
-                Status.SetStatus($"Scene saved: ");
+                await HandleSaveSceneAs();
             }
             else
             {
-                Status.SetStatus("Failed to save scene");
+                string jsonContent = JsonConvert.SerializeObject(_currentScene);
+                bool result = await FileDialogService.WriteTextFileAsync(_currentScene.ScenePath, jsonContent);
+                if (result) Status.SetStatus($"Save scene succesful");
+                else Status.SetStatus($"Save scene not succesful");
             }
         }
 
@@ -241,17 +475,10 @@ namespace Editor
         /// </summary>
         private async Task HandleSaveSceneAs()
         {
-            //if (_currentScene == null)
-            //{
-            //    // Если нет текущей сцены, создаем новую
-            //    _currentScene = SceneFileHelper.CreateNewScene();
-            //}
-
-            //var success = await SceneFileHelper.SaveSceneAsync(this, _currentScene);
-            bool success = true;
-            if (success)
+            var result = await SceneFileHelper.SaveSceneAsync(this, _currentScene);
+            if (result.Item1)
             {
-                Status.SetStatus($"Scene saved as: ");
+                Status.SetStatus($"Scene saved: {result.Item2}");
             }
             else
             {
@@ -259,16 +486,16 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обновляет SceneData на основе текущей иерархии
-        /// </summary>
-        private void UpdateSceneDataFromHierarchy()
+        private void UpdateHyerarchy()
         {
-            //if (_currentScene == null || _hierarchyController == null)
-            //    return;
-
-
-            // TODO: Реализовать полное обновление данных сцены из иерархии
+            if (_hierarchyController != null)
+            {
+                _hierarchyController.ClearEntities();
+                foreach (var entity in _currentScene.CurrentWorldData.Entities)
+                {
+                    _hierarchyController.CreateNewEntity(entity.Name);
+                }
+            }
         }
     }
 

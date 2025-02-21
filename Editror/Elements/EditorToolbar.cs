@@ -7,38 +7,24 @@ using System;
 
 namespace Editor
 {
-    public class EditorToolbar
+    internal class EditorToolbar
     {
         private Border _container;
-        private Action<string> _menuItemClickHandler;
-        private Dictionary<string, List<string>> _menuItems;
+        private List<EditorToolbarCategory> _categories = new List<EditorToolbarCategory>();
+        private StackPanel toolbarPanel;
 
-        public EditorToolbar(Border container, Action<string> menuItemClickHandler)
+        public EditorToolbar(Border container)
         {
             _container = container;
-            _menuItemClickHandler = menuItemClickHandler;
 
             if (_container == null)
             {
                 throw new ArgumentNullException(nameof(container), "Toolbar container cannot be null");
             }
 
-            InitializeMenuItems();
             CreateToolbar();
         }
 
-        private void InitializeMenuItems()
-        {
-            _menuItems = new Dictionary<string, List<string>>
-            {
-                { "File", new List<string> { "New", "Open", "Save", "Save As...", "Exit" } },
-                { "Edit", new List<string> { "Undo", "Redo", "Cut", "Copy", "Paste", "Delete" } },
-                { "View", new List<string> { "Hierarchy", "Inspector", "Scene", "Game", "Console", "Output" } },
-                { "Build", new List<string> { "Build Project", "Build Solution", "Clean", "Rebuild All" } },
-                { "Tools", new List<string> { "Options", "Extensions", "Package Manager" } },
-                { "Help", new List<string> { "Documentation", "About" } }
-            };
-        }
 
         private void CreateToolbar()
         {
@@ -48,7 +34,7 @@ namespace Editor
                 Classes = { "toolbarBackground" },
             };
 
-            var toolbarPanel = new StackPanel
+            toolbarPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 2,
@@ -56,31 +42,35 @@ namespace Editor
                 VerticalAlignment = VerticalAlignment.Bottom,
             };
 
-            foreach (var menuCategory in _menuItems.Keys)
-            {
-                var menuButton = CreateMenuButton(menuCategory, _menuItems[menuCategory]);
-                toolbarPanel.Children.Add(menuButton);
-            }
 
             toolbarBackground.Child = toolbarPanel;
             _container.Child = toolbarBackground;
+
+            UpdateToolbarButtons();
         }
 
-        private Button CreateMenuButton(string categoryName, List<string> items)
+        public void RegisterCathegory(EditorToolbarCategory editorToolbarCategory)
         {
-            if (string.IsNullOrEmpty(categoryName))
-            {
-                categoryName = "Unknown";
-            }
+            if (!_categories.Contains(editorToolbarCategory))
+                _categories.Add(editorToolbarCategory);
 
-            if (items == null)
-            {
-                items = new List<string>();
-            }
+            UpdateToolbarButtons();
+        }
 
+        public void UpdateToolbarButtons()
+        {
+            toolbarPanel.Children.Clear();
+            foreach (var category in _categories)
+            {
+                var menuButton = CreateMenuButtonsFromCategory(category);
+                toolbarPanel.Children.Add(menuButton);
+            }
+        }
+        private Button CreateMenuButtonsFromCategory(EditorToolbarCategory category)
+        {
             var button = new Button
             {
-                Content = categoryName,
+                Content = category.Title,
                 Classes = { "menuButton" },
                 Padding = new Thickness(8, 4),
                 Margin = new Thickness(1),
@@ -95,13 +85,11 @@ namespace Editor
                 Width = 200
             };
 
-            foreach (var item in items)
+            foreach (EditorToolbarButton item in category.Buttons)
             {
-                if (string.IsNullOrEmpty(item)) continue;
-
                 var menuItem = new Button
                 {
-                    Content = item,
+                    Content = item.Text,
                     Classes = { "menuItem" },
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Left,
@@ -110,7 +98,7 @@ namespace Editor
 
                 menuItem.Click += (s, e) =>
                 {
-                    _menuItemClickHandler?.Invoke(item);
+                    item?.Action?.Invoke();
                     flyout.Hide();
                 };
 
@@ -128,4 +116,19 @@ namespace Editor
             return button;
         }
     }
+
+    public class EditorToolbarCategory
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public List<EditorToolbarButton> Buttons { get; set; } = new List<EditorToolbarButton>();
+    }
+    public class EditorToolbarButton
+    {
+        public string Text { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public Action Action { get; set; }
+    }
+
 }

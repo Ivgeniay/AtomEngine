@@ -17,12 +17,13 @@ namespace Editor
                 return;
             }
 
-            JObject obj = new JObject();
+            writer.WriteStartObject();
             foreach (var kvp in value)
             {
-                obj[kvp.Key] = JToken.FromObject(kvp.Value, serializer);
+                writer.WritePropertyName(kvp.Key);
+                serializer.Serialize(writer, kvp.Value);
             }
-            obj.WriteTo(writer);
+            writer.WriteEndObject();
         }
 
         public override Dictionary<string, IComponent>? ReadJson(JsonReader reader, Type objectType, Dictionary<string, IComponent>? existingValue, bool hasExistingValue, JsonSerializer serializer)
@@ -30,19 +31,34 @@ namespace Editor
             if (reader.TokenType == JsonToken.Null)
                 return null;
 
-            JObject obj = JObject.Load(reader);
-            var components = new Dictionary<string, IComponent>();
+            var result = new Dictionary<string, IComponent>();
 
-            foreach (var kvp in obj)
+            reader.Read();
+
+            while (reader.TokenType != JsonToken.EndObject)
             {
-                var component = kvp.Value.ToObject<IComponent>(serializer);
-                if (component != null)
+                if (reader.TokenType != JsonToken.PropertyName)
                 {
-                    components[kvp.Key] = component;
+                    reader.Read();
+                    continue;
                 }
+
+                var propertyName = reader.Value?.ToString();
+                reader.Read();
+
+                if (propertyName != null)
+                {
+                    var component = serializer.Deserialize<IComponent>(reader);
+                    if (component != null)
+                    {
+                        result[propertyName] = component;
+                    }
+                }
+
+                reader.Read();
             }
 
-            return components;
+            return result;
         }
     }
 }

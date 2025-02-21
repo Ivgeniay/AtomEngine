@@ -2,16 +2,19 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Editor
 {
     internal class DraggableWindowFactory
     {
-        Action<Border> OnWindowClosed;
+        public Action<Border> OnWindowClosed;
 
         private Canvas _parentCanvas;
         private int _zIndexCounter = 1;
         private Action<Border> _onWindowCreated;
+        private Dictionary<Control, DraggableWindow> _windows = new Dictionary<Control, DraggableWindow>();
 
         public DraggableWindowFactory(Canvas parentCanvas, Action<Border> onWindowCreated = null)
         {
@@ -38,6 +41,8 @@ namespace Editor
                 Width = width,
                 Height = height
             };
+
+            if (content != null)_windows.Add(content, window);
 
             var grid = new Grid();
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -124,8 +129,19 @@ namespace Editor
 
         private void CloseWindow(Border window)
         {
-            OnWindowClosed?.Invoke(window);
+            var query = _windows.FirstOrDefault(x => x.Value == window);
+            Control contentToRemove = query.Key;
+            if (contentToRemove != null)
+            {
+                if (contentToRemove.Parent is Border parentBorder)
+                {
+                    parentBorder.Child = null;
+                }
+                _windows.Remove(contentToRemove);
+            }
             _parentCanvas.Children.Remove(window);
+            OnWindowClosed?.Invoke(window);
+            if (query.Value != null) query.Value.Close();
         }
 
         private void AttachDragHandlers(Border window, Border titleBar)

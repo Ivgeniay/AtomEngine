@@ -1,0 +1,26 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Editor="using:Editor">
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <!-- Add Controls for Previewer Here -->
+    </Border>
+  </Design.PreviewWith>
+
+  <!-- World Window Styles -->
+  <Style Selector="Editor|WorldController StackPanel.worldWindowHeader">
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Margin" Value="2 2 2 15"/>
+  </Style>
+
+  <Style Selector="Editor|WorldController ListBox.worldsList">
+    <Setter Property="Padding" Value="5"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Margin" Value="0,0,0,5"/>
+
+  </Style>
+  <Style Selector="ListBoxItem">
+  </Style>
+  
+</Styles>

@@ -12,7 +12,6 @@ using System;
 
 namespace Editor
 {
-
     internal class HierarchyController : Grid, IWindowed
     {
         private ListBox _entitiesList;
@@ -102,7 +101,6 @@ namespace Editor
 
         private void CreateContextMenus()
         {
-            // Контекстное меню для фона (пустой области)
             _backgroundContextMenu = new ContextMenu
             {
                 Classes = { "hierarchyMenu" }
@@ -376,10 +374,6 @@ namespace Editor
                     _entityContextMenu.Open(_entitiesList);
                     e.Handled = true;
                 }
-            }
-            else if (point.Properties.IsLeftButtonPressed)
-            {
-
             }
         }
         

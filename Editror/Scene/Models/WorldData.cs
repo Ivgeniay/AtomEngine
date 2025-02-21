@@ -2,9 +2,10 @@
 
 namespace Editor
 {
-    internal class SceneData
+    internal class WorldData
     {
-        public string SceneName { get; set; } = "Scene_0";
+        public string WorldName { get; set; } = "World_0";
         public List<EntityData> Entities { get; set; } = new();
+        public bool IsDirty { get; set; }
     }
 }

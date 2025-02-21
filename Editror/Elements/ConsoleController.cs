@@ -5,11 +5,13 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia;
 using System;
+using System.Linq;
 
 namespace Editor
 {
     public class ConsoleController : Grid, ILogger
     {
+        public static ConsoleController Instance;
         private ScrollViewer _scrollViewer;
         private StackPanel _logPanel;
         private TextBox _commandInput;
@@ -19,8 +21,7 @@ namespace Editor
         private List<LogEntry> _logEntries = new List<LogEntry>();
 
         public LogLevel LogLevel { get; set; } = LogLevel.All;
-        global::LogLevel ILogger.LogLevel { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-
+        private List<ConsoleCommand> _commands = new List<ConsoleCommand>();
         private class LogEntry
         {
             public string Message { get; set; }
@@ -57,13 +58,92 @@ namespace Editor
                 return Level.ToString().ToUpper();
             }
         }
+        public class ConsoleCommand
+        {
+            public string Description;
+            public string Command;
+            public Action<string> Action;
+        }
 
         public ConsoleController()
         {
+            ConsoleController.Instance = this;
             InitializeUI();
+            InitializeDefaultCommands();
             Log("Console initialized", LogLevel.Info);
         }
-
+        public void RegisterConsoleCommand(ConsoleCommand command)
+        {
+            if (!_commands.Contains(command))_commands.Add(command);
+        }
+        private void InitializeDefaultCommands()
+        {
+            _commands.Add(new ConsoleCommand()
+            {
+                Command = "clear",
+                Description = "Clear console",
+                Action = (e) => ClearLogs()
+            });
+            _commands.Add(new ConsoleCommand()
+            {
+                Command = "help",
+                Description = "Show this help",
+                Action = (e) => ShowHelp()
+            });
+            _commands.Add(new ConsoleCommand()
+            {
+                Command = "filter",
+                Description = "Set max log level filter",
+                Action = (e) =>
+                {
+                    if (Enum.TryParse<LogLevel>(e, true, out var level))
+                    {
+                        SetMaxLevelFilter(level);
+                        Log($"Filter set to {level}", LogLevel.Info);
+                        RefreshLogDisplay();
+                    }
+                    else
+                    {
+                        Log($"Unknown log level: {e}", LogLevel.Error);
+                    }
+                }
+            });
+            _commands.Add(new ConsoleCommand()
+            {
+                Command = "enable",
+                Description = "Enable specific log level",
+                Action = (e) =>
+                {
+                    if (Enum.TryParse<LogLevel>(e, true, out var enableLevel))
+                    {
+                        EnableLevel(enableLevel);
+                        Log($"Enabled {enableLevel} logs", LogLevel.Info);
+                        RefreshLogDisplay();
+                    }
+                    else
+                    {
+                        Log($"Unknown log level: {e}", LogLevel.Error);
+                    }
+                }
+            });
+            _commands.Add(new ConsoleCommand()
+            {
+                Command = "disable",
+                Description = "Disable specific log level",
+                Action = (e) => {
+                    if (Enum.TryParse<LogLevel>(e, true, out var disableLevel))
+                    {
+                        DisableLevel(disableLevel);
+                        Log($"Disabled {disableLevel} logs", LogLevel.Info);
+                        RefreshLogDisplay();
+                    }
+                    else
+                    {
+                        Log($"Unknown log level: {e}", LogLevel.Error);
+                    }
+                }
+            });
+        }
         private void InitializeUI()
         {
             this.RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
@@ -89,7 +169,6 @@ namespace Editor
             _filterComboBox = new ComboBox
             {
                 Width = 120,
-                SelectedIndex = 0
             };
 
             _filterComboBox.Items.Add("All");
@@ -101,6 +180,8 @@ namespace Editor
                 }
             }
             _filterComboBox.Items.Add("None");
+            _filterComboBox.SelectedItem = 0;
+            _filterComboBox.SelectedValue = "All";
 
             _filterComboBox.SelectionChanged += (s, e) =>
             {
@@ -115,7 +196,7 @@ namespace Editor
                 }
                 else if (Enum.TryParse<LogLevel>(selectedItem, out var level))
                 {
-                    SetMaxLevelFilter(level);
+                    SetOnlyLevel(level);
                 }
                 RefreshLogDisplay();
             };
@@ -126,15 +207,19 @@ namespace Editor
             _logPanel = new StackPanel
             {
                 Spacing = 2,
-                Margin = new Thickness(5)
+                Margin = new Thickness(5),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Width = double.NaN
             };
 
             _scrollViewer = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 Content = _logPanel,
-                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30))
+                Background = new SolidColorBrush(Color.FromRgb(30, 30, 30)),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Stretch
             };
 
             _commandInput = new TextBox
@@ -172,56 +257,17 @@ namespace Editor
                 var cmd = parts[0].ToLower();
                 var args = parts.Length > 1 ? parts[1] : string.Empty;
 
-                switch (cmd)
+                var consoleCommand = _commands.Where(e => e.Command == cmd).FirstOrDefault();
+                if (consoleCommand != null)
                 {
-                    case "clear":
-                        ClearLogs();
-                        break;
-                    case "help":
-                        ShowHelp();
-                        break;
-                    case "filter":
-                        if (Enum.TryParse<LogLevel>(args, true, out var level))
-                        {
-                            SetMaxLevelFilter(level);
-                            Log($"Filter set to {level}", LogLevel.Info);
-                            RefreshLogDisplay();
-                        }
-                        else
-                        {
-                            Log($"Unknown log level: {args}", LogLevel.Error);
-                        }
-                        break;
-                    case "enable":
-                        if (Enum.TryParse<LogLevel>(args, true, out var enableLevel))
-                        {
-                            EnableLevel(enableLevel);
-                            Log($"Enabled {enableLevel} logs", LogLevel.Info);
-                            RefreshLogDisplay();
-                        }
-                        else
-                        {
-                            Log($"Unknown log level: {args}", LogLevel.Error);
-                        }
-                        break;
-                    case "disable":
-                        if (Enum.TryParse<LogLevel>(args, true, out var disableLevel))
-                        {
-                            DisableLevel(disableLevel);
-                            Log($"Disabled {disableLevel} logs", LogLevel.Info);
-                            RefreshLogDisplay();
-                        }
-                        else
-                        {
-                            Log($"Unknown log level: {args}", LogLevel.Error);
-                        }
-                        break;
-                    default:
-                        Log($"Unknown command: {cmd}", LogLevel.Warn);
-                        break;
+                    if (consoleCommand.Action != null)
+                        consoleCommand.Action(args);
+                }
+                else
+                {
+                    Log($"Unknown command: {cmd}", LogLevel.Warn);
                 }
             }
-            // Простое эхо для других команд
             else
             {
                 Info("Echo:", command);
@@ -230,13 +276,13 @@ namespace Editor
 
         private void ShowHelp()
         {
+            Info("--------------------------");
             Info("Available commands:");
-            Info("/clear - Clear console");
-            Info("/help - Show this help");
-            Info("/filter <level> - Set max log level filter");
-            Info("/enable <level> - Enable specific log level");
-            Info("/disable <level> - Disable specific log level");
-            Info("Log levels: Debug, Info, Warn, Error, Fatal, All, None");
+            foreach (var command in _commands)
+            {
+                Info($"/{command.Command} - {command.Description}");
+            }
+            Info("--------------------------");
         }
 
         private void ClearLogs()
@@ -283,16 +329,37 @@ namespace Editor
 
         private void AddLogEntryToPanel(LogEntry entry)
         {
+            var container = new Border
+            {
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Margin = new Thickness(0, 0, 0, 1),
+                //Padding = new Thickness(5) // Добавляем отступ для текста
+            };
+
             var logText = new TextBlock
             {
                 Text = $"[{entry.GetTimestampString()}] [{entry.GetLevelString()}] {entry.Message}",
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = entry.GetColor(),
                 FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
-                Margin = new Thickness(0, 0, 0, 1)
+                HorizontalAlignment = HorizontalAlignment.Stretch
             };
-            _logPanel.Children.Add(logText);
+
+            container.Child = logText;
+            _logPanel.Children.Add(container);
         }
+        //private void AddLogEntryToPanel(LogEntry entry)
+        //{
+        //    var logText = new TextBlock
+        //    {
+        //        Text = $"[{entry.GetTimestampString()}] [{entry.GetLevelString()}] {entry.Message}",
+        //        TextWrapping = TextWrapping.Wrap,
+        //        Foreground = entry.GetColor(),
+        //        FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
+        //        Margin = new Thickness(0, 0, 0, 1)
+        //    };
+        //    _logPanel.Children.Add(logText);
+        //}
 
         private void ScrollToEnd()
         {
@@ -305,9 +372,26 @@ namespace Editor
         public void Error(params object[] args) => Log(string.Join(" ", args), LogLevel.Error);
         public void Fatal(params object[] args) => Log(string.Join(" ", args), LogLevel.Fatal);
 
-        public void SetMaxLevelFilter(LogLevel logLevel)
+        public void SetMaxLevelFilter(LogLevel maxLevel)
         {
-            LogLevel = logLevel == LogLevel.None ? LogLevel.None : (LogLevel)((int)logLevel * 2 - 1);
+            if (maxLevel == LogLevel.None)
+            {
+                LogLevel = LogLevel.None;
+                return;
+            }
+
+            LogLevel result = LogLevel.None;
+            foreach (LogLevel level in Enum.GetValues(typeof(LogLevel)))
+            {
+                if (level == LogLevel.None || level == LogLevel.All)
+                    continue;
+
+                result |= level;
+                if (level == maxLevel)
+                    break;
+            }
+
+            LogLevel = result;
         }
         public void EnableLevel(LogLevel logLevel)
         {
@@ -316,6 +400,11 @@ namespace Editor
         public void DisableLevel(LogLevel logLevel)
         {
             LogLevel &= ~logLevel;
+        }
+        public void SetOnlyLevel(LogLevel logLevel)
+        {
+            LogLevel = LogLevel.None;
+            LogLevel |= logLevel;
         }
 
     }

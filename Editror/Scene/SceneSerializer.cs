@@ -8,35 +8,35 @@ namespace Editor
 {
     internal static class SceneSerializer
     {
-        public async static void SaveScene(string path, SceneData scene)
+        public async static void SaveScene(string path, WorldData scene)
         {
             try
             {
                 string sceneData = JsonConvert.SerializeObject(scene);
                 using(StreamWriter stream = new StreamWriter(path))
                 {
-                    Status.SetStatus($"Saving {scene.SceneName}...");
+                    Status.SetStatus($"Saving {scene.WorldName}...");
                     await stream.WriteAsync(sceneData);
-                    Status.SetStatus($"Scene {scene.SceneName} saved");
+                    Status.SetStatus($"Scene {scene.WorldName} saved");
                 }
             }
             catch(Exception e)
             {
-                Status.SetStatus($"Saving {scene.SceneName} failed");
+                Status.SetStatus($"Saving {scene.WorldName} failed");
                 DebLogger.Error(e);
             }
         }
 
-        public static async Task<SceneData> LoadScene(string path)
+        public static async Task<WorldData> LoadScene(string path)
         {
-            SceneData scene = new SceneData();
+            WorldData scene = new WorldData();
             try
             {
                 using (StreamReader stream = new StreamReader(path))
                 {
                     Status.SetStatus("Loading scene...");
                     var sceneData = await stream.ReadToEndAsync();
-                    scene = JsonConvert.DeserializeObject<SceneData>(sceneData);
+                    scene = JsonConvert.DeserializeObject<WorldData>(sceneData);
                     Status.SetStatus($"Scene {scene} loaded");
                 }
             }

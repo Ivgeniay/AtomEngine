@@ -12,19 +12,7 @@
         <StyleInclude Source="/Styles/Toolbar.axaml"/>
         <StyleInclude Source="/Styles/StatusBar.axaml"/>
         <StyleInclude Source="/Styles/Hierarchy.axaml"/>
-
-      <Style Selector="TitleBar">
-        <Setter Property="Background" Value="#3D3D3D"/>
-        <Setter Property="Height" Value="28"/>
-        <Setter Property="Foreground" Value="#CCCCCC"/>
-      </Style>
-
-      <Style Selector="Window /template/ Border#PART_TitleBar">
-        <Setter Property="Background" Value="#2D2D2D"/>
-      </Style>
-
-      <Style Selector="Window /template/ TextBlock#PART_TitleText">
-        <Setter Property="FontSize" Value="12"/>
-      </Style>
+        <StyleInclude Source="/Styles/Title.axaml"/>
+        <StyleInclude Source="/Styles/World.axaml"/>
     </Application.Styles>
 </Application>

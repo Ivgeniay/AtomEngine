@@ -7,9 +7,13 @@ namespace Editor
     internal class DraggableWindow : Border, IWindowed
     {
         public Action<object> OnClose { get; set; }
-        public void Dispose()
+
+        public void Close()
         {
             OnClose?.Invoke(this);
+        }
+        public void Dispose()
+        {
         }
     }
 }
