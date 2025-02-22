@@ -5,6 +5,8 @@ namespace AtomEngine
     public struct TransformComponent : IComponent
     {
         public Entity Owner { get; }
+        public string Namess = "kek";
+
         public Vector3 _position;
         public Vector3 _rotation;
         public Vector3 _scale;

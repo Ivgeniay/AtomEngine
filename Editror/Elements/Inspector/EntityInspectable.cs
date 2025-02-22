@@ -1,8 +1,7 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Serialization;
-using AtomEngine;
 using Avalonia.Controls;
+using System.Linq;
+using AtomEngine;
 
 namespace Editor
 {

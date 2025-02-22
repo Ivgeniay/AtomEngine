@@ -14,7 +14,8 @@ namespace Editor
             var numericUpDown = new NumericUpDown
             {
                 Value = Convert.ToInt32(Descriptor.Value),
-                IsEnabled = !Descriptor.IsReadOnly
+                IsEnabled = !Descriptor.IsReadOnly,
+                Classes = { "vectorEditor" },
             };
 
             numericUpDown.ValueChanged += (s, e) =>

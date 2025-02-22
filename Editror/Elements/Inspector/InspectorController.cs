@@ -22,8 +22,8 @@ namespace Editor
         {
             _container = new StackPanel
             {
-                Spacing = 5,
-                Margin = new Thickness(10)
+                //Spacing = 2,
+                //Margin = new Thickness(3)
             };
 
             var scrollViewer = new ScrollViewer
@@ -90,6 +90,12 @@ namespace Editor
         {
             Clean();
             isOpend = false;
+        }
+
+        public void CleanInspected()
+        {
+            Clean();
+            RefreshView();
         }
 
         private void Clean()

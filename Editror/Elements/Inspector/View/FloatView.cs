@@ -15,6 +15,7 @@ namespace Editor
             {
                 Value = Convert.ToDecimal(Descriptor.Value),
                 Increment = 0.1M,
+                Classes = { "vectorEditor" },
                 IsEnabled = !Descriptor.IsReadOnly
             };
 

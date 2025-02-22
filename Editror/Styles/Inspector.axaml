@@ -127,4 +127,44 @@
     <Setter Property="Margin" Value="0"/>
   </Style>
 
+  <!-- Компактный стиль для NumericUpDown в векторных полях -->
+  <Style Selector="NumericUpDown.vectorEditor">
+    <Setter Property="Background" Value="#3C3C3C"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#222222"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Height" Value="24"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="ButtonSpinnerLocation" Value="Right"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Margin" Value="0,0,4,0"/>
+  </Style>
+
+  <!-- Стиль для текстового поля внутри NumericUpDown -->
+  <Style Selector="NumericUpDown.vectorEditor /template/ TextBox">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="CaretBrush" Value="#CCCCCC"/>
+    <Setter Property="SelectionBrush" Value="#264F78"/>
+    <Setter Property="SelectionForegroundBrush" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="NumericUpDown.vectorEditor /template/ TextBox:focus">
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="NumericUpDown.vectorEditor:pointerover">
+    <Setter Property="Background" Value="#454545"/>
+    <Setter Property="BorderBrush" Value="#4A4A4A"/>
+  </Style>
+
+  <Style Selector="NumericUpDown.vectorEditor:focus">
+    <Setter Property="Background" Value="#3C3C3C"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+
+  <Style Selector="NumericUpDown.vectorEditor:pointerover:focus">
+    <Setter Property="Background" Value="#2A2A30"/>
+    <Setter Property="BorderBrush" Value="#1C97EA"/>
+  </Style>
+
 </Styles>

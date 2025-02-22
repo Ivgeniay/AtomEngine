@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Editor.Elements.Inspector.View;
+using System;
 using System.Collections.Generic;
 
 namespace Editor
@@ -19,6 +20,8 @@ namespace Editor
             Register("Single", (descriptor) => new FloatView(descriptor));
             Register("String", (descriptor) => new StringView(descriptor));
             Register("Boolean", (descriptor) => new BooleanView(descriptor));
+            Register("Vector2", (descriptor) => new Vector2View(descriptor));
+            Register("Vector3", (descriptor) => new Vector3View(descriptor));
             Register("ComponentProperties", (descriptor) => new ComponentPropertiesView(descriptor));
         }
 

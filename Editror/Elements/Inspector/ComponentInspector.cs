@@ -1,8 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Reflection;
+using Newtonsoft.Json;
+using System.Linq;
 using AtomEngine;
+using System;
 
 namespace Editor
 {
@@ -12,16 +13,6 @@ namespace Editor
         {
             var type = component.GetType();
 
-            // Создаем дескриптор для самого компонента (например его тип и enabled/disabled)
-            yield return new PropertyDescriptor
-            {
-                Name = "Type",
-                Type = "String",
-                Value = type.Name,
-                IsReadOnly = true
-            };
-
-            // Получаем все public properties и fields
             var members = type
                 .GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 .Where(m => m is FieldInfo);
@@ -30,6 +21,7 @@ namespace Editor
             foreach (var member in members)
             {
                 if (member.GetCustomAttribute<NonSerializedAttribute>() != null 
+                    || member.GetCustomAttribute<JsonIgnoreAttribute>() != null
                     //|| member.GetCustomAttribute<HideInInspectorAttribute>() != null
                     )
                     continue;
@@ -43,12 +35,18 @@ namespace Editor
         private PropertyDescriptor CreateDescriptorForMember(IComponent component, MemberInfo member)
         {
             var value = GetValue(component, member);
-            if (value == null) return null;
+            var memberType = GetMemberType(member);
+
+            bool allowNull = memberType == typeof(string)
+                    || memberType.IsClass
+                    || (memberType.IsGenericType && memberType.GetGenericTypeDefinition() == typeof(Nullable<>));
+
+            if (value == null && !allowNull) return null;
 
             return new PropertyDescriptor
             {
                 Name = member.Name,
-                Type = GetMemberType(member).Name,
+                Type = memberType.Name,
                 Value = value,
                 IsReadOnly = IsReadOnly(member),
                 OnValueChanged = newValue => SetValue(component, member, newValue)

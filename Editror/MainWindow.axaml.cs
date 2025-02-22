@@ -352,6 +352,7 @@ namespace Editor
                 Select.DeSelectAll();
                 _currentScene.AddEntity(entityName);
                 UpdateHyerarchy();
+                CleanInspector();
                 Status.SetStatus($"Created entity: {entityName}");
             };
 
@@ -360,6 +361,7 @@ namespace Editor
                 Select.DeSelectAll();
                 _currentScene.AddDuplicateEntity(entityName);
                 UpdateHyerarchy();
+                CleanInspector();
                 Status.SetStatus($"Duplicate entity");
             };
 
@@ -367,6 +369,7 @@ namespace Editor
             {
                 Select.DeSelectAll();
                 _currentScene.RenameEntity(entity);
+                CleanInspector();
                 Status.SetStatus($"Renamed entity to: {entity.Name}");
             };
 
@@ -374,6 +377,7 @@ namespace Editor
             {
                 Select.DeSelectAll();
                 _currentScene.DeleteEntity(entity);
+                CleanInspector();
                 Status.SetStatus($"Deleted entity: {entity.Name}");
             };
 
@@ -567,6 +571,7 @@ namespace Editor
         {
             UpdateHyerarchy();
             UpdateWorlds();
+            CleanInspector();
         }
         private void UpdateHyerarchy()
         {
@@ -576,6 +581,11 @@ namespace Editor
         private void UpdateWorlds()
         {
             _worldController?.UpdateWorlds(_currentScene);
+        }
+
+        private void CleanInspector()
+        {
+            _inspectorController?.CleanInspected();
         }
     }
 

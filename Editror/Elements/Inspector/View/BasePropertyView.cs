@@ -20,7 +20,7 @@ namespace Editor
         {
             var grid = new Grid
             {
-                Margin = new Thickness(4, 2),
+                Margin = new Thickness(4, 0),
                 ColumnDefinitions =
                     {
                         new ColumnDefinition { Width = new GridLength(120) },
