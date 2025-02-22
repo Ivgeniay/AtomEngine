@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Newtonsoft.Json;
 using System.Linq;
 using AtomEngine;
+using System;
 
 namespace Editor
 {
@@ -18,6 +19,7 @@ namespace Editor
         private OpenGlController _openGlController;
         private HierarchyController _hierarchyController;
         private WorldController _worldController;
+        private InspectorController _inspectorController;
 
         private ProjectScene _currentScene;
 
@@ -35,7 +37,10 @@ namespace Editor
 
             HandleNewScene().GetAwaiter().GetResult();
             InitializeHierarchy();
-            WorldInitializr();
+            InitializeWorld();
+            InitializeInspector();
+
+            UpdateControllers();
         }
 
         private void InitializeComponent()
@@ -172,13 +177,19 @@ namespace Editor
                         Description = "",
                         Action = () => {
                             DraggableWindow window = _windowFactory?.CreateWindow("Hierarchy", _hierarchyController, 10, 40, 250, 400);
+                            _hierarchyController.Open();
+                            window.OnClose += (e) => _hierarchyController.Close();
                         }
                     },
                     new EditorToolbarButton()
                     {
                         Text = "Inspector",
                         Description = "",
-                        Action = () => { _windowFactory.CreateWindow("Inspector", null, 520, 40, 250, 400); }
+                        Action = () => { 
+                            var window = _windowFactory.CreateWindow("Inspector", _inspectorController, 520, 40, 250, 400);
+                            _inspectorController.Open();
+                            window.OnClose += (e) => _inspectorController.Close();
+                        }
                     },
                     new EditorToolbarButton()
                     {
@@ -336,25 +347,46 @@ namespace Editor
         {
             _hierarchyController = new HierarchyController();
 
-            _hierarchyController.EntityCreated += (s, entity) =>
+            _hierarchyController.EntityCreated += (s, entityName) =>
             {
-                _currentScene.AddEntity(entity);
-                Status.SetStatus($"Created entity: {entity.Name} (ID: {entity.Id})");
+                Select.DeSelectAll();
+                _currentScene.AddEntity(entityName);
+                UpdateHyerarchy();
+                Status.SetStatus($"Created entity: {entityName}");
+            };
+
+            _hierarchyController.EntityDuplicated += (s, entityName) =>
+            {
+                Select.DeSelectAll();
+                _currentScene.AddDuplicateEntity(entityName);
+                UpdateHyerarchy();
+                Status.SetStatus($"Duplicate entity");
             };
 
             _hierarchyController.EntityRenamed += (s, entity) =>
             {
+                Select.DeSelectAll();
                 _currentScene.RenameEntity(entity);
                 Status.SetStatus($"Renamed entity to: {entity.Name}");
             };
 
             _hierarchyController.EntityDeleted += (s, entity) =>
             {
+                Select.DeSelectAll();
                 _currentScene.DeleteEntity(entity);
                 Status.SetStatus($"Deleted entity: {entity.Name}");
             };
 
-            UpdateHyerarchy();
+            _hierarchyController.EntitySelected += (s, entity) =>
+            {
+                var entityData = _currentScene.CurrentWorldData.Entities.Where(e => e.Id == entity.Id && e.Version == entity.Version).FirstOrDefault();
+                //if (entityData == null) return;
+                var _entity = new Entity(entityData.Id, entityData.Version);
+                var collection = entityData.Components.Values.ToList();
+                if (collection == null) collection = new List<IComponent>();
+                var inscted = new EntityInspectable(_entity, collection);
+                _inspectorController.Inspect(inscted);
+            };
         }
 
         private void InitializeConsole()
@@ -362,26 +394,35 @@ namespace Editor
             _consoleController = new ConsoleController();
         }
 
-        private void WorldInitializr()
+        private void InitializeWorld()
         {
             _worldController = new WorldController(_currentScene);
             _worldController.WorldRenamed += (sender, e) =>
             {
+                Select.DeSelectAll();
                 _currentScene.RenameWorld(e);
             };
             _worldController.WorldDeleted += (sender, e) =>
             {
+                Select.DeSelectAll();
                 _currentScene.RemoveWorld(e);
             };
             _worldController.WorldCreated += (sender, e) =>
             {
+                Select.DeSelectAll();
                 _currentScene.CreateWorld(e);
             };
             _worldController.WorldSelected += (sender, e) =>
             {
+                Select.DeSelectAll();
                 _currentScene.SelecteWorld(e);
                 UpdateHyerarchy();
             };
+        }
+
+        private void InitializeInspector()
+        {
+            _inspectorController = new InspectorController();
         }
 
         public Border CreateDraggableWindow(string title, Control content = null, double left = 10, double top = 10,
@@ -394,7 +435,7 @@ namespace Editor
         /// </summary>
         private async Task HandleNewScene()
         {
-            if (_currentScene != null && _currentScene.IsDirty)
+            if (_currentScene !=null && _currentScene.IsDirty)
             {
                 var res = await ConfirmationDialog.Show(
                     this,
@@ -423,9 +464,10 @@ namespace Editor
 
             // Сбрасываем иерархию
             _hierarchyController?.ClearEntities();
+            _worldController?.ClearWorlds();
             WorldData standartSceneData = SceneFileHelper.CreateNewScene();
             _currentScene = new ProjectScene(new List<WorldData>() { standartSceneData }, standartSceneData);
-            UpdateHyerarchy();
+            UpdateControllers();
             Status.SetStatus($"Created new scene: {_currentScene.WorldName}");
         }
 
@@ -465,8 +507,7 @@ namespace Editor
             {
                 _currentScene = loadedScene;
 
-                if (_hierarchyController != null)
-                    UpdateHyerarchy();
+                UpdateControllers();
                 Status.SetStatus($"Opened scene: {_currentScene.WorldName}");
             }
             else
@@ -486,9 +527,21 @@ namespace Editor
             }
             else
             {
-                string jsonContent = JsonConvert.SerializeObject(_currentScene);
+                var jsonSettings = new JsonSerializerSettings
+                {
+                    Formatting = Formatting.Indented,
+                    TypeNameHandling = TypeNameHandling.Auto,
+                    PreserveReferencesHandling = PreserveReferencesHandling.Objects,
+                    ReferenceLoopHandling = ReferenceLoopHandling.Serialize
+                };
+
+                string jsonContent = JsonConvert.SerializeObject(_currentScene, jsonSettings);
                 bool result = await FileDialogService.WriteTextFileAsync(_currentScene.ScenePath, jsonContent);
-                if (result) Status.SetStatus($"Save scene succesful");
+                if (result)
+                {
+                    _currentScene.MakeUndirty();
+                    Status.SetStatus($"Save scene succesful");
+                }
                 else Status.SetStatus($"Save scene not succesful");
             }
         }
@@ -501,6 +554,7 @@ namespace Editor
             var result = await SceneFileHelper.SaveSceneAsync(this, _currentScene);
             if (result.Item1)
             {
+                _currentScene.MakeUndirty();
                 Status.SetStatus($"Scene saved: {result.Item2}");
             }
             else
@@ -509,9 +563,19 @@ namespace Editor
             }
         }
 
+        private void UpdateControllers()
+        {
+            UpdateHyerarchy();
+            UpdateWorlds();
+        }
         private void UpdateHyerarchy()
         {
             _hierarchyController?.UpdateHyerarchy(_currentScene);
+        }
+
+        private void UpdateWorlds()
+        {
+            _worldController?.UpdateWorlds(_currentScene);
         }
     }
 

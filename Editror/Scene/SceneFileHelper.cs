@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using System.Linq;
 using AtomEngine;
 using System;
+using System.Numerics;
 
 namespace Editor
 {
@@ -96,7 +97,15 @@ namespace Editor
                 }
                 scene.ScenePath = filePath;
 
-                string jsonContent = JsonConvert.SerializeObject(scene);
+                var jsonSettings = new JsonSerializerSettings
+                {
+                    Formatting = Formatting.Indented,
+                    TypeNameHandling = TypeNameHandling.Auto,
+                    PreserveReferencesHandling = PreserveReferencesHandling.Objects,
+                    ReferenceLoopHandling = ReferenceLoopHandling.Serialize
+                };
+
+                string jsonContent = JsonConvert.SerializeObject(scene, jsonSettings);
                 bool result = await FileDialogService.WriteTextFileAsync(filePath, jsonContent);
 
                 if (result)
@@ -123,7 +132,6 @@ namespace Editor
         /// <returns>Данные новой сцены или null</returns>
         public static WorldData CreateNewScene()
         {
-            // Создаем новую пустую сцену с базовыми объектами
             var newScene = new WorldData
             {
                 WorldName = "New Scene",
@@ -135,63 +143,35 @@ namespace Editor
                         Id = 0,
                         Name = "Main Camera",
                         Version = 0,
-                        //Components = new List<ComponentData>
-                        //{
-                        //    new ComponentData
-                        //    {
-                        //        Type = "Camera",
-                        //        Properties = new Dictionary<string, object>
-                        //        {
-                        //            ["Position"] = new float[] { 0, 1, -10 },
-                        //            ["Rotation"] = new float[] { 0, 0, 0 },
-                        //            ["FieldOfView"] = 60.0f
-                        //        }
-                        //    },
-                        //    new ComponentData
-                        //    {
-                        //        Type = "Transform",
-                        //        Properties = new Dictionary<string, object>
-                        //        {
-                        //            ["Position"] = new float[] { 0, 1, -10 },
-                        //            ["Rotation"] = new float[] { 0, 0, 0 },
-                        //            ["Scale"] = new float[] { 1, 1, 1 }
-                        //        }
-                        //    }
-                        //}
+                        Components = new Dictionary<string, IComponent>
+                        {
+                            {
+                                nameof(TransformComponent),
+                                new TransformComponent
+                                {
+                                    Position = new Vector3()
+                                }
+                            }
+                        }
                     },
                     new EntityData
                     {
                         Id = 1,
                         Name = "Directional Light",
                         Version = 0,
-                        //Components = new List<ComponentData>
-                        //{
-                        //    new ComponentData
-                        //    {
-                        //        Type = "Light",
-                        //        Properties = new Dictionary<string, object>
-                        //        {
-                        //            ["Type"] = "Directional",
-                        //            ["Color"] = new float[] { 1, 0.95f, 0.84f },
-                        //            ["Intensity"] = 1.0f
-                        //        }
-                        //    },
-                        //    new ComponentData
-                        //    {
-                        //        Type = "Transform",
-                        //        Properties = new Dictionary<string, object>
-                        //        {
-                        //            ["Position"] = new float[] { 0, 3, 0 },
-                        //            ["Rotation"] = new float[] { 50, 30, 0 },
-                        //            ["Scale"] = new float[] { 1, 1, 1 }
-                        //        }
-                        //    }
-                        //}
+                        Components = new Dictionary<string, IComponent>
+                        {
+                            {
+                                nameof(TransformComponent),
+                                new TransformComponent
+                                {
+                                    Position = Vector3.UnitX,
+                                }
+                            }
+                        }
                     }
                 }
             };
-
-            DebLogger.Info("Создана новая сцена");
             return newScene;
         }
     }

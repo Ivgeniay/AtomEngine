@@ -1,0 +1,130 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Editor="using:Editor">
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <!-- Add Controls for Previewer Here -->
+    </Border>
+  </Design.PreviewWith>
+
+  <!-- Общие стили для инспектора -->
+  <Style Selector="Editor|InspectorController">
+    <Setter Property="Background" Value="#383838"/>
+  </Style>
+
+  <!-- Стиль для ScrollViewer -->
+  <Style Selector="Editor|InspectorController ScrollViewer">
+    <Setter Property="Background" Value="#2A2A2A"/>
+  </Style>
+
+  <!-- Стиль для основного контейнера -->
+  <Style Selector="Editor|InspectorController StackPanel">
+    <Setter Property="Margin" Value="8"/>
+    <Setter Property="Spacing" Value="4"/>
+  </Style>
+
+  <!-- Заголовок инспектора -->
+  <Style Selector="TextBlock.inspectorTitle">
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="Foreground" Value="#E6E6E6"/>
+    <Setter Property="Margin" Value="0,0,0,8"/>
+  </Style>
+
+  <!-- Заголовки компонентов -->
+  <Style Selector="TextBlock.componentHeader">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="Foreground" Value="#B4B4B4"/>
+    <Setter Property="Background" Value="#404040"/>
+    <Setter Property="Padding" Value="4,6"/>
+    <Setter Property="Margin" Value="0,4"/>
+  </Style>
+
+  <!-- Стили для элементов ввода -->
+  <Style Selector="TextBox.propertyEditor">
+    <Setter Property="Background" Value="#3C3C3C"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#222222"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Height" Value="24"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Padding" Value="4,0"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+
+  <Style Selector="TextBox.propertyEditor:pointerover">
+    <Setter Property="Background" Value="#454545"/>
+    <Setter Property="BorderBrush" Value="#4A4A4A"/>
+  </Style>
+
+  <Style Selector="TextBox.propertyEditor:focus">
+    <Setter Property="Background" Value="#3C3C3C"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+
+  <!-- Стили для NumericUpDown -->
+  <Style Selector="NumericUpDown.propertyEditor">
+    <Setter Property="Background" Value="#3C3C3C"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#222222"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Height" Value="24"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="ButtonSpinnerLocation" Value="Right"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+
+  <!-- Стили для CheckBox -->
+  <Style Selector="CheckBox.propertyEditor">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="Background" Value="#3C3C3C"/>
+    <Setter Property="BorderBrush" Value="#222222"/>
+    <Setter Property="Height" Value="24"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <!-- Стили для разделителя -->
+  <Style Selector="Separator">
+    <Setter Property="Background" Value="#3F3F3F"/>
+    <Setter Property="Height" Value="1"/>
+    <Setter Property="Margin" Value="0,4"/>
+  </Style>
+
+  <!-- Стили для кнопок в кастомных контролах -->
+  <Style Selector="Button.inspectorButton">
+    <Setter Property="Background" Value="#4D4D4D"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#222222"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="8,4"/>
+    <Setter Property="Height" Value="24"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style Selector="Button.inspectorButton:pointerover">
+    <Setter Property="Background" Value="#5A5A5A"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+
+  <Style Selector="Button.inspectorButton:pressed">
+    <Setter Property="Background" Value="#444444"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+
+  <!-- Стили для меток свойств -->
+  <Style Selector="TextBlock.propertyLabel">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Margin" Value="0,0,8,0"/>
+  </Style>
+
+  <!-- Стили для Grid внутри InspectorController -->
+  <Style Selector="Editor|InspectorController Grid">
+    <Setter Property="Margin" Value="0"/>
+  </Style>
+
+</Styles>

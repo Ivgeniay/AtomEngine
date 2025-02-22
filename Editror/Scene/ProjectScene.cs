@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
 using Newtonsoft.Json;
+using System.Linq;
 using AtomEngine;
 using System;
-using System.Linq;
 
 namespace Editor
 {
@@ -13,8 +13,7 @@ namespace Editor
         public List<WorldData> Worlds = new List<WorldData>(); 
         public string ScenePath { get; set; } = string.Empty;
 
-        [JsonIgnore]
-        private WorldData _currentWorldData { get; set; }
+        [JsonIgnore] private WorldData _currentWorldData { get; set; }
         public WorldData CurrentWorldData
         {
             get
@@ -50,26 +49,35 @@ namespace Editor
             Worlds = worlds;
             _currentWorldData = currentWorldData;
         }
-
-        public bool IsDirty { get => CurrentWorldData.IsDirty; private set => CurrentWorldData.IsDirty = value; }
+        public bool IsDirty { get => Worlds.Any(e => e.IsDirty); private set => CurrentWorldData.IsDirty = value; }
         public string WorldName { get => CurrentWorldData.WorldName; set { CurrentWorldData.WorldName = value; MakeDirty(); } }
 
 
         #region Entity
-        internal void AddEntity(EntityHierarchyItem entity)
+        internal void AddEntity(string entityName)
+        {
+            var world = CurrentWorldData;
+            uint id = GetAvailableId(CurrentWorldData.Entities);
+            EntityData newEntityData = new EntityData()
+            {
+                Name = entityName,
+                Id = id,
+                Version = 0,
+            };
+            world.Entities.Add(newEntityData);
+            MakeDirty();
+        }
+        internal void AddDuplicateEntity(EntityHierarchyItem entity)
         {
             var world = CurrentWorldData;
             EntityData newEntityData = new EntityData()
             {
                 Name = entity.Name,
-                Id = entity.Id,
-                Version = entity.Version,
+                Id = GetAvailableId(CurrentWorldData.Entities),
+                Version = 0,
             };
-            if (!world.Entities.Contains(newEntityData))
-            {
-                world.Entities.Add(newEntityData);
-                MakeDirty();
-            }
+            world.Entities.Add(newEntityData);
+            MakeDirty();
         }
 
         internal void RenameEntity(EntityHierarchyItem entity)
@@ -88,8 +96,6 @@ namespace Editor
             MakeDirty();
         }
         #endregion
-
-        public void MakeDirty() => IsDirty = true;
 
         #region World
         internal void RenameWorld((string, string) worldNameLastCurrent)
@@ -121,8 +127,27 @@ namespace Editor
             MakeDirty();
         }
 
-        
+
         #endregion
 
+        public void MakeDirty() => IsDirty = true;
+        public void MakeUndirty() => Worlds.ForEach(e => e.IsDirty = false);
+
+        private uint GetAvailableId(List<EntityData> entities)
+        {
+            var sortedEntities = entities.OrderBy(e => e.Id).ToList();
+
+            uint expectedId = 0;
+            foreach (var entity in sortedEntities)
+            {
+                if (entity.Id != expectedId)
+                {
+                    return expectedId;
+                }
+                expectedId++;
+            }
+
+            return expectedId;
+        }
     }
 }

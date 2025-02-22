@@ -9,6 +9,16 @@ namespace Editor
 
     internal class ComponentDictionaryConverter : JsonConverter<Dictionary<string, IComponent>>
     {
+        private readonly Dictionary<string, Type> _componentTypes;
+
+        public ComponentDictionaryConverter()
+        {
+            _componentTypes = new Dictionary<string, Type>
+            {
+                { nameof(TransformComponent), typeof(TransformComponent) },
+            };
+        }
+
         public override void WriteJson(JsonWriter writer, Dictionary<string, IComponent>? value, JsonSerializer serializer)
         {
             if (value == null)
@@ -46,13 +56,17 @@ namespace Editor
                 var propertyName = reader.Value?.ToString();
                 reader.Read();
 
-                if (propertyName != null)
+                if (propertyName != null && _componentTypes.TryGetValue(propertyName, out Type? componentType))
                 {
-                    var component = serializer.Deserialize<IComponent>(reader);
+                    var component = (IComponent?)serializer.Deserialize(reader, componentType);
                     if (component != null)
                     {
                         result[propertyName] = component;
                     }
+                }
+                else
+                {
+                    serializer.Deserialize(reader);
                 }
 
                 reader.Read();

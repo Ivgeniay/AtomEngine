@@ -14,5 +14,6 @@
         <StyleInclude Source="/Styles/Hierarchy.axaml"/>
         <StyleInclude Source="/Styles/Title.axaml"/>
         <StyleInclude Source="/Styles/World.axaml"/>
+        <StyleInclude Source="/Styles/Inspector.axaml"/>
     </Application.Styles>
 </Application>

@@ -28,5 +28,16 @@ namespace Editor
                 OnDeSelect?.Invoke(entity);
             }
         }
+    
+        internal static void DeSelectAll()
+        {
+            List<EntityHierarchyItem> temp = new();
+
+            foreach (var item in _selected) 
+                temp.Add(item);
+
+            temp.ForEach(e => DeSelect(e));
+            temp.Clear();
+        }
     }
 }

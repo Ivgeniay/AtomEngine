@@ -8,9 +8,6 @@ using Avalonia.Input;
 using System.Linq;
 using Avalonia;
 using System;
-using Silk.NET.Assimp;
-using Avalonia.Data;
-using Avalonia.Media;
 
 namespace Editor
 {
@@ -21,7 +18,6 @@ namespace Editor
         private ObservableCollection<string> _worlds;
         private ContextMenu _worldListContextMenu;
         private ContextMenu _worldContextMenu;
-        private ProjectScene _scene;
         public Action<object> OnClose { get; set; }
 
         public event EventHandler<string> WorldSelected;
@@ -31,7 +27,6 @@ namespace Editor
 
         public WorldController(ProjectScene scene)
         {
-            _scene = scene;
             _worlds = new ObservableCollection<string>();
 
             InitializeUI();
@@ -94,12 +89,12 @@ namespace Editor
             ScrollViewer.SetHorizontalScrollBarVisibility(_worldsList, ScrollBarVisibility.Disabled);
             ScrollViewer.SetVerticalScrollBarVisibility(_worldsList, ScrollBarVisibility.Auto);
 
-            _worldsList.SelectionChanged += (s, e) => 
+            _worldsList.SelectionChanged += (s, e) =>
             {
                 if (_worldsList.SelectedItem is string selectedWorld)
                 {
                     WorldSelected?.Invoke(this, selectedWorld);
-                    CloseAllContext();
+                    CloseAllContextMenus();
                 }
             };
             _worldsList.PointerPressed += (s, e) =>
@@ -107,7 +102,7 @@ namespace Editor
                 var point = e.GetCurrentPoint(_worldsList);
                 if (point.Properties.IsRightButtonPressed)
                 {
-                    CloseAllContext();
+                    CloseAllContextMenus();
                     _worldListContextMenu.Open(_worldsList);
                     e.Handled = true;
                 }
@@ -123,12 +118,12 @@ namespace Editor
                         if (_worldsList.ItemsSource is ObservableCollection<string> collection)
                         {
                             int index = collection.IndexOf(item);
-                            if (index >  -1)
+                            if (index > -1)
                             {
                                 _worldsList.Selection.Clear();
                                 _worldsList.Selection.Select(index);
                                 WorldSelected?.Invoke(this, item);
-                                CloseAllContext();
+                                CloseAllContextMenus();
                                 _worldContextMenu.Open(_worldsList);
                                 e.Handled = true;
                             }
@@ -141,17 +136,12 @@ namespace Editor
 
             Children.Add(btnHolder);
             Children.Add(_worldsList);
-
-            foreach(var item in _scene.Worlds)
-            {
-                CreateNewWorld(item.WorldName);
-            }
         }
 
-        public void CreateNewWorld(string name)
+        public void CreateNewWorld(string name, bool withInvoking = true)
         {
             _worlds.Add(name);
-            WorldCreated?.Invoke(this, name);
+            if (withInvoking) WorldCreated?.Invoke(this, name);
             _worldsList.SelectedItem = name;
         }
 
@@ -262,11 +252,13 @@ namespace Editor
                 this.Children.Remove(popup);
             };
         }
+        
         private void RemoveWorld(string worldName)
         {
             _worlds.Remove(worldName);
             WorldDeleted?.Invoke(this, worldName);
         }
+        
         private string GetUniqueName()
         {
             string name = _baseName;
@@ -280,14 +272,34 @@ namespace Editor
 
             return name;
         }
-        private void CloseAllContext()
+        
+        private void CloseAllContextMenus()
         {
             _worldContextMenu?.Close();
             _worldListContextMenu?.Close();
         }
 
+        private void CreateWorldsFromScene(ProjectScene _scene, bool withInvoking = true)
+        {
+            foreach (var item in _scene.Worlds)
+            {
+                CreateNewWorld(item.WorldName, withInvoking);
+            }
+        }
+
         public void Dispose()
         {
+        }
+
+        internal void ClearWorlds()
+        {
+            _worlds.Clear();
+        }
+
+        internal void UpdateWorlds(ProjectScene currentScene)
+        {
+            ClearWorlds();
+            CreateWorldsFromScene(currentScene, withInvoking: false);
         }
     }
 }
