@@ -19,7 +19,7 @@ namespace Editor
         private HierarchyController _hierarchyController;
         private WorldController _worldController;
 
-        private Scene _currentScene;
+        private ProjectScene _currentScene;
 
         public MainWindow()
         {
@@ -338,15 +338,21 @@ namespace Editor
 
             _hierarchyController.EntityCreated += (s, entity) =>
             {
-                //_currentScene.
+                _currentScene.AddEntity(entity);
                 Status.SetStatus($"Created entity: {entity.Name} (ID: {entity.Id})");
             };
 
             _hierarchyController.EntityRenamed += (s, entity) =>
+            {
+                _currentScene.RenameEntity(entity);
                 Status.SetStatus($"Renamed entity to: {entity.Name}");
+            };
 
             _hierarchyController.EntityDeleted += (s, entity) =>
+            {
+                _currentScene.DeleteEntity(entity);
                 Status.SetStatus($"Deleted entity: {entity.Name}");
+            };
 
             UpdateHyerarchy();
         }
@@ -359,6 +365,23 @@ namespace Editor
         private void WorldInitializr()
         {
             _worldController = new WorldController(_currentScene);
+            _worldController.WorldRenamed += (sender, e) =>
+            {
+                _currentScene.RenameWorld(e);
+            };
+            _worldController.WorldDeleted += (sender, e) =>
+            {
+                _currentScene.RemoveWorld(e);
+            };
+            _worldController.WorldCreated += (sender, e) =>
+            {
+                _currentScene.CreateWorld(e);
+            };
+            _worldController.WorldSelected += (sender, e) =>
+            {
+                _currentScene.SelecteWorld(e);
+                UpdateHyerarchy();
+            };
         }
 
         public Border CreateDraggableWindow(string title, Control content = null, double left = 10, double top = 10,
@@ -401,7 +424,7 @@ namespace Editor
             // Сбрасываем иерархию
             _hierarchyController?.ClearEntities();
             WorldData standartSceneData = SceneFileHelper.CreateNewScene();
-            _currentScene = new Scene(new List<WorldData>() { standartSceneData }, standartSceneData);
+            _currentScene = new ProjectScene(new List<WorldData>() { standartSceneData }, standartSceneData);
             UpdateHyerarchy();
             Status.SetStatus($"Created new scene: {_currentScene.WorldName}");
         }
@@ -488,14 +511,7 @@ namespace Editor
 
         private void UpdateHyerarchy()
         {
-            if (_hierarchyController != null)
-            {
-                _hierarchyController.ClearEntities();
-                foreach (var entity in _currentScene.CurrentWorldData.Entities)
-                {
-                    _hierarchyController.CreateNewEntity(entity.Name);
-                }
-            }
+            _hierarchyController?.UpdateHyerarchy(_currentScene);
         }
     }
 

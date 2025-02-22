@@ -8,19 +8,103 @@
   </Design.PreviewWith>
 
   <!-- World Window Styles -->
+  <Style Selector="Editor|WorldController">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
   <Style Selector="Editor|WorldController StackPanel.worldWindowHeader">
     <Setter Property="HorizontalAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
     <Setter Property="Margin" Value="2 2 2 15"/>
+    <Setter Property="Orientation" Value="Horizontal"/>
   </Style>
 
   <Style Selector="Editor|WorldController ListBox.worldsList">
     <Setter Property="Padding" Value="5"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="Margin" Value="0,0,0,5"/>
-
+    <Setter Property="Background" Value="#1E1E1E"/>
   </Style>
-  <Style Selector="ListBoxItem">
+
+  <!-- Кнопки -->
+  <Style Selector="Editor|WorldController Button.worldToolButton">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#555555"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="8 4"/>
+    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="Width" Value="25"/>
+    <Setter Property="Height" Value="35"/>
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style Selector="Editor|WorldController Button.worldToolButton:pointerover">
+    <Setter Property="Background" Value="#44444A"/>
+  </Style>
+
+  <Style Selector="Editor|WorldController Button.worldToolButton:pressed">
+    <Setter Property="Background" Value="#2D2D30"/>
+  </Style>
+
+  <!-- Стиль для контейнера ScrollViewer внутри ListBox -->
+  <Style Selector="Editor|WorldController ListBox.entityList ScrollViewer">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <Style Selector="Editor|WorldController ListBox.entityList ScrollContentPresenter">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <!-- Стили для ListBoxItem -->
+  <Style Selector="Editor|WorldController ListBoxItem">
+    <Setter Property="Padding" Value="2 1"/>
+    <Setter Property="Margin" Value="0 1"/>
+    <Setter Property="CornerRadius" Value="0"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="MinHeight" Value="11"/>
+    <Setter Property="Height" Value="18"/>
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+  </Style>
+
+  <Style Selector="Editor|WorldController ListBoxItem:pointerover">
+    <Setter Property="Background" Value="#2A2D2E"/>
+  </Style>
+
+  <Style Selector="Editor|WorldController ListBoxItem:selected">
+    <Setter Property="Background" Value="#0D4963"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Editor|WorldController ListBoxItem:selected:focus">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+
+  <Style Selector="Editor|WorldController ListBoxItem:selected:pointerover">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+
+  <!-- Стили для ячеек-->
+  <Style Selector="Editor|WorldController Grid.worldCell">
+    <Setter Property="Height" Value="12"/>
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <Style Selector="Editor|WorldController StackPanel.worldCell">
+    <Setter Property="Orientation" Value="Horizontal"/>
+    <Setter Property="Spacing" Value="12"/>
+    <Setter Property="Margin" Value="2 1"/>
+  </Style>
+
+  <!-- Стили для значков сущностей-->
+  <Style Selector="TextBlock.worldName">
+    <Setter Property="Foreground" Value="#AAAAAA"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   
 </Styles>

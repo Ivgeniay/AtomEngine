@@ -148,10 +148,7 @@
   </Style>
 
 
-
-
-
-  <!-- Базовые стили для скроллбара - только самое необходимое -->
+  <!-- Базовые стили для скроллбара -->
   <Style Selector="ScrollBar">
     <Setter Property="Foreground" Value="#3E3E42"/>
   </Style>

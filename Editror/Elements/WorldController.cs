@@ -1,36 +1,42 @@
-﻿using AtomEngine;
-using Avalonia;
-using Avalonia.Controls;
+﻿using System.Collections.ObjectModel;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
+using Avalonia.Interactivity;
+using Avalonia.Controls;
 using Avalonia.Layout;
-using Avalonia.Styling;
-using SixLabors.ImageSharp.PixelFormats;
+using Avalonia.Input;
+using System.Linq;
+using Avalonia;
 using System;
-using System.Collections.ObjectModel;
+using Silk.NET.Assimp;
+using Avalonia.Data;
+using Avalonia.Media;
 
 namespace Editor
 {
     internal class WorldController : Grid, IWindowed
     {
+        private string _baseName = "world";
         private ListBox _worldsList;
         private ObservableCollection<string> _worlds;
+        private ContextMenu _worldListContextMenu;
         private ContextMenu _worldContextMenu;
-        private Scene _scene;
+        private ProjectScene _scene;
         public Action<object> OnClose { get; set; }
 
         public event EventHandler<string> WorldSelected;
         public event EventHandler<string> WorldCreated;
-        public event EventHandler<string> WorldRenamed;
+        public event EventHandler<(string, string)> WorldRenamed;
         public event EventHandler<string> WorldDeleted;
 
-        public WorldController(Scene scene)
+        public WorldController(ProjectScene scene)
         {
             _scene = scene;
             _worlds = new ObservableCollection<string>();
 
             InitializeUI();
-            CreateContextMenus();
+            CreateListContextMenus();
+            CreateElementContextMenu();
         }
 
         private void InitializeUI()
@@ -46,11 +52,20 @@ namespace Editor
 
             Button plusBtn = new Button
             {
-                Content = "ADD",
-                Classes = { "toolButton" }
+                Content = "+",
+                Classes = { "worldToolButton" }
             };
+            plusBtn.Click += (s, e) => CreateNewWorld(GetUniqueName());
+            Button removeBtn = new Button
+            {
+                Content = "-",
+                Classes = { "worldToolButton" }
+            };
+            removeBtn.Click += (s, e) => RemoveWorld(_worldsList.SelectedItem as string); ;
+
 
             btnHolder.Children.Add(plusBtn);
+            btnHolder.Children.Add(removeBtn);
 
             _worldsList = new ListBox
             {
@@ -59,18 +74,32 @@ namespace Editor
             _worldsList.ItemsSource = _worlds;
             _worldsList.AutoScrollToSelectedItem = true;
             _worldsList.SelectionMode = SelectionMode.Single;
-            _worldsList.ItemsPanel = new FuncTemplate<Panel>(() => new StackPanel
+            _worldsList.ItemsPanel = new FuncTemplate<Panel>(() =>
             {
-                Spacing = 12,
-                Orientation = Orientation.Vertical
+                return new StackPanel
+                {
+                    Classes = { "worldCell" },
+                    Orientation = Orientation.Vertical
+                };
+            });
+            _worldsList.ItemTemplate = new FuncDataTemplate<string>((worldName, scope) =>
+            {
+                var entityName = new TextBlock
+                {
+                    Classes = { "worldName" },
+                };
+                entityName.Text = worldName;
+                return entityName;
             });
             ScrollViewer.SetHorizontalScrollBarVisibility(_worldsList, ScrollBarVisibility.Disabled);
             ScrollViewer.SetVerticalScrollBarVisibility(_worldsList, ScrollBarVisibility.Auto);
 
-            _worldsList.SelectionChanged += (s, e) => {
+            _worldsList.SelectionChanged += (s, e) => 
+            {
                 if (_worldsList.SelectedItem is string selectedWorld)
                 {
                     WorldSelected?.Invoke(this, selectedWorld);
+                    CloseAllContext();
                 }
             };
             _worldsList.PointerPressed += (s, e) =>
@@ -78,84 +107,183 @@ namespace Editor
                 var point = e.GetCurrentPoint(_worldsList);
                 if (point.Properties.IsRightButtonPressed)
                 {
-                    var item = FindItemByPosition(_worldsList, e.GetPosition(_worldsList));
-                    if (item != null)
-                    {
-                        WorldSelected?.Invoke(this, item);
-                        _worldContextMenu.Open(_worldsList);
-                        e.Handled = true;
-                    }
+                    CloseAllContext();
+                    _worldListContextMenu.Open(_worldsList);
+                    e.Handled = true;
                 }
             };
+            _worldsList.AddHandler(InputElement.PointerPressedEvent, (s, e) =>
+            {
+                var visual = e.Source as Visual;
+                if (visual != null)
+                {
+                    var item = visual.DataContext as string;
+                    if (item != null && e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
+                    {
+                        if (_worldsList.ItemsSource is ObservableCollection<string> collection)
+                        {
+                            int index = collection.IndexOf(item);
+                            if (index >  -1)
+                            {
+                                _worldsList.Selection.Clear();
+                                _worldsList.Selection.Select(index);
+                                WorldSelected?.Invoke(this, item);
+                                CloseAllContext();
+                                _worldContextMenu.Open(_worldsList);
+                                e.Handled = true;
+                            }
+                        }
+                    }
+                }
+            }, RoutingStrategies.Tunnel);
+
             Grid.SetRow(_worldsList, 1);
 
             Children.Add(btnHolder);
             Children.Add(_worldsList);
 
-            CreateNewWorld("Kek");
-            CreateNewWorld("Ko");
+            foreach(var item in _scene.Worlds)
+            {
+                CreateNewWorld(item.WorldName);
+            }
         }
 
         public void CreateNewWorld(string name)
         {
             _worlds.Add(name);
-            _worldsList.SelectedItem = name;
             WorldCreated?.Invoke(this, name);
+            _worldsList.SelectedItem = name;
         }
 
-        private string FindItemByPosition(ListBox listBox, Point point)
+        private void CreateListContextMenus()
         {
-            for (int i = 0; i < _worlds.Count; i++)
+            _worldListContextMenu = new ContextMenu
             {
-                var container = listBox.ContainerFromIndex(i) as ListBoxItem;
-                if (container != null)
-                {
-                    var bounds = container.Bounds;
-                    if (bounds.Contains(point))
-                    {
-                        return _worlds[i];
-                    }
-                }
-            }
-            return default;
+                Classes = { "hierarchyMenu" }
+            };
+
+            var createWorldItem = new MenuItem
+            {
+                Header = "Create New World",
+                Classes = { "hierarchyMenuItem" }
+            };
+            createWorldItem.Click += (s, e) => CreateNewWorld(GetUniqueName());
+
+            _worldListContextMenu.Items.Add(createWorldItem);
         }
 
-        private void CreateContextMenus()
+        private void CreateElementContextMenu()
         {
             _worldContextMenu = new ContextMenu
             {
                 Classes = { "hierarchyMenu" }
             };
 
-            var createEntityItem = new MenuItem
+            var rename = new MenuItem()
             {
-                Header = "Create Entity",
+                Header = "Rename",
                 Classes = { "hierarchyMenuItem" }
             };
-            //createEntityItem.Click += (s, e) => CreateNewEntity("New Entity");
+            rename.Click += (s, e) => {
+                if (_worldsList.SelectedItem is string selectedEntity)
+                {
+                    StartRenaming(selectedEntity);
+                }
+            };
 
-            var createEmptyItem = new MenuItem
+            var delete = new MenuItem
             {
-                Header = "Create Empty",
+                Header = "Delete",
                 Classes = { "hierarchyMenuItem" }
             };
+            delete.Click += (s, e) => RemoveWorld(_worldsList.SelectedItem as string);
 
-            var separatorItem = new MenuItem
+            _worldContextMenu.Items.Add(rename);
+            _worldContextMenu.Items.Add(delete);
+        }
+
+        private void StartRenaming(string worldName)
+        {
+            // Создаем текстовое поле для редактирования
+            var textBox = new TextBox
             {
-                Header = "-",
-                Classes = { "hierarchySeparator" }
+                Text = worldName,
+                Width = 200,
+                SelectionStart = 0,
+                SelectionEnd = worldName.Length,
+                Classes = { "renameTextBox" }
             };
 
-            var transform3dItem = new MenuItem
+            // Создаем Popup для отображения поля ввода
+            var popup = new Popup
             {
-                Header = "3D Object",
-                Classes = { "hierarchyMenuItem" }
+                Child = textBox,
+                Placement = PlacementMode.Pointer,
+                IsOpen = true
             };
 
-            ((ItemsControl)_worldContextMenu).Items.Add(createEntityItem);
-            ((ItemsControl)_worldContextMenu).Items.Add(createEmptyItem);
-            ((ItemsControl)_worldContextMenu).Items.Add(separatorItem);
-            ((ItemsControl)_worldContextMenu).Items.Add(transform3dItem);
+            // Добавляем Popup в визуальное дерево
+            this.Children.Add(popup);
+
+            textBox.Focus();
+
+            // Обработчик завершения редактирования
+            textBox.KeyDown += (s, e) => {
+                if (e.Key == Key.Enter)
+                {
+                    if (!string.IsNullOrWhiteSpace(textBox.Text))
+                    {
+                        var newWorldName = textBox.Text;
+                        WorldRenamed?.Invoke(this, (worldName, newWorldName));
+
+                        if (_worldsList.ItemsSource is ObservableCollection<string> collection)
+                        {
+                            var index = collection.IndexOf(worldName);
+                            if (index != -1)
+                            {
+                                collection.RemoveAt(index);
+                                collection.Insert(index, newWorldName);
+                            }
+                        }
+                    }
+                    popup.IsOpen = false;
+                    this.Children.Remove(popup);
+                }
+                else if (e.Key == Key.Escape)
+                {
+                    popup.IsOpen = false;
+                    this.Children.Remove(popup);
+                }
+            };
+
+            // Закрываем при потере фокуса
+            textBox.LostFocus += (s, e) => {
+                popup.IsOpen = false;
+                this.Children.Remove(popup);
+            };
+        }
+        private void RemoveWorld(string worldName)
+        {
+            _worlds.Remove(worldName);
+            WorldDeleted?.Invoke(this, worldName);
+        }
+        private string GetUniqueName()
+        {
+            string name = _baseName;
+            int counter = 1;
+
+            while (_worlds.Any(e => e == name))
+            {
+                name = $"{_baseName} ({counter})";
+                counter++;
+            }
+
+            return name;
+        }
+        private void CloseAllContext()
+        {
+            _worldContextMenu?.Close();
+            _worldListContextMenu?.Close();
         }
 
         public void Dispose()

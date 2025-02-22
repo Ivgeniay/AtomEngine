@@ -25,7 +25,7 @@ namespace Editor
         /// </summary>
         /// <param name="window">Родительское окно</param>
         /// <returns>Загруженные данные сцены или null</returns>
-        public static async Task<Scene?> OpenSceneAsync(Window window)
+        public static async Task<ProjectScene?> OpenSceneAsync(Window window)
         {
             try
             {
@@ -48,7 +48,7 @@ namespace Editor
                 }
 
                 // Десериализуем JSON
-                Scene? sceneData = JsonConvert.DeserializeObject<Scene>(fileContent);
+                ProjectScene? sceneData = JsonConvert.DeserializeObject<ProjectScene>(fileContent);
 
                 if (sceneData != null)
                 {
@@ -70,7 +70,7 @@ namespace Editor
         /// <param name="window">Родительское окно</param>
         /// <param name="scene">Данные сцены для сохранения</param>
         /// <returns>true если сохранение успешно, иначе false</returns>
-        public static async Task<(bool, string)> SaveSceneAsync(Window window, Scene scene)
+        public static async Task<(bool, string)> SaveSceneAsync(Window window, ProjectScene scene)
         {
             if (scene == null)
             {

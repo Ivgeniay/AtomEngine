@@ -9,6 +9,9 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Xml.Linq;
 
 namespace Editor
 {
@@ -64,6 +67,7 @@ namespace Editor
             _entitiesList.SelectionChanged += (s, e) => {
                 if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
                 {
+                    CloseAllContext();
                     EntitySelected?.Invoke(this, selectedEntity);
                 }
             };
@@ -71,6 +75,30 @@ namespace Editor
             // Настройка обработчиков событий мыши
             _entitiesList.PointerPressed += OnEntitiesListPointerPressed;
             _entitiesList.DoubleTapped += OnEntitiesListDoubleTapped;
+            _entitiesList.AddHandler(InputElement.PointerPressedEvent, (s, e) =>
+            {
+                var visual = e.Source as Visual;
+                if (visual != null)
+                {
+                    if (visual.DataContext is EntityHierarchyItem item)
+                    {
+                        if (item != null && e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
+                        {
+                            var listItems = _entitiesList.ItemsSource.Cast<EntityHierarchyItem>().ToList();
+                            var index = listItems.FindIndex(e => e.Name == item.Name);
+
+                            if (index != -1)
+                            {
+                                _entitiesList.Selection.Clear();
+                                _entitiesList.Selection.Select(index);
+                                CloseAllContext();
+                                _entityContextMenu.Open(_entitiesList);
+                            }
+                            e.Handled = true;
+                        }
+                    }
+                }
+            }, RoutingStrategies.Tunnel);
 
             // Настройка шаблона для отображения элементов
             _entitiesList.ItemTemplate = CreateEntityItemTemplate();
@@ -352,9 +380,9 @@ namespace Editor
         {
             var point = e.GetCurrentPoint(this);
 
-            // Проверяем был ли клик вне элементов ListBox
             if (point.Properties.IsRightButtonPressed && !HitTestListBoxItems(e.GetPosition(_entitiesList)))
             {
+                CloseAllContext();
                 _backgroundContextMenu.Open(this);
                 e.Handled = true;
             }
@@ -366,14 +394,9 @@ namespace Editor
 
             if (point.Properties.IsRightButtonPressed)
             {
-                var item = FindItemByPosition(_entitiesList, e.GetPosition(_entitiesList));
-                EntityHierarchyItem def = default;
-                if (item != def)
-                {
-                    _entitiesList.SelectedItem = item;
-                    _entityContextMenu.Open(_entitiesList);
-                    e.Handled = true;
-                }
+                CloseAllContext();
+                _backgroundContextMenu.Open(this);
+                e.Handled = true;
             }
         }
         
@@ -408,14 +431,22 @@ namespace Editor
         }
 
 
-        public void CreateNewEntity(string name)
+        public void CreateNewEntity(string name, bool withAvoking = true)
         {
-            // Создаем новую сущность с уникальным ID
             var entity = new Entity(_nextEntityId++, 1);
             var entityItem = new EntityHierarchyItem(entity, GetUniqueName(name));
 
             _entities.Add(entityItem);
-            EntityCreated?.Invoke(this, entityItem);
+            if (withAvoking) EntityCreated?.Invoke(this, entityItem);
+            _entitiesList.SelectedItem = entityItem;
+        }
+
+        public void CreateEntityHierarchy(EntityData entityData, bool withAvoking = true)
+        {
+            var entityItem = new EntityHierarchyItem(entityData.Id, entityData.Version, entityData.Name);
+
+            _entities.Add(entityItem);
+            if (withAvoking) EntityCreated?.Invoke(this, entityItem);
             _entitiesList.SelectedItem = entityItem;
         }
 
@@ -449,7 +480,7 @@ namespace Editor
             var popup = new Popup
             {
                 Child = textBox,
-                PlacementMode = PlacementMode.Bottom,
+                Placement = PlacementMode.Pointer,
                 IsOpen = true
             };
 
@@ -466,6 +497,16 @@ namespace Editor
                     {
                         entity.Name = textBox.Text;
                         EntityRenamed?.Invoke(this, entity);
+
+                        if (_entitiesList.ItemsSource is ObservableCollection<EntityHierarchyItem> collection)
+                        {
+                            var index = collection.IndexOf(entity);
+                            if (index != -1)
+                            {
+                                collection.RemoveAt(index);
+                                collection.Insert(index, entity);
+                            }
+                        }
                     }
                     popup.IsOpen = false;
                     this.Children.Remove(popup);
@@ -520,26 +561,44 @@ namespace Editor
             _entities.Clear();
         }
 
-        //public EntityItem GetSelectedEntity()
-        //{
-        //    return _entitiesList.SelectedItem as EntityItem;
-        //}
-
         public void SelectEntity(EntityHierarchyItem entity)
         {
             _entitiesList.SelectedItem = entity;
+        }
+
+        public void UpdateHyerarchy(ProjectScene currentScene)
+        {
+            ClearEntities();
+
+            for(int i = 0; i < currentScene.CurrentWorldData.Entities.Count(); i++)
+            {
+                CreateEntityHierarchy(currentScene.CurrentWorldData.Entities[i], false);
+            }
         }
 
         public void Dispose()
         {
             
         }
+
+        private void CloseAllContext()
+        {
+            _entityContextMenu?.Close();
+            _backgroundContextMenu?.Close();
+        }
     }
 
-    public struct EntityHierarchyItem
+    public struct EntityHierarchyItem : INotifyPropertyChanged, IEquatable<EntityHierarchyItem>
     {
         private Entity _entity;
 
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public EntityHierarchyItem(uint id, uint version, string name)
+        {
+            _entity = new Entity(id, Version);
+            Name = name;
+        }
         public EntityHierarchyItem(Entity entity, string name)
         {
             Name = name;
@@ -547,14 +606,55 @@ namespace Editor
         }
 
         public uint Id => _entity.Id;
+        public uint Version => _entity.Version;
         public Entity EntityReference => _entity;
-        public string Name { get; set; } = string.Empty;
+        private string _name;
+        public string Name
+        {
+            get => _name;
+            set
+            {
+                if (_name != value)
+                {
+                    _name = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Name)));
+                }
+            }
+        }
         public bool IsActive { get; set; } = true;
         public bool IsVisible { get; set; } = true;
 
+        private void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         public override int GetHashCode() => Id.GetHashCode();
-        public override string ToString() => $"{_entity} Name:{Name} IsActive:{IsActive} IsVisible:{IsVisible}";
-        public static bool operator ==(EntityHierarchyItem left, EntityHierarchyItem right) => left._entity == right._entity;
-        public static bool operator !=(EntityHierarchyItem left, EntityHierarchyItem right) => left._entity != right._entity;
+
+        public override bool Equals(object obj)
+        {
+            if (obj is null) return false;
+            if (obj is EntityHierarchyItem other)
+            {
+                return Id == other.Id && Version == other.Version;
+            }
+            return false;
+        }
+
+
+        public override string ToString() =>
+            $"{_entity} Name:{Name} IsActive:{IsActive} IsVisible:{IsVisible}";
+
+        public bool Equals(EntityHierarchyItem other) => Id == other.Id && Version == other.Version;
+
+        public static bool operator ==(EntityHierarchyItem left, EntityHierarchyItem right)
+        {
+            if (ReferenceEquals(left, null))
+                return ReferenceEquals(right, null);
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(EntityHierarchyItem left, EntityHierarchyItem right)
+            => !(left == right);
     }
 }
