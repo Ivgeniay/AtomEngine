@@ -151,6 +151,13 @@ namespace Editor
                                 {
                                     Position = new Vector3()
                                 }
+                            },
+                            {
+                                nameof(ColliderComponent),
+                                new ColliderComponent
+                                {
+
+                                }
                             }
                         }
                     },

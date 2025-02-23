@@ -1,24 +1,12 @@
-﻿using AtomEngine;
+﻿using System.Collections.Generic;
+using Newtonsoft.Json;
+using AtomEngine;
+using System;
 
 namespace Editor
 {
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Linq;
-    using System;
-    using System.Collections.Generic;
-
     internal class ComponentDictionaryConverter : JsonConverter<Dictionary<string, IComponent>>
     {
-        private readonly Dictionary<string, Type> _componentTypes;
-
-        public ComponentDictionaryConverter()
-        {
-            _componentTypes = new Dictionary<string, Type>
-            {
-                { nameof(TransformComponent), typeof(TransformComponent) },
-            };
-        }
-
         public override void WriteJson(JsonWriter writer, Dictionary<string, IComponent>? value, JsonSerializer serializer)
         {
             if (value == null)
@@ -42,7 +30,6 @@ namespace Editor
                 return null;
 
             var result = new Dictionary<string, IComponent>();
-
             reader.Read();
 
             while (reader.TokenType != JsonToken.EndObject)
@@ -56,17 +43,21 @@ namespace Editor
                 var propertyName = reader.Value?.ToString();
                 reader.Read();
 
-                if (propertyName != null && _componentTypes.TryGetValue(propertyName, out Type? componentType))
+                if (propertyName != null)
                 {
-                    var component = (IComponent?)serializer.Deserialize(reader, componentType);
-                    if (component != null)
+                    var componentType = AssemblyManager.Instance.FindType(propertyName);
+                    if (componentType != null && typeof(IComponent).IsAssignableFrom(componentType))
                     {
-                        result[propertyName] = component;
+                        var component = (IComponent?)serializer.Deserialize(reader, componentType);
+                        if (component != null)
+                        {
+                            result[propertyName] = component;
+                        }
                     }
-                }
-                else
-                {
-                    serializer.Deserialize(reader);
+                    else
+                    {
+                        serializer.Deserialize(reader);
+                    }
                 }
 
                 reader.Read();

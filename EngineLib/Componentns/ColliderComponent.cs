@@ -7,7 +7,6 @@ namespace AtomEngine
         public Entity Owner { get; }
         private ICollider _collider;
 
-        // Делаем поля публичными с возможностью чтения и записи
         public Vector3 LocalOffset { get; set; }
         public Quaternion LocalRotation { get; set; }
 

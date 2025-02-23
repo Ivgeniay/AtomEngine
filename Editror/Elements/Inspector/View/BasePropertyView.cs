@@ -15,7 +15,6 @@ namespace Editor
 
         public abstract Control GetView();
 
-
         protected Grid CreateBaseLayout()
         {
             var grid = new Grid

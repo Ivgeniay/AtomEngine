@@ -6,7 +6,6 @@ namespace Editor
     internal class StringView : BasePropertyView
     {
         public StringView(PropertyDescriptor descriptor) : base(descriptor) { }
-
         public override Control GetView()
         {
             var grid = CreateBaseLayout();

@@ -6,7 +6,6 @@ namespace Editor.Elements.Inspector.View
     internal class Vector2View : BasePropertyView
     {
         public Vector2View(PropertyDescriptor descriptor) : base(descriptor) { }
-
         public override Control GetView()
         {
             var grid = CreateBaseLayout();
@@ -15,12 +14,11 @@ namespace Editor.Elements.Inspector.View
             {
                 ColumnDefinitions =
                 {
-                    new ColumnDefinition { Width = GridLength.Auto }, // Для X label
-                    new ColumnDefinition { Width = GridLength.Star }, // Для X value
-                    new ColumnDefinition { Width = GridLength.Auto }, // Для Y label
-                    new ColumnDefinition { Width = GridLength.Star }, // Для Y value
+                    new ColumnDefinition { Width = GridLength.Auto },
+                    new ColumnDefinition { Width = GridLength.Star },
+                    new ColumnDefinition { Width = GridLength.Auto },
+                    new ColumnDefinition { Width = GridLength.Star },
                 },
-                //ColumnSpacing = 4
             };
 
             var vector = (Vector2)Descriptor.Value;

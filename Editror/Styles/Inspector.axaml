@@ -12,6 +12,24 @@
     <Setter Property="Background" Value="#383838"/>
   </Style>
 
+
+  <!-- Стиль для контейнера -->
+  <Style Selector="StackPanel.innerContainer">
+    <Setter Property="Margin" Value="4"/>
+    <Setter Property="Spacing" Value="4"/>
+  </Style>
+
+  <!-- Создаем отдельный класс для элементов внутри контейнера -->
+  <Style Selector="Border.containerItem">
+    <Setter Property="Background" Value="#2D2D2D"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Padding" Value="8,6"/>
+    <Setter Property="Margin" Value="2"/>
+  </Style>
+  
+  
   <!-- Стиль для ScrollViewer -->
   <Style Selector="Editor|InspectorController ScrollViewer">
     <Setter Property="Background" Value="#2A2A2A"/>

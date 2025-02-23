@@ -6,7 +6,6 @@ namespace Editor
     internal class BooleanView : BasePropertyView
     {
         public BooleanView(PropertyDescriptor descriptor) : base(descriptor) { }
-
         public override Control GetView()
         {
             var grid = CreateBaseLayout();

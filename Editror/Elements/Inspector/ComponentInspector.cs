@@ -22,7 +22,7 @@ namespace Editor
             {
                 if (member.GetCustomAttribute<NonSerializedAttribute>() != null 
                     || member.GetCustomAttribute<JsonIgnoreAttribute>() != null
-                    //|| member.GetCustomAttribute<HideInInspectorAttribute>() != null
+                    || member.GetCustomAttribute<HideInInspectorAttribute>() != null
                     )
                     continue;
 
@@ -46,7 +46,7 @@ namespace Editor
             return new PropertyDescriptor
             {
                 Name = member.Name,
-                Type = memberType.Name,
+                Type = memberType,
                 Value = value,
                 IsReadOnly = IsReadOnly(member),
                 OnValueChanged = newValue => SetValue(component, member, newValue)
@@ -88,7 +88,6 @@ namespace Editor
             switch (member)
             {
                 case PropertyInfo prop:
-                    // Конвертируем значение в правильный тип
                     var convertedValue = Convert.ChangeType(value, prop.PropertyType);
                     prop.SetValue(component, convertedValue);
                     break;

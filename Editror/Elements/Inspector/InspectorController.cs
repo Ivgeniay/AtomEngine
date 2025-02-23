@@ -22,6 +22,7 @@ namespace Editor
         {
             _container = new StackPanel
             {
+                Classes = {  }
                 //Spacing = 2,
                 //Margin = new Thickness(3)
             };
@@ -57,15 +58,20 @@ namespace Editor
                 Margin = new Thickness(0, 0, 0, 5)
             });
 
-            // Кастомные UI элементы
+            var _innerContainer = new StackPanel { 
+                Classes = { "innerConteiner" } 
+            };
+
+            _container.Children.Add(_innerContainer);
+
             var customControls = _currentInspectable.GetCustomControls();
             if (customControls != null)
             {
                 foreach (var control in customControls)
                 {
-                    _container.Children.Add(control);
+                    _innerContainer.Children.Add(control);
                 }
-                _container.Children.Add(new Separator
+                _innerContainer.Children.Add(new Separator
                 {
                     Margin = new Thickness(0, 5, 0, 5)
                 });
@@ -74,7 +80,7 @@ namespace Editor
             foreach (var property in _currentInspectable.GetProperties())
             {
                 var view = InspectorViewFactory.CreateView(property);
-                _container.Children.Add(view.GetView());
+                _innerContainer.Children.Add(view.GetView());
             }
         }
 

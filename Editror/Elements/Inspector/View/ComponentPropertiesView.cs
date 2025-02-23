@@ -7,7 +7,6 @@ namespace Editor
     internal class ComponentPropertiesView : BasePropertyView
     {
         public ComponentPropertiesView(PropertyDescriptor descriptor) : base(descriptor) { }
-
         public override Control GetView()
         {
             var panel = new StackPanel { Margin = new Thickness(0, 5, 0, 5) };

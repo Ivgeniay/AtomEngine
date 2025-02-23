@@ -5,8 +5,6 @@ namespace AtomEngine
     public struct TransformComponent : IComponent
     {
         public Entity Owner { get; }
-        public string Namess = "kek";
-
         public Vector3 _position;
         public Vector3 _rotation;
         public Vector3 _scale;
@@ -19,10 +17,10 @@ namespace AtomEngine
         private bool IsDirtyRot = false;
         private bool IsDirtyScale = false;
 
-        private Matrix4x4 _translationMatrix;
-        private Matrix4x4 _rotationMatrix;
-        private Matrix4x4 _scaleMatrix;
-        private Matrix4x4 _modelMatrix;
+        private Matrix4x4 _translationMatrixCache;
+        private Matrix4x4 _rotationMatrixCache;
+        private Matrix4x4 _scaleMatrixCache;
+        private Matrix4x4 _modelMatrixCache;
 
         public TransformComponent(Entity owner)
         {
@@ -36,43 +34,43 @@ namespace AtomEngine
         {
             if (IsDirtyPos)
             {
-                _translationMatrix = Matrix4x4.CreateTranslation(Position);
+                _translationMatrixCache = Matrix4x4.CreateTranslation(Position);
                 IsDirtyPos = false;
             }
-            return _translationMatrix;
+            return _translationMatrixCache;
         }
         public Matrix4x4 GetScaleMatrix()
         {
             if (IsDirtyScale)
             {
-                _scaleMatrix = Matrix4x4.CreateScale(Scale);
+                _scaleMatrixCache = Matrix4x4.CreateScale(Scale);
                 IsDirtyScale = false;
             }
-            return _scaleMatrix;
+            return _scaleMatrixCache;
         }
         public Matrix4x4 GetRotationMatrix()
         {
             if (IsDirtyRot)
             {
-                _rotationMatrix = Matrix4x4.CreateRotationZ(Rotation.Z.DegreesToRadians()) *
+                _rotationMatrixCache = Matrix4x4.CreateRotationZ(Rotation.Z.DegreesToRadians()) *
                                   Matrix4x4.CreateRotationX(Rotation.X.DegreesToRadians()) *
                                   Matrix4x4.CreateRotationY(Rotation.Y.DegreesToRadians());
                 IsDirtyRot = false;
             }
-            return _rotationMatrix;
+            return _rotationMatrixCache;
         } 
 
         public Matrix4x4 GetModelMatrix(Matrix4x4? parentWorldMatrix = null)
         {
             if (IsDirtyPos || IsDirtyScale || IsDirtyRot)
             {
-                _modelMatrix = GetScaleMatrix() * GetRotationMatrix() * GetTranslationMatrix();
+                _modelMatrixCache = GetScaleMatrix() * GetRotationMatrix() * GetTranslationMatrix();
             }
             if (parentWorldMatrix.HasValue)
             {
-                _modelMatrix *= parentWorldMatrix.Value;
+                _modelMatrixCache *= parentWorldMatrix.Value;
             } 
-            return _modelMatrix;
+            return _modelMatrixCache;
         }
     }
 }

@@ -32,7 +32,7 @@ namespace Editor
                 yield return new PropertyDescriptor
                 {
                     Name = $"Component: {component.GetType().Name}",
-                    Type = "ComponentProperties",
+                    Type = typeof(ComponentPropertiesView),
                     Value = _componentInspector.CreateDescriptors(component).ToList()
                 };
             }

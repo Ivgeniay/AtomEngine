@@ -6,7 +6,6 @@ namespace Editor.Elements.Inspector.View
     internal class Vector3View : BasePropertyView
     {
         public Vector3View(PropertyDescriptor descriptor) : base(descriptor) { }
-
         public override Control GetView()
         {
             var grid = CreateBaseLayout();

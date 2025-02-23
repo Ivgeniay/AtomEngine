@@ -23,10 +23,9 @@ namespace Editor
         private bool isOpen = false;
 
         public Action<object> OnClose { get; set; }
-
-        // События для взаимодействия с внешними компонентами
-        public event EventHandler<EntityHierarchyItem> EntitySelected;
+        
         public event EventHandler<String> EntityCreated;
+        public event EventHandler<EntityHierarchyItem> EntitySelected;
         public event EventHandler<EntityHierarchyItem> EntityDuplicated;
         public event EventHandler<EntityHierarchyItem> EntityRenamed;
         public event EventHandler<EntityHierarchyItem> EntityDeleted;

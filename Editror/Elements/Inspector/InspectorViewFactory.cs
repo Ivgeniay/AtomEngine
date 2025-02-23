@@ -6,36 +6,29 @@ namespace Editor
 {
     internal static class InspectorViewFactory
     {
-        private static readonly Dictionary<string, Func<PropertyDescriptor, IInspectorView>> _viewCreators
-            = new Dictionary<string, Func<PropertyDescriptor, IInspectorView>>();
+        private static readonly Dictionary<Type, Func<PropertyDescriptor, IInspectorView>> _viewCreators
+            = new Dictionary<Type, Func<PropertyDescriptor, IInspectorView>>();
 
         static InspectorViewFactory()
         {
-            RegisterDefaultViews();
+            AddOrUpdateViewMappingFabric(typeof(Int32), (descriptor) => new IntegerView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(Single), (descriptor) => new FloatView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(String), (descriptor) => new StringView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(Boolean), (descriptor) => new BooleanView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(System.Numerics.Vector2), (descriptor) => new Vector2View(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(System.Numerics.Vector3), (descriptor) => new Vector3View(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(ComponentPropertiesView), (descriptor) => new ComponentPropertiesView(descriptor));
         }
 
-        private static void RegisterDefaultViews()
-        {
-            Register("Int32", (descriptor) => new IntegerView(descriptor));
-            Register("Single", (descriptor) => new FloatView(descriptor));
-            Register("String", (descriptor) => new StringView(descriptor));
-            Register("Boolean", (descriptor) => new BooleanView(descriptor));
-            Register("Vector2", (descriptor) => new Vector2View(descriptor));
-            Register("Vector3", (descriptor) => new Vector3View(descriptor));
-            Register("ComponentProperties", (descriptor) => new ComponentPropertiesView(descriptor));
-        }
 
-        public static void Register(string type, Func<PropertyDescriptor, IInspectorView> creator)
+        public static void AddOrUpdateViewMappingFabric(Type type, Func<PropertyDescriptor, IInspectorView> creator)
         {
             _viewCreators[type] = creator;
         }
 
         public static IInspectorView CreateView(PropertyDescriptor descriptor)
         {
-            if (_viewCreators.TryGetValue(descriptor.Type, out var creator))
-            {
-                return creator(descriptor);
-            }
+            if (_viewCreators.TryGetValue(descriptor.Type, out var creator)) return creator(descriptor);
             return new UnsupportedTypeView(descriptor);
         }
     }
