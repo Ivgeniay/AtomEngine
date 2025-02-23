@@ -28,6 +28,7 @@
   <ItemGroup>
     <AvaloniaXaml Remove="Styles\Console.axaml" />
     <AvaloniaXaml Remove="Styles\Dialogues.axaml" />
+    <AvaloniaXaml Remove="Styles\DirectoryExplorer.axaml" />
     <AvaloniaXaml Remove="Styles\Hierarchy.axaml" />
     <AvaloniaXaml Remove="Styles\Inspector.axaml" />
     <AvaloniaXaml Remove="Styles\StatusBar.axaml" />
@@ -47,6 +48,9 @@
       <SubType>Designer</SubType>
     </AvaloniaResource>
     <AvaloniaResource Update="Styles\Dialogues.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
+    <AvaloniaResource Update="Styles\DirectoryExplorer.axaml">
       <SubType>Designer</SubType>
     </AvaloniaResource>
     <AvaloniaResource Update="Styles\Hierarchy.axaml">

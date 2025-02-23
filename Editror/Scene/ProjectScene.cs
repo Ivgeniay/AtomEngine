@@ -56,27 +56,26 @@ namespace Editor
         #region Entity
         internal void AddEntity(string entityName)
         {
-            var world = CurrentWorldData;
-            uint id = GetAvailableId(CurrentWorldData.Entities);
+            Entity entity = CurrentWorldData.World.CreateEntity();
             EntityData newEntityData = new EntityData()
             {
                 Name = entityName,
-                Id = id,
-                Version = 0,
+                Id = entity.Id,
+                Version = entity.Version,
             };
-            world.Entities.Add(newEntityData);
+            CurrentWorldData.Entities.Add(newEntityData);
             MakeDirty();
         }
-        internal void AddDuplicateEntity(EntityHierarchyItem entity)
+        internal void AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
         {
-            var world = CurrentWorldData;
+            Entity entity = CurrentWorldData.World.CreateEntity();
             EntityData newEntityData = new EntityData()
             {
-                Name = entity.Name,
-                Id = GetAvailableId(CurrentWorldData.Entities),
-                Version = 0,
+                Name = hierarchyEntity.Name,
+                Id = entity.Id,
+                Version = entity.Version,
             };
-            world.Entities.Add(newEntityData);
+            CurrentWorldData.Entities.Add(newEntityData);
             MakeDirty();
         }
 
@@ -93,6 +92,7 @@ namespace Editor
             var world = CurrentWorldData;
             var editableEntity = world.Entities.Where(e => e.Id == entity.Id && e.Version == entity.Version).First();
             world.Entities.Remove(editableEntity);
+            CurrentWorldData.World.DestroyEntity(entity.Id, entity.Version);
             MakeDirty();
         }
         #endregion

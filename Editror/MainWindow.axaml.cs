@@ -20,6 +20,7 @@ namespace Editor
         private HierarchyController _hierarchyController;
         private WorldController _worldController;
         private InspectorController _inspectorController;
+        private DirectoryExplorerController _directoryExplorerController;
 
         private ProjectScene _currentScene;
 
@@ -39,6 +40,7 @@ namespace Editor
             InitializeHierarchy();
             InitializeWorld();
             InitializeInspector();
+            InitializeExplorer();
 
             UpdateControllers();
         }
@@ -238,9 +240,19 @@ namespace Editor
                     },
                     new EditorToolbarButton()
                     {
-                        Text = "Output",
-                        Description = "",
-                        Action = () => { DebLogger.Debug("Undo"); }
+                        Text = "Project",
+                        Description = "Project file explorer",
+                        Action = () => {
+                            var window = _windowFactory.CreateWindow("Project", _directoryExplorerController, 10, 320, 760, 250);
+
+                            _directoryExplorerController.FileSelected += (path) => {
+                                Status.SetStatus($"Selected file: {path}");
+                            };
+
+                            _directoryExplorerController.DirectorySelected += (path) => {
+                                Status.SetStatus($"Selected directory: {path}");
+                            };
+                        }
                     },
 
                 }
@@ -429,6 +441,11 @@ namespace Editor
             _inspectorController = new InspectorController();
         }
 
+        private void InitializeExplorer()
+        {
+            _directoryExplorerController = new DirectoryExplorerController();
+        }
+
         public Border CreateDraggableWindow(string title, Control content = null, double left = 10, double top = 10,
             double width = 200, double height = 150) =>
             _windowFactory.CreateWindow(title, content, left, top, width, height);
@@ -466,9 +483,9 @@ namespace Editor
                 }
             }
 
-            // Сбрасываем иерархию
-            _hierarchyController?.ClearEntities();
-            _worldController?.ClearWorlds();
+            CleanInspector();
+            CleanHyerarchy();
+            CleanWorlds();
             WorldData standartSceneData = SceneFileHelper.CreateNewScene();
             _currentScene = new ProjectScene(new List<WorldData>() { standartSceneData }, standartSceneData);
             UpdateControllers();
@@ -509,8 +526,10 @@ namespace Editor
             var loadedScene = await SceneFileHelper.OpenSceneAsync(this);
             if (loadedScene != null)
             {
+                CleanInspector();
+                CleanHyerarchy();
+                CleanWorlds();
                 _currentScene = loadedScene;
-
                 UpdateControllers();
                 Status.SetStatus($"Opened scene: {_currentScene.WorldName}");
             }
@@ -573,20 +592,14 @@ namespace Editor
             UpdateWorlds();
             CleanInspector();
         }
-        private void UpdateHyerarchy()
-        {
-            _hierarchyController?.UpdateHyerarchy(_currentScene);
-        }
 
-        private void UpdateWorlds()
-        {
-            _worldController?.UpdateWorlds(_currentScene);
-        }
+        private void UpdateHyerarchy() => _hierarchyController?.UpdateHyerarchy(_currentScene);
+        private void CleanHyerarchy() => _hierarchyController?.ClearEntities();
 
-        private void CleanInspector()
-        {
-            _inspectorController?.CleanInspected();
-        }
+        private void UpdateWorlds() => _worldController?.UpdateWorlds(_currentScene);
+        private void CleanWorlds() => _worldController?.ClearWorlds();
+
+        private void CleanInspector() => _inspectorController?.CleanInspected();
     }
 
 

@@ -55,6 +55,7 @@ namespace AtomEngine
                 return new Entity(id, version);
             }
         }
+        public void DestroyEntity(uint entityId, uint entityVersion) => DestroyEntity(new Entity(entityId, entityVersion));
         public void DestroyEntity(Entity entity)
         {
             if (!IsEntityValid(entity.Id, entity.Version))

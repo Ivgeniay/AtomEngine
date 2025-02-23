@@ -12,40 +12,43 @@ namespace Editor
         public static AssemblyManager Instance { get; } = new();
 
         private readonly HashSet<Assembly> _assemblies = new();
-        private readonly string _pluginsPath;
 
-        private AssemblyManager()
-        {
-            _pluginsPath = Path.Combine(AppContext.BaseDirectory, "Plugins");
-        }
-
-        public void Initialize(params Assembly[] initialAssemblies)
+        public void Initialize(IEnumerable<Assembly> initialAssemblies)
         {
             foreach (var assembly in initialAssemblies)
             {
                 _assemblies.Add(assembly);
             }
 
-            if (Directory.Exists(_pluginsPath))
+            var baseDirectry = DirectoryExplorer.GetPath(DirectoryType.Base);
+            foreach (var file in Directory.GetFiles(baseDirectry, "*.dll"))
             {
-                ScanPluginsDirectory();
+                if (file.IndexOf("EngineLib") != -1)
+                {
+                    try
+                    {
+                        var assembly = Assembly.LoadFrom(file);
+                        _assemblies.Add(assembly);
+                    }
+                    catch (AssemblyError ex)
+                    { }
+                }
             }
-            else
-            {
-                Directory.CreateDirectory(_pluginsPath);
-            }
+
+            ScanPluginsDirectory();
         }
 
-        private void ScanPluginsDirectory()
+        public void ScanPluginsDirectory()
         {
-            foreach (var file in Directory.GetFiles(_pluginsPath, "*.dll"))
+            var pluginPath = DirectoryExplorer.GetPath(DirectoryType.Plugins);
+            foreach (var file in Directory.GetFiles(pluginPath, "*.dll"))
             {
                 try
                 {
                     var assembly = Assembly.LoadFrom(file);
                     _assemblies.Add(assembly);
                 }
-                catch (FileNotFoundError ex)
+                catch (AssemblyError ex)
                 { }
             }
         }
@@ -62,7 +65,7 @@ namespace Editor
                     if (type != null)
                         return type;
                 }
-                catch (FileNotFoundError ex)
+                catch (AssemblyError ex)
                 { }
             }
             return null;

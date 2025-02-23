@@ -163,15 +163,15 @@ namespace Editor
             };
             planeItem.Click += (s, e) => CreateNewEntity("Plane");
 
-            ((ItemsControl)transform3dItem).Items.Add(cubeItem);
-            ((ItemsControl)transform3dItem).Items.Add(sphereItem);
-            ((ItemsControl)transform3dItem).Items.Add(capsuleItem);
-            ((ItemsControl)transform3dItem).Items.Add(cylinderItem);
-            ((ItemsControl)transform3dItem).Items.Add(planeItem);
+            transform3dItem.Items.Add(cubeItem);
+            transform3dItem.Items.Add(sphereItem);
+            transform3dItem.Items.Add(capsuleItem);
+            transform3dItem.Items.Add(cylinderItem);
+            transform3dItem.Items.Add(planeItem);
 
-            ((ItemsControl)_backgroundContextMenu).Items.Add(createEntityItem);
-            ((ItemsControl)_backgroundContextMenu).Items.Add(separatorItem);
-            ((ItemsControl)_backgroundContextMenu).Items.Add(transform3dItem);
+            _backgroundContextMenu.Items.Add(createEntityItem);
+            _backgroundContextMenu.Items.Add(separatorItem);
+            _backgroundContextMenu.Items.Add(transform3dItem);
 
             // Контекстное меню для сущности
             _entityContextMenu = new ContextMenu
@@ -238,14 +238,14 @@ namespace Editor
                 Classes = { "hierarchyMenuItem" }
             };
 
-            ((ItemsControl)addComponentItem).Items.Add(physicsItem);
-            ((ItemsControl)addComponentItem).Items.Add(renderingItem);
+            addComponentItem.Items.Add(physicsItem);
+            addComponentItem.Items.Add(renderingItem);
 
-            ((ItemsControl)_entityContextMenu).Items.Add(renameItem);
-            ((ItemsControl)_entityContextMenu).Items.Add(duplicateItem);
-            ((ItemsControl)_entityContextMenu).Items.Add(deleteItem);
-            ((ItemsControl)_entityContextMenu).Items.Add(entitySeparator);
-            ((ItemsControl)_entityContextMenu).Items.Add(addComponentItem);
+            _entityContextMenu.Items.Add(renameItem);
+            _entityContextMenu.Items.Add(duplicateItem);
+            _entityContextMenu.Items.Add(deleteItem);
+            _entityContextMenu.Items.Add(entitySeparator);
+            _entityContextMenu.Items.Add(addComponentItem);
         }
 
         private IDataTemplate CreateEntityItemTemplate()

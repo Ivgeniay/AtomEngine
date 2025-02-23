@@ -35,6 +35,5 @@ namespace Editor
                     }
                 })
                 .LogToTrace();
-
     }
 }

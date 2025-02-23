@@ -1,0 +1,163 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Editor="using:Editor">
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <!-- Add Controls for Previewer Here -->
+    </Border>
+  </Design.PreviewWith>
+
+  <!-- Add Styles Here -->
+  <Style Selector="Grid.directoryExplorer">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <!-- Стили для навигационной панели -->
+  <Style Selector="StackPanel.navigationPanel">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Height" Value="32"/>
+  </Style>
+
+  <!-- Стиль для кнопки "Назад" -->
+  <Style Selector="Button.navButton">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="8 4"/>
+    <Setter Property="FontSize" Value="14"/>
+  </Style>
+
+  <Style Selector="Button.navButton:pointerover">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Button.navButton:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <!-- Стиль для отображения пути -->
+  <Style Selector="TextBlock.pathDisplay">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="FontSize" Value="11"/>
+  </Style>
+
+  <!-- Стили для TreeView -->
+  <Style Selector="TreeView.directoryTree">
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+
+  <Style Selector="TreeViewItem">
+    <Setter Property="Padding" Value="2 1"/>
+    <Setter Property="MinHeight" Value="20"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+  </Style>
+
+  <Style Selector="TreeViewItem:pointerover">
+    <Setter Property="Background" Value="#2A2D2E"/>
+  </Style>
+
+  <Style Selector="TreeViewItem:selected">
+    <Setter Property="Background" Value="#0D4963"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="TreeViewItem:selected:focus">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+
+  <Style Selector="TreeViewItem:selected:pointerover">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+
+  <Style Selector="TreeViewItem /template/ ToggleButton#PART_ExpandCollapseChevron">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+  </Style>
+
+  <!-- Стили для ListBox -->
+  <Style Selector="ListBox.fileList">
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+
+  <Style Selector="ListBox.fileList ScrollViewer">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <Style Selector="ListBox.fileList ScrollContentPresenter">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <Style Selector="ListBoxItem">
+    <Setter Property="Padding" Value="8 4"/>
+    <Setter Property="MinHeight" Value="20"/>
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="FontSize" Value="11"/>
+  </Style>
+
+  <Style Selector="ListBoxItem:pointerover">
+    <Setter Property="Background" Value="#2A2D2E"/>
+  </Style>
+
+  <Style Selector="ListBoxItem:selected">
+    <Setter Property="Background" Value="#0D4963"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="ListBoxItem:selected:focus">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+
+  <Style Selector="ListBoxItem:selected:pointerover">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+
+  <!-- Стили для скроллбара -->
+  <Style Selector="ScrollBar">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="#3E3E42"/>
+  </Style>
+
+  <Style Selector="ScrollBar:pointerover">
+    <Setter Property="Foreground" Value="#636363"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb:pointerover">
+    <Setter Property="Background" Value="#636363"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+  </Style>
+
+  <!-- Стили для GridSplitter -->
+  <Style Selector="GridSplitter">
+    <Setter Property="Background" Value="#3F3F46"/>
+    <Setter Property="Width" Value="4"/>
+    <Setter Property="MinWidth" Value="4"/>
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Stretch"/>
+  </Style>
+
+  <Style Selector="GridSplitter:pointerover">
+    <Setter Property="Background" Value="#636363"/>
+  </Style>
+
+  <Style Selector="GridSplitter:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+  </Style>
+  
+</Styles>

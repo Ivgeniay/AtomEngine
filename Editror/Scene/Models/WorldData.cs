@@ -3,6 +3,7 @@ using System.Collections;
 using Newtonsoft.Json;
 using System.Linq;
 using System;
+using AtomEngine;
 
 namespace Editor
 {
@@ -13,6 +14,13 @@ namespace Editor
         public List<SystemDescriptor> SystemDescriptors { get; set; } = new List<SystemDescriptor>();
         [JsonIgnore]
         public bool IsDirty { get; set; }
+
+        [JsonIgnore]
+        public World World { get; private set; }
+        public WorldData()
+        {
+            World = new World();
+        }
     }
 
     public class ThreadSafeList<T> : ICollection<T>

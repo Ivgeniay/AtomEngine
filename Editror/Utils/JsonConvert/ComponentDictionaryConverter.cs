@@ -56,6 +56,7 @@ namespace Editor
                     }
                     else
                     {
+                        DebLogger.Warn($"Not finded component type: {propertyName}");
                         serializer.Deserialize(reader);
                     }
                 }
