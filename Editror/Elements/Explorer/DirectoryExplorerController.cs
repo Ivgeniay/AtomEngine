@@ -7,7 +7,6 @@ using Avalonia.Layout;
 using System.Linq;
 using System.IO;
 using System;
-using System.Windows.Input;
 
 namespace Editor
 {
@@ -91,7 +90,6 @@ namespace Editor
 
             _treeView.SelectionChanged += OnTreeViewSelectionChanged;
 
-            // Добавляем отслеживание раскрытия/сворачивания узлов
             _treeView.ContainerPrepared += (sender, e) =>
             {
                 if (e.Container is TreeViewItem item)
@@ -99,7 +97,6 @@ namespace Editor
                     string path = item.Tag as string;
                     if (path != null)
                     {
-                        // Раскрываем, если путь в списке или является родителем текущего пути
                         bool shouldExpand = _expandedPaths.Contains(path) ||
                                           path == _currentPath ||
                                           _currentPath.StartsWith(path + Path.DirectorySeparatorChar);
@@ -109,7 +106,6 @@ namespace Editor
                             item.IsExpanded = true;
                         }
 
-                        // Подписываемся на изменение IsExpanded
                         item.PropertyChanged += (s, args) =>
                         {
                             if (args.Property.Name == "IsExpanded" && s is TreeViewItem tvi && tvi.Tag is string itemPath)
@@ -118,7 +114,6 @@ namespace Editor
                                 {
                                     _expandedPaths.Add(itemPath);
 
-                                    // Добавляем путь к родительской директории, если она существует
                                     var parent = Directory.GetParent(itemPath);
                                     while (parent != null && parent.FullName.StartsWith(_rootPath))
                                     {
@@ -130,7 +125,6 @@ namespace Editor
                                 {
                                     _expandedPaths.Remove(itemPath);
 
-                                    // Удаляем все пути, которые начинаются с текущего
                                     var pathsToRemove = _expandedPaths
                                         .Where(p => p.StartsWith(itemPath + Path.DirectorySeparatorChar))
                                         .ToList();
@@ -259,7 +253,7 @@ namespace Editor
             { }
         }
 
-        private void OnBackButtonClick(object sender, RoutedEventArgs e)
+        private void OnBackButtonClick(object? sender, RoutedEventArgs e)
         {
             if (_currentPath == _rootPath) return;
 
@@ -272,7 +266,7 @@ namespace Editor
             }
         }
 
-        private void OnTreeViewSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void OnTreeViewSelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (e.AddedItems?.Count > 0 && e.AddedItems[0] is TreeViewItem selected)
             {
@@ -286,7 +280,7 @@ namespace Editor
             }
         }
 
-        private void OnFileListSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void OnFileListSelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (e.AddedItems?.Count > 0 && e.AddedItems[0] is string fileName)
             {
@@ -421,7 +415,7 @@ namespace Editor
             return menu;
         }
 
-        private void OnTreeViewPointerReleased(object sender, PointerReleasedEventArgs e)
+        private void OnTreeViewPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             var point = e.GetPosition(_treeView);
             var item = _treeView.SelectedItem as TreeViewItem;
@@ -438,7 +432,7 @@ namespace Editor
             }
         }
 
-        private void OnFileListPointerReleased(object sender, PointerReleasedEventArgs e)
+        private void OnFileListPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             var point = e.GetPosition(_fileList);
             var item = _fileList.SelectedItem as string;
@@ -454,6 +448,8 @@ namespace Editor
                 _fileContextMenu.Close();
             }
         }
+
+        #region Commands
 
         private string _clipboardPath;
         private bool _isCut;
@@ -651,24 +647,6 @@ namespace Editor
                 }
             }
         }
-    }
-
-    public class Command : ICommand
-    {
-        private readonly Action _execute;
-
-        public Command(Action execute)
-        {
-            _execute = execute;
-        }
-
-        public event EventHandler CanExecuteChanged;
-
-        public bool CanExecute(object parameter) => true;
-
-        public void Execute(object parameter)
-        {
-            _execute?.Invoke();
-        }
+        #endregion
     }
 }

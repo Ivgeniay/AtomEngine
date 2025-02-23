@@ -30,8 +30,8 @@ namespace Editor
             _worlds = new ObservableCollection<string>();
 
             InitializeUI();
-            CreateListContextMenus();
-            CreateElementContextMenu();
+            _worldContextMenu = CreateElementContextMenu();
+            _worldListContextMenu = CreateListContextMenus();
         }
 
         private void InitializeUI()
@@ -48,15 +48,16 @@ namespace Editor
             Button plusBtn = new Button
             {
                 Content = "+",
-                Classes = { "worldToolButton" }
+                Classes = { "worldToolButton" },
+                Command = new Command(() => CreateNewWorld(GetUniqueName()))
             };
-            plusBtn.Click += (s, e) => CreateNewWorld(GetUniqueName());
+
             Button removeBtn = new Button
             {
                 Content = "-",
-                Classes = { "worldToolButton" }
+                Classes = { "worldToolButton" },
+                Command = new Command(() => RemoveWorld(_worldsList.SelectedItem as string))
             };
-            removeBtn.Click += (s, e) => RemoveWorld(_worldsList.SelectedItem as string); ;
 
 
             btnHolder.Children.Add(plusBtn);
@@ -94,26 +95,28 @@ namespace Editor
                 if (_worldsList.SelectedItem is string selectedWorld)
                 {
                     WorldSelected?.Invoke(this, selectedWorld);
-                    CloseAllContextMenus();
                 }
             };
-            _worldsList.PointerPressed += (s, e) =>
+            _worldsList.PointerReleased += (s, e) =>
             {
                 var point = e.GetCurrentPoint(_worldsList);
-                if (point.Properties.IsRightButtonPressed)
+                if (point.Properties.PointerUpdateKind == PointerUpdateKind.RightButtonReleased)
                 {
-                    CloseAllContextMenus();
-                    _worldListContextMenu.Open(_worldsList);
+                    _worldListContextMenu.Open(this);
                     e.Handled = true;
                 }
+                else
+                {
+                    _worldListContextMenu.Close();
+                }
             };
-            _worldsList.AddHandler(InputElement.PointerPressedEvent, (s, e) =>
+            _worldsList.AddHandler(InputElement.PointerReleasedEvent, (s, e) =>
             {
                 var visual = e.Source as Visual;
                 if (visual != null)
                 {
                     var item = visual.DataContext as string;
-                    if (item != null && e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
+                    if (item != null && e.GetCurrentPoint(null).Properties.PointerUpdateKind == PointerUpdateKind.RightButtonReleased)
                     {
                         if (_worldsList.ItemsSource is ObservableCollection<string> collection)
                         {
@@ -123,9 +126,12 @@ namespace Editor
                                 _worldsList.Selection.Clear();
                                 _worldsList.Selection.Select(index);
                                 WorldSelected?.Invoke(this, item);
-                                CloseAllContextMenus();
-                                _worldContextMenu.Open(_worldsList);
+                                _worldContextMenu.Open(this);
                                 e.Handled = true;
+                            }
+                            else
+                            {
+                                _worldContextMenu.Close();
                             }
                         }
                     }
@@ -145,9 +151,9 @@ namespace Editor
             _worldsList.SelectedItem = name;
         }
 
-        private void CreateListContextMenus()
+        private ContextMenu CreateListContextMenus()
         {
-            _worldListContextMenu = new ContextMenu
+            var _worldListContextMenu = new ContextMenu
             {
                 Classes = { "hierarchyMenu" }
             };
@@ -155,16 +161,17 @@ namespace Editor
             var createWorldItem = new MenuItem
             {
                 Header = "Create New World",
-                Classes = { "hierarchyMenuItem" }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(() => CreateNewWorld(GetUniqueName()))
             };
-            createWorldItem.Click += (s, e) => CreateNewWorld(GetUniqueName());
 
             _worldListContextMenu.Items.Add(createWorldItem);
+            return _worldListContextMenu;
         }
 
-        private void CreateElementContextMenu()
+        private ContextMenu CreateElementContextMenu()
         {
-            _worldContextMenu = new ContextMenu
+            var _worldContextMenu = new ContextMenu
             {
                 Classes = { "hierarchyMenu" }
             };
@@ -172,24 +179,27 @@ namespace Editor
             var rename = new MenuItem()
             {
                 Header = "Rename",
-                Classes = { "hierarchyMenuItem" }
-            };
-            rename.Click += (s, e) => {
-                if (_worldsList.SelectedItem is string selectedEntity)
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(() =>
                 {
-                    StartRenaming(selectedEntity);
-                }
+                    if (_worldsList.SelectedItem is string selectedEntity)
+                    {
+                        StartRenaming(selectedEntity);
+                    }
+                })
             };
 
             var delete = new MenuItem
             {
                 Header = "Delete",
-                Classes = { "hierarchyMenuItem" }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(() => RemoveWorld(_worldsList.SelectedItem as string))
             };
-            delete.Click += (s, e) => RemoveWorld(_worldsList.SelectedItem as string);
 
             _worldContextMenu.Items.Add(rename);
             _worldContextMenu.Items.Add(delete);
+
+            return _worldContextMenu;
         }
 
         private void StartRenaming(string worldName)

@@ -35,7 +35,9 @@ namespace Editor
         {
             _entities = new ObservableCollection<EntityHierarchyItem>();
             InitializeUI();
-            CreateContextMenus();
+
+            _entityContextMenu = CreateEntityComtexMenu();
+            _backgroundContextMenu = CreateBGContextMenus();
         }
 
         private void InitializeUI()
@@ -56,21 +58,20 @@ namespace Editor
                 Margin = new Thickness(0)
             };
 
-            // Устанавливаем источник данных и прокрутку
             _entitiesList.ItemsSource = _entities;
             _entitiesList.AutoScrollToSelectedItem = true;
             _entitiesList.SelectionMode = SelectionMode.Multiple;
             ScrollViewer.SetHorizontalScrollBarVisibility(_entitiesList, ScrollBarVisibility.Disabled);
             ScrollViewer.SetVerticalScrollBarVisibility(_entitiesList, ScrollBarVisibility.Auto);
 
-            _entitiesList.AddHandler(InputElement.PointerPressedEvent, (s, e) =>
+            _entitiesList.AddHandler(InputElement.PointerReleasedEvent, (s, e) =>
             {
                 var visual = e.Source as Visual;
                 if (visual != null)
                 {
                     if (visual.DataContext is EntityHierarchyItem item)
                     {
-                        if (item != null && e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
+                        if (item != null && e.GetCurrentPoint(null).Properties.PointerUpdateKind == PointerUpdateKind.RightButtonReleased)
                         {
                             var listItems = _entitiesList.ItemsSource.Cast<EntityHierarchyItem>().ToList();
                             var index = listItems.FindIndex(e => e.Name == item.Name);
@@ -79,31 +80,31 @@ namespace Editor
                             {
                                 _entitiesList.Selection.Clear();
                                 _entitiesList.Selection.Select(index);
-                                CloseAllContext();
-                                _entityContextMenu.Open(_entitiesList);
+                                _entityContextMenu.Open(this);
+                                e.Handled = true;
                             }
-                            e.Handled = true;
+                            else
+                            {
+                                _entityContextMenu.Close();
+                            }
                         }
                     }
                 }
             }, RoutingStrategies.Tunnel);
 
-            // Настройка шаблона для отображения элементов
             _entitiesList.ItemTemplate = CreateEntityItemTemplate();
 
             Grid.SetRow(_entitiesList, 1);
 
-            // Добавляем на сетку
             Children.Add(header);
             Children.Add(_entitiesList);
 
-            // Настраиваем обработчик нажатия на пустую область списка
-            PointerPressed += OnHierarchyPointerPressed;
+            PointerReleased += OnHierarchyPointerPressed;
         }
 
-        private void CreateContextMenus()
+        private ContextMenu CreateBGContextMenus()
         {
-            _backgroundContextMenu = new ContextMenu
+            var _backgroundContextMenu = new ContextMenu
             {
                 Classes = { "hierarchyMenu" }
             };
@@ -111,10 +112,9 @@ namespace Editor
             var createEntityItem = new MenuItem
             {
                 Header = "Create Entity",
-                Classes = { "hierarchyMenuItem" }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(CreateNewEntity)
             };
-            createEntityItem.Click += (s, e) => CreateNewEntity("New Entity");
-
 
             var separatorItem = new MenuItem
             {
@@ -131,37 +131,37 @@ namespace Editor
             var cubeItem = new MenuItem
             {
                 Header = "Cube",
-                Classes = { "hierarchyMenuItem" }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(CreateCube)
             };
-            cubeItem.Click += (s, e) => CreateNewEntity("Cube");
 
             var sphereItem = new MenuItem
             {
                 Header = "Sphere",
-                Classes = { "hierarchyMenuItem" }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(CreateSphere)
             };
-            sphereItem.Click += (s, e) => CreateNewEntity("Sphere");
 
             var capsuleItem = new MenuItem
             {
                 Header = "Capsule",
-                Classes = { "hierarchyMenuItem" }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(CreateCapsule)
             };
-            capsuleItem.Click += (s, e) => CreateNewEntity("Capsule");
 
             var cylinderItem = new MenuItem
             {
                 Header = "Cylinder",
-                Classes = { "hierarchyMenuItem" }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(CreateCylinder)
             };
-            cylinderItem.Click += (s, e) => CreateNewEntity("Cylinder");
 
             var planeItem = new MenuItem
             {
                 Header = "Plane",
-                Classes = { "hierarchyMenuItem" }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(CreatePlane)
             };
-            planeItem.Click += (s, e) => CreateNewEntity("Plane");
 
             transform3dItem.Items.Add(cubeItem);
             transform3dItem.Items.Add(sphereItem);
@@ -173,8 +173,12 @@ namespace Editor
             _backgroundContextMenu.Items.Add(separatorItem);
             _backgroundContextMenu.Items.Add(transform3dItem);
 
-            // Контекстное меню для сущности
-            _entityContextMenu = new ContextMenu
+            return _backgroundContextMenu;
+        }
+        
+        private ContextMenu CreateEntityComtexMenu()
+        {
+            var _entityContextMenu = new ContextMenu
             {
                 Classes = { "hierarchyMenu" }
             };
@@ -182,37 +186,22 @@ namespace Editor
             var renameItem = new MenuItem
             {
                 Header = "Rename",
-                Classes = { "hierarchyMenuItem" }
-            };
-            renameItem.Click += (s, e) => {
-                if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
-                {
-                    StartRenaming(selectedEntity);
-                }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(StartRenamingCommand)
             };
 
             var duplicateItem = new MenuItem
             {
                 Header = "Duplicate",
-                Classes = { "hierarchyMenuItem" }
-            };
-            duplicateItem.Click += (s, e) => {
-                if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
-                {
-                    DuplicateEntity(selectedEntity);
-                }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(DuplicateEntityCommand)
             };
 
             var deleteItem = new MenuItem
             {
                 Header = "Delete",
-                Classes = { "hierarchyMenuItem" }
-            };
-            deleteItem.Click += (s, e) => {
-                if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
-                {
-                    DeleteEntity(selectedEntity);
-                }
+                Classes = { "hierarchyMenuItem" },
+                Command = new Command(DeleteEntityCommand)
             };
 
             var entitySeparator = new MenuItem
@@ -246,6 +235,8 @@ namespace Editor
             _entityContextMenu.Items.Add(deleteItem);
             _entityContextMenu.Items.Add(entitySeparator);
             _entityContextMenu.Items.Add(addComponentItem);
+
+            return _entityContextMenu;
         }
 
         private IDataTemplate CreateEntityItemTemplate()
@@ -282,31 +273,21 @@ namespace Editor
             });
         }
 
-
-        private void OnHierarchyPointerPressed(object? sender, PointerPressedEventArgs e)
+        private void OnHierarchyPointerPressed(object? sender, PointerReleasedEventArgs e)
         {
             var point = e.GetCurrentPoint(this);
 
-            if (point.Properties.IsRightButtonPressed && !HitTestListBoxItems(e.GetPosition(_entitiesList)))
+            if (point.Properties.PointerUpdateKind == PointerUpdateKind.RightButtonReleased)
             {
-                CloseAllContext();
                 _backgroundContextMenu.Open(this);
                 e.Handled = true;
             }
-        }
-
-        private void OnEntitiesListPointerPressed(object? sender, PointerPressedEventArgs e)
-        {
-            var point = e.GetCurrentPoint(_entitiesList);
-
-            if (point.Properties.IsRightButtonPressed)
+            else
             {
-                CloseAllContext();
-                _backgroundContextMenu.Open(this);
-                e.Handled = true;
+                _backgroundContextMenu.Close();
             }
         }
-        
+
         private void OnEntitiesListDoubleTapped(object? sender, RoutedEventArgs e)
         {
             if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
@@ -315,10 +296,7 @@ namespace Editor
             }
         }
 
-        private bool HitTestListBoxItems(Point point)
-        {
-            return FindItemByPosition(_entitiesList, point) != null;
-        }
+        private bool HitTestListBoxItems(Point point) => FindItemByPosition(_entitiesList, point) != null;
 
         private EntityHierarchyItem FindItemByPosition(ListBox listBox, Point point)
         {
@@ -438,7 +416,6 @@ namespace Editor
             EntityDeleted?.Invoke(this, entity);
         }
 
-        // Публичные методы для управления иерархией
         public void ClearEntities()
         {
             _entities.Clear();
@@ -454,32 +431,21 @@ namespace Editor
         }
 
         public void Dispose() { }
-        private void CloseAllContext()
-        {
-            _entityContextMenu?.Close();
-            _backgroundContextMenu?.Close();
-        }
 
         internal void Open()
         {
             isOpen = true;
 
-
-            // Настройка обработчиков событий мыши
             _entitiesList.SelectionChanged += SelectionItemList;
             _entitiesList.SelectionChanged += SelectCallback;
-            _entitiesList.PointerPressed += OnEntitiesListPointerPressed;
             _entitiesList.DoubleTapped += OnEntitiesListDoubleTapped;
         }
-
-
         internal void Close()
         {
             isOpen = false;
 
             _entitiesList.SelectionChanged -= SelectionItemList;
             _entitiesList.SelectionChanged -= SelectCallback;
-            _entitiesList.PointerPressed -= OnEntitiesListPointerPressed;
             _entitiesList.DoubleTapped -= OnEntitiesListDoubleTapped;
 
             OnClose?.Invoke(this);
@@ -487,10 +453,7 @@ namespace Editor
         private void SelectionItemList(object? sender, SelectionChangedEventArgs e)
         {
             if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
-            {
-                CloseAllContext();
                 EntitySelected?.Invoke(this, selectedEntity);
-            }
         }
         private void SelectCallback(object? sender, SelectionChangedEventArgs t)
         {
@@ -505,6 +468,37 @@ namespace Editor
                     Select.SelectItem(selectedEntity);
             }
         }
+
+        #region Commands
+        private void CreateNewEntity() => CreateNewEntity("New Entity");
+        private void CreateCube() => CreateNewEntity("Cube");
+        private void CreateSphere() => CreateNewEntity("Sphere");
+        private void CreateCapsule() => CreateNewEntity("Capsule");
+        private void CreateCylinder() => CreateNewEntity("Cylinder");
+        private void CreatePlane() => CreateNewEntity("Plane");
+        private void StartRenamingCommand()
+        {
+            if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
+            {
+                StartRenaming(selectedEntity);
+            }
+        }
+        private void DuplicateEntityCommand()
+        {
+            if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
+            {
+                DuplicateEntity(selectedEntity);
+            }
+        }
+        private void DeleteEntityCommand()
+        {
+            if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
+            {
+                DeleteEntity(selectedEntity);
+            }
+        }
+
+        #endregion
     }
 
     public struct EntityHierarchyItem : INotifyPropertyChanged, IEquatable<EntityHierarchyItem>
