@@ -50,6 +50,18 @@ namespace Editor
         public string ContentHash { get; set; } = string.Empty;
     }
 
+    public enum TextureFilterMode
+    {
+        Bilinear, Point, Trilinear
+    }
+    public enum TextureWrapMode
+    {
+        Repeat, Clamp, Mirror
+    }
+    public enum TextureCompressionFormat
+    {
+        None, DXT1, DXT5, BC7, ETC2, ASTC, Automatic
+    }
     public class TextureMetadata : AssetMetadata
     {
         public TextureMetadata()
@@ -57,14 +69,13 @@ namespace Editor
             AssetType = MetadataType.Texture;
         }
 
-        // Настройки импорта текстур
         public bool GenerateMipmaps { get; set; } = true;
         public bool sRGB { get; set; } = true;
         public int MaxSize { get; set; } = 2048;
-        public string FilterMode { get; set; } = "Bilinear"; // Point, Bilinear, Trilinear
+        public TextureFilterMode FilterMode { get; set; } = TextureFilterMode.Bilinear;
         public int AnisoLevel { get; set; } = 1;
-        public string WrapMode { get; set; } = "Repeat"; // Repeat, Clamp, Mirror
-        public string CompressionFormat { get; set; } = "Automatic"; // None, DXT1, DXT5, BC7, ETC2, ASTC, etc.
+        public TextureWrapMode WrapMode { get; set; } = TextureWrapMode.Repeat;
+        public TextureCompressionFormat CompressionFormat { get; set; } = TextureCompressionFormat.Automatic;
         public bool CompressTexture { get; set; } = true;
         public float CompressionQuality { get; set; } = 50;
         public bool AlphaIsTransparency { get; set; } = false;

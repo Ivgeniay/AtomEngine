@@ -9,6 +9,7 @@
         Model,
         Audio,
         Shader,
+        ShaderSource,
         Script,
         Scene,
         Prefab,

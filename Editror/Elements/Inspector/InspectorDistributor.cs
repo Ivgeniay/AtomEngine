@@ -28,8 +28,13 @@ namespace Editor
 
                 case FileSelectionEvent eventSelectionEvent:
                     var meta = MetadataManager.Instance.GetMetadata(eventSelectionEvent.FilePath);
-                    var inpect = new AssetMetadataInspectable(meta);
-                    return inpect;
+                    switch(meta.AssetType)
+                    {
+                        case MetadataType.Texture:
+                            return new TextureMetadataInspectable((TextureMetadata)meta);
+                        default:
+                            return new AssetMetadataInspectable(meta);
+                    }
 
                 default:
                     DebLogger.Warn($"Нераспознаный тип для испекции: {source.GetType()}");

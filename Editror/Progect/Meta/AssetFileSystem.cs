@@ -17,16 +17,10 @@ namespace Editor
         private static AssetFileSystem _instance;
         public static AssetFileSystem Instance => _instance ??= new AssetFileSystem();
 
-        // Корневая директория ресурсов
         private readonly string _assetsPath;
-
-        // Менеджер метаданных
         private readonly MetadataManager _metadataManager;
-
-        // Файловый наблюдатель
         private FileSystemWatcher _fileWatcher;
 
-        // Игнорируемые файлы и директории (регулярные выражения)
         private readonly List<string> _ignorePatterns = new()
         {
             @"\.meta$",           // Метафайлы
@@ -42,20 +36,12 @@ namespace Editor
             @"~$"                 // Временные файлы Office
         };
 
-        // Событие изменения ресурса
         public event Action<string> AssetChanged;
-
-        // Событие создания ресурса
         public event Action<string> AssetCreated;
-
-        // Событие удаления ресурса
         public event Action<string> AssetDeleted;
-
-        // Событие переименования ресурса
         public event Action<string, string> AssetRenamed;
 
         // Дебаунсинг событий. (ОС может кидать одно и то же событие несколько раз)
-        // Словарь для отслеживания последних обработанных событий
         private Dictionary<string, DateTime> _lastProcessedEvents = new Dictionary<string, DateTime>();
         private readonly object _lockObject = new object();
         private const int DebounceIntervalMs = 300;

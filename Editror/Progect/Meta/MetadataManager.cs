@@ -52,8 +52,9 @@ namespace Editor
             _extensionToTypeMap[".ogg"] = MetadataType.Audio;
 
             _extensionToTypeMap[".shader"] = MetadataType.Shader;
-            _extensionToTypeMap[".glsl"] = MetadataType.Shader;
-            _extensionToTypeMap[".hlsl"] = MetadataType.Shader;
+
+            _extensionToTypeMap[".glsl"] = MetadataType.ShaderSource;
+            _extensionToTypeMap[".hlsl"] = MetadataType.ShaderSource;
 
             _extensionToTypeMap[".cs"] = MetadataType.Script;
 
