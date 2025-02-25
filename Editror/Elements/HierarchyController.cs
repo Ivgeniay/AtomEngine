@@ -321,7 +321,7 @@ namespace Editor
                 EntityCreated?.Invoke(this, name);
         }
 
-        public void CreateHierarchyEntity(EntityData entityData, bool withAvoking = true)
+        public void CreateHierarchyEntity(EntityData1 entityData, bool withAvoking = true)
         {
             var entityItem = new EntityHierarchyItem(entityData.Id, entityData.Version, entityData.Name);
 

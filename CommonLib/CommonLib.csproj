@@ -7,7 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Standart\Geomentry\" />
+    <Compile Remove="Standart\**" />
+    <EmbeddedResource Remove="Standart\**" />
+    <None Remove="Standart\**" />
   </ItemGroup>
 
 </Project>

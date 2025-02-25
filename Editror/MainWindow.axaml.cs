@@ -395,19 +395,26 @@ namespace Editor
 
             _hierarchyController.EntitySelected += (s, entity) =>
             {
-                var entityData = _currentScene.CurrentWorldData.Entities.Where(e => e.Id == entity.Id && e.Version == entity.Version).FirstOrDefault();
-                //if (entityData == null) return;
-                var _entity = new Entity(entityData.Id, entityData.Version);
-                var collection = entityData.Components.Values.ToList();
-                if (collection == null) collection = new List<IComponent>();
-                var inscted = new EntityInspectable(_entity, collection);
-                _inspectorController.Inspect(inscted);
+                IInspectable inspectable = InspectorDistributor.GetInspectable(entity);
+                if (inspectable != null) _inspectorController.Inspect(inspectable);
+                else _inspectorController.CleanInspected();
             };
         }
 
         private void InitializeConsole()
         {
             _consoleController = new ConsoleController();
+
+            _consoleController.RegisterConsoleCommand(
+                new ConsoleCommand
+                {
+                    CommandName = "exclude",
+                    Description = "Exclude extension file from explorer browser",
+                    Action = (e) =>
+                    {
+                        _directoryExplorerController.ExcludeFileExtension(e);
+                    }
+                });
         }
 
         private void InitializeWorld()
@@ -443,7 +450,17 @@ namespace Editor
 
         private void InitializeExplorer()
         {
-            _directoryExplorerController = new DirectoryExplorerController();
+            ExplorerConfigurations configurations = Configuration.GetConfiguration<ExplorerConfigurations>(ConfigurationSource.ExplorerConfigs);
+            _directoryExplorerController = new DirectoryExplorerController(configurations);
+
+            _directoryExplorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".txt",
+                Name = "Read",
+                Description = "sd",
+                Action = (e) => DebLogger.Debug($"{e}"),
+                SubCategory = new string[] { "sub1", "sub2" }
+            });
         }
 
         public Border CreateDraggableWindow(string title, Control content = null, double left = 10, double top = 10,
@@ -488,6 +505,7 @@ namespace Editor
             CleanWorlds();
             WorldData standartSceneData = SceneFileHelper.CreateNewScene();
             _currentScene = new ProjectScene(new List<WorldData>() { standartSceneData }, standartSceneData);
+            InspectorDistributor.Initialize(_currentScene);
             UpdateControllers();
             Status.SetStatus($"Created new scene: {_currentScene.WorldName}");
         }

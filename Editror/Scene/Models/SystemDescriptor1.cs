@@ -5,7 +5,7 @@ using System;
 namespace Editor
 {
     [JsonObject(ItemTypeNameHandling = TypeNameHandling.All)]
-    internal class SystemDescriptor
+    internal class SystemDescriptor1
     {
         private Type _systemType;
 

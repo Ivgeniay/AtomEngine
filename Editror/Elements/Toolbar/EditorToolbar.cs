@@ -117,18 +117,4 @@ namespace Editor
         }
     }
 
-    public class EditorToolbarCategory
-    {
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public List<EditorToolbarButton> Buttons { get; set; } = new List<EditorToolbarButton>();
-    }
-    public class EditorToolbarButton
-    {
-        public string Text { get; set; } = string.Empty;
-        public string Icon { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public Action Action { get; set; }
-    }
-
 }

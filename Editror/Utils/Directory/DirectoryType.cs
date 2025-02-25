@@ -5,6 +5,6 @@
         Base,
         Plugins,
         Assets,
-
+        Configurations,
     }
 }

@@ -130,15 +130,15 @@ namespace Editor
         /// </summary>
         /// <param name="window">Родительское окно</param>
         /// <returns>Данные новой сцены или null</returns>
-        public static WorldData CreateNewScene()
+        public static WorldData1 CreateNewScene()
         {
-            var newScene = new WorldData
+            var newScene = new WorldData1
             {
                 WorldName = "New Scene",
                 IsDirty = false,
-                Entities = new List<EntityData>
+                Entities = new List<EntityData1>
                 {
-                    new EntityData
+                    new EntityData1
                     {
                         Id = 0,
                         Name = "Main Camera",
@@ -161,7 +161,7 @@ namespace Editor
                             }
                         }
                     },
-                    new EntityData
+                    new EntityData1
                     {
                         Id = 1,
                         Name = "Directional Light",

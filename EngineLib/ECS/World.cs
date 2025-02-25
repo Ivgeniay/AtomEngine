@@ -55,6 +55,19 @@ namespace AtomEngine
                 return new Entity(id, version);
             }
         }
+        public Entity CreateEntityWithId(uint id, uint version)
+        {
+            lock (_entityCreationLock)
+            {
+                _entityVersions[id] = version;
+                if (id >= _nextEntityId)
+                {
+                    _nextEntityId = id + 1;
+                }
+
+                return new Entity(id, version);
+            }
+        }
         public void DestroyEntity(uint entityId, uint entityVersion) => DestroyEntity(new Entity(entityId, entityVersion));
         public void DestroyEntity(Entity entity)
         {

@@ -9,6 +9,7 @@ using System.Linq;
 
 namespace Editor
 {
+
     public class ConsoleController : Grid, ILogger
     {
         public static ConsoleController Instance;
@@ -58,12 +59,7 @@ namespace Editor
                 return Level.ToString().ToUpper();
             }
         }
-        public class ConsoleCommand
-        {
-            public string Description;
-            public string Command;
-            public Action<string> Action;
-        }
+        
 
         public ConsoleController()
         {
@@ -80,19 +76,19 @@ namespace Editor
         {
             _commands.Add(new ConsoleCommand()
             {
-                Command = "clear",
+                CommandName = "clear",
                 Description = "Clear console",
                 Action = (e) => ClearLogs()
             });
             _commands.Add(new ConsoleCommand()
             {
-                Command = "help",
+                CommandName = "help",
                 Description = "Show this help",
                 Action = (e) => ShowHelp()
             });
             _commands.Add(new ConsoleCommand()
             {
-                Command = "filter",
+                CommandName = "filter",
                 Description = "Set max log level filter",
                 Action = (e) =>
                 {
@@ -110,7 +106,7 @@ namespace Editor
             });
             _commands.Add(new ConsoleCommand()
             {
-                Command = "enable",
+                CommandName = "enable",
                 Description = "Enable specific log level",
                 Action = (e) =>
                 {
@@ -128,7 +124,7 @@ namespace Editor
             });
             _commands.Add(new ConsoleCommand()
             {
-                Command = "disable",
+                CommandName = "disable",
                 Description = "Disable specific log level",
                 Action = (e) => {
                     if (Enum.TryParse<LogLevel>(e, true, out var disableLevel))
@@ -257,7 +253,7 @@ namespace Editor
                 var cmd = parts[0].ToLower();
                 var args = parts.Length > 1 ? parts[1] : string.Empty;
 
-                var consoleCommand = _commands.Where(e => e.Command == cmd).FirstOrDefault();
+                var consoleCommand = _commands.Where(e => e.CommandName == cmd).FirstOrDefault();
                 if (consoleCommand != null)
                 {
                     if (consoleCommand.Action != null)
@@ -280,7 +276,7 @@ namespace Editor
             Info("Available commands:");
             foreach (var command in _commands)
             {
-                Info($"/{command.Command} - {command.Description}");
+                Info($"/{command.CommandName} - {command.Description}");
             }
             Info("--------------------------");
         }
@@ -348,18 +344,6 @@ namespace Editor
             container.Child = logText;
             _logPanel.Children.Add(container);
         }
-        //private void AddLogEntryToPanel(LogEntry entry)
-        //{
-        //    var logText = new TextBlock
-        //    {
-        //        Text = $"[{entry.GetTimestampString()}] [{entry.GetLevelString()}] {entry.Message}",
-        //        TextWrapping = TextWrapping.Wrap,
-        //        Foreground = entry.GetColor(),
-        //        FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
-        //        Margin = new Thickness(0, 0, 0, 1)
-        //    };
-        //    _logPanel.Children.Add(logText);
-        //}
 
         private void ScrollToEnd()
         {
