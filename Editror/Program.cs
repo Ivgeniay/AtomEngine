@@ -1,7 +1,7 @@
-﻿using Avalonia;
+﻿using System.Collections.Generic;
 using Avalonia.OpenGL;
+using Avalonia;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 
@@ -12,6 +12,7 @@ namespace Editor
         [STAThread]
         public static void Main(string[] args)
         {
+            AssetFileSystem.Instance.Initialize();
             AssemblyManager.Instance.Initialize(AppDomain.CurrentDomain.GetAssemblies());
 
             BuildAvaloniaApp()

@@ -6,6 +6,8 @@ using Avalonia.Media;
 using Avalonia;
 using System;
 using System.Linq;
+using Avalonia.Threading;
+using AtomEngine;
 
 namespace Editor
 {
@@ -325,6 +327,12 @@ namespace Editor
 
         private void AddLogEntryToPanel(LogEntry entry)
         {
+            if (Dispatcher.UIThread.CheckAccess()) AddLogEntryToPanelCore(entry);
+            else Dispatcher.UIThread.Post(() => AddLogEntryToPanelCore(entry));
+        }
+
+        private void AddLogEntryToPanelCore(LogEntry entry)
+        {
             var container = new Border
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -332,10 +340,22 @@ namespace Editor
                 //Padding = new Thickness(5) // Добавляем отступ для текста
             };
 
-            var logText = new TextBlock
+            //var logText = new TextBlock
+            //{
+            //    Text = $"[{entry.GetTimestampString()}] [{entry.GetLevelString()}] {entry.Message}",
+            //    TextWrapping = TextWrapping.Wrap,
+            //    Foreground = entry.GetColor(),
+            //    FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
+            //    HorizontalAlignment = HorizontalAlignment.Stretch
+            //};
+            var logText = new TextBox
             {
                 Text = $"[{entry.GetTimestampString()}] [{entry.GetLevelString()}] {entry.Message}",
                 TextWrapping = TextWrapping.Wrap,
+                IsReadOnly = true,
+                AcceptsReturn = true,
+                AcceptsTab = true,
+                CaretBrush = Brushes.Transparent,
                 Foreground = entry.GetColor(),
                 FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
                 HorizontalAlignment = HorizontalAlignment.Stretch
@@ -347,8 +367,11 @@ namespace Editor
 
         private void ScrollToEnd()
         {
-            _scrollViewer.ScrollToEnd();
+            if (Dispatcher.UIThread.CheckAccess()) ScrollToEndCore();
+            else Dispatcher.UIThread.Post(() => ScrollToEndCore());
         }
+
+        private void ScrollToEndCore() => _scrollViewer.ScrollToEnd();
 
         public void Debug(params object[] args) => Log(string.Join(" ", args), LogLevel.Debug);
         public void Info(params object[] args) => Log(string.Join(" ", args), LogLevel.Info);

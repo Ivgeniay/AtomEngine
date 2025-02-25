@@ -6,6 +6,12 @@ namespace OpenglLib
     {
         public const string GLSLTYPES_JSON = "Resources.Config.GlslTypes.json";
         public const string SHADERCONFIG_JSON = "Resources.Config.ShaderConfig.json";
+        public const string CONE_OBJ = "Resources.Geometry.Standart.Models.cone.obj";
+        public const string CUBE_OBJ = "Resources.Geometry.Standart.Models.cube.obj";
+        public const string CYLINDER_OBJ = "Resources.Geometry.Standart.Models.cylinder.obj";
+        public const string ICOSPHERE_OBJ = "Resources.Geometry.Standart.Models.icosphere.obj";
+        public const string SPHERE_OBJ = "Resources.Geometry.Standart.Models.sphere.obj";
+        public const string TORUS_OBJ = "Resources.Geometry.Standart.Models.torus.obj";
         public const string ICON_LIGHT_BULB_PNG = "Resources.Geometry.Standart.Textures.icon-light-bulb.png";
         public const string WOOD_JPG = "Resources.Geometry.Standart.Textures.wood.jpg";
         public const string COMMON_GLSL = "Resources.ShaderSource.BaseParts.Common.glsl";

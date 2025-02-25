@@ -461,6 +461,13 @@ namespace Editor
                 Action = (e) => DebLogger.Debug($"{e}"),
                 SubCategory = new string[] { "sub1", "sub2" }
             });
+
+            _directoryExplorerController.FileSelected += (fileData) =>
+            {
+                IInspectable inspectable = InspectorDistributor.GetInspectable(fileData);
+                if (inspectable != null) _inspectorController.Inspect(inspectable);
+                else _inspectorController.CleanInspected();
+            };
         }
 
         public Border CreateDraggableWindow(string title, Control content = null, double left = 10, double top = 10,
@@ -503,8 +510,8 @@ namespace Editor
             CleanInspector();
             CleanHyerarchy();
             CleanWorlds();
-            WorldData standartSceneData = SceneFileHelper.CreateNewScene();
-            _currentScene = new ProjectScene(new List<WorldData>() { standartSceneData }, standartSceneData);
+            WorldData1 standartSceneData = SceneFileHelper.CreateNewScene();
+            _currentScene = new ProjectScene(new List<WorldData1>() { standartSceneData }, standartSceneData);
             InspectorDistributor.Initialize(_currentScene);
             UpdateControllers();
             Status.SetStatus($"Created new scene: {_currentScene.WorldName}");
@@ -618,6 +625,12 @@ namespace Editor
         private void CleanWorlds() => _worldController?.ClearWorlds();
 
         private void CleanInspector() => _inspectorController?.CleanInspected();
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            AssetFileSystem.Instance.Dispose();
+        }
     }
 
 

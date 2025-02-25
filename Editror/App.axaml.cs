@@ -10,7 +10,6 @@ namespace Editor
         public override void Initialize()
         {
             AvaloniaXamlLoader.Load(this);
-
             Environment.SetEnvironmentVariable("AVALONIA_DISABLE_ANGLE", "1");
         }
 

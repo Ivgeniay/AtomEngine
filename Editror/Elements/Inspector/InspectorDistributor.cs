@@ -26,6 +26,11 @@ namespace Editor
                     var inscted = new EntityInspectable(_entity, collection);
                     return inscted;
 
+                case FileSelectionEvent eventSelectionEvent:
+                    var meta = MetadataManager.Instance.GetMetadata(eventSelectionEvent.FilePath);
+                    var inpect = new AssetMetadataInspectable(meta);
+                    return inpect;
+
                 default:
                     DebLogger.Warn($"Нераспознаный тип для испекции: {source.GetType()}");
                     return null;

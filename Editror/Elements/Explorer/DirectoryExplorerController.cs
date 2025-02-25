@@ -291,7 +291,6 @@ namespace Editor
             _fileItems.Clear();
             try
             {
-                // Проверяем существование директории перед обновлением
                 if (Directory.Exists(_currentPath))
                 {
                     var files = Directory.GetFiles(_currentPath)
@@ -313,12 +312,11 @@ namespace Editor
                 }
                 else
                 {
-                    // Если директория была удалена, возвращаемся к родительской
                     var parent = Directory.GetParent(_currentPath);
                     if (parent != null && parent.FullName.StartsWith(_rootPath))
                     {
                         _currentPath = parent.FullName;
-                        UpdateFileList(); // Рекурсивно обновляем список для новой директории
+                        UpdateFileList();
                     }
                 }
             }
