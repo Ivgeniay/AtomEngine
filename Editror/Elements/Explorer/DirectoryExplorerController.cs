@@ -40,11 +40,13 @@ namespace Editor
         public DirectoryExplorerController(ExplorerConfigurations configs) : this()
         {
             if (configs != null) this.configs = configs;
-            else this.configs = new ExplorerConfigurations();
+            RefreshView();
         }
 
         public DirectoryExplorerController()
         {
+            this.configs = new ExplorerConfigurations();
+
             Classes.Add("directoryExplorer");
 
             _rootPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
@@ -160,14 +162,6 @@ namespace Editor
                 ItemsSource = _fileItems
             };
 
-
-            //_fileList.ContainerPrepared += (s, e) =>
-            //{
-            //    if (e.Container is ListBoxItem item)
-            //    {
-            //        item.PointerPressed += OnListBoxItemPointerPressed;
-            //    }
-            //};
 
             DragDrop.SetAllowDrop(_fileList, true);
             _fileList.AddHandler(DragDrop.DragOverEvent, DragOver);
@@ -356,7 +350,7 @@ namespace Editor
                 FileSelected?.Invoke(new FileSelectionEvent()
                 {
                     FileName = fileName,
-                    FilePath = fullPath,
+                    FileFullPath = fullPath,
                     FileExtension = Path.GetExtension(fullPath)
                 });
             }
@@ -519,7 +513,8 @@ namespace Editor
                             Command = new Command(() => customMenu.Action?.Invoke(new FileSelectionEvent
                             {
                                 FileName = filename, 
-                                FilePath = path,
+                                FileFullPath = path,
+                                FilePath = path.Substring(0, path.IndexOf(filename)),
                                 FileExtension = extension
                             })),
                         };
@@ -557,7 +552,8 @@ namespace Editor
                             Command = new Command(() => customMenu.Action?.Invoke(new FileSelectionEvent
                             {
                                 FileName = filename,
-                                FilePath = path,
+                                FileFullPath = path,
+                                FilePath = path.Substring(0, path.IndexOf(filename)),
                                 FileExtension = extension
                             })),
                         });

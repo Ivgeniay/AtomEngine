@@ -8,17 +8,15 @@ using System.Runtime.InteropServices;
 
 namespace Editor
 {
-    public enum BuildType
-    {
-        Debug,
-        Release
-    }
     internal static class ScriptProjectGenerator
     {
         private static string _assetsPath;
         private static string _scriptProjectPath;
         private static string _outputPath;
         private static Assembly _coreAssembly;
+        private static Assembly _renderAssembly;
+        private static Assembly _silkMathAssembly;
+        private static Assembly _silkOpenGlAssembly;
         private static bool _isInitialized = false;
 
         static ScriptProjectGenerator()
@@ -43,7 +41,10 @@ namespace Editor
                 var projectFilePath = Path.Combine(_scriptProjectPath, $"{projConfig}.csproj");
                 if (File.Exists(projectFilePath)) return true;
 
-                _coreAssembly = AssemblyManager.Instance.GetCoreAssembly();
+                _coreAssembly = AssemblyManager.Instance.GetAssembly(TAssembly.Core);
+                _renderAssembly = AssemblyManager.Instance.GetAssembly(TAssembly.Render);
+                _silkMathAssembly = AssemblyManager.Instance.GetAssembly(TAssembly.SilkMath);
+                _silkOpenGlAssembly = AssemblyManager.Instance.GetAssembly(TAssembly.SilkOpenGL);
 
                 GenerateProjectFile();
 
@@ -119,6 +120,15 @@ namespace Editor
   <ItemGroup>
     <Reference Include=""{_coreAssembly.GetName().Name}"">
       <HintPath>{_coreAssembly.Location}</HintPath>
+    </Reference>
+    <Reference Include=""{_renderAssembly.GetName().Name}"">
+      <HintPath>{_renderAssembly.Location}</HintPath>
+    </Reference>
+    <Reference Include=""{_silkMathAssembly.GetName().Name}"">
+      <HintPath>{_silkMathAssembly.Location}</HintPath>
+    </Reference>
+    <Reference Include=""{_silkOpenGlAssembly.GetName().Name}"">
+      <HintPath>{_silkOpenGlAssembly.Location}</HintPath>
     </Reference>
   </ItemGroup>
 

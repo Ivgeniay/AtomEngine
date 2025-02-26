@@ -6,6 +6,8 @@ using Newtonsoft.Json;
 using System.Linq;
 using AtomEngine;
 using System;
+using Editor.Utils.Generator;
+using System.IO;
 
 namespace Editor
 {
@@ -269,7 +271,8 @@ namespace Editor
                         Description = "",
                         Action = async () => { 
                             DebLogger.Debug("Build Project");
-                            await ScriptSyncSystem.RebuildProject();
+                            ProjectConfigurations pConf = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                            await ScriptSyncSystem.RebuildProject(pConf.BuildType);
                         }
                     },
                     new EditorToolbarButton()
@@ -292,7 +295,8 @@ namespace Editor
                         Text = "Rebuild All",
                         Description = "",
                         Action = async () => {
-                            await ScriptSyncSystem.RebuildProject();
+                            ProjectConfigurations pConf = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                            await ScriptSyncSystem.RebuildProject(pConf.BuildType);
                         }
                     },
                     new EditorToolbarButton()
@@ -485,8 +489,18 @@ namespace Editor
                 Description = "Open file in IDE",
                 Action = (e) =>
                 {
-                    ScriptSyncSystem.OpenProjectInIDE(e.FilePath);
+                    ScriptSyncSystem.OpenProjectInIDE(e.FileFullPath);
                 },
+            });
+            _directoryExplorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".glsl",
+                Name = "Generate C#",
+                Description = "Generate c sharp view glsl code",
+                Action = (e) =>
+                {
+                    GlslCodeGenerator.GenerateCode(e.FileFullPath, e.FilePath);
+                }
             });
 
             _directoryExplorerController.FileSelected += (fileData) =>

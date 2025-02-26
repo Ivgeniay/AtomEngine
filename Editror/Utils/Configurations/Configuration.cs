@@ -14,13 +14,20 @@ namespace Editor
         private const string EXPLORER_CONFIG_FILE = "explorer.config";
         private const string SCENE_CONFIG_FILE = "scenes.config";
         private const string PROJECT_CONFIG_FILE = "project.config";
-
+        
+        private static bool _isInitialized = false;
+        
         static Configuration()
         {
+            Initialize();
+        }
+        public static void Initialize()
+        {
+            if (_isInitialized) return;
             configsSource.Add(
-                ConfigurationSource.ExplorerConfigs, 
+                ConfigurationSource.ExplorerConfigs,
                 Path.Combine(
-                    DirectoryExplorer.GetPath(DirectoryType.Configurations), 
+                    DirectoryExplorer.GetPath(DirectoryType.Configurations),
                     EXPLORER_CONFIG_FILE));
             configsSource.Add(
                 ConfigurationSource.SceneConfigs,
@@ -58,8 +65,9 @@ namespace Editor
                             break;
 
                     }
-                    
-                    using (FileStream file = File.Create(kvp.Value)) {
+
+                    using (FileStream file = File.Create(kvp.Value))
+                    {
                         byte[] bytes = Encoding.UTF8.GetBytes(value);
                         file.Write(bytes, 0, bytes.Length);
                     }

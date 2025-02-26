@@ -50,3 +50,8 @@ namespace AtomEngine
     //    }
     //}
 }
+
+public class EditorResourceManager
+{
+
+}

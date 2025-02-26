@@ -27,7 +27,7 @@ namespace Editor
                     return inscted;
 
                 case FileSelectionEvent eventSelectionEvent:
-                    var meta = MetadataManager.Instance.GetMetadata(eventSelectionEvent.FilePath);
+                    var meta = MetadataManager.Instance.GetMetadata(eventSelectionEvent.FileFullPath);
                     switch(meta.AssetType)
                     {
                         case MetadataType.Texture:

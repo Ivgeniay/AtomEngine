@@ -18,31 +18,37 @@ namespace Editor
             Environment.SetEnvironmentVariable("AVALONIA_DISABLE_ANGLE", "1");
         }
 
-        public override void OnFrameworkInitializationCompleted()
+        public async override void OnFrameworkInitializationCompleted()
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 loadingWindow = new LoadingWindow();
                 desktop.MainWindow = loadingWindow;
-                mainWindow = new MainWindow();
                 loadingWindow.Show();
-                InitializeAppAsync(desktop);
+                await InitializeAppAsync(desktop);
+                mainWindow = new MainWindow();
+                desktop.MainWindow = mainWindow;
+                mainWindow.Show();
             }
 
             base.OnFrameworkInitializationCompleted();
         }
 
-        private async void InitializeAppAsync(IClassicDesktopStyleApplicationLifetime desktop)
+        private async Task InitializeAppAsync(IClassicDesktopStyleApplicationLifetime desktop)
         {
             try
             {
                 await Task.Delay(100);
-                await loadingWindow.UpdateLoadingStatus("Инициализации файловой системы...");
-                AssetFileSystem.Instance.Initialize();
+                await loadingWindow.UpdateLoadingStatus("Инициализация конфигураций...");
+                Configuration.Initialize();
                 await Task.Delay(100);
 
                 await loadingWindow.UpdateLoadingStatus("Инициализация сборок...");
                 AssemblyManager.Instance.Initialize(AppDomain.CurrentDomain.GetAssemblies());
+                await Task.Delay(100);
+
+                await loadingWindow.UpdateLoadingStatus("Инициализации файловой системы...");
+                AssetFileSystem.Instance.Initialize();
                 await Task.Delay(100);
 
                 await loadingWindow.UpdateLoadingStatus("Генерация проекта пользовательских скриптов...");
@@ -56,8 +62,8 @@ namespace Editor
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    desktop.MainWindow = mainWindow;
-                    mainWindow.Show();
+                    //desktop.MainWindow = mainWindow;
+                    //mainWindow.Show();
                     loadingWindow.Close();
                 });
             }

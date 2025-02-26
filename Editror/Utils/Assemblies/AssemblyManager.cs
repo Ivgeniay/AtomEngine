@@ -10,6 +10,9 @@ namespace Editor
     public class AssemblyManager
     {
         private string _coreDllName = "EngineLib";
+        private string _renderDllName = "OpenglLib";
+        private Dictionary<TAssembly, string> _assemblyMap;
+        private Dictionary<TAssembly, Assembly> _assemblyDict = new Dictionary<TAssembly, Assembly>();
         public static AssemblyManager Instance { get; } = new();
 
         private readonly HashSet<Assembly> _assemblies = new();
@@ -17,23 +20,33 @@ namespace Editor
 
         public void Initialize(IEnumerable<Assembly> initialAssemblies)
         {
+            _assemblyMap = new Dictionary<TAssembly, string>
+            {
+                { TAssembly.Core, "EngineLib"},
+                { TAssembly.Render, "OpenglLib" },
+                { TAssembly.SilkOpenGL, "Silk.NET.OpenGL" },
+                { TAssembly.SilkMath, "Silk.NET.Maths" }
+            };
+
             foreach (var assembly in initialAssemblies)
             {
                 _assemblies.Add(assembly);
             }
 
             var baseDirectry = DirectoryExplorer.GetPath(DirectoryType.Base);
-            foreach (var file in Directory.GetFiles(baseDirectry, "*.dll"))
+            foreach (var filePath in Directory.GetFiles(baseDirectry, "*.dll"))
             {
-                if (file.IndexOf(_coreDllName) != -1)
+                string fileName = Path.GetFileName(filePath);
+
+                foreach (var pair in _assemblyMap)
                 {
-                    try
+                    if (fileName.Equals(pair.Value + ".dll"))
                     {
-                        var assembly = Assembly.LoadFrom(file);
+                        Assembly assembly = Assembly.LoadFrom(filePath);
+                        _assemblyDict[pair.Key] = assembly;
                         _assemblies.Add(assembly);
+                        break;
                     }
-                    catch (AssemblyError ex)
-                    { }
                 }
             }
 
@@ -73,17 +86,7 @@ namespace Editor
             return null;
         }
 
-        public Assembly GetCoreAssembly()
-        {
-            foreach (var item in _assemblies)
-            {
-                if (item.GetName().Name == _coreDllName)
-                {
-                    return item;
-                }
-            }
-            return null;
-        }
+        public Assembly GetAssembly(TAssembly assembly) => _assemblyDict[assembly];
 
         public IEnumerable<Type> FindTypesByInterface<T>()
         {
@@ -135,5 +138,13 @@ namespace Editor
             }
             return _user_script_assembly;
         }
+    }
+
+    public enum TAssembly
+    {
+        Core,
+        Render,
+        SilkMath,
+        SilkOpenGL
     }
 }
