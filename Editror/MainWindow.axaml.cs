@@ -271,9 +271,20 @@ namespace Editor
                     },
                     new EditorToolbarButton()
                     {
+                        Text = "Create Solution",
+                        Description = "",
+                        Action = () => {
+                            DebLogger.Debug("Generate Solution");
+                            ScriptProjectGenerator.GenerateProject(); 
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
                         Text = "Build Solution",
                         Description = "",
-                        Action = () => { DebLogger.Debug("Build Solution"); }
+                        Action = () => { 
+                            DebLogger.Debug("Build Solution"); 
+                        }
                     },
                     new EditorToolbarButton()
                     {
@@ -630,6 +641,7 @@ namespace Editor
         {
             base.OnClosed(e);
             AssetFileSystem.Instance.Dispose();
+            ProjectFileWatcher.Dispose();
         }
     }
 

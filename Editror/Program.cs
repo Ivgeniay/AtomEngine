@@ -12,8 +12,8 @@ namespace Editor
         [STAThread]
         public static void Main(string[] args)
         {
-            AssetFileSystem.Instance.Initialize();
-            AssemblyManager.Instance.Initialize(AppDomain.CurrentDomain.GetAssemblies());
+            //AssetFileSystem.Instance.Initialize();
+            //AssemblyManager.Instance.Initialize(AppDomain.CurrentDomain.GetAssemblies());
 
             BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);

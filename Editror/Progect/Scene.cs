@@ -1,448 +1,458 @@
 ﻿using System.Collections.Generic;
-using Newtonsoft.Json;
-using System.Linq;
-using AtomEngine;
 using System;
+using AtomEngine;
+using AtomEngine.RenderEntity;
+using BepuPhysics.Trees;
+using Newtonsoft.Json;
+using System.IO;
 
 namespace Editor
 {
-    internal class Scene
+    public class Scene : IDisposable
     {
-        // Идентификатор сцены
-        public string Guid { get; set; } = System.Guid.NewGuid().ToString();
-
-        // Версия формата сцены
-        public string Version { get; set; } = "1.0";
+        // Уникальный идентификатор сцены
+        public Guid Id { get; private set; }
 
         // Имя сцены
-        public string Name { get; set; } = "Untitled Scene";
+        public string Name { get; set; }
 
-        // Путь к файлу сцены
-        public string ScenePath { get; set; } = string.Empty;
+        // Путь к файлу сцены (для сохранения/загрузки)
+        public string FilePath { get; set; }
 
-        // Время последнего изменения
-        public DateTime LastModified { get; set; } = DateTime.UtcNow;
+        // Коллекция сущностей (Entity -> List компонентов)
+        private Dictionary<Entity, Dictionary<Type, IComponent>> _entities;
 
-        // Список миров в сцене
-        public List<WorldData> Worlds { get; set; } = new List<WorldData>();
+        // Метки для быстрого поиска сущностей
+        private Dictionary<string, HashSet<Entity>> _entityTags;
 
-        // GUID текущего выбранного мира
-        public string CurrentWorldGuid { get; set; }
+        // Система для управления ресурсами
+        private ResourceManager _resourceManager;
 
-        // Список зависимостей (ресурсы, используемые в сцене)
-        public List<AssetDependency> Dependencies { get; set; } = new List<AssetDependency>();
+        // События
+        public event Action<Entity> EntityAdded;
+        public event Action<Entity> EntityRemoved;
+        public event Action<Entity, Type> ComponentAdded;
+        public event Action<Entity, Type> ComponentRemoved;
+        public event Action SceneChanged;
 
-        // Настройки хранения сцены
-        public SceneConfiguration Configuration { get; set; } = new SceneConfiguration();
-
-        // Кэш экземпляров миров - не сериализуется
-        [JsonIgnore]
-        private Dictionary<string, World> _worldInstances = new Dictionary<string, World>();
-
-        // Блокировка для многопоточного доступа
-        [JsonIgnore]
-        private readonly object _worldLock = new object();
-
-        // Свойство "Грязный" (есть несохраненные изменения)
-        [JsonIgnore]
-        public bool IsDirty { get; private set; }
-
-        /// <summary>
-        /// Конструктор по умолчанию
-        /// </summary>
-        public Scene()
+        public Scene(string name = "New Scene")
         {
-            // Создание мира по умолчанию
-            var defaultWorld = new WorldData
+            Id = Guid.NewGuid();
+            Name = name;
+            _entities = new Dictionary<Entity, Dictionary<Type, IComponent>>();
+            _entityTags = new Dictionary<string, HashSet<Entity>>();
+            _resourceManager = new ResourceManager();
+        }
+
+        public Entity CreateEntity(string name = "Entity")
+        {
+            var entity = new Entity(); // Предполагаем, что Entity создаётся с уникальным ID
+            var components = new Dictionary<Type, IComponent>();
+            _entities[entity] = components;
+
+            // Добавляем базовый компонент с именем
+            var nameComponent = new NameComponent(entity, name);
+            components[typeof(NameComponent)] = nameComponent;
+
+            EntityAdded?.Invoke(entity);
+            SceneChanged?.Invoke();
+
+            return entity;
+        }
+
+        public void DestroyEntity(Entity entity)
+        {
+            if (!_entities.TryGetValue(entity, out var components))
+                return;
+
+            // Освобождаем ресурсы компонентов
+            foreach (var component in components.Values)
             {
-                Name = "World_0"
+                if (component is IDisposable disposable)
+                    disposable.Dispose();
+            }
+
+            _entities.Remove(entity);
+
+            // Удаляем из тегов
+            foreach (var taggedEntities in _entityTags.Values)
+            {
+                taggedEntities.Remove(entity);
+            }
+
+            EntityRemoved?.Invoke(entity);
+            SceneChanged?.Invoke();
+        }
+
+        public bool HasEntity(Entity entity)
+        {
+            return _entities.ContainsKey(entity);
+        }
+
+        public IEnumerable<Entity> GetAllEntities()
+        {
+            return _entities.Keys;
+        }
+
+        public T AddComponent<T>(Entity entity) where T : IComponent, new()
+        {
+            if (!_entities.TryGetValue(entity, out var components))
+                throw new ArgumentException($"Entity {entity} does not exist in this scene");
+
+            if (components.ContainsKey(typeof(T)))
+                throw new InvalidOperationException($"Entity already has component of type {typeof(T).Name}");
+
+            var component = new T();
+            // Устанавливаем Owner для компонента, если требуется
+            SetComponentOwner(component, entity);
+
+            components[typeof(T)] = component;
+
+            ComponentAdded?.Invoke(entity, typeof(T));
+            SceneChanged?.Invoke();
+
+            return component;
+        }
+
+        public void RemoveComponent<T>(Entity entity) where T : IComponent
+        {
+            if (!_entities.TryGetValue(entity, out var components))
+                return;
+
+            if (components.TryGetValue(typeof(T), out var component))
+            {
+                if (component is IDisposable disposable)
+                    disposable.Dispose();
+
+                components.Remove(typeof(T));
+
+                ComponentRemoved?.Invoke(entity, typeof(T));
+                SceneChanged?.Invoke();
+            }
+        }
+
+        public bool HasComponent<T>(Entity entity) where T : IComponent
+        {
+            return _entities.TryGetValue(entity, out var components) &&
+                   components.ContainsKey(typeof(T));
+        }
+
+        public T GetComponent<T>(Entity entity) where T : IComponent
+        {
+            if (_entities.TryGetValue(entity, out var components) &&
+                components.TryGetValue(typeof(T), out var component))
+            {
+                return (T)component;
+            }
+
+            return default;
+        }
+
+        private void SetComponentOwner(IComponent component, Entity entity)
+        {
+            // Здесь можно использовать рефлексию для установки Owner,
+            // если компонент имеет свойство Owner
+            var ownerProperty = component.GetType().GetProperty("Owner");
+            if (ownerProperty != null && ownerProperty.CanWrite)
+            {
+                ownerProperty.SetValue(component, entity);
+            }
+        }
+
+        public void Save(string path = null)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                if (string.IsNullOrEmpty(FilePath))
+                    throw new InvalidOperationException("File path not specified for saving");
+
+                path = FilePath;
+            }
+            else
+            {
+                FilePath = path;
+            }
+
+            // Создаем сериализуемую структуру данных
+            var sceneData = new SceneData
+            {
+                Id = Id,
+                Name = Name,
+                Entities = SerializeEntities()
             };
 
-            Worlds.Add(defaultWorld);
-            CurrentWorldGuid = defaultWorld.Guid;
-        }
-
-        /// <summary>
-        /// Конструктор с конфигурацией
-        /// </summary>
-        public Scene(SceneConfiguration configuration) : this()
-        {
-            Configuration = configuration;
-        }
-
-        /// <summary>
-        /// Получить текущий мир
-        /// </summary>
-        [JsonIgnore]
-        public WorldData CurrentWorld
-        {
-            get
+            var settings = new JsonSerializerSettings
             {
-                lock (_worldLock)
+                TypeNameHandling = TypeNameHandling.Auto,
+                Formatting = Formatting.Indented,
+                Converters = new List<JsonConverter> { new ResourceReferenceConverter() }
+            };
+
+            string json = JsonConvert.SerializeObject(sceneData, settings);
+            File.WriteAllText(path, json);
+        }
+
+        private List<EntityData> SerializeEntities()
+        {
+            var entitiesData = new List<EntityData>();
+
+            foreach (var kvp in _entities)
+            {
+                var entity = kvp.Key;
+                var components = kvp.Value;
+
+                var entityData = new EntityData
                 {
-                    if (string.IsNullOrEmpty(CurrentWorldGuid) && Worlds.Count > 0)
+                    Id = entity.Id,
+                    Components = new List<ComponentData>()
+                };
+
+                foreach (var componentKvp in components)
+                {
+                    var componentType = componentKvp.Key;
+                    var component = componentKvp.Value;
+
+                    var componentData = new ComponentData
                     {
-                        CurrentWorldGuid = Worlds.First().Guid;
-                    }
+                        TypeName = componentType.AssemblyQualifiedName,
+                        Data = JsonConvert.SerializeObject(component, new JsonSerializerSettings
+                        {
+                            Converters = new List<JsonConverter> { new ResourceReferenceConverter() }
+                        })
+                    };
 
-                    return Worlds.FirstOrDefault(w => w.Guid == CurrentWorldGuid);
+                    entityData.Components.Add(componentData);
                 }
+
+                entitiesData.Add(entityData);
             }
+
+            return entitiesData;
         }
 
-        /// <summary>
-        /// Получить или создать экземпляр мира для ECS
-        /// </summary>
-        public World GetWorldInstance(string worldGuid)
+        public static Scene Load(string path)
         {
-            lock (_worldLock)
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"Scene file not found: {path}");
+
+            string json = File.ReadAllText(path);
+
+            var settings = new JsonSerializerSettings
             {
-                if (_worldInstances.TryGetValue(worldGuid, out var instance))
-                {
-                    return instance;
-                }
-
-                var worldData = Worlds.FirstOrDefault(w => w.Guid == worldGuid);
-                if (worldData == null)
-                {
-                    return null;
-                }
-
-                // Создаем новый экземпляр мира
-                var world = new World();
-
-                // Восстанавливаем сущности в мире
-                foreach (var entity in worldData.Entities)
-                {
-                    // Создаем сущность с тем же ID и версией
-                    var ecsEntity = world.CreateEntityWithId(entity.Id, entity.Version);
-
-                    // Здесь можно было бы восстановить компоненты сущности
-                    // ...
-                }
-
-                _worldInstances[worldGuid] = world;
-                return world;
-            }
-        }
-
-        /// <summary>
-        /// Создать новый мир
-        /// </summary>
-        public WorldData CreateWorld(string worldName)
-        {
-            var worldData = new WorldData
-            {
-                Name = worldName
+                TypeNameHandling = TypeNameHandling.Auto
             };
 
-            Worlds.Add(worldData);
+            var sceneData = JsonConvert.DeserializeObject<SceneData>(json, settings);
 
-            MakeDirty();
-            return worldData;
+            var scene = new Scene(sceneData.Name)
+            {
+                Id = sceneData.Id,
+                FilePath = path
+            };
+
+            // Загружаем сущности и компоненты
+            scene.DeserializeEntities(sceneData.Entities);
+
+            return scene;
         }
 
-        /// <summary>
-        /// Удалить мир
-        /// </summary>
-        public void RemoveWorld(string worldGuid)
+        private void DeserializeEntities(List<EntityData> entitiesData)
         {
-            var world = Worlds.FirstOrDefault(w => w.Guid == worldGuid);
-            if (world != null)
+            foreach (var entityData in entitiesData)
             {
-                Worlds.Remove(world);
-                _worldInstances.Remove(worldGuid);
+                var entity = new Entity(entityData.Id);
+                var components = new Dictionary<Type, IComponent>();
+                _entities[entity] = components;
 
-                // Если удаляем текущий мир, переключаемся на другой
-                if (CurrentWorldGuid == worldGuid && Worlds.Count > 0)
+                foreach (var componentData in entityData.Components)
                 {
-                    CurrentWorldGuid = Worlds.First().Guid;
+                    Type componentType = Type.GetType(componentData.TypeName);
+                    if (componentType == null)
+                        continue;
+
+                    // Десериализуем компонент с GUID вместо реальных объектов
+                    var component = (IComponent)JsonConvert.DeserializeObject(componentData.Data, componentType);
+
+                    // Устанавливаем Owner
+                    SetComponentOwner(component, entity);
+
+                    components[componentType] = component;
                 }
 
-                MakeDirty();
+                EntityAdded?.Invoke(entity);
             }
         }
 
-        /// <summary>
-        /// Выбрать мир
-        /// </summary>
-        public void SelectWorld(string worldGuid)
+        public void Dispose()
         {
-            if (Worlds.Any(w => w.Guid == worldGuid))
+            // Освобождаем ресурсы компонентов
+            foreach (var entityComponents in _entities.Values)
             {
-                CurrentWorldGuid = worldGuid;
-            }
-        }
-
-        /// <summary>
-        /// Переименовать мир
-        /// </summary>
-        public void RenameWorld(string worldGuid, string newName)
-        {
-            var world = Worlds.FirstOrDefault(w => w.Guid == worldGuid);
-            if (world != null)
-            {
-                world.Name = newName;
-                MakeDirty();
-            }
-        }
-
-        /// <summary>
-        /// Пометить сцену как измененную
-        /// </summary>
-        public void MakeDirty()
-        {
-            IsDirty = true;
-            LastModified = DateTime.UtcNow;
-        }
-
-        /// <summary>
-        /// Пометить сцену как сохраненную
-        /// </summary>
-        public void MakeClean()
-        {
-            IsDirty = false;
-        }
-
-        /// <summary>
-        /// Добавить зависимость от ресурса
-        /// </summary>
-        public void AddDependency(string assetGuid, string assetType)
-        {
-            if (!Dependencies.Any(d => d.AssetGuid == assetGuid))
-            {
-                Dependencies.Add(new AssetDependency
+                foreach (var component in entityComponents.Values)
                 {
-                    AssetGuid = assetGuid,
-                    AssetType = assetType
-                });
-
-                MakeDirty();
+                    if (component is IDisposable disposable)
+                        disposable.Dispose();
+                }
             }
-        }
 
-        /// <summary>
-        /// Удалить зависимость от ресурса
-        /// </summary>
-        public void RemoveDependency(string assetGuid)
-        {
-            var dependency = Dependencies.FirstOrDefault(d => d.AssetGuid == assetGuid);
-            if (dependency != null)
-            {
-                Dependencies.Remove(dependency);
-                MakeDirty();
-            }
+            _resourceManager.Dispose();
         }
     }
 
-    // Тип хранения сцены
-    internal enum SceneStorageMode
+    public class ResourceManager : IDisposable
     {
-        SingleFile,     // Всё в одном файле
-        SplitWorlds,    // Разбивать на файлы мирами
-        SplitEntities   // Разбивать до уровня сущностей
-    }
-    internal class SceneConfiguration
-    {
-        // Режим хранения данных сцены
-        public SceneStorageMode Storage { get; set; } = SceneStorageMode.SingleFile;
+        // Кэш загруженных ресурсов (GUID -> ресурс)
+        private Dictionary<string, object> _resourceCache = new Dictionary<string, object>();
 
-        // Автоматическая перезагрузка сцены при изменении файла
-        public bool AutoReload { get; set; } = true;
+        // Метаданные ассет-менеджера
+        private MetadataManager _metadataManager;
 
-        // Сжатие файла сцены
-        public bool CompressSceneFile { get; set; } = false;
-
-        // Уровень сжатия (если включено)
-        public int CompressionLevel { get; set; } = 5;
-
-        // Включить кэширование данных для рендеринга
-        public bool EnableRenderingCache { get; set; } = true;
-
-        // Максимальный размер кэша рендеринга в МБ
-        public int MaxRenderingCacheMB { get; set; } = 128;
-    }
-
-    /// <summary>
-    /// Данные мира
-    /// </summary>
-    internal class WorldData
-    {
-        // Уникальный идентификатор мира
-        public string Guid { get; set; } = System.Guid.NewGuid().ToString();
-
-        // Имя мира
-        public string Name { get; set; } = "World_0";
-
-        // Сущности в мире
-        public List<EntityData> Entities { get; set; } = new List<EntityData>();
-
-        // Системы в мире
-        public List<SystemData> Systems { get; set; } = new List<SystemData>();
-
-        // Флаг активности мира
-        public bool IsActive { get; set; } = true;
-
-        // Статус "грязный" (есть несохраненные изменения)
-        [JsonIgnore]
-        public bool IsDirty { get; set; }
-
-        /// <summary>
-        /// Добавить новую сущность
-        /// </summary>
-        public EntityData AddEntity(string name, World worldInstance)
+        public ResourceManager()
         {
-            // Создаем сущность в ECS
-            var ecsEntity = worldInstance.CreateEntity();
-
-            // Создаем данные сущности
-            var entityData = new EntityData
-            {
-                Id = ecsEntity.Id,
-                Version = ecsEntity.Version,
-                Name = name
-            };
-
-            // Добавляем сущность
-            Entities.Add(entityData);
-
-            // Помечаем мир как измененный
-            IsDirty = true;
-
-            return entityData;
+            _metadataManager = MetadataManager.Instance;
         }
 
-        /// <summary>
-        /// Удалить сущность
-        /// </summary>
-        public void RemoveEntity(uint entityId, uint entityVersion, World worldInstance)
+        // Получение ресурса по GUID
+        public T GetResource<T>(string guid) where T : class
         {
-            var entity = Entities.FirstOrDefault(e => e.Id == entityId && e.Version == entityVersion);
-            if (entity != null)
+            // Пробуем найти в кэше
+            if (_resourceCache.TryGetValue(guid, out var cachedResource) && cachedResource is T typedResource)
+                return typedResource;
+
+            // Получаем путь к файлу по GUID
+            string filePath = _metadataManager.GetPathByGuid(guid);
+            if (string.IsNullOrEmpty(filePath))
+                return null;
+
+            // Загружаем ресурс (здесь нужно реализовать логику загрузки конкретных типов)
+            T resource = LoadResource<T>(filePath);
+
+            if (resource != null)
+                _resourceCache[guid] = resource;
+
+            return resource;
+        }
+
+        // Метод загрузки ресурса по типу
+        private T LoadResource<T>(string filePath) where T : class
+        {
+            // Здесь реализуем загрузку разных типов ресурсов
+            Type resourceType = typeof(T);
+
+            // Пример для ShaderBase
+            if (typeof(ShaderBase).IsAssignableFrom(resourceType))
             {
-                // Удаляем сущность из ECS
-                worldInstance.DestroyEntity(entityId, entityVersion);
-
-                // Удаляем данные сущности
-                Entities.Remove(entity);
-
-                // Помечаем мир как измененный
-                IsDirty = true;
+                // Логика загрузки шейдера
+                // return LoadShader(filePath) as T;
             }
-        }
 
-        /// <summary>
-        /// Переименовать сущность
-        /// </summary>
-        public void RenameEntity(uint entityId, uint entityVersion, string newName)
-        {
-            var entity = Entities.FirstOrDefault(e => e.Id == entityId && e.Version == entityVersion);
-            if (entity != null)
-            {
-                entity.Name = newName;
-                IsDirty = true;
-            }
-        }
+            // Для других типов...
 
-        /// <summary>
-        /// Добавить систему
-        /// </summary>
-        public void AddSystem(string systemType)
-        {
-            var systemData = new SystemData
-            {
-                SystemType = systemType
-            };
-
-            Systems.Add(systemData);
-            IsDirty = true;
-        }
-
-        /// <summary>
-        /// Удалить систему
-        /// </summary>
-        public void RemoveSystem(string systemGuid)
-        {
-            var system = Systems.FirstOrDefault(s => s.Guid == systemGuid);
-            if (system != null)
-            {
-                Systems.Remove(system);
-                IsDirty = true;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Данные сущности
-    /// </summary>
-    internal class EntityData
-    {
-        // Уникальный идентификатор сущности
-        public string Guid { get; set; } = System.Guid.NewGuid().ToString();
-
-        // Идентификатор сущности в ECS
-        public uint Id { get; set; }
-
-        // Версия сущности в ECS
-        public uint Version { get; set; }
-
-        // Имя сущности
-        public string Name { get; set; } = string.Empty;
-
-        // Компоненты сущности
-        [JsonConverter(typeof(ComponentDictionaryConverter))]
-        public Dictionary<string, IComponent> Components { get; set; } = new Dictionary<string, IComponent>();
-
-        // Флаг активности сущности
-        public bool IsActive { get; set; } = true;
-
-        // Ссылка на родительскую сущность (для иерархии)
-        public string ParentEntityGuid { get; set; }
-
-        // Получить компонент по типу
-        public T GetComponent<T>() where T : class, IComponent
-        {
-            var componentType = typeof(T).FullName;
-            if (Components.TryGetValue(componentType, out var component) && component is T typedComponent)
-            {
-                return typedComponent;
-            }
             return null;
         }
 
-        // Добавить компонент
-        public void AddComponent(IComponent component)
+        public void Dispose()
         {
-            var componentType = component.GetType().FullName;
-            Components[componentType] = component;
-        }
+            // Освобождаем все загруженные ресурсы
+            foreach (var resource in _resourceCache.Values)
+            {
+                if (resource is IDisposable disposable)
+                    disposable.Dispose();
+            }
 
-        // Удалить компонент
-        public void RemoveComponent<T>() where T : class, IComponent
-        {
-            var componentType = typeof(T).FullName;
-            Components.Remove(componentType);
+            _resourceCache.Clear();
         }
     }
 
-    /// <summary>
-    /// Данные системы
-    /// </summary>
-    public class SystemData
+    public class ResourceReference
     {
-        // Уникальный идентификатор системы
-        public string Guid { get; set; } = System.Guid.NewGuid().ToString();
+        public string Guid { get; set; }
 
-        // Тип системы
-        public string SystemType { get; set; }
+        public ResourceReference(string guid)
+        {
+            Guid = guid;
+        }
+    }
 
-        // Порядок выполнения системы
-        public int ExecutionOrder { get; set; } = 0;
+    // Конвертер JSON для ссылочных типов
+    public class ResourceReferenceConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType)
+        {
+            // Проверяем, что это не примитивный тип и не строка
+            return !objectType.IsPrimitive &&
+                   objectType != typeof(string) &&
+                   !objectType.IsValueType;
+        }
 
-        // Флаг активности системы
-        public bool IsActive { get; set; } = true;
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            // Десериализуем как ResourceReference
+            var reference = serializer.Deserialize<ResourceReference>(reader);
 
-        // Настройки системы
-        public Dictionary<string, object> Settings { get; set; } = new Dictionary<string, object>();
+            if (reference == null)
+                return null;
+
+            // Здесь просто возвращаем GUID, настоящий ресурс будет загружен позже
+            return reference.Guid;
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            // Получаем GUID ресурса (предполагаем, что у ресурса есть свойство Guid)
+            string guid = null;
+
+            if (value is IResource resource)
+            {
+                guid = resource.Guid;
+            }
+            else
+            {
+                // Попробуем получить через рефлексию
+                var guidProperty = value.GetType().GetProperty("Guid");
+                if (guidProperty != null)
+                {
+                    guid = guidProperty.GetValue(value) as string;
+                }
+            }
+
+            if (guid != null)
+            {
+                // Записываем как ResourceReference
+                serializer.Serialize(writer, new ResourceReference(guid));
+            }
+            else
+            {
+                // Если не можем получить GUID, записываем null
+                writer.WriteNull();
+            }
+        }
+    }
+
+    [Serializable]
+    public class SceneData
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public List<EntityData> Entities { get; set; } = new List<EntityData>();
+    }
+
+    [Serializable]
+    public class EntityData
+    {
+        public uint Id { get; set; }
+        public List<ComponentData> Components { get; set; } = new List<ComponentData>();
+    }
+
+    [Serializable]
+    public class ComponentData
+    {
+        public string TypeName { get; set; }
+        public string Data { get; set; }
+    }
+
+    public interface IResource
+    {
+        string Guid { get; }
     }
 }

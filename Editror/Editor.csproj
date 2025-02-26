@@ -38,6 +38,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Assets\loading-background.jpg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaXaml Include="Assets\loading-background.jpg" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CommonLib\CommonLib.csproj" />
     <ProjectReference Include="..\EngineLib\EngineLib.csproj" />
     <ProjectReference Include="..\OpenglLib\OpenglLib.csproj" />

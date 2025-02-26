@@ -6,5 +6,6 @@
         Plugins,
         Assets,
         Configurations,
+        CSharp_Assembly,
     }
 }

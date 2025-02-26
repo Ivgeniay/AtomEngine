@@ -9,6 +9,7 @@ namespace Editor
 {
     public class AssemblyManager
     {
+        private string _coreDllName = "EngineLib";
         public static AssemblyManager Instance { get; } = new();
 
         private readonly HashSet<Assembly> _assemblies = new();
@@ -23,7 +24,7 @@ namespace Editor
             var baseDirectry = DirectoryExplorer.GetPath(DirectoryType.Base);
             foreach (var file in Directory.GetFiles(baseDirectry, "*.dll"))
             {
-                if (file.IndexOf("EngineLib") != -1)
+                if (file.IndexOf(_coreDllName) != -1)
                 {
                     try
                     {
@@ -67,6 +68,18 @@ namespace Editor
                 }
                 catch (AssemblyError ex)
                 { }
+            }
+            return null;
+        }
+
+        public Assembly GetCoreAssembly()
+        {
+            foreach (var item in _assemblies)
+            {
+                if (item.GetName().Name == _coreDllName)
+                {
+                    return item;
+                }
             }
             return null;
         }

@@ -5,6 +5,10 @@
         public readonly uint Id { get;}
         public readonly uint Version { get;}
 
+        public Entity(uint id)
+        {
+            this.Id = id;
+        }
         public Entity(uint id, uint version)
         {
             Version = version;

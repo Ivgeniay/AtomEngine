@@ -1,0 +1,25 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="500"
+        x:Class="Editor.LoadingWindow"
+        Title="Загрузка"
+        Width="800" Height="500"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None">
+
+  <Grid>
+    <Image Name="BackgroundImage"
+           Stretch="UniformToFill"
+           Source="/Assets/loading-background.jpg" />
+
+    <TextBlock x:Name="StatusTextBlock"
+               Text="Инициализация..."
+               Foreground="#CCCCCC"
+               FontSize="12"
+               Margin="15,0,0,15"
+               HorizontalAlignment="Left"
+               VerticalAlignment="Bottom" />
+  </Grid>
+</Window>
