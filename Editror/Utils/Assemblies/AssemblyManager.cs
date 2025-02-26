@@ -13,6 +13,7 @@ namespace Editor
         public static AssemblyManager Instance { get; } = new();
 
         private readonly HashSet<Assembly> _assemblies = new();
+        private Assembly _user_script_assembly;
 
         public void Initialize(IEnumerable<Assembly> initialAssemblies)
         {
@@ -112,6 +113,27 @@ namespace Editor
             {
                 throw;
             }
+        }
+
+        internal void UpdateUserScriptAssembly(Assembly assembly) => _user_script_assembly = assembly;
+        internal Assembly GetUserScriptAssembly()
+        {
+            if (_user_script_assembly == null)
+            {
+                try
+                {
+                    ProjectConfigurations pConf = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                    UpdateUserScriptAssembly(
+                        ScriptProjectGenerator.LoadCompiledAssembly(pConf.BuildType)
+                        );
+                    return _user_script_assembly;
+                }
+                catch
+                {
+                    throw;
+                }
+            }
+            return _user_script_assembly;
         }
     }
 }

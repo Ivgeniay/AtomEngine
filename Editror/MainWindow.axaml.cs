@@ -478,6 +478,16 @@ namespace Editor
                 Action = (e) => DebLogger.Debug($"{e}"),
                 SubCategory = new string[] { "sub1", "sub2" }
             });
+            _directoryExplorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".cs",
+                Name = "Open in IDE",
+                Description = "Open file in IDE",
+                Action = (e) =>
+                {
+                    ScriptSyncSystem.OpenProjectInIDE(e.FilePath);
+                },
+            });
 
             _directoryExplorerController.FileSelected += (fileData) =>
             {

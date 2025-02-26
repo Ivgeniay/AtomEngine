@@ -2,6 +2,7 @@
 {
     public enum ConfigurationSource
     {
+        ProjectConfigs,
         ExplorerConfigs,
         SceneConfigs,
     }

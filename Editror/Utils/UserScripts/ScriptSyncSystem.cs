@@ -102,7 +102,7 @@ namespace Editor
         /// <summary>
         /// Перекомпилирует проект скриптов
         /// </summary>
-        public static async Task<bool> RebuildProject()
+        public static async Task<bool> RebuildProject(BuildType buildType = BuildType.Debug)
         {
             if (!_isInitialized)
             {
@@ -127,24 +127,24 @@ namespace Editor
                     }
 
                     // Компилируем проект
-                    //success = ScriptProjectGenerator.BuildProject();
-                    //if (!success)
-                    //{
-                    //    DebLogger.Error("Не удалось скомпилировать проект скриптов");
-                    //    return;
-                    //}
+                    success = ScriptProjectGenerator.BuildProject(buildType);
+                    if (!success)
+                    {
+                        DebLogger.Error("Не удалось скомпилировать проект скриптов");
+                        return;
+                    }
 
-                    //// Загружаем скомпилированную сборку
-                    //var assembly = ScriptProjectGenerator.LoadCompiledAssembly();
-                    //if (assembly == null)
-                    //{
-                    //    DebLogger.Error("Не удалось загрузить скомпилированную сборку");
-                    //    success = false;
-                    //    return;
-                    //}
+                    // Загружаем скомпилированную сборку
+                    var assembly = ScriptProjectGenerator.LoadCompiledAssembly(buildType);
+                    if (assembly == null)
+                    {
+                        DebLogger.Error("Не удалось загрузить скомпилированную сборку");
+                        success = false;
+                        return;
+                    }
 
-                    //// Обновляем ссылку на сборку в AssemblyManager
-                    //AssemblyManager.Instance.UpdateScriptAssembly(assembly);
+                    // Обновляем ссылку на сборку в AssemblyManager
+                    AssemblyManager.Instance.UpdateUserScriptAssembly(assembly);
 
                     DebLogger.Info("Проект скриптов успешно перекомпилирован и загружен");
                 });
@@ -161,7 +161,7 @@ namespace Editor
         /// <summary>
         /// Открывает проект скриптов в IDE
         /// </summary>
-        public static void OpenProjectInIDE()
+        public static void OpenProjectInIDE(string filepath = null)
         {
             if (!_isInitialized)
             {
@@ -172,7 +172,8 @@ namespace Editor
             try
             {
                 DebLogger.Info("Открытие проекта скриптов в IDE...");
-                ScriptProjectGenerator.OpenProjectInIDE();
+                if (filepath != null) ScriptProjectGenerator.OpenProjectInIDE(filepath);
+                else ScriptProjectGenerator.OpenProjectInIDE();
             }
             catch (Exception ex)
             {

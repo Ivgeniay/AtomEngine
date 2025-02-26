@@ -14,11 +14,6 @@ using System;
 
 namespace Editor
 {
-    public class ExplorerConfigurations
-    {
-        public List<string> ExcludeExtension { get; set; } = new List<string>();
-    }
-
     public class DirectoryExplorerController : Grid
     {
         private readonly string _rootPath;

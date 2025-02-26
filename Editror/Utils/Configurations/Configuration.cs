@@ -1,6 +1,8 @@
 ﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace Editor
 {
@@ -11,6 +13,7 @@ namespace Editor
 
         private const string EXPLORER_CONFIG_FILE = "explorer.config";
         private const string SCENE_CONFIG_FILE = "scenes.config";
+        private const string PROJECT_CONFIG_FILE = "project.config";
 
         static Configuration()
         {
@@ -24,6 +27,16 @@ namespace Editor
                 Path.Combine(
                     DirectoryExplorer.GetPath(DirectoryType.Configurations),
                     SCENE_CONFIG_FILE));
+            configsSource.Add(
+                ConfigurationSource.ProjectConfigs,
+                Path.Combine(
+                    DirectoryExplorer.GetPath(DirectoryType.Configurations),
+                    PROJECT_CONFIG_FILE));
+
+            JsonSerializerSettings settings = new JsonSerializerSettings()
+            {
+                Formatting = Formatting.Indented,
+            };
 
             foreach (KeyValuePair<ConfigurationSource, string> kvp in configsSource)
             {
@@ -32,7 +45,23 @@ namespace Editor
 
                 if (!File.Exists(kvp.Value))
                 {
+                    switch (kvp.Key)
+                    {
+                        case ConfigurationSource.ProjectConfigs:
+                            value = JsonConvert.SerializeObject(new ProjectConfigurations(), settings);
+                            break;
+                        case ConfigurationSource.SceneConfigs:
+                            value = JsonConvert.SerializeObject(new SceneConfiguration(), settings);
+                            break;
+                        case ConfigurationSource.ExplorerConfigs:
+                            value = JsonConvert.SerializeObject(new ExplorerConfigurations(), settings);
+                            break;
+
+                    }
+                    
                     using (FileStream file = File.Create(kvp.Value)) {
+                        byte[] bytes = Encoding.UTF8.GetBytes(value);
+                        file.Write(bytes, 0, bytes.Length);
                     }
                 }
                 else
@@ -56,5 +85,20 @@ namespace Editor
             T des = JsonConvert.DeserializeObject<T>(configsCache[source]);
             return des;
         }
+    }
+
+    public class ProjectConfigurations
+    {
+        public string AssemblyName { get; set; } = "CSharp_Assembly";
+        public BuildType BuildType { get; set; } = BuildType.Debug;
+    }
+    public class ExplorerConfigurations
+    {
+        public List<string> ExcludeExtension { get; set; } = new List<string>() { ".meta" };
+    }
+
+    public class SceneConfiguration
+    {
+        
     }
 }

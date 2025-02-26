@@ -4,17 +4,21 @@ using System.Text;
 using System.IO;
 using AtomEngine;
 using System;
+using System.Runtime.InteropServices;
 
 namespace Editor
 {
+    public enum BuildType
+    {
+        Debug,
+        Release
+    }
     internal static class ScriptProjectGenerator
     {
         private static string _assetsPath;
         private static string _scriptProjectPath;
         private static string _outputPath;
         private static Assembly _coreAssembly;
-        private static string _projectName = "CSharp_Assembly";
-        private static string _projectNameWithExt;
         private static bool _isInitialized = false;
 
         static ScriptProjectGenerator()
@@ -27,22 +31,21 @@ namespace Editor
             if (_isInitialized) return;
 
             _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
-            _projectNameWithExt = _projectName + ".csproj";
             _scriptProjectPath = DirectoryExplorer.GetPath(DirectoryType.CSharp_Assembly);
-            _outputPath = Path.Combine(_scriptProjectPath, "bin", "Debug", "net9.0");
+            _outputPath = Path.Combine(_scriptProjectPath, "bin");
         }
 
         public static bool GenerateProject()
         {
             try
             {
-                var projectFilePath = Path.Combine(_scriptProjectPath, $"{_projectNameWithExt}");
+                var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                var projectFilePath = Path.Combine(_scriptProjectPath, $"{projConfig}.csproj");
                 if (File.Exists(projectFilePath)) return true;
 
                 _coreAssembly = AssemblyManager.Instance.GetCoreAssembly();
 
                 GenerateProjectFile();
-                //LinkScriptFiles();
 
                 DebLogger.Debug("Проект успешно сгенерирован.");
                 return true;
@@ -54,20 +57,24 @@ namespace Editor
             }
         }
 
-        public static bool BuildProject()
+        public static bool BuildProject(BuildType buildType = BuildType.Debug)
         {
             try
             {
+                var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                string builtype = buildType.ToString();
                 Process process = new Process
                 {
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "dotnet",
-                        Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{_projectNameWithExt}")}\" -c Debug",
+                        Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype}",
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
-                        CreateNoWindow = true
+                        CreateNoWindow = true,
+                        StandardOutputEncoding = Encoding.UTF8,
+                        StandardErrorEncoding = Encoding.UTF8
                     }
                 };
 
@@ -75,7 +82,7 @@ namespace Editor
                 string output = process.StandardOutput.ReadToEnd();
                 DebLogger.Debug(output);
                 string error = process.StandardError.ReadToEnd();
-                if (error != null) DebLogger.Error(error);
+                if (!string.IsNullOrEmpty(error)) DebLogger.Error(error);
                 process.WaitForExit();
 
                 if (process.ExitCode != 0)
@@ -96,6 +103,8 @@ namespace Editor
 
         private static void GenerateProjectFile()
         {
+            var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+
             string relativeAssetsPath = Path.GetRelativePath(_scriptProjectPath, _assetsPath);
             string csprojContent = $@"<Project Sdk=""Microsoft.NET.Sdk"">
   <PropertyGroup>
@@ -115,15 +124,24 @@ namespace Editor
 
 </Project>
 ";
-            File.WriteAllText(Path.Combine(_scriptProjectPath, $"{_projectName}.csproj"), csprojContent);
+            File.WriteAllText(Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj"), csprojContent);
 
             int scriptCount = Directory.GetFiles(_assetsPath, "*.cs", SearchOption.AllDirectories).Length;
             DebLogger.Debug($"Проект создан с доступом к {scriptCount} скриптам в папке Assets");
         }
 
-        public static Assembly LoadCompiledAssembly()
+        public static Assembly LoadCompiledAssembly(BuildType buildType = BuildType.Debug)
         {
-            string assemblyPath = Path.Combine(_outputPath, $"{_projectName}.dll");
+            var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+            string assemblyPath = string.Empty;
+            if (_outputPath.EndsWith("bin"))
+            {
+                assemblyPath = Path.Combine(_outputPath, buildType.ToString(), $"{projConfig.AssemblyName}.dll");
+            }
+            else
+            {
+                assemblyPath = Path.Combine(_outputPath, $"{projConfig.AssemblyName}.dll");
+            }
 
             if (!File.Exists(assemblyPath))
             {
@@ -146,7 +164,8 @@ namespace Editor
         /// </summary>
         public static void OpenProjectInIDE()
         {
-            string projectPath = Path.Combine(_scriptProjectPath, $"{_projectName}.csproj");
+            var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+            string projectPath = Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj");
 
             if (!File.Exists(projectPath))
             {
@@ -170,6 +189,257 @@ namespace Editor
             }
         }
 
+
+        /// <summary>
+        /// Открывает файл скрипта в IDE в контексте проекта
+        /// </summary>
+        /// <param name="assetFilePath">Полный путь к файлу скрипта в папке Assets</param>
+        public static void OpenProjectInIDE(string assetFilePath)
+        {
+            if (string.IsNullOrEmpty(assetFilePath))
+            {
+                DebLogger.Error("Путь к файлу не указан");
+                OpenProjectInIDE();
+                return;
+            }
+
+            // Проверяем существование файла
+            if (!File.Exists(assetFilePath))
+            {
+                DebLogger.Error($"Файл не существует: {assetFilePath}");
+                return;
+            }
+
+            var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+            string projectPath = Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj");
+
+            if (!File.Exists(projectPath))
+            {
+                DebLogger.Error("Проект не найден. Возможно, он не был сгенерирован.");
+                return;
+            }
+
+            try
+            {
+                string relativeToAssets = Path.GetRelativePath(_assetsPath, assetFilePath);
+                string projectFilePath = Path.Combine(_scriptProjectPath, relativeToAssets);
+
+                if (!File.Exists(projectFilePath))
+                {
+                    string fileName = Path.GetFileName(assetFilePath);
+                    var files = Directory.GetFiles(_scriptProjectPath, fileName, SearchOption.AllDirectories);
+
+                    if (files.Length > 0)
+                    {
+                        projectFilePath = files[0];
+                    }
+                    else
+                    {
+                        projectFilePath = assetFilePath;
+                    }
+                }
+
+                string ideType = DetectIDE();
+
+                switch (ideType)
+                {
+                    case "vs":
+                        OpenInVisualStudio(projectPath, projectFilePath);
+                        break;
+
+                    case "vscode":
+                        OpenInVSCode(_scriptProjectPath, projectFilePath);
+                        break;
+
+                    case "rider":
+                        OpenInRider(projectPath, projectFilePath);
+                        break;
+
+                    default:
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = projectFilePath,
+                            UseShellExecute = true
+                        });
+
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = projectPath,
+                            UseShellExecute = true
+                        });
+                        break;
+                }
+
+                DebLogger.Debug($"Открыт файл в IDE: {projectFilePath}");
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка при открытии файла в IDE: {ex.Message}");
+                OpenProjectInIDE();
+            }
+        }
+
+        /// <summary>
+        /// Определяет доступную IDE
+        /// </summary>
+        private static string DetectIDE()
+        {
+            try
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                    string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
+                    if (Directory.Exists(Path.Combine(programFilesX86, "Microsoft Visual Studio")))
+                        return "vs";
+
+                    if (Directory.Exists(Path.Combine(programFiles, "JetBrains")) ||
+                        Process.GetProcessesByName("rider64").Length > 0)
+                        return "rider";
+
+                    string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                    if (Directory.Exists(Path.Combine(appData, "Code")) ||
+                        Process.GetProcessesByName("Code").Length > 0)
+                        return "vscode";
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    if (Directory.Exists("/Applications/Visual Studio.app"))
+                        return "vs";
+
+                    if (Directory.Exists("/Applications/Rider.app"))
+                        return "rider";
+
+                    if (Directory.Exists("/Applications/Visual Studio Code.app"))
+                        return "vscode";
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    if (CommandExists("rider"))
+                        return "rider";
+
+                    if (CommandExists("code"))
+                        return "vscode";
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка при определении IDE: {ex.Message}");
+            }
+
+            return "unknown";
+        }
+
+        /// <summary>
+        /// Проверяет наличие команды в PATH на Linux
+        /// </summary>
+        private static bool CommandExists(string command)
+        {
+            try
+            {
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "which",
+                        Arguments = command,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                string output = process.StandardOutput.ReadToEnd();
+                process.WaitForExit();
+
+                return process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Открывает файл в Visual Studio
+        /// </summary>
+        private static void OpenInVisualStudio(string projectPath, string filePath)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "devenv",
+                    Arguments = $"\"{projectPath}\" /edit \"{filePath}\"",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception)
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = projectPath,
+                    UseShellExecute = true
+                });
+            }
+        }
+
+        /// <summary>
+        /// Открывает файл в Visual Studio Code
+        /// </summary>
+        private static void OpenInVSCode(string folderPath, string filePath)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "code",
+                    Arguments = $"\"{folderPath}\" --goto \"{filePath}\"",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception)
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = filePath,
+                    UseShellExecute = true
+                });
+            }
+        }
+
+        /// <summary>
+        /// Открывает файл в JetBrains Rider
+        /// </summary>
+        private static void OpenInRider(string projectPath, string filePath)
+        {
+            try
+            {
+                string riderExecutable = "rider";
+
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    riderExecutable = "rider64";
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = riderExecutable,
+                    Arguments = $"\"{projectPath}\" --line 1 \"{filePath}\"",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception)
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = projectPath,
+                    UseShellExecute = true
+                });
+            }
+        }
 
     }
 }
