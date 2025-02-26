@@ -50,6 +50,10 @@ namespace Editor
                 ProjectFileWatcher.Initialize();
                 await Task.Delay(100);
 
+                await loadingWindow.UpdateLoadingStatus("Инициализация работы с файловой системой проекта...");
+                await ScriptSyncSystem.Initialize();
+                await Task.Delay(100);
+
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     desktop.MainWindow = mainWindow;

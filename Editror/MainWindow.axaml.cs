@@ -267,7 +267,10 @@ namespace Editor
                     {
                         Text = "Build Project",
                         Description = "",
-                        Action = () => { DebLogger.Debug("Build Project"); }
+                        Action = async () => { 
+                            DebLogger.Debug("Build Project");
+                            await ScriptSyncSystem.RebuildProject();
+                        }
                     },
                     new EditorToolbarButton()
                     {
@@ -280,14 +283,6 @@ namespace Editor
                     },
                     new EditorToolbarButton()
                     {
-                        Text = "Build Solution",
-                        Description = "",
-                        Action = () => { 
-                            DebLogger.Debug("Build Solution"); 
-                        }
-                    },
-                    new EditorToolbarButton()
-                    {
                         Text = "Clean",
                         Description = "",
                         Action = () => { DebLogger.Debug("Clean"); }
@@ -296,8 +291,19 @@ namespace Editor
                     {
                         Text = "Rebuild All",
                         Description = "",
-                        Action = () => { DebLogger.Debug("Rebuild All"); }
+                        Action = async () => {
+                            await ScriptSyncSystem.RebuildProject();
+                        }
                     },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Open IDE",
+                        Description = "IDE",
+                        Action = () =>
+                        {
+                            ScriptSyncSystem.OpenProjectInIDE();
+                        }
+                    }
                 }
             };
             EditorToolbarCategory toolCategory = new EditorToolbarCategory()
@@ -640,6 +646,7 @@ namespace Editor
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
+            CodeFilesSynchronizer.Dispose();
             AssetFileSystem.Instance.Dispose();
             ProjectFileWatcher.Dispose();
         }
