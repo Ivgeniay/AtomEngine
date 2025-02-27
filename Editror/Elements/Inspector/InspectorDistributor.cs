@@ -28,10 +28,15 @@ namespace Editor
 
                 case FileSelectionEvent eventSelectionEvent:
                     var meta = MetadataManager.Instance.GetMetadata(eventSelectionEvent.FileFullPath);
+                    Type t = meta.GetType();
                     switch(meta.AssetType)
                     {
                         case MetadataType.Texture:
                             return new TextureMetadataInspectable((TextureMetadata)meta);
+                        case MetadataType.ShaderSource:
+                            return new ShaderSourceInspectable((ShaderSourceMetadata)meta);
+                        case MetadataType.Script:
+                            return new ScriptInspectable((ScriptMetadata)meta);
                         default:
                             return new AssetMetadataInspectable(meta);
                     }

@@ -33,12 +33,6 @@ namespace Editor
 
         public virtual IEnumerable<PropertyDescriptor> GetProperties()
         {
-        //public Dictionary<string, object> ImportSettings { get; set; } = new Dictionary<string, object>();
-        //public string ContentHash { get; set; } = string.Empty;
-
-        //public bool IsGenerated { get; set; } = false;
-        //public string SourceAssetGuid { get; set; } = string.Empty;
-        //public List<string> GeneratedAssets { get; set; } = new List<string>();
 
             yield return new PropertyDescriptor
             {
@@ -71,58 +65,6 @@ namespace Editor
                 Value = _metadata.LastModified.ToString(),
                 IsReadOnly = true
             };
-
-            yield return new PropertyDescriptor
-            {
-                Name = "Is Generator",
-                Type = typeof(bool),
-                Value = _metadata.IsGenerator,
-                IsReadOnly = true
-            };
-
-            yield return new PropertyDescriptor
-            {
-                Name = "Is Generated",
-                Type = typeof(bool),
-                Value = _metadata.IsGenerated,
-                IsReadOnly = true
-            };
-
-            if (_metadata.IsGenerator)
-            {
-                yield return new PropertyDescriptor
-                {
-                    Name = "Auto Generation",
-                    Type = typeof(bool),
-                    Value = _metadata.AutoGeneration,
-                    IsReadOnly = false,
-                    OnValueChanged = (e) =>
-                    {
-                        _metadata.AutoGeneration = (bool)e;
-
-                        Save();
-                    },
-                };
-
-                yield return new PropertyDescriptor
-                {
-                    Name = "Generated Assets",
-                    Type = typeof(IEnumerable<string>),
-                    Value = _metadata.GeneratedAssets,
-                    IsReadOnly = true,
-                };
-            }
-
-            if (_metadata.IsGenerated)
-            {
-                yield return new PropertyDescriptor
-                {
-                    Name = "Source Asset Guid",
-                    Type = typeof(String),
-                    Value = _metadata.SourceAssetGuid,
-                    IsReadOnly = true
-                };
-            }
 
             yield return new PropertyDescriptor
             {
@@ -416,7 +358,83 @@ namespace Editor
 
         public override IEnumerable<PropertyDescriptor> GetProperties()
         {
-            return base.GetProperties();
+            var baseProps =  base.GetProperties();
+            foreach (var prop in baseProps) {
+                yield return prop;
+            }
+
+            if (_metadata.IsGenerator)
+            {
+                yield return new PropertyDescriptor
+                {
+                    Name = "Auto Generation",
+                    Type = typeof(bool),
+                    Value = _metadata.AutoGeneration,
+                    IsReadOnly = false,
+                    OnValueChanged = (e) =>
+                    {
+                        _metadata.AutoGeneration = (bool)e;
+
+                        Save();
+                    },
+                };
+
+                yield return new PropertyDescriptor
+                {
+                    Name = "Generated Assets",
+                    Type = typeof(IEnumerable<string>),
+                    Value = _metadata.GeneratedAssets,
+                    IsReadOnly = true,
+                };
+            }
+        }
+    }
+
+    public class ScriptInspectable : AssetMetadataInspectable
+    {
+        private ScriptMetadata _metadata;
+        public ScriptInspectable(string filePath) : base(filePath)
+        {
+            _metadata = (ScriptMetadata)MetadataManager.Instance.GetMetadata(filePath);
+        }
+        internal ScriptInspectable(ScriptMetadata metadata) : base(metadata)
+        {
+            _metadata = metadata;
+        }
+
+        public override string Title => $"Script Metadata";
+
+        public override IEnumerable<Control> GetCustomControls()
+        {
+            return null;
+        }
+
+        public override IEnumerable<PropertyDescriptor> GetProperties()
+        {
+            var baseProp = base.GetProperties();
+            foreach (var prop in baseProp)
+            {
+                yield return prop;
+            }
+
+            yield return new PropertyDescriptor
+            {
+                Name = "Is Generated",
+                Type = typeof(bool),
+                Value = _metadata.IsGenerated,
+                IsReadOnly = true
+            };
+
+            if (_metadata.IsGenerated)
+            {
+                yield return new PropertyDescriptor
+                {
+                    Name = "Source Asset Guid",
+                    Type = typeof(String),
+                    Value = _metadata.SourceAssetGuid,
+                    IsReadOnly = true
+                };
+            }
         }
     }
 }

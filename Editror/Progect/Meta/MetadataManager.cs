@@ -169,6 +169,10 @@ namespace Editor
         /// </summary>
         public AssetMetadata CreateMetadata(string filePath)
         {
+            if (filePath.EndsWith(".cs"))
+            {
+
+            }
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
             MetadataType assetType = _extensionToTypeMap.TryGetValue(extension, out var type) ? type : MetadataType.Unknown;
 
@@ -178,6 +182,7 @@ namespace Editor
                 MetadataType.Model => new ModelMetadata(),
                 MetadataType.Audio => new AudioMetadata(),
                 MetadataType.ShaderSource => new ShaderSourceMetadata(),
+                MetadataType.Script => new ScriptMetadata(),
                 _ => new AssetMetadata()
             };
 
@@ -187,21 +192,28 @@ namespace Editor
             metadata.Version = 1;
             metadata.ContentHash = CalculateFileHash(filePath);
 
-            if (metadata.AssetType == MetadataType.Script && IsGeneratedCodeFile(filePath, out string sourceGuid))
+            if (metadata is ScriptMetadata scrMetadata && IsGeneratedCodeFile(filePath, out string sourceGuid))
             {
-                metadata.IsGenerated = true;
+                scrMetadata.IsGenerated = true;
                 if (!string.IsNullOrEmpty(sourceGuid))
                 {
-                    metadata.SourceAssetGuid = sourceGuid;
+                    scrMetadata.SourceAssetGuid = sourceGuid;
 
                     var sourceMetadata = GetMetadataByGuid(sourceGuid);
-                    sourceMetadata.IsGenerator = true;
-                    if (!sourceMetadata.GeneratedAssets.Contains(metadata.Guid))
+                    if (sourceMetadata is ShaderSourceMetadata shaderSourdeMeta)
                     {
-                        var sourcePath = GetPathByGuid(sourceGuid);
-                        sourceMetadata.GeneratedAssets.Add(metadata.Guid);
-                        SaveMetadata(sourcePath, sourceMetadata);
-                        DebLogger.Debug($"Updated source asset {sourcePath} with generated asset reference {metadata.Guid}");
+                        shaderSourdeMeta.IsGenerator = true;
+                        if (!shaderSourdeMeta.GeneratedAssets.Contains(metadata.Guid))
+                        {
+                            var sourcePath = GetPathByGuid(sourceGuid);
+                            shaderSourdeMeta.GeneratedAssets.Add(metadata.Guid);
+                            SaveMetadata(sourcePath, sourceMetadata);
+                            DebLogger.Debug($"Updated source asset {sourcePath} with generated asset reference {metadata.Guid}");
+                        }
+                    }
+                    if (sourceMetadata == null)
+                    {
+                        scrMetadata.SourceAssetGuid = "Unknown";
                     }
                 }
                 DebLogger.Debug($"Identified generated file: {filePath}, SourceGuid: {sourceGuid ?? "Unknown"}");
@@ -334,10 +346,15 @@ namespace Editor
                 metadata.LastModified = DateTime.UtcNow;
                 metadata.Version++;
 
-                if (metadata.IsGenerator && metadata.AutoGeneration)
+                if (metadata.AssetType == MetadataType.ShaderSource)
                 {
-                    RegenerateCodeNeeded?.Invoke(filePath, metadata);
+                    ShaderSourceMetadata scrMetadate = metadata as ShaderSourceMetadata;
+                    if (scrMetadate.IsGenerator && scrMetadate.AutoGeneration)
+                    {
+                        RegenerateCodeNeeded?.Invoke(filePath, metadata);
+                    }
                 }
+
 
                 SaveMetadata(filePath, metadata);
             }
@@ -381,51 +398,58 @@ namespace Editor
                 return;
 
             var metadata = _metadataCache.TryGetValue(filePath, out var md) ? md : null;
-            if (metadata?.IsGenerated == true && !string.IsNullOrEmpty(metadata.SourceAssetGuid))
+            if (metadata is ScriptMetadata scrMetadata)
             {
-                var sourcePath = GetPathByGuid(metadata.SourceAssetGuid);
-                if (!string.IsNullOrEmpty(sourcePath))
+                if (scrMetadata?.IsGenerated == true && !string.IsNullOrEmpty(scrMetadata.SourceAssetGuid))
                 {
-                    var sourceMetadata = GetMetadata(sourcePath);
-                    if (sourceMetadata != null && sourceMetadata.GeneratedAssets.Contains(metadata.Guid))
+                    var sourcePath = GetPathByGuid(scrMetadata.SourceAssetGuid);
+                    if (!string.IsNullOrEmpty(sourcePath))
                     {
-                        sourceMetadata.GeneratedAssets.Remove(metadata.Guid);
-                        sourceMetadata.IsGenerator = sourceMetadata.GeneratedAssets.Count > 0;
-                        SaveMetadata(sourcePath, sourceMetadata);
-                        DebLogger.Debug($"Removed generated asset reference {metadata.Guid} from source asset {sourcePath}");
+                        var sourceMetadata = GetMetadata(sourcePath);
+                        if (sourceMetadata is ShaderSourceMetadata shSourceMetadata && shSourceMetadata.GeneratedAssets.Contains(metadata.Guid))
+                        {
+                            shSourceMetadata.GeneratedAssets.Remove(metadata.Guid);
+                            shSourceMetadata.IsGenerator = shSourceMetadata.GeneratedAssets.Count > 0;
+                            SaveMetadata(sourcePath, sourceMetadata);
+                            DebLogger.Debug($"Removed generated asset reference {metadata.Guid} from source asset {sourcePath}");
+                        }
                     }
                 }
+
             }
-
-            if (metadata?.GeneratedAssets?.Count > 0)
+            if (metadata is ShaderSourceMetadata shaderSourceMetadata)
             {
-                var generatedAssetsToDelete = metadata.GeneratedAssets.ToList();
-
-                foreach (var generatedGuid in generatedAssetsToDelete)
+                if (shaderSourceMetadata?.GeneratedAssets?.Count > 0)
                 {
-                    var generatedPath = GetPathByGuid(generatedGuid);
-                    if (!string.IsNullOrEmpty(generatedPath) && File.Exists(generatedPath))
+                    var generatedAssetsToDelete = shaderSourceMetadata.GeneratedAssets.ToList();
+
+                    foreach (var generatedGuid in generatedAssetsToDelete)
                     {
-                        DebLogger.Info($"Удаление зависимого сгенерированного файла: {generatedPath}");
-                        try
+                        var generatedPath = GetPathByGuid(generatedGuid);
+                        if (!string.IsNullOrEmpty(generatedPath) && File.Exists(generatedPath))
                         {
-                            File.Delete(generatedPath);
-                            var genMetaPath = generatedPath + META_EXTENSION;
-                            if (File.Exists(genMetaPath))
+                            DebLogger.Info($"Удаление зависимого сгенерированного файла: {generatedPath}");
+                            try
                             {
-                                File.Delete(genMetaPath);
-                            }
+                                File.Delete(generatedPath);
+                                var genMetaPath = generatedPath + META_EXTENSION;
+                                if (File.Exists(genMetaPath))
+                                {
+                                    File.Delete(genMetaPath);
+                                }
 
-                            _metadataCache.Remove(generatedPath);
-                            _guidToPathMap.Remove(generatedGuid);
-                        }
-                        catch (Exception ex)
-                        {
-                            DebLogger.Error($"Ошибка при удалении сгенерированного файла {generatedPath}: {ex.Message}");
+                                _metadataCache.Remove(generatedPath);
+                                _guidToPathMap.Remove(generatedGuid);
+                            }
+                            catch (Exception ex)
+                            {
+                                DebLogger.Error($"Ошибка при удалении сгенерированного файла {generatedPath}: {ex.Message}");
+                            }
                         }
                     }
                 }
             }
+
 
             string metaFilePath = filePath + META_EXTENSION;
             if (File.Exists(metaFilePath))

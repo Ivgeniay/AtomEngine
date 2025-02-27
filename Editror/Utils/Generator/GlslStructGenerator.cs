@@ -23,7 +23,6 @@ namespace Editor
             var pendingStructures = new List<GlslStructure>();
             var result = new List<string>();
 
-            // Собираем все структуры
             var structures = GlslParser.ParseGlslStructures(shaderSourceCode);
             pendingStructures.AddRange(structures);
 
