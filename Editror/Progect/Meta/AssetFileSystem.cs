@@ -46,6 +46,7 @@ namespace Editor
         private readonly object _lockObject = new object();
         private const int DebounceIntervalMs = 300;
 
+        private bool _isInitialized = false;
         private AssetFileSystem()
         {
             _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
@@ -63,6 +64,8 @@ namespace Editor
         /// </summary>
         public void Initialize()
         {
+            if (_isInitialized) return;
+
             // Инициализируем менеджер метаданных
             _metadataManager.Initialize();
 
@@ -70,6 +73,7 @@ namespace Editor
             StartFileWatcher();
 
             DebLogger.Info("Файловая система ресурсов инициализирована");
+            _isInitialized = true;
         }
 
         /// <summary>
@@ -224,7 +228,18 @@ namespace Editor
         private void OnFileRenamed(object sender, RenamedEventArgs e)
         {
             if (ShouldIgnore(e.OldFullPath) || ShouldIgnore(e.FullPath))
+            {
+                if (!ShouldIgnore(e.FullPath))
+                {
+                    var metadata = _metadataManager.GetMetadata(e.FullPath);
+                    if (metadata != null)
+                    {
+                        DebLogger.Debug($"Обнаружено переименование из временного файла: {e.OldFullPath} -> {e.FullPath}. Обрабатываем как изменение.");
+                        OnFileChanged(sender, e);
+                    }
+                }
                 return;
+            }
 
             if (!ShouldProcessEvent(e.FullPath, "Renamed"))
             {

@@ -16,6 +16,7 @@
         Material,
         Data,
         Text,
+        Asset,
         Unknown
     }
 

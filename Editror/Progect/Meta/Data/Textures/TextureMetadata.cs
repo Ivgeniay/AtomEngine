@@ -1,6 +1,6 @@
 ﻿namespace Editor
 {
-    public class TextureMetadata : AssetMetadata
+    internal class TextureMetadata : AssetMetadata
     {
         public TextureMetadata()
         {

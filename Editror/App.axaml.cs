@@ -18,17 +18,14 @@ namespace Editor
             Environment.SetEnvironmentVariable("AVALONIA_DISABLE_ANGLE", "1");
         }
 
-        public async override void OnFrameworkInitializationCompleted()
+        public override void OnFrameworkInitializationCompleted()
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 loadingWindow = new LoadingWindow();
                 desktop.MainWindow = loadingWindow;
                 loadingWindow.Show();
-                await InitializeAppAsync(desktop);
-                mainWindow = new MainWindow();
-                desktop.MainWindow = mainWindow;
-                mainWindow.Show();
+                InitializeAppAsync(desktop);
             }
 
             base.OnFrameworkInitializationCompleted();
@@ -60,10 +57,15 @@ namespace Editor
                 await ScriptSyncSystem.Initialize();
                 await Task.Delay(100);
 
+                await loadingWindow.UpdateLoadingStatus("Компиляция проекта...");
+                await ScriptSyncSystem.Compile();
+                await Task.Delay(100);
+
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    //desktop.MainWindow = mainWindow;
-                    //mainWindow.Show();
+                    mainWindow = new MainWindow();
+                    desktop.MainWindow = mainWindow;
+                    mainWindow.Show();
                     loadingWindow.Close();
                 });
             }

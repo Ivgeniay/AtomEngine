@@ -47,7 +47,7 @@ namespace Editor.Utils.Generator
         /// <param name="glslFilePath">Путь к файлу шейдера</param>
         /// <param name="outputDirectory">Директория для сохранения сгенерированных файлов</param>
         /// <param name="generateStructs">Генерировать ли структуры</param>
-        /// <returns>Имя сгенерированного материала</returns>
+        /// <returns>Имя сгенерированного представления</returns>
         public static string GenerateCode(string glslFilePath, string outputDirectory, bool generateStructs = true)
         {
             if (!File.Exists(glslFilePath))
@@ -67,21 +67,46 @@ namespace Editor.Utils.Generator
                 throw new Exception($"The file {glslFilePath} is not a complete shader file (must contain #vertex and #fragment sections).");
             }
 
-            var materialName = Path.GetFileNameWithoutExtension(glslFilePath);
+            string sourceGuid = MetadataManager.Instance.GetMetadata(glslFilePath)?.Guid;
+
+            var representationName = Path.GetFileNameWithoutExtension(glslFilePath);
             var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, _includedFiles);
             GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
             var combinedSource = vertexSource + "\n" + fragmentSource;
 
             if (generateStructs)
             {
-                var structures = GlslParser.ParseGlslStructures(combinedSource);
+                List<GlslStructure> structures = GlslParser.ParseGlslStructures(combinedSource);
                 if (structures.Count > 0)
                 {
-                    GlslStructGenerator.GenerateStructs(combinedSource, outputDirectory);
+                    GlslStructGenerator.GenerateStructs(
+                        shaderSourceCode: combinedSource, 
+                        outputDirectory: outputDirectory, 
+                        sourceGuid: sourceGuid);
                 }
             }
 
-            return ShaderCodeRepresentationGenerator.GenerateRepresentationFromSource(materialName, shaderSource, outputDirectory, _includedFiles);
+            List<UniformBlockStructure> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
+            foreach (var block in uniformBlocks)
+            {
+                var blockClassName = $"{block.Name}_{representationName}";
+                ShaderCodeRepresentationGenerator.GenerateUniformBlockClass(
+                    block: block, 
+                    className: blockClassName, 
+                    outputDirectory: outputDirectory, 
+                    representationName: representationName, 
+                    sourceGuid: sourceGuid);
+            }
+
+            string resultRepresentationName = ShaderCodeRepresentationGenerator.GenerateRepresentationFromSource(
+                representationName: representationName, 
+                sourceText: shaderSource, 
+                outputDirectory: outputDirectory, 
+                includedFiles: _includedFiles, 
+                sourceGuid: sourceGuid, 
+                sourcePath: glslFilePath);
+
+            return resultRepresentationName;
         }
 
         /// <summary>

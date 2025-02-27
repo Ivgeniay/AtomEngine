@@ -31,6 +31,8 @@ namespace Editor
             _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
             _scriptProjectPath = DirectoryExplorer.GetPath(DirectoryType.CSharp_Assembly);
             _outputPath = Path.Combine(_scriptProjectPath, "bin");
+
+            _isInitialized = true;
         }
 
         public static bool GenerateProject()

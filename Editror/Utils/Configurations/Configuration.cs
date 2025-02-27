@@ -14,7 +14,13 @@ namespace Editor
         private const string EXPLORER_CONFIG_FILE = "explorer.config";
         private const string SCENE_CONFIG_FILE = "scenes.config";
         private const string PROJECT_CONFIG_FILE = "project.config";
-        
+
+        private static JsonSerializerSettings settings = new JsonSerializerSettings()
+        {
+            Formatting = Formatting.Indented,
+            ObjectCreationHandling = ObjectCreationHandling.Replace
+        };
+
         private static bool _isInitialized = false;
         
         static Configuration()
@@ -39,11 +45,6 @@ namespace Editor
                 Path.Combine(
                     DirectoryExplorer.GetPath(DirectoryType.Configurations),
                     PROJECT_CONFIG_FILE));
-
-            JsonSerializerSettings settings = new JsonSerializerSettings()
-            {
-                Formatting = Formatting.Indented,
-            };
 
             foreach (KeyValuePair<ConfigurationSource, string> kvp in configsSource)
             {
@@ -78,6 +79,8 @@ namespace Editor
                 }
                 configsCache.Add(key, value);
             }
+
+            _isInitialized = true;
         }
 
         public static async void SafeConfiguration(ConfigurationSource source, object s)
@@ -90,7 +93,7 @@ namespace Editor
         public static string GetConfiguration(ConfigurationSource source) => configsCache[source];
         public static T GetConfiguration<T>(ConfigurationSource source)
         {
-            T des = JsonConvert.DeserializeObject<T>(configsCache[source]);
+            T des = JsonConvert.DeserializeObject<T>(configsCache[source], settings);
             return des;
         }
     }
@@ -102,7 +105,12 @@ namespace Editor
     }
     public class ExplorerConfigurations
     {
-        public List<string> ExcludeExtension { get; set; } = new List<string>() { ".meta" };
+        public List<string> ExcludeExtension { get; set; }
+
+        public ExplorerConfigurations()
+        {
+            ExcludeExtension = new List<string>() { ".exe", MetadataManager.META_EXTENSION };
+        }
     }
 
     public class SceneConfiguration

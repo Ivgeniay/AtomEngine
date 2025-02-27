@@ -495,6 +495,16 @@ namespace Editor
             _directoryExplorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
             {
                 Extension = ".glsl",
+                Name = "Open in IDE",
+                Description = "Open file in IDE",
+                Action = (e) =>
+                {
+                    ScriptSyncSystem.OpenProjectInIDE(e.FileFullPath);
+                },
+            });
+            _directoryExplorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".glsl",
                 Name = "Generate C#",
                 Description = "Generate c sharp view glsl code",
                 Action = (e) =>

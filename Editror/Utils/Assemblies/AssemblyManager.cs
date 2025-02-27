@@ -17,9 +17,12 @@ namespace Editor
 
         private readonly HashSet<Assembly> _assemblies = new();
         private Assembly _user_script_assembly;
+        private bool _isInitialized = false;
 
         public void Initialize(IEnumerable<Assembly> initialAssemblies)
         {
+            if (_isInitialized) return;
+
             _assemblyMap = new Dictionary<TAssembly, string>
             {
                 { TAssembly.Core, "EngineLib"},
@@ -51,6 +54,8 @@ namespace Editor
             }
 
             ScanPluginsDirectory();
+
+            _isInitialized = true;
         }
 
         public void ScanPluginsDirectory()
@@ -118,7 +123,7 @@ namespace Editor
             }
         }
 
-        internal void UpdateUserScriptAssembly(Assembly assembly) => _user_script_assembly = assembly;
+        internal void UpdateScriptAssembly(Assembly assembly) => _user_script_assembly = assembly;
         internal Assembly GetUserScriptAssembly()
         {
             if (_user_script_assembly == null)
@@ -126,7 +131,7 @@ namespace Editor
                 try
                 {
                     ProjectConfigurations pConf = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
-                    UpdateUserScriptAssembly(
+                    UpdateScriptAssembly(
                         ScriptProjectGenerator.LoadCompiledAssembly(pConf.BuildType)
                         );
                     return _user_script_assembly;

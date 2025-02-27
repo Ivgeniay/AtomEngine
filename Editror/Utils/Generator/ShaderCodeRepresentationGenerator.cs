@@ -14,12 +14,14 @@ namespace Editor
         /// <param name="outputDirectory">Директория для сохранения файлов генерируемого кода</param>
         /// <param name="includedFiles">Словарь с включаемыми файлами для обработки директив #include</param>
         /// <returns>Имя сгенерированного класса материала</returns>
-        public static string GenerateMaterial(string filePath, string outputDirectory, Dictionary<string, string> includedFiles = null)
+        public static void GenerateRepresentation(string filePath, string outputDirectory, Dictionary<string, string> includedFiles = null)
         {
             try
             {
                 var sourceText = File.ReadAllText(filePath);
-                return GenerateRepresentationFromSource(Path.GetFileNameWithoutExtension(filePath), sourceText, outputDirectory, includedFiles);
+                string sourceGuid = MetadataManager.Instance.GetMetadata(filePath)?.Guid;
+
+                GenerateRepresentationFromSource(Path.GetFileNameWithoutExtension(filePath), sourceText, outputDirectory, includedFiles, sourceGuid, filePath);
             }
             catch (Exception ex)
             {
@@ -30,18 +32,23 @@ namespace Editor
         /// <summary>
         /// Генерирует класс материала на основе шейдерного кода
         /// </summary>
-        /// <param name="materialName">Имя генерируемого материала</param>
+        /// <param name="representationName">Имя генерируемого материала</param>
         /// <param name="sourceText">Исходный код шейдера</param>
         /// <param name="outputDirectory">Директория для сохранения файлов генерируемого кода</param>
         /// <param name="includedFiles">Словарь с включаемыми файлами для обработки директив #include</param>
-        /// <returns>Имя сгенерированного класса материала</returns>
-        public static string GenerateRepresentationFromSource(string materialName, string sourceText, string outputDirectory,
-            Dictionary<string, string> includedFiles = null)
+        /// <param name="sourceGuid">GUID исходного файла шейдера</param>
+        /// <param name="sourcePath">Путь к исходному файлу шейдера</param>
+        /// <returns>Имя сгенерированного класса представления</returns>
+        public static string GenerateRepresentationFromSource(string representationName, string sourceText, string outputDirectory,
+            Dictionary<string, string> includedFiles = null, string sourceGuid = null, string sourcePath = null)
         {
             if (!GlslParser.IsCompleteShaderFile(sourceText))
             {
                 throw new Exception("The shader file does not contain both vertex and fragment shaders.");
             }
+
+            if (string.IsNullOrEmpty(sourceGuid) && !string.IsNullOrEmpty(sourcePath))
+                sourceGuid = MetadataManager.Instance.GetMetadata(sourcePath)?.Guid;
 
             var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(sourceText, includedFiles);
             GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
@@ -49,29 +56,21 @@ namespace Editor
             var uniforms = GlslParser.ExtractUniforms(vertexSource + "\n" + fragmentSource);
             var uniformBlocks = GlslParser.ParseUniformBlocks(vertexSource + "\n" + fragmentSource);
 
-            // Генерируем код для uniform блоков
-            foreach (var block in uniformBlocks)
-            {
-                var blockClassName = $"{block.Name}_{materialName}";
-                var blockCode = GenerateUniformBlockClass(block, blockClassName);
-                var blockFilePath = Path.Combine(outputDirectory, $"UBO.{blockClassName}.g.cs");
-                File.WriteAllText(blockFilePath, blockCode, Encoding.UTF8);
-            }
+            var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid);
+            var representationFilePath = Path.Combine(outputDirectory, $"{representationName}Representation.g.cs");
+            File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);
 
-            // Генерируем код материала
-            var materialCode = GenerateRepresentationClass(materialName, vertexSource, fragmentSource, uniforms, uniformBlocks);
-            var materialFilePath = Path.Combine(outputDirectory, $"{materialName}Representation.g.cs");
-            File.WriteAllText(materialFilePath, materialCode, Encoding.UTF8);
-
-            return $"{materialName}Representation";
+            return $"{representationName}Representation";
         }
 
         /// <summary>
         /// Генерирует класс для uniform блока
         /// </summary>
-        private static string GenerateUniformBlockClass(UniformBlockStructure block, string className)
+        public static void GenerateUniformBlockClass(UniformBlockStructure block, string className, string outputDirectory, string representationName, string sourceGuid)
         {
             var builder = new StringBuilder();
+
+            WriteGeneratedCodeHeader(builder, sourceGuid);
 
             builder.AppendLine("using System.Runtime.InteropServices;");
             builder.AppendLine("using Silk.NET.Maths;");
@@ -82,7 +81,6 @@ namespace Editor
             builder.AppendLine($"    public struct {className}");
             builder.AppendLine("    {");
 
-            // Поля
             foreach (var (type, name, arraySize) in block.Fields)
             {
                 var csharpType = GlslParser.MapGlslTypeToCSharp(type);
@@ -91,6 +89,8 @@ namespace Editor
                 {
                     if (arraySize.HasValue)
                     {
+                        builder.AppendLine($"        [MarshalAs(UnmanagedType.ByValArray, SizeConst = {arraySize.Value})]");
+                        builder.AppendLine($"        public {csharpType}[] {name};");
                     }
                     else
                     {
@@ -102,20 +102,26 @@ namespace Editor
             builder.AppendLine("    }");
             builder.AppendLine("}");
 
-            return builder.ToString();
+            string blockClassName = $"{block.Name}_{representationName}";
+            string blockFilePath = Path.Combine(outputDirectory, $"UBO.{blockClassName}.g.cs");
+            string blockCode = builder.ToString();
+
+            File.WriteAllText(blockFilePath, blockCode, Encoding.UTF8);
         }
 
         /// <summary>
-        /// Генерирует класс материала
+        /// Генерирует класс представления
         /// </summary>
         private static string GenerateRepresentationClass(string materialName, string vertexSource,
             string fragmentSource, List<(string type, string name, int? arraySize)> uniforms,
-            List<UniformBlockStructure> uniformBlocks)
+            List<UniformBlockStructure> uniformBlocks, string sourceGuid)
         {
             var builder = new StringBuilder();
             var construcBuilder = new StringBuilder();
             List<string> constructor_lines = new List<string>();
             int samplers = 0;
+
+            WriteGeneratedCodeHeader(builder, sourceGuid);
 
             builder.AppendLine("using OpenglLib.Buffers;");
             builder.AppendLine("using Silk.NET.OpenGL;");
@@ -129,14 +135,12 @@ namespace Editor
             builder.AppendLine($"        protected string VertexSource = @\"{vertexSource.Replace("\"", "\"\"")}\";");
             builder.AppendLine($"        protected string FragmentSource = @\"{fragmentSource.Replace("\"", "\"\"")}\";");
 
-            // Конструктор
             builder.AppendLine("*construct*");
             construcBuilder.AppendLine($"        public {materialName}Representation(GL gl) : base(gl)");
             construcBuilder.AppendLine("        {");
 
             builder.AppendLine("");
 
-            // Uniform свойства
             foreach (var (type, name, arraySize) in uniforms)
             {
                 string csharpType = GlslParser.MapGlslTypeToCSharp(type);
@@ -198,7 +202,6 @@ namespace Editor
                 builder.AppendLine("");
             }
 
-            // Uniform блоки
             foreach (var block in uniformBlocks)
             {
                 if (block.InstanceName != null && block.Binding != null)
@@ -238,6 +241,19 @@ namespace Editor
             builder.Replace("*construct*", construcBuilder.ToString());
 
             return builder.ToString();
+        }
+
+        /// <summary>
+        /// Добавляет комментарии с информацией о генерации кода
+        /// </summary>
+        private static void WriteGeneratedCodeHeader(StringBuilder builder, string sourceGuid)
+        {
+            builder.AppendLine("// <auto-generated>");
+            builder.AppendLine("// This code was generated. Dont change this code.");
+            builder.AppendLine($"// SourceGuid: {sourceGuid ?? "Unknown"}");
+            builder.AppendLine($"// GeneratedAt: {DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")} UTC");
+            builder.AppendLine("// </auto-generated>");
+            builder.AppendLine();
         }
 
         #region Helper Methods
@@ -284,7 +300,6 @@ namespace Editor
 
             switch (type)
             {
-                // Скалярные типы
                 case "bool":
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value ? 1 : 0);");
                     break;
@@ -301,7 +316,6 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
                     break;
 
-                // Векторные типы bool
                 case "bvec2":
                     builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X ? 1 : 0, value.Y ? 1 : 0);");
                     break;
@@ -312,7 +326,6 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X ? 1 : 0, value.Y ? 1 : 0, value.Z ? 1 : 0, value.W ? 1 : 0);");
                     break;
 
-                // Векторные типы int
                 case "ivec2":
                     builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
                     break;
@@ -323,7 +336,6 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
                     break;
 
-                // Векторные типы uint
                 case "uvec2":
                     builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
                     break;
@@ -334,7 +346,6 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
                     break;
 
-                // Векторные типы float
                 case "vec2":
                     builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
                     break;
@@ -345,7 +356,6 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
                     break;
 
-                // Матричные типы float
                 case "mat2":
                 case "mat2x2":
                     builder.AppendLine($"                var mat2 = (Matrix2X2<float>)value;");
@@ -394,7 +404,6 @@ namespace Editor
                     builder.AppendLine($"                _gl.UniformMatrix4x3({locationFieldName}, 1, false, (float*)&mat4x3);");
                     break;
 
-                // Sampler типы
                 case string s when s.StartsWith("sampler"):
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
                     break;

@@ -43,34 +43,36 @@ namespace Editor
                 _isInitialized = true;
 
                 DebLogger.Info("Система синхронизации скриптов успешно инициализирована");
-
-                // 5. Выполняем компиляцию проекта после инициализации
-                await Task.Run(() => {
-                    //bool success = ScriptProjectGenerator.BuildProject();
-                    //if (success)
-                    //{
-                    //    var assembly = ScriptProjectGenerator.LoadCompiledAssembly();
-                    //    if (assembly != null)
-                    //    {
-                    //        //AssemblyManager.Instance.UpdateScriptAssembly(assembly);
-                    //        DebLogger.Info("Проект скриптов успешно скомпилирован и загружен");
-                    //    }
-                    //    else
-                    //    {
-                    //        DebLogger.Error("Не удалось загрузить скомпилированную сборку");
-                    //    }
-                    //}
-                    //else
-                    //{
-                    //    DebLogger.Error("Не удалось скомпилировать проект скриптов");
-                    //}
-                });
             }
             catch (Exception ex)
             {
                 DebLogger.Error($"Ошибка при инициализации системы синхронизации скриптов: {ex.Message}");
                 _isInitialized = false;
             }
+        }
+
+        internal async static Task Compile()
+        {
+            await Task.Run(() => {
+                bool success = ScriptProjectGenerator.BuildProject();
+                if (success)
+                {
+                    var assembly = ScriptProjectGenerator.LoadCompiledAssembly();
+                    if (assembly != null)
+                    {
+                        AssemblyManager.Instance.UpdateScriptAssembly(assembly);
+                        DebLogger.Info("Проект скриптов успешно скомпилирован и загружен");
+                    }
+                    else
+                    {
+                        DebLogger.Error("Не удалось загрузить скомпилированную сборку");
+                    }
+                }
+                else
+                {
+                    DebLogger.Error("Не удалось скомпилировать проект скриптов");
+                }
+            });
         }
 
         /// <summary>
@@ -144,7 +146,7 @@ namespace Editor
                     }
 
                     // Обновляем ссылку на сборку в AssemblyManager
-                    AssemblyManager.Instance.UpdateUserScriptAssembly(assembly);
+                    AssemblyManager.Instance.UpdateScriptAssembly(assembly);
 
                     DebLogger.Info("Проект скриптов успешно перекомпилирован и загружен");
                 });

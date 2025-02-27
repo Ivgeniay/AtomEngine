@@ -8,11 +8,15 @@ using System;
 
 namespace Editor
 {
+    public delegate void RegenerateCodeEventHandler(string sourcePath, AssetMetadata metadata);
+
     /// <summary>
     /// Менеджер метаданных для отслеживания ресурсов проекта
     /// </summary>
     public class MetadataManager
     {
+        public event RegenerateCodeEventHandler RegenerateCodeNeeded;
+
         private static MetadataManager _instance;
         public static MetadataManager Instance => _instance ??= new MetadataManager();
 
@@ -22,12 +26,18 @@ namespace Editor
 
         private bool _isInitialized = false;
         private string _assetsPath;
-        private const string MetaExtension = ".meta";
+        public const string META_EXTENSION = ".meta";
 
         private MetadataManager()
         {
             _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
             InitializeExtensionMappings();
+
+            RegenerateCodeNeeded += (e, r) =>
+            {
+                DebLogger.Debug($"Needed to generate: {e}");
+                DebLogger.Debug(r);
+            };
         }
 
         /// <summary>
@@ -62,6 +72,8 @@ namespace Editor
             _extensionToTypeMap[".prefab"] = MetadataType.Prefab;
 
             _extensionToTypeMap[".mat"] = MetadataType.Material;
+
+            _extensionToTypeMap[".asset"] = MetadataType.Asset;
 
             _extensionToTypeMap[".json"] = MetadataType.Data;
             _extensionToTypeMap[".xml"] = MetadataType.Data;
@@ -101,12 +113,12 @@ namespace Editor
             }
 
             var allFiles = Directory.GetFiles(_assetsPath, "*.*", SearchOption.AllDirectories)
-                .Where(file => !file.EndsWith(MetaExtension))
+                .Where(file => !file.EndsWith(META_EXTENSION))
                 .ToList();
 
             foreach (var filePath in allFiles)
             {
-                string metaFilePath = filePath + MetaExtension;
+                string metaFilePath = filePath + META_EXTENSION;
                 AssetMetadata metadata;
 
                 if (File.Exists(metaFilePath))
@@ -143,7 +155,7 @@ namespace Editor
             var allMetaFiles = Directory.GetFiles(_assetsPath, "*.meta", SearchOption.AllDirectories);
             foreach (var metaFilePath in allMetaFiles)
             {
-                string originalFilePath = metaFilePath.Substring(0, metaFilePath.Length - MetaExtension.Length);
+                string originalFilePath = metaFilePath.Substring(0, metaFilePath.Length - META_EXTENSION.Length);
                 if (!File.Exists(originalFilePath))
                 {
                     DebLogger.Info($"Удаление осиротевшего метафайла: {metaFilePath}");
@@ -165,6 +177,7 @@ namespace Editor
                 MetadataType.Texture => new TextureMetadata(),
                 MetadataType.Model => new ModelMetadata(),
                 MetadataType.Audio => new AudioMetadata(),
+                MetadataType.ShaderSource => new ShaderSourceMetadata(),
                 _ => new AssetMetadata()
             };
 
@@ -173,6 +186,26 @@ namespace Editor
             metadata.LastModified = DateTime.UtcNow;
             metadata.Version = 1;
             metadata.ContentHash = CalculateFileHash(filePath);
+
+            if (metadata.AssetType == MetadataType.Script && IsGeneratedCodeFile(filePath, out string sourceGuid))
+            {
+                metadata.IsGenerated = true;
+                if (!string.IsNullOrEmpty(sourceGuid))
+                {
+                    metadata.SourceAssetGuid = sourceGuid;
+
+                    var sourceMetadata = GetMetadataByGuid(sourceGuid);
+                    sourceMetadata.IsGenerator = true;
+                    if (!sourceMetadata.GeneratedAssets.Contains(metadata.Guid))
+                    {
+                        var sourcePath = GetPathByGuid(sourceGuid);
+                        sourceMetadata.GeneratedAssets.Add(metadata.Guid);
+                        SaveMetadata(sourcePath, sourceMetadata);
+                        DebLogger.Debug($"Updated source asset {sourcePath} with generated asset reference {metadata.Guid}");
+                    }
+                }
+                DebLogger.Debug($"Identified generated file: {filePath}, SourceGuid: {sourceGuid ?? "Unknown"}");
+            }
 
             return metadata;
         }
@@ -185,7 +218,7 @@ namespace Editor
             if (filePath == null)
                 DebLogger.Error($"Error safing metadata: file path is null or invalid");
 
-            string metaFilePath = filePath + MetaExtension;
+            string metaFilePath = filePath + META_EXTENSION;
 
             var settings = new JsonSerializerSettings
             {
@@ -219,6 +252,7 @@ namespace Editor
                     MetadataType.Texture => JsonConvert.DeserializeObject<TextureMetadata>(metaJson, settings),
                     MetadataType.Model => JsonConvert.DeserializeObject<ModelMetadata>(metaJson, settings),
                     MetadataType.Audio => JsonConvert.DeserializeObject<AudioMetadata>(metaJson, settings),
+                    MetadataType.ShaderSource => JsonConvert.DeserializeObject<ShaderSourceMetadata>(metaJson, settings),
                     _ => baseMetadata
                 };
 
@@ -268,12 +302,12 @@ namespace Editor
         /// </summary>
         public void HandleFileChanged(string filePath)
         {
-            if (filePath.EndsWith(MetaExtension))
+            if (filePath.EndsWith(META_EXTENSION))
                 return;
 
             var metadata = GetMetadata(filePath);
-
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
+
             MetadataType currentAssetType = _extensionToTypeMap.TryGetValue(extension, out var type) ? type : MetadataType.Unknown;
 
             if (metadata.AssetType != currentAssetType)
@@ -293,13 +327,18 @@ namespace Editor
                 return;
             }
 
-            // Остальная логика проверки изменений содержимого
             string currentHash = CalculateFileHash(filePath);
             if (metadata.ContentHash != currentHash)
             {
                 metadata.ContentHash = currentHash;
                 metadata.LastModified = DateTime.UtcNow;
                 metadata.Version++;
+
+                if (metadata.IsGenerator && metadata.AutoGeneration)
+                {
+                    RegenerateCodeNeeded?.Invoke(filePath, metadata);
+                }
+
                 SaveMetadata(filePath, metadata);
             }
         }
@@ -318,8 +357,121 @@ namespace Editor
         }
 
         /// <summary>
+        /// Обрабатывает событие создания нового файла
+        /// </summary>
+        internal void HandleFileCreated(string filePath)
+        {
+            if (filePath.EndsWith(META_EXTENSION))
+                return;
+
+            var metadata = CreateMetadata(filePath);
+            SaveMetadata(filePath, metadata);
+            _metadataCache[filePath] = metadata;
+            _guidToPathMap[metadata.Guid] = filePath;
+
+            DebLogger.Info($"Создан новый метафайл для {filePath}");
+        }
+
+        /// <summary>
+        /// Обрабатывает событие удаления файла
+        /// </summary>
+        internal void HandleFileDeleted(string filePath)
+        {
+            if (filePath.EndsWith(META_EXTENSION))
+                return;
+
+            var metadata = _metadataCache.TryGetValue(filePath, out var md) ? md : null;
+            if (metadata?.IsGenerated == true && !string.IsNullOrEmpty(metadata.SourceAssetGuid))
+            {
+                var sourcePath = GetPathByGuid(metadata.SourceAssetGuid);
+                if (!string.IsNullOrEmpty(sourcePath))
+                {
+                    var sourceMetadata = GetMetadata(sourcePath);
+                    if (sourceMetadata != null && sourceMetadata.GeneratedAssets.Contains(metadata.Guid))
+                    {
+                        sourceMetadata.GeneratedAssets.Remove(metadata.Guid);
+                        sourceMetadata.IsGenerator = sourceMetadata.GeneratedAssets.Count > 0;
+                        SaveMetadata(sourcePath, sourceMetadata);
+                        DebLogger.Debug($"Removed generated asset reference {metadata.Guid} from source asset {sourcePath}");
+                    }
+                }
+            }
+
+            if (metadata?.GeneratedAssets?.Count > 0)
+            {
+                var generatedAssetsToDelete = metadata.GeneratedAssets.ToList();
+
+                foreach (var generatedGuid in generatedAssetsToDelete)
+                {
+                    var generatedPath = GetPathByGuid(generatedGuid);
+                    if (!string.IsNullOrEmpty(generatedPath) && File.Exists(generatedPath))
+                    {
+                        DebLogger.Info($"Удаление зависимого сгенерированного файла: {generatedPath}");
+                        try
+                        {
+                            File.Delete(generatedPath);
+                            var genMetaPath = generatedPath + META_EXTENSION;
+                            if (File.Exists(genMetaPath))
+                            {
+                                File.Delete(genMetaPath);
+                            }
+
+                            _metadataCache.Remove(generatedPath);
+                            _guidToPathMap.Remove(generatedGuid);
+                        }
+                        catch (Exception ex)
+                        {
+                            DebLogger.Error($"Ошибка при удалении сгенерированного файла {generatedPath}: {ex.Message}");
+                        }
+                    }
+                }
+            }
+
+            string metaFilePath = filePath + META_EXTENSION;
+            if (File.Exists(metaFilePath))
+            {
+                File.Delete(metaFilePath);
+            }
+
+            if (metadata != null)
+            {
+                _metadataCache.Remove(filePath);
+                _guidToPathMap.Remove(metadata.Guid);
+            }
+
+            DebLogger.Info($"Удален метафайл для {filePath}");
+        }
+
+        /// <summary>
+        /// Обрабатывает событие переименования/перемещения файла
+        /// </summary>
+        internal void HandleFileRenamed(string oldPath, string newPath)
+        {
+            if (oldPath.EndsWith(META_EXTENSION) || newPath.EndsWith(META_EXTENSION))
+                return; 
+
+            string oldMetaPath = oldPath + META_EXTENSION;
+            string newMetaPath = newPath + META_EXTENSION;
+
+            if (File.Exists(oldMetaPath))
+            {
+                File.Move(oldMetaPath, newMetaPath);
+            }
+
+            if (_metadataCache.TryGetValue(oldPath, out var metadata))
+            {
+                _metadataCache.Remove(oldPath);
+                _metadataCache[newPath] = metadata;
+                _guidToPathMap[metadata.Guid] = newPath;
+            }
+
+            DebLogger.Info($"Перемещен метафайл из {oldPath} в {newPath}");
+        }
+
+        /// <summary>
         /// Получает метаданные для указанного пути к файлу
         /// </summary>
+        public AssetMetadata GetMetadataByGuid(string guid) => _metadataCache.Where(e => e.Value.Guid == guid).FirstOrDefault().Value;
         public AssetMetadata GetMetadata(string filePath)
         {
             if (!_isInitialized)
@@ -329,7 +481,7 @@ namespace Editor
                 return metadata;
 
             // Если файл не в кеше, попробуем загрузить его метаданные
-            string metaFilePath = filePath + MetaExtension;
+            string metaFilePath = filePath + META_EXTENSION;
             if (File.Exists(metaFilePath))
             {
                 try
@@ -459,74 +611,7 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обрабатывает событие создания нового файла
-        /// </summary>
-        public void HandleFileCreated(string filePath)
-        {
-            if (filePath.EndsWith(MetaExtension))
-                return;  // Игнорируем сами метафайлы
-
-            var metadata = CreateMetadata(filePath);
-            SaveMetadata(filePath, metadata);
-            _metadataCache[filePath] = metadata;
-            _guidToPathMap[metadata.Guid] = filePath;
-
-            DebLogger.Info($"Создан новый метафайл для {filePath}");
-        }
-
-        /// <summary>
-        /// Обрабатывает событие удаления файла
-        /// </summary>
-        public void HandleFileDeleted(string filePath)
-        {
-            if (filePath.EndsWith(MetaExtension))
-                return;  // Игнорируем сами метафайлы
-
-            // Удаляем метафайл
-            string metaFilePath = filePath + MetaExtension;
-            if (File.Exists(metaFilePath))
-            {
-                File.Delete(metaFilePath);
-            }
-
-            // Удаляем из кэша
-            if (_metadataCache.TryGetValue(filePath, out var metadata))
-            {
-                _metadataCache.Remove(filePath);
-                _guidToPathMap.Remove(metadata.Guid);
-            }
-
-            DebLogger.Info($"Удален метафайл для {filePath}");
-        }
-
-        /// <summary>
-        /// Обрабатывает событие переименования/перемещения файла
-        /// </summary>
-        public void HandleFileRenamed(string oldPath, string newPath)
-        {
-            if (oldPath.EndsWith(MetaExtension) || newPath.EndsWith(MetaExtension))
-                return;  // Игнорируем сами метафайлы
-
-            string oldMetaPath = oldPath + MetaExtension;
-            string newMetaPath = newPath + MetaExtension;
-
-            // Перемещаем метафайл
-            if (File.Exists(oldMetaPath))
-            {
-                File.Move(oldMetaPath, newMetaPath);
-            }
-
-            // Обновляем кэш
-            if (_metadataCache.TryGetValue(oldPath, out var metadata))
-            {
-                _metadataCache.Remove(oldPath);
-                _metadataCache[newPath] = metadata;
-                _guidToPathMap[metadata.Guid] = newPath;
-            }
-
-            DebLogger.Info($"Перемещен метафайл из {oldPath} в {newPath}");
-        }
+        
 
         /// <summary>
         /// Находит все ресурсы, зависящие от указанного ресурса
@@ -581,6 +666,57 @@ namespace Editor
         internal MetadataType GetTypeByExtension(string extension)
         {
             return _extensionToTypeMap[extension];
+        }
+
+        private bool IsGeneratedCodeFile(string filePath, out string sourceGuid)
+        {
+            sourceGuid = null;
+
+            if (!filePath.EndsWith(".cs"))
+                return false;
+
+            try
+            {
+                string[] firstLines = new string[10];
+                using (var reader = new StreamReader(filePath))
+                {
+                    for (int i = 0; i < firstLines.Length; i++)
+                    {
+                        var line = reader.ReadLine();
+                        if (line == null)
+                            break;
+                        firstLines[i] = line;
+                    }
+                }
+
+                bool isAutoGenerated = false;
+                foreach (var line in firstLines)
+                {
+                    if (!string.IsNullOrEmpty(line) && line.Contains("<auto-generated>"))
+                    {
+                        isAutoGenerated = true;
+                        break;
+                    }
+                }
+
+                if (!isAutoGenerated)
+                    return false;
+
+                foreach (var line in firstLines)
+                {
+                    if (line.Contains("SourceGuid:"))
+                    {
+                        sourceGuid = line.Split(':')[1].Trim();
+                        return true;
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Warn($"Error checking if file is generated code: {ex.Message}");
+                return false;
+            }
         }
     }
 
