@@ -2,15 +2,16 @@
 using AtomEngine;
 using System.IO;
 using System;
+using System.Threading.Tasks;
 
 namespace Editor
 {
     /// <summary>
     /// Класс для синхронизации файлов кода между папкой проекта и папкой Assets
     /// </summary>
-    public static class CodeFilesSynchronizer
+    public class CodeFilesSynchronizer : IService, IDisposable
     {
-        private static readonly HashSet<string> _supportedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        private readonly HashSet<string> _supportedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             ".cs", // C#
             ".fs", // F#
@@ -18,49 +19,54 @@ namespace Editor
             ".ts"  // TypeScript
         };
 
-        private static string _projectPath;
-        private static string _assetsPath;
-        private static bool _isInitialized = false;
-        private static bool _isSynchronizing = false;
-        private static readonly object _lockObject = new object();
+        private string _projectPath;
+        private string _assetsPath;
+        private bool _isInitialized = false;
+        private bool _isSynchronizing = false;
+        AssetFileSystem _assetFileSystem;
+        private readonly object _lockObject = new object();
 
         // Хранит пары полных путей файлов, которые сейчас синхронизируются, чтобы избежать рекурсивных вызовов
-        private static readonly HashSet<string> _inProcessFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _inProcessFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Инициализирует синхронизатор файлов кода
         /// </summary>
-        public static void Initialize()
+        public Task Initialize()
         {
             if (_isInitialized)
-                return;
+                return Task.CompletedTask;
 
-            _projectPath = DirectoryExplorer.GetPath(DirectoryType.CSharp_Assembly);
-            _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
+            return Task.Run(() =>
+            {
+                _projectPath = DirectoryExplorer.GetPath(DirectoryType.CSharp_Assembly);
+                _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
 
-            AssetFileSystem.Instance.AssetCreated += OnAssetCreated;
-            AssetFileSystem.Instance.AssetChanged += OnAssetChanged;
-            AssetFileSystem.Instance.AssetDeleted += OnAssetDeleted;
-            AssetFileSystem.Instance.AssetRenamed += OnAssetRenamed;
+                _assetFileSystem = ServiceHub.Get<AssetFileSystem>();
+                _assetFileSystem.AssetCreated += OnAssetCreated;
+                _assetFileSystem.AssetChanged += OnAssetChanged;
+                _assetFileSystem.AssetDeleted += OnAssetDeleted;
+                _assetFileSystem.AssetRenamed += OnAssetRenamed;
 
-            _isInitialized = true;
+                _isInitialized = true;
 
-            DebLogger.Debug($"CodeFilesSynchronizer инициализирован. Синхронизация между папками: {_projectPath} и {_assetsPath}");
+                DebLogger.Debug($"CodeFilesSynchronizer инициализирован. Синхронизация между папками: {_projectPath} и {_assetsPath}");
+            });
         }
 
         /// <summary>
         /// Освобождает ресурсы синхронизатора файлов кода
         /// </summary>
-        public static void Dispose()
+        public void Dispose()
         {
             if (!_isInitialized)
                 return;
 
             // Отписываемся от событий AssetFileSystem
-            AssetFileSystem.Instance.AssetCreated -= OnAssetCreated;
-            AssetFileSystem.Instance.AssetChanged -= OnAssetChanged;
-            AssetFileSystem.Instance.AssetDeleted -= OnAssetDeleted;
-            AssetFileSystem.Instance.AssetRenamed -= OnAssetRenamed;
+            _assetFileSystem.AssetCreated -= OnAssetCreated;
+            _assetFileSystem.AssetChanged -= OnAssetChanged;
+            _assetFileSystem.AssetDeleted -= OnAssetDeleted;
+            _assetFileSystem.AssetRenamed -= OnAssetRenamed;
 
             _isInitialized = false;
 
@@ -70,7 +76,7 @@ namespace Editor
         /// <summary>
         /// Обработчик события создания файла в Assets
         /// </summary>
-        private static void OnAssetCreated(string assetPath)
+        private void OnAssetCreated(string assetPath)
         {
             if (!IsSupportedCodeFile(assetPath))
                 return;
@@ -116,7 +122,7 @@ namespace Editor
         /// <summary>
         /// Обработчик события изменения файла в Assets
         /// </summary>
-        private static void OnAssetChanged(string assetPath)
+        private void OnAssetChanged(string assetPath)
         {
             if (!IsSupportedCodeFile(assetPath))
                 return;
@@ -163,7 +169,7 @@ namespace Editor
         /// <summary>
         /// Обработчик события удаления файла в Assets
         /// </summary>
-        private static void OnAssetDeleted(string assetPath)
+        private void OnAssetDeleted(string assetPath)
         {
             if (!IsSupportedCodeFile(assetPath))
                 return;
@@ -208,7 +214,7 @@ namespace Editor
         /// <summary>
         /// Обработчик события переименования файла в Assets
         /// </summary>
-        private static void OnAssetRenamed(string oldAssetPath, string newAssetPath)
+        private void OnAssetRenamed(string oldAssetPath, string newAssetPath)
         {
             if (!IsSupportedCodeFile(oldAssetPath) && !IsSupportedCodeFile(newAssetPath))
                 return;
@@ -278,7 +284,7 @@ namespace Editor
         /// <summary>
         /// Обработчик события создания файла в проекте
         /// </summary>
-        public static void OnProjectFileCreated(string projectFilePath)
+        public void OnProjectFileCreated(string projectFilePath)
         {
             if (!IsSupportedCodeFile(projectFilePath))
                 return;
@@ -324,7 +330,7 @@ namespace Editor
         /// <summary>
         /// Обработчик события изменения файла в проекте
         /// </summary>
-        public static void OnProjectFileChanged(string projectFilePath)
+        public void OnProjectFileChanged(string projectFilePath)
         {
             if (!IsSupportedCodeFile(projectFilePath))
                 return;
@@ -371,7 +377,7 @@ namespace Editor
         /// <summary>
         /// Обработчик события удаления файла в проекте
         /// </summary>
-        public static void OnProjectFileDeleted(string projectFilePath)
+        public void OnProjectFileDeleted(string projectFilePath)
         {
             if (!IsSupportedCodeFile(projectFilePath))
                 return;
@@ -415,7 +421,7 @@ namespace Editor
         /// <summary>
         /// Обработчик события переименования файла в проекте
         /// </summary>
-        public static void OnProjectFileRenamed(string oldProjectFilePath, string newProjectFilePath)
+        public void OnProjectFileRenamed(string oldProjectFilePath, string newProjectFilePath)
         {
             if (!IsSupportedCodeFile(oldProjectFilePath) && !IsSupportedCodeFile(newProjectFilePath))
                 return;
@@ -485,7 +491,7 @@ namespace Editor
         /// <summary>
         /// Проверяет, должен ли файл синхронизироваться (на основе расширения)
         /// </summary>
-        private static bool IsSupportedCodeFile(string path)
+        private bool IsSupportedCodeFile(string path)
         {
             if (string.IsNullOrEmpty(path))
                 return false;
@@ -497,7 +503,7 @@ namespace Editor
         /// <summary>
         /// Получает относительный путь от базовой директории
         /// </summary>
-        private static string GetRelativePath(string fullPath, string basePath)
+        private string GetRelativePath(string fullPath, string basePath)
         {
             return Path.GetRelativePath(basePath, fullPath);
         }
@@ -505,7 +511,7 @@ namespace Editor
         /// <summary>
         /// Добавляет файл в список обрабатываемых
         /// </summary>
-        private static void AddToProcessing(string path)
+        private void AddToProcessing(string path)
         {
             lock (_lockObject)
             {
@@ -516,7 +522,7 @@ namespace Editor
         /// <summary>
         /// Удаляет файл из списка обрабатываемых
         /// </summary>
-        private static void RemoveFromProcessing(string path)
+        private void RemoveFromProcessing(string path)
         {
             lock (_lockObject)
             {
@@ -527,7 +533,7 @@ namespace Editor
         /// <summary>
         /// Проверяет, находится ли файл в процессе синхронизации
         /// </summary>
-        private static bool IsFileInProcess(string path)
+        private bool IsFileInProcess(string path)
         {
             lock (_lockObject)
             {

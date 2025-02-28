@@ -5,41 +5,43 @@ using System.IO;
 using AtomEngine;
 using System;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace Editor
 {
-    internal static class ScriptProjectGenerator
+    internal class ScriptProjectGenerator : IService
     {
-        private static string _assetsPath;
-        private static string _scriptProjectPath;
-        private static string _outputPath;
-        private static Assembly _coreAssembly;
-        private static Assembly _renderAssembly;
-        private static Assembly _silkMathAssembly;
-        private static Assembly _silkOpenGlAssembly;
-        private static bool _isInitialized = false;
+        private string _assetsPath;
+        private string _scriptProjectPath;
+        private string _outputPath;
+        private Assembly _coreAssembly;
+        private Assembly _renderAssembly;
+        private Assembly _silkMathAssembly;
+        private Assembly _silkOpenGlAssembly;
+        private bool _isInitialized = false;
 
-        static ScriptProjectGenerator()
+        
+
+        public Task Initialize()
         {
-            Initialize();
+            if (_isInitialized) return Task.CompletedTask;
+
+            return Task.Run(() =>
+            {
+                _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
+                _scriptProjectPath = DirectoryExplorer.GetPath(DirectoryType.CSharp_Assembly);
+                _outputPath = Path.Combine(_scriptProjectPath, "bin");
+
+                _isInitialized = true;
+                GenerateProject();
+            });
         }
 
-        public static void Initialize()
-        {
-            if (_isInitialized) return;
-
-            _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
-            _scriptProjectPath = DirectoryExplorer.GetPath(DirectoryType.CSharp_Assembly);
-            _outputPath = Path.Combine(_scriptProjectPath, "bin");
-
-            _isInitialized = true;
-        }
-
-        public static bool GenerateProject()
+        public bool GenerateProject()
         {
             try
             {
-                var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
                 var projectFilePath = Path.Combine(_scriptProjectPath, $"{projConfig}.csproj");
                 if (File.Exists(projectFilePath)) return true;
 
@@ -60,11 +62,11 @@ namespace Editor
             }
         }
 
-        public static bool BuildProject(BuildType buildType = BuildType.Debug)
+        public bool BuildProject(BuildType buildType = BuildType.Debug)
         {
             try
             {
-                var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
                 string builtype = buildType.ToString();
                 Process process = new Process
                 {
@@ -104,9 +106,9 @@ namespace Editor
             }
         }
 
-        private static void GenerateProjectFile()
+        private void GenerateProjectFile()
         {
-            var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+            var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
 
             string relativeAssetsPath = Path.GetRelativePath(_scriptProjectPath, _assetsPath);
             string csprojContent = $@"<Project Sdk=""Microsoft.NET.Sdk"">
@@ -142,9 +144,9 @@ namespace Editor
             DebLogger.Debug($"Проект создан с доступом к {scriptCount} скриптам в папке Assets");
         }
 
-        public static Assembly LoadCompiledAssembly(BuildType buildType = BuildType.Debug)
+        public Assembly LoadCompiledAssembly(BuildType buildType = BuildType.Debug)
         {
-            var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+            var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
             string assemblyPath = string.Empty;
             if (_outputPath.EndsWith("bin"))
             {
@@ -174,9 +176,9 @@ namespace Editor
         /// <summary>
         /// Открывает проект в IDE
         /// </summary>
-        public static void OpenProjectInIDE()
+        public void OpenProjectInIDE()
         {
-            var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+            var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
             string projectPath = Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj");
 
             if (!File.Exists(projectPath))
@@ -206,7 +208,7 @@ namespace Editor
         /// Открывает файл скрипта в IDE в контексте проекта
         /// </summary>
         /// <param name="assetFilePath">Полный путь к файлу скрипта в папке Assets</param>
-        public static void OpenProjectInIDE(string assetFilePath)
+        public void OpenProjectInIDE(string assetFilePath)
         {
             if (string.IsNullOrEmpty(assetFilePath))
             {
@@ -222,7 +224,7 @@ namespace Editor
                 return;
             }
 
-            var projConfig = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+            var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
             string projectPath = Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj");
 
             if (!File.Exists(projectPath))
@@ -294,7 +296,7 @@ namespace Editor
         /// <summary>
         /// Определяет доступную IDE
         /// </summary>
-        private static string DetectIDE()
+        private string DetectIDE()
         {
             try
             {
@@ -346,7 +348,7 @@ namespace Editor
         /// <summary>
         /// Проверяет наличие команды в PATH на Linux
         /// </summary>
-        private static bool CommandExists(string command)
+        private bool CommandExists(string command)
         {
             try
             {
@@ -377,7 +379,7 @@ namespace Editor
         /// <summary>
         /// Открывает файл в Visual Studio
         /// </summary>
-        private static void OpenInVisualStudio(string projectPath, string filePath)
+        private void OpenInVisualStudio(string projectPath, string filePath)
         {
             try
             {
@@ -401,7 +403,7 @@ namespace Editor
         /// <summary>
         /// Открывает файл в Visual Studio Code
         /// </summary>
-        private static void OpenInVSCode(string folderPath, string filePath)
+        private void OpenInVSCode(string folderPath, string filePath)
         {
             try
             {
@@ -425,7 +427,7 @@ namespace Editor
         /// <summary>
         /// Открывает файл в JetBrains Rider
         /// </summary>
-        private static void OpenInRider(string projectPath, string filePath)
+        private void OpenInRider(string projectPath, string filePath)
         {
             try
             {

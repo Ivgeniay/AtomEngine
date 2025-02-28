@@ -1,9 +1,11 @@
-using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using System.Threading.Tasks;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using AtomEngine;
+using Avalonia;
 using System;
-using System.Threading.Tasks;
+using Application = Avalonia.Application;
 
 namespace Editor
 {
@@ -35,30 +37,30 @@ namespace Editor
         {
             try
             {
-                await Task.Delay(100);
-                await loadingWindow.UpdateLoadingStatus("Инициализация конфигураций...");
-                Configuration.Initialize();
-                await Task.Delay(100);
+                ServiceHub.RegisterService<Configuration>();
+                ServiceHub.RegisterService<AssemblyManager>();
+                ServiceHub.RegisterService<AssetFileSystem>();
+                ServiceHub.RegisterService<ScriptProjectGenerator>();
+                ServiceHub.RegisterService<ProjectFileWatcher>();
+                ServiceHub.RegisterService<ScriptSyncSystem>();
+                ServiceHub.RegisterService<CodeFilesSynchronizer>();
 
-                await loadingWindow.UpdateLoadingStatus("Инициализация сборок...");
-                AssemblyManager.Instance.Initialize(AppDomain.CurrentDomain.GetAssemblies());
-                await Task.Delay(100);
-
-                await loadingWindow.UpdateLoadingStatus("Инициализации файловой системы...");
-                AssetFileSystem.Instance.Initialize();
-                await Task.Delay(100);
-
-                await loadingWindow.UpdateLoadingStatus("Генерация проекта пользовательских скриптов...");
-                ScriptProjectGenerator.GenerateProject();
-                ProjectFileWatcher.Initialize();
-                await Task.Delay(100);
-
-                await loadingWindow.UpdateLoadingStatus("Инициализация работы с файловой системой проекта...");
-                await ScriptSyncSystem.Initialize();
-                await Task.Delay(100);
+                await ServiceHub.Initialize(
+                    async (type) =>
+                    {
+                        await Task.Delay(100);
+                        await loadingWindow.UpdateLoadingStatus($"Начало инициализации {type}...");
+                        await Task.Delay(100);
+                    },
+                    async (type) =>
+                    {
+                        await Task.Delay(100);
+                        await loadingWindow.UpdateLoadingStatus($"Инициализации {type} завершена.");
+                        await Task.Delay(100);
+                    });
 
                 await loadingWindow.UpdateLoadingStatus("Компиляция проекта...");
-                await ScriptSyncSystem.Compile();
+                await ServiceHub.Get<ScriptSyncSystem>().Compile();
                 await Task.Delay(100);
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
@@ -71,25 +73,8 @@ namespace Editor
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ошибка при инициализации: {ex}");
+                DebLogger.Error($"Ошибка при инициализации: {ex}");
             }
         }
-
-        //public override void Initialize()
-        //{
-        //    AvaloniaXamlLoader.Load(this);
-        //    Environment.SetEnvironmentVariable("AVALONIA_DISABLE_ANGLE", "1");
-        //}
-
-        //public override void OnFrameworkInitializationCompleted()
-        //{
-        //    if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        //    {
-        //        desktop.MainWindow = new MainWindow();
-        //    }
-
-
-        //    base.OnFrameworkInitializationCompleted();
-        //}
     }
 }

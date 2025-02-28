@@ -1065,7 +1065,7 @@ namespace Editor
                 return;
             }
             this.configs.ExcludeExtension.Add(e);
-            Configuration.SafeConfiguration(ConfigurationSource.ExplorerConfigs, this.configs);
+            ServiceHub.Get<Configuration>().SafeConfiguration(ConfigurationSource.ExplorerConfigs, this.configs);
             DebLogger.Info($"{e} was added as excluded file extension");
         }
     }

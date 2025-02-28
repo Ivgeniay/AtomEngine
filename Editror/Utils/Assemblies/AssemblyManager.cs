@@ -4,10 +4,11 @@ using System.Reflection;
 using System.Linq;
 using System.IO;
 using System;
+using System.Threading.Tasks;
 
 namespace Editor
 {
-    public class AssemblyManager
+    public class AssemblyManager : IService
     {
         private string _coreDllName = "EngineLib";
         private string _renderDllName = "OpenglLib";
@@ -19,9 +20,12 @@ namespace Editor
         private Assembly _user_script_assembly;
         private bool _isInitialized = false;
 
-        public void Initialize(IEnumerable<Assembly> initialAssemblies)
+        public Task Initialize()
         {
-            if (_isInitialized) return;
+            if (_isInitialized) return Task.CompletedTask;
+
+            return Task.Run(() => {
+                IEnumerable<Assembly> initialAssemblies = AppDomain.CurrentDomain.GetAssemblies();
 
             _assemblyMap = new Dictionary<TAssembly, string>
             {
@@ -31,31 +35,32 @@ namespace Editor
                 { TAssembly.SilkMath, "Silk.NET.Maths" }
             };
 
-            foreach (var assembly in initialAssemblies)
-            {
-                _assemblies.Add(assembly);
-            }
-
-            var baseDirectry = DirectoryExplorer.GetPath(DirectoryType.Base);
-            foreach (var filePath in Directory.GetFiles(baseDirectry, "*.dll"))
-            {
-                string fileName = Path.GetFileName(filePath);
-
-                foreach (var pair in _assemblyMap)
+                foreach (var assembly in initialAssemblies)
                 {
-                    if (fileName.Equals(pair.Value + ".dll"))
+                    _assemblies.Add(assembly);
+                }
+
+                var baseDirectry = DirectoryExplorer.GetPath(DirectoryType.Base);
+                foreach (var filePath in Directory.GetFiles(baseDirectry, "*.dll"))
+                {
+                    string fileName = Path.GetFileName(filePath);
+
+                    foreach (var pair in _assemblyMap)
                     {
-                        Assembly assembly = Assembly.LoadFrom(filePath);
-                        _assemblyDict[pair.Key] = assembly;
-                        _assemblies.Add(assembly);
-                        break;
+                        if (fileName.Equals(pair.Value + ".dll"))
+                        {
+                            Assembly assembly = Assembly.LoadFrom(filePath);
+                            _assemblyDict[pair.Key] = assembly;
+                            _assemblies.Add(assembly);
+                            break;
+                        }
                     }
                 }
-            }
 
-            ScanPluginsDirectory();
+                ScanPluginsDirectory();
 
-            _isInitialized = true;
+                _isInitialized = true;
+            });
         }
 
         public void ScanPluginsDirectory()
@@ -130,9 +135,9 @@ namespace Editor
             {
                 try
                 {
-                    ProjectConfigurations pConf = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                    ProjectConfigurations pConf = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
                     UpdateScriptAssembly(
-                        ScriptProjectGenerator.LoadCompiledAssembly(pConf.BuildType)
+                        ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly(pConf.BuildType)
                         );
                     return _user_script_assembly;
                 }

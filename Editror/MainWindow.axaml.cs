@@ -271,8 +271,8 @@ namespace Editor
                         Description = "",
                         Action = async () => { 
                             DebLogger.Debug("Build Project");
-                            ProjectConfigurations pConf = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
-                            await ScriptSyncSystem.RebuildProject(pConf.BuildType);
+                            ProjectConfigurations pConf = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                            await ServiceHub.Get<ScriptSyncSystem>().RebuildProject(pConf.BuildType);
                         }
                     },
                     new EditorToolbarButton()
@@ -281,7 +281,7 @@ namespace Editor
                         Description = "",
                         Action = () => {
                             DebLogger.Debug("Generate Solution");
-                            ScriptProjectGenerator.GenerateProject(); 
+                            ServiceHub.Get<ScriptProjectGenerator>().GenerateProject(); 
                         }
                     },
                     new EditorToolbarButton()
@@ -295,8 +295,8 @@ namespace Editor
                         Text = "Rebuild All",
                         Description = "",
                         Action = async () => {
-                            ProjectConfigurations pConf = Configuration.GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
-                            await ScriptSyncSystem.RebuildProject(pConf.BuildType);
+                            ProjectConfigurations pConf = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                            await ServiceHub.Get<ScriptSyncSystem>().RebuildProject(pConf.BuildType);
                         }
                     },
                     new EditorToolbarButton()
@@ -305,7 +305,7 @@ namespace Editor
                         Description = "IDE",
                         Action = () =>
                         {
-                            ScriptSyncSystem.OpenProjectInIDE();
+                            ServiceHub.Get<ScriptSyncSystem>().OpenProjectInIDE();
                         }
                     }
                 }
@@ -471,7 +471,7 @@ namespace Editor
 
         private void InitializeExplorer()
         {
-            ExplorerConfigurations configurations = Configuration.GetConfiguration<ExplorerConfigurations>(ConfigurationSource.ExplorerConfigs);
+            ExplorerConfigurations configurations = ServiceHub.Get<Configuration>().GetConfiguration<ExplorerConfigurations>(ConfigurationSource.ExplorerConfigs);
             _directoryExplorerController = new DirectoryExplorerController(configurations);
 
             _directoryExplorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
@@ -489,7 +489,7 @@ namespace Editor
                 Description = "Open file in IDE",
                 Action = (e) =>
                 {
-                    ScriptSyncSystem.OpenProjectInIDE(e.FileFullPath);
+                    ServiceHub.Get<ScriptSyncSystem>().OpenProjectInIDE(e.FileFullPath);
                 },
             });
             _directoryExplorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
@@ -499,7 +499,7 @@ namespace Editor
                 Description = "Open file in IDE",
                 Action = (e) =>
                 {
-                    ScriptSyncSystem.OpenProjectInIDE(e.FileFullPath);
+                    ServiceHub.Get<ScriptSyncSystem>().OpenProjectInIDE(e.FileFullPath);
                 },
             });
             _directoryExplorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
@@ -714,9 +714,10 @@ namespace Editor
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
-            CodeFilesSynchronizer.Dispose();
-            AssetFileSystem.Instance.Dispose();
-            ProjectFileWatcher.Dispose();
+            ServiceHub.Dispose();
+            //CodeFilesSynchronizer.Dispose();
+            //AssetFileSystem.Instance.Dispose();
+            //ProjectFileWatcher.Dispose();
         }
     }
 

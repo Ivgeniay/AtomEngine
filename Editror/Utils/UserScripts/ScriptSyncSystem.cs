@@ -8,56 +8,60 @@ namespace Editor
     /// Класс для управления системой синхронизации файлов кода между 
     /// папкой проекта и папкой Assets
     /// </summary>
-    public static class ScriptSyncSystem
+    public class ScriptSyncSystem : IService
     {
-        private static bool _isInitialized = false;
+        private bool _isInitialized = false;
 
         /// <summary>
         /// Инициализирует всю систему синхронизации скриптов
         /// </summary>
-        public static async Task Initialize()
+        public Task Initialize()
         {
             if (_isInitialized)
-                return;
+                return Task.CompletedTask;
 
-            try
+            return Task.Run(() =>
             {
-                DebLogger.Info("Инициализация системы синхронизации скриптов...");
-
-                if (AssetFileSystem.Instance != null)
+                try
                 {
-                    AssetFileSystem.Instance.Initialize();
+                    DebLogger.Info("Инициализация системы синхронизации скриптов...");
+
+                    //if (AssetFileSystem.Instance != null)
+                    //{
+                    //    AssetFileSystem.Instance.Initialize();
+                    //}
+
+                    //await Task.Run(() =>
+                    //{
+                    //    bool success = ScriptProjectGenerator.GenerateProject();
+                    //    if (!success)
+                    //    {
+                    //        DebLogger.Error("Не удалось сгенерировать проект скриптов");
+                    //    }
+                    //});
+                    //ScriptProjectGenerator.Initialize();
+                    //CodeFilesSynchronizer.Initialize();
+                    //ProjectFileWatcher.Initialize();
+
+                    _isInitialized = true;
+
+                    DebLogger.Info("Система синхронизации скриптов успешно инициализирована");
                 }
-
-                await Task.Run(() => {
-                    bool success = ScriptProjectGenerator.GenerateProject();
-                    if (!success)
-                    {
-                        DebLogger.Error("Не удалось сгенерировать проект скриптов");
-                    }
-                });
-                ScriptProjectGenerator.Initialize();
-                CodeFilesSynchronizer.Initialize();
-                ProjectFileWatcher.Initialize();
-
-                _isInitialized = true;
-
-                DebLogger.Info("Система синхронизации скриптов успешно инициализирована");
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Ошибка при инициализации системы синхронизации скриптов: {ex.Message}");
-                _isInitialized = false;
-            }
+                catch (Exception ex)
+                {
+                    DebLogger.Error($"Ошибка при инициализации системы синхронизации скриптов: {ex.Message}");
+                    _isInitialized = false;
+                }
+            });
         }
 
-        internal async static Task Compile()
+        internal async Task Compile()
         {
             await Task.Run(() => {
-                bool success = ScriptProjectGenerator.BuildProject();
+                bool success = ServiceHub.Get<ScriptProjectGenerator>().BuildProject();
                 if (success)
                 {
-                    var assembly = ScriptProjectGenerator.LoadCompiledAssembly();
+                    var assembly = ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly();
                     if (assembly != null)
                     {
                         AssemblyManager.Instance.UpdateScriptAssembly(assembly);
@@ -78,7 +82,7 @@ namespace Editor
         /// <summary>
         /// Освобождает ресурсы системы синхронизации скриптов
         /// </summary>
-        public static void Shutdown()
+        public void Shutdown()
         {
             if (!_isInitialized)
                 return;
@@ -88,8 +92,8 @@ namespace Editor
                 DebLogger.Info("Остановка системы синхронизации скриптов...");
 
                 // Останавливаем все компоненты в обратном порядке
-                ProjectFileWatcher.Dispose();
-                CodeFilesSynchronizer.Dispose();
+                //ProjectFileWatcher.Dispose();
+                //CodeFilesSynchronizer.Dispose();
 
                 _isInitialized = false;
 
@@ -104,7 +108,7 @@ namespace Editor
         /// <summary>
         /// Перекомпилирует проект скриптов
         /// </summary>
-        public static async Task<bool> RebuildProject(BuildType buildType = BuildType.Debug)
+        public async Task<bool> RebuildProject(BuildType buildType = BuildType.Debug)
         {
             if (!_isInitialized)
             {
@@ -121,7 +125,7 @@ namespace Editor
                 // Выполняем в отдельном потоке, чтобы не блокировать UI
                 await Task.Run(() => {
                     // Обновляем файл проекта
-                    success = ScriptProjectGenerator.GenerateProject();
+                    success = ServiceHub.Get<ScriptProjectGenerator>().GenerateProject();
                     if (!success)
                     {
                         DebLogger.Error("Не удалось перегенерировать проект скриптов");
@@ -129,7 +133,7 @@ namespace Editor
                     }
 
                     // Компилируем проект
-                    success = ScriptProjectGenerator.BuildProject(buildType);
+                    success = ServiceHub.Get<ScriptProjectGenerator>().BuildProject(buildType);
                     if (!success)
                     {
                         DebLogger.Error("Не удалось скомпилировать проект скриптов");
@@ -137,7 +141,7 @@ namespace Editor
                     }
 
                     // Загружаем скомпилированную сборку
-                    var assembly = ScriptProjectGenerator.LoadCompiledAssembly(buildType);
+                    var assembly = ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly(buildType);
                     if (assembly == null)
                     {
                         DebLogger.Error("Не удалось загрузить скомпилированную сборку");
@@ -163,7 +167,7 @@ namespace Editor
         /// <summary>
         /// Открывает проект скриптов в IDE
         /// </summary>
-        public static void OpenProjectInIDE(string filepath = null)
+        public void OpenProjectInIDE(string filepath = null)
         {
             if (!_isInitialized)
             {
@@ -174,8 +178,8 @@ namespace Editor
             try
             {
                 DebLogger.Info("Открытие проекта скриптов в IDE...");
-                if (filepath != null) ScriptProjectGenerator.OpenProjectInIDE(filepath);
-                else ScriptProjectGenerator.OpenProjectInIDE();
+                if (filepath != null) ServiceHub.Get<ScriptProjectGenerator>().OpenProjectInIDE(filepath);
+                else ServiceHub.Get<ScriptProjectGenerator>().OpenProjectInIDE();
             }
             catch (Exception ex)
             {

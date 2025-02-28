@@ -12,11 +12,8 @@ namespace Editor
     /// <summary>
     /// Класс для управления файловой системой ресурсов
     /// </summary>
-    public class AssetFileSystem : IDisposable
+    public class AssetFileSystem : IDisposable, IService
     {
-        private static AssetFileSystem _instance;
-        public static AssetFileSystem Instance => _instance ??= new AssetFileSystem();
-
         private readonly string _assetsPath;
         private readonly MetadataManager _metadataManager;
         private FileSystemWatcher _fileWatcher;
@@ -47,7 +44,7 @@ namespace Editor
         private const int DebounceIntervalMs = 300;
 
         private bool _isInitialized = false;
-        private AssetFileSystem()
+        public AssetFileSystem()
         {
             _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
             _metadataManager = MetadataManager.Instance;
@@ -62,18 +59,21 @@ namespace Editor
         /// <summary>
         /// Инициализирует файловую систему ресурсов
         /// </summary>
-        public void Initialize()
+        public Task Initialize()
         {
-            if (_isInitialized) return;
+            if (_isInitialized) return Task.CompletedTask;
 
-            // Инициализируем менеджер метаданных
-            _metadataManager.Initialize();
+            return Task.Run(() =>
+            {
+                // Инициализируем менеджер метаданных
+                _metadataManager.Initialize();
 
-            // Запускаем наблюдение за файловой системой
-            StartFileWatcher();
+                // Запускаем наблюдение за файловой системой
+                StartFileWatcher();
 
-            DebLogger.Info("Файловая система ресурсов инициализирована");
-            _isInitialized = true;
+                DebLogger.Info("Файловая система ресурсов инициализирована");
+                _isInitialized = true;
+            });
         }
 
         /// <summary>
