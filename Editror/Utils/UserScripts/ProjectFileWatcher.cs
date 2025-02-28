@@ -26,7 +26,7 @@ namespace Editor
 
             return Task.Run(() =>
             {
-                _projectPath = DirectoryExplorer.GetPath(DirectoryType.CSharp_Assembly);
+                _projectPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.CSharp_Assembly);
 
                 _watcher = new FileSystemWatcher(_projectPath)
                 {

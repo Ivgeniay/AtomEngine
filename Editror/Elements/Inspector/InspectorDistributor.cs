@@ -30,12 +30,12 @@ namespace Editor
 
                     if (eventSelectionEvent.FileExtension.EndsWith(".mat"))
                     {
-                        var matAsset = MaterialEditorController.Instance.LoadMaterial(eventSelectionEvent.FileFullPath);
+                        var matAsset = ServiceHub.Get<MaterialManager>().LoadMaterial(eventSelectionEvent.FileFullPath);
                         return new MaterialInspectable(matAsset);
                     }
                     else
                     {
-                        var meta = MetadataManager.Instance.GetMetadata(eventSelectionEvent.FileFullPath);
+                        var meta = ServiceHub.Get<MetadataManager>().GetMetadata(eventSelectionEvent.FileFullPath);
                         Type t = meta.GetType();
                         switch(meta.AssetType)
                         {

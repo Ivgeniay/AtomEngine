@@ -147,21 +147,21 @@ namespace Editor
                             float y4 = jObj["Y"].ToObject<float>();
                             float z4 = jObj["Z"].ToObject<float>();
                             float w4 = jObj["W"].ToObject<float>();
-                            return new Vector4(x4, y4, z4, w4);
+                            return new Silk.NET.Maths.Vector4D<float>(x4, y4, z4, w4);
                         }
                         else
                         {
                             float x3 = jObj["X"].ToObject<float>();
                             float y3 = jObj["Y"].ToObject<float>();
                             float z3 = jObj["Z"].ToObject<float>();
-                            return new Vector3(x3, y3, z3);
+                            return new Silk.NET.Maths.Vector3D<float>(x3, y3, z3);
                         }
                     }
                     else
                     {
                         float x2 = jObj["X"].ToObject<float>();
                         float y2 = jObj["Y"].ToObject<float>();
-                        return new Vector2(x2, y2);
+                        return new Silk.NET.Maths.Vector2D<float>(x2, y2);
                     }
                 }
                 else if (jObj["Values"] != null)

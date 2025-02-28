@@ -3,24 +3,19 @@ using System;
 using AtomEngine;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Editor
 {
-    public class MaterialEditorController
+    public class MaterialManager : IService
     {
         private Dictionary<string, MaterialAsset> _cacheMaterials = new Dictionary<string, MaterialAsset>();
         private MaterialAsset _currentMaterial;
 
-        private static MaterialEditorController instance;
-        public static MaterialEditorController Instance
+        public Task Initialize()
         {
-            get
-            {
-                if (instance == null) instance = new MaterialEditorController();
-                return instance;
-            }
+            return Task.CompletedTask;
         }
-        public MaterialEditorController() => instance = this;
 
         public MaterialAsset CreateMaterial(string shaderRepresentationGuid)
         {
@@ -30,7 +25,7 @@ namespace Editor
                 Name = $"Material_{Guid.NewGuid().ToString().Substring(0, 8)}"
             };
 
-            string filePath = MetadataManager.Instance.GetPathByGuid(shaderRepresentationGuid);
+            string filePath = ServiceHub.Get<MetadataManager>().GetPathByGuid(shaderRepresentationGuid);
 
             if (File.Exists(filePath))
             {
@@ -108,6 +103,7 @@ namespace Editor
 
             //MetadataManager.Instance.SaveMetadata(path, metadata);
         }
+
         public MaterialAsset LoadMaterial(string path)
         {
             if (!File.Exists(path))
@@ -201,14 +197,14 @@ namespace Editor
                     case "Vector2D<float>":
                         float x = jObject["X"]?.ToObject<float>() ?? 0f;
                         float y = jObject["Y"]?.ToObject<float>() ?? 0f;
-                        return new System.Numerics.Vector2(x, y);
+                        return new Silk.NET.Maths.Vector2D<float>(x, y);
 
                     case "vec3":
                     case "Vector3D<float>":
                         float x3 = jObject["X"]?.ToObject<float>() ?? 0f;
                         float y3 = jObject["Y"]?.ToObject<float>() ?? 0f;
                         float z3 = jObject["Z"]?.ToObject<float>() ?? 0f;
-                        return new System.Numerics.Vector3(x3, y3, z3);
+                        return new Silk.NET.Maths.Vector3D<float>(x3, y3, z3);
 
                     case "vec4":
                     case "Vector4D<float>":
@@ -216,15 +212,14 @@ namespace Editor
                         float y4 = jObject["Y"]?.ToObject<float>() ?? 0f;
                         float z4 = jObject["Z"]?.ToObject<float>() ?? 0f;
                         float w4 = jObject["W"]?.ToObject<float>() ?? 0f;
-                        return new System.Numerics.Vector4(x4, y4, z4, w4);
+                        return new Silk.NET.Maths.Vector4D<float>(x4, y4, z4, w4);
 
-                    // Добавьте другие типы по мере необходимости
                     default:
-                        return jObject.ToObject<object>(); // Фолбэк
+                        return jObject.ToObject<object>();
                 }
             }
 
-            return value; // Если это не JObject, вернуть как есть
+            return value; 
         }
         private void DefaultGettingRepTymeName(MaterialAsset material, string filePath)
         {
@@ -232,5 +227,7 @@ namespace Editor
             if (fileName.IndexOf(".") > -1) fileName = fileName.Substring(0, fileName.IndexOf("."));
             material.ShaderRepresentationTypeName = $"OpenglLib.{fileName}";
         }
+
+        
     }
 }

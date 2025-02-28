@@ -524,10 +524,10 @@ namespace Editor
                     if (e.FileName.EndsWith("Representation.g.cs"))
                     {
                         // Получаем метаданные файла
-                        var metadata = MetadataManager.Instance.GetMetadata(e.FileFullPath);
+                        var metadata = ServiceHub.Get<MetadataManager>().GetMetadata(e.FileFullPath);
 
                         // Создаем материал
-                        var materialController = new MaterialEditorController();
+                        var materialController = new MaterialManager();
                         var material = materialController.CreateMaterial(metadata.Guid);
 
                         // Определяем путь для сохранения материала

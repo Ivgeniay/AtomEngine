@@ -67,7 +67,7 @@ namespace Editor.Utils.Generator
                 throw new Exception($"The file {glslFilePath} is not a complete shader file (must contain #vertex and #fragment sections).");
             }
 
-            string sourceGuid = MetadataManager.Instance.GetMetadata(glslFilePath)?.Guid;
+            string sourceGuid = ServiceHub.Get<MetadataManager>().GetMetadata(glslFilePath)?.Guid;
 
             var representationName = Path.GetFileNameWithoutExtension(glslFilePath);
             var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, _includedFiles);

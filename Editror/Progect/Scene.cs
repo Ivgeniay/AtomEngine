@@ -308,7 +308,7 @@ namespace Editor
 
         public ResourceManager()
         {
-            _metadataManager = MetadataManager.Instance;
+            _metadataManager = ServiceHub.Get<MetadataManager>();
         }
 
         // Получение ресурса по GUID

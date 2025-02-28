@@ -37,26 +37,31 @@ namespace Editor
         {
             try
             {
+                ServiceHub.RegisterService<DirectoryExplorer>();
                 ServiceHub.RegisterService<Configuration>();
                 ServiceHub.RegisterService<AssemblyManager>();
+                ServiceHub.RegisterService<MetadataManager>();
                 ServiceHub.RegisterService<AssetFileSystem>();
                 ServiceHub.RegisterService<ScriptProjectGenerator>();
                 ServiceHub.RegisterService<ProjectFileWatcher>();
                 ServiceHub.RegisterService<ScriptSyncSystem>();
                 ServiceHub.RegisterService<CodeFilesSynchronizer>();
+                ServiceHub.RegisterService<MaterialManager>();
+                ServiceHub.RegisterService<TextureFactory>();
+                ServiceHub.RegisterService<MaterialFactory>();
 
                 await ServiceHub.Initialize(
                     async (type) =>
                     {
-                        await Task.Delay(100);
+                        await Task.Delay(200);
                         await loadingWindow.UpdateLoadingStatus($"Начало инициализации {type}...");
-                        await Task.Delay(100);
+                        await Task.Delay(200);
                     },
                     async (type) =>
                     {
-                        await Task.Delay(100);
+                        await Task.Delay(200);
                         await loadingWindow.UpdateLoadingStatus($"Инициализации {type} завершена.");
-                        await Task.Delay(100);
+                        await Task.Delay(200);
                     });
 
                 await loadingWindow.UpdateLoadingStatus("Компиляция проекта...");

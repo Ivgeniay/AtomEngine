@@ -49,7 +49,7 @@ namespace Editor
 
             Classes.Add("directoryExplorer");
 
-            _rootPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
+            _rootPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
             _currentPath = _rootPath;
 
             _treeItems = new ObservableCollection<TreeViewItem>();

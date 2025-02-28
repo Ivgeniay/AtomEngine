@@ -84,11 +84,11 @@ namespace Editor
             if (string.IsNullOrEmpty(_material.ShaderRepresentationGuid))
                 return "None";
 
-            var metadata = MetadataManager.Instance.GetMetadataByGuid(_material.ShaderRepresentationGuid);
+            var metadata = ServiceHub.Get<MetadataManager>().GetMetadataByGuid(_material.ShaderRepresentationGuid);
             if (metadata == null)
                 return _material.ShaderRepresentationTypeName;
 
-            string path = MetadataManager.Instance.GetPathByGuid(_material.ShaderRepresentationGuid);
+            string path = ServiceHub.Get<MetadataManager>().GetPathByGuid(_material.ShaderRepresentationGuid);
             return Path.GetFileNameWithoutExtension(path);
         }
 

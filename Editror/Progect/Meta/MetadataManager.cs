@@ -5,6 +5,7 @@ using System.Linq;
 using AtomEngine;
 using System.IO;
 using System;
+using System.Threading.Tasks;
 
 namespace Editor
 {
@@ -13,12 +14,9 @@ namespace Editor
     /// <summary>
     /// Менеджер метаданных для отслеживания ресурсов проекта
     /// </summary>
-    public class MetadataManager
+    public class MetadataManager : IService
     {
         public event RegenerateCodeEventHandler RegenerateCodeNeeded;
-
-        private static MetadataManager _instance;
-        public static MetadataManager Instance => _instance ??= new MetadataManager();
 
         private Dictionary<string, AssetMetadata> _metadataCache = new();
         private Dictionary<string, string> _guidToPathMap = new();
@@ -28,17 +26,6 @@ namespace Editor
         private string _assetsPath;
         public const string META_EXTENSION = ".meta";
 
-        private MetadataManager()
-        {
-            _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
-            InitializeExtensionMappings();
-
-            RegenerateCodeNeeded += (e, r) =>
-            {
-                DebLogger.Debug($"Needed to generate: {e}");
-                DebLogger.Debug(r);
-            };
-        }
 
         /// <summary>
         /// Инициализирует соответствия расширений типам ресурсов
@@ -83,22 +70,34 @@ namespace Editor
         /// <summary>
         /// Инициализирует менеджер метаданных и сканирует директорию ресурсов
         /// </summary>
-        public void Initialize()
+        public Task Initialize()
         {
             if (_isInitialized)
-                return;
+                return Task.CompletedTask;
 
-            try
+            return Task.Run(() =>
             {
-                DebLogger.Info("Инициализация менеджера метаданных...");
-                ScanAssetsDirectory();
-                _isInitialized = true;
-                DebLogger.Info($"Метаданные инициализированы. Найдено {_metadataCache.Count} ресурсов.");
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Ошибка при инициализации метаданных: {ex.Message}");
-            }
+                _assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
+                InitializeExtensionMappings();
+
+                RegenerateCodeNeeded += (e, r) =>
+                {
+                    DebLogger.Debug($"Needed to generate: {e}");
+                    DebLogger.Debug(r);
+                };
+
+                try
+                {
+                    DebLogger.Info("Инициализация менеджера метаданных...");
+                    ScanAssetsDirectory();
+                    _isInitialized = true;
+                    DebLogger.Info($"Метаданные инициализированы. Найдено {_metadataCache.Count} ресурсов.");
+                }
+                catch (Exception ex)
+                {
+                    DebLogger.Error($"Ошибка при инициализации метаданных: {ex.Message}");
+                }
+            });
         }
 
         /// <summary>
@@ -745,6 +744,7 @@ namespace Editor
                 return false;
             }
         }
+
     }
 
 }

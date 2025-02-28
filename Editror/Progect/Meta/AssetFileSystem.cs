@@ -14,8 +14,8 @@ namespace Editor
     /// </summary>
     public class AssetFileSystem : IDisposable, IService
     {
-        private readonly string _assetsPath;
-        private readonly MetadataManager _metadataManager;
+        private string _assetsPath;
+        private MetadataManager _metadataManager;
         private FileSystemWatcher _fileWatcher;
 
         private readonly List<string> _ignorePatterns = new()
@@ -44,17 +44,6 @@ namespace Editor
         private const int DebounceIntervalMs = 300;
 
         private bool _isInitialized = false;
-        public AssetFileSystem()
-        {
-            _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
-            _metadataManager = MetadataManager.Instance;
-
-            // Убеждаемся, что директория ресурсов существует
-            if (!Directory.Exists(_assetsPath))
-            {
-                Directory.CreateDirectory(_assetsPath);
-            }
-        }
 
         /// <summary>
         /// Инициализирует файловую систему ресурсов
@@ -65,6 +54,14 @@ namespace Editor
 
             return Task.Run(() =>
             {
+                _assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
+                _metadataManager = ServiceHub.Get<MetadataManager>();
+
+                if (!Directory.Exists(_assetsPath))
+                {
+                    Directory.CreateDirectory(_assetsPath);
+                }
+
                 // Инициализируем менеджер метаданных
                 _metadataManager.Initialize();
 

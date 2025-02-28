@@ -5,6 +5,8 @@ using System.IO;
 using System;
 using HarfBuzzSharp;
 using AtomEngine;
+using Silk.NET.OpenGL;
+using Silk.NET.Assimp;
 
 namespace Editor
 {
@@ -21,7 +23,7 @@ namespace Editor
         public AssetMetadataInspectable(string filePath)
         {
             _filePath = filePath;
-            _metadata = MetadataManager.Instance.GetMetadata(filePath);
+            _metadata = ServiceHub.Get<MetadataManager>().GetMetadata(filePath);
         }
 
         public virtual string Title => $"Asset Metadata";
@@ -106,8 +108,8 @@ namespace Editor
 
         protected void Save()
         {
-            if (_filePath == null) MetadataManager.Instance.SaveMetadata(_metadata);
-            else MetadataManager.Instance.SaveMetadata(_filePath, _metadata);
+            if (_filePath == null) ServiceHub.Get<MetadataManager>().SaveMetadata(_metadata);
+            else ServiceHub.Get<MetadataManager>().SaveMetadata(_filePath, _metadata);
         }
     }
 
@@ -115,7 +117,7 @@ namespace Editor
     {
         private TextureMetadata _metadata;
         public TextureMetadataInspectable(string filePath) : base(filePath) {
-            _metadata = (TextureMetadata)MetadataManager.Instance.GetMetadata(filePath);
+            _metadata = (TextureMetadata) ServiceHub.Get<MetadataManager>().GetMetadata(filePath);
         }
         internal TextureMetadataInspectable(TextureMetadata metadata) : base(metadata) {
             _metadata = metadata;
@@ -181,18 +183,33 @@ namespace Editor
 
             yield return new PropertyDescriptor
             {
-                Name = "Filter Mode",
-                Type = typeof(TextureFilterMode),
-                Value = _metadata.FilterMode,
+                Name = "Min Mode",
+                Type = typeof(Silk.NET.OpenGL.TextureMinFilter),
+                Value = _metadata.MinFilter,
                 IsReadOnly = false,
                 OnValueChanged = (e) =>
                 {
                     DebLogger.Info(e);
-                    _metadata.FilterMode = Enum.Parse<TextureFilterMode>(e.ToString());
+                    _metadata.MinFilter = Enum.Parse< Silk.NET.OpenGL.TextureMinFilter>(e.ToString());
 
                     Save();
                 }
             };
+            yield return new PropertyDescriptor
+            {
+                Name = "Mag Mode",
+                Type = typeof(Silk.NET.OpenGL.TextureMagFilter),
+                Value = _metadata.MagFilter,
+                IsReadOnly = false,
+                OnValueChanged = (e) =>
+                {
+                    DebLogger.Info(e);
+                    _metadata.MagFilter = Enum.Parse<Silk.NET.OpenGL.TextureMagFilter>(e.ToString());
+
+                    Save();
+                }
+            };
+
 
             yield return new PropertyDescriptor
             {
@@ -212,12 +229,12 @@ namespace Editor
             yield return new PropertyDescriptor
             {
                 Name = "Wrap Mode",
-                Type = typeof(TextureWrapMode),
+                Type = typeof(Silk.NET.OpenGL.TextureWrapMode),
                 Value = _metadata.WrapMode,
                 IsReadOnly = false,
                 OnValueChanged = (e) =>
                 {
-                    _metadata.WrapMode = Enum.Parse<TextureWrapMode>(e.ToString());
+                    _metadata.WrapMode = Enum.Parse<Silk.NET.OpenGL.TextureWrapMode>(e.ToString());
                     Save();
                 }
             };
@@ -225,12 +242,38 @@ namespace Editor
             yield return new PropertyDescriptor
             {
                 Name = "Compression Format",
-                Type = typeof(TextureCompressionFormat),
+                Type = typeof(InternalFormat),
                 Value = _metadata.CompressionFormat,
                 IsReadOnly = false,
                 OnValueChanged = (e) =>
                 {
-                    _metadata.CompressionFormat = Enum.Parse<TextureCompressionFormat>(e.ToString());
+                    _metadata.CompressionFormat = Enum.Parse<InternalFormat>(e.ToString());
+                    Save();
+                }
+            };
+
+            yield return new PropertyDescriptor
+            {
+                Name = "Texture Target",
+                Type = typeof(TextureTarget),
+                Value = _metadata.TextureTarget,
+                IsReadOnly = false,
+                OnValueChanged = (e) =>
+                {
+                    _metadata.TextureTarget = Enum.Parse<TextureTarget>(e.ToString());
+                    Save();
+                }
+            };
+
+            yield return new PropertyDescriptor
+            {
+                Name = "Texture Type",
+                Type = typeof(Silk.NET.Assimp.TextureType),
+                Value = _metadata.TextureType,
+                IsReadOnly = false,
+                OnValueChanged = (e) =>
+                {
+                    _metadata.TextureType = Enum.Parse<Silk.NET.Assimp.TextureType>(e.ToString());
                     Save();
                 }
             };
@@ -342,7 +385,7 @@ namespace Editor
         private ShaderSourceMetadata _metadata;
         public ShaderSourceInspectable(string filePath) : base(filePath)
         {
-            _metadata = (ShaderSourceMetadata)MetadataManager.Instance.GetMetadata(filePath);
+            _metadata = (ShaderSourceMetadata)ServiceHub.Get<MetadataManager>().GetMetadata(filePath);
         }
         internal ShaderSourceInspectable(ShaderSourceMetadata metadata) : base(metadata)
         {
@@ -395,7 +438,7 @@ namespace Editor
         private ScriptMetadata _metadata;
         public ScriptInspectable(string filePath) : base(filePath)
         {
-            _metadata = (ScriptMetadata)MetadataManager.Instance.GetMetadata(filePath);
+            _metadata = (ScriptMetadata)ServiceHub.Get<MetadataManager>().GetMetadata(filePath);
         }
         internal ScriptInspectable(ScriptMetadata metadata) : base(metadata)
         {

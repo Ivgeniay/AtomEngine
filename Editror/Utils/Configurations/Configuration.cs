@@ -35,17 +35,17 @@ namespace Editor
                 configsSource.Add(
                     ConfigurationSource.ExplorerConfigs,
                     Path.Combine(
-                        DirectoryExplorer.GetPath(DirectoryType.Configurations),
+                        ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Configurations),
                         EXPLORER_CONFIG_FILE));
                 configsSource.Add(
                     ConfigurationSource.SceneConfigs,
                     Path.Combine(
-                        DirectoryExplorer.GetPath(DirectoryType.Configurations),
+                        ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Configurations),
                         SCENE_CONFIG_FILE));
                 configsSource.Add(
                     ConfigurationSource.ProjectConfigs,
                     Path.Combine(
-                        DirectoryExplorer.GetPath(DirectoryType.Configurations),
+                        ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Configurations),
                         PROJECT_CONFIG_FILE));
 
                 foreach (KeyValuePair<ConfigurationSource, string> kvp in configsSource)

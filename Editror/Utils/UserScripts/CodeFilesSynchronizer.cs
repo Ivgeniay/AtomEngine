@@ -39,8 +39,8 @@ namespace Editor
 
             return Task.Run(() =>
             {
-                _projectPath = DirectoryExplorer.GetPath(DirectoryType.CSharp_Assembly);
-                _assetsPath = DirectoryExplorer.GetPath(DirectoryType.Assets);
+                _projectPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.CSharp_Assembly);
+                _assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
 
                 _assetFileSystem = ServiceHub.Get<AssetFileSystem>();
                 _assetFileSystem.AssetCreated += OnAssetCreated;

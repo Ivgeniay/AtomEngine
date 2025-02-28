@@ -15,13 +15,15 @@ namespace Editor
 
         static InspectorViewFactory()
         {
-            AddOrUpdateViewMappingFabric(typeof(Int32), (descriptor) => new IntegerView(descriptor));
-            AddOrUpdateViewMappingFabric(typeof(Single), (descriptor) => new FloatView(descriptor));
-            AddOrUpdateViewMappingFabric(typeof(String), (descriptor) => new StringView(descriptor));
-            AddOrUpdateViewMappingFabric(typeof(Boolean), (descriptor) => new BooleanView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(System.Int32), (descriptor) => new IntegerView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(System.Single), (descriptor) => new FloatView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(System.String), (descriptor) => new StringView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(System.Boolean), (descriptor) => new BooleanView(descriptor));
             AddOrUpdateViewMappingFabric(typeof(System.Numerics.Vector2), (descriptor) => new Vector2View(descriptor));
             AddOrUpdateViewMappingFabric(typeof(System.Numerics.Vector3), (descriptor) => new Vector3View(descriptor));
-            AddOrUpdateViewMappingFabric(typeof(ComponentPropertiesView), (descriptor) => new ComponentPropertiesView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(Silk.NET.Maths.Vector2D<float>), (descriptor) => new Vector2SilkView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(Silk.NET.Maths.Vector3D<float>), (descriptor) => new Vector3SilkView(descriptor));
+            AddOrUpdateViewMappingFabric(typeof(Editor.ComponentPropertiesView), (descriptor) => new ComponentPropertiesView(descriptor));
             RegisterEnumViewHandler();
             RegisterCollectionHandler();
         }

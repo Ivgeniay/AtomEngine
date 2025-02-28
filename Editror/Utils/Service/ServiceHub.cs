@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using AtomEngine;
 using System;
+using System.Collections.Generic;
 
 namespace Editor
 {
@@ -9,11 +10,13 @@ namespace Editor
     internal static class ServiceHub
     {
         private static ConcurrentDictionary<Type, IService> services = new ConcurrentDictionary<Type, IService>();
+        private static Queue<IService> _queueInitializingService = new Queue<IService>();
 
         public static void RegisterService<T>() where T : class, IService, new()
         {
             T service = new T();
             services[typeof(T)] = service;
+            _queueInitializingService.Enqueue(service);
         }
 
         public static async Task Initialize(
@@ -21,11 +24,15 @@ namespace Editor
             Action<Type> OnInitializedCallback =null
             )
         {
-            foreach (var kvp in services)
+            while (_queueInitializingService.Count > 0) 
             {
-                OnStartInitializeCollback?.Invoke(kvp.Key);
-                await kvp.Value.Initialize();
-                OnInitializedCallback?.Invoke(kvp.Key);
+                var service = _queueInitializingService.Dequeue();
+                if (service != null)
+                {
+                    OnStartInitializeCollback?.Invoke(service.GetType());
+                    await service.Initialize();
+                    OnInitializedCallback?.Invoke(service.GetType());
+                }
             }
         }
 

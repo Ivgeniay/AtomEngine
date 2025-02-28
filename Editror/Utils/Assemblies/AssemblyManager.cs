@@ -40,7 +40,7 @@ namespace Editor
                     _assemblies.Add(assembly);
                 }
 
-                var baseDirectry = DirectoryExplorer.GetPath(DirectoryType.Base);
+                var baseDirectry = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Base);
                 foreach (var filePath in Directory.GetFiles(baseDirectry, "*.dll"))
                 {
                     string fileName = Path.GetFileName(filePath);
@@ -65,7 +65,7 @@ namespace Editor
 
         public void ScanPluginsDirectory()
         {
-            var pluginPath = DirectoryExplorer.GetPath(DirectoryType.Plugins);
+            var pluginPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Plugins);
             foreach (var file in Directory.GetFiles(pluginPath, "*.dll"))
             {
                 try
