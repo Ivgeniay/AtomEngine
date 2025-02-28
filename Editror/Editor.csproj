@@ -80,8 +80,4 @@
       <SubType>Designer</SubType>
     </AvaloniaResource>
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Progect\Assets\Material\" />
-  </ItemGroup>
 </Project>

@@ -239,6 +239,7 @@ namespace Editor
             };
 
             string metaJson = JsonConvert.SerializeObject(metadata, settings);
+            //_metadataCache[filePath] = metadata;
             File.WriteAllText(metaFilePath, metaJson);
         }
         public void SaveMetadata(AssetMetadata metadata)
@@ -265,6 +266,8 @@ namespace Editor
                     MetadataType.Model => JsonConvert.DeserializeObject<ModelMetadata>(metaJson, settings),
                     MetadataType.Audio => JsonConvert.DeserializeObject<AudioMetadata>(metaJson, settings),
                     MetadataType.ShaderSource => JsonConvert.DeserializeObject<ShaderSourceMetadata>(metaJson, settings),
+                    MetadataType.Script => JsonConvert.DeserializeObject<ScriptMetadata>(metaJson, settings),
+                    //MetadataType.Material => JsonConvert.DefaultSettings<
                     _ => baseMetadata
                 };
 

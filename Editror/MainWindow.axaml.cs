@@ -513,6 +513,40 @@ namespace Editor
                 }
             });
 
+            _directoryExplorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".cs",
+                Name = "Create Material",
+                Description = "Create material from shader representation",
+                Action = (e) =>
+                {
+                    // Проверяем, что это сгенерированный файл представления шейдера
+                    if (e.FileName.EndsWith("Representation.g.cs"))
+                    {
+                        // Получаем метаданные файла
+                        var metadata = MetadataManager.Instance.GetMetadata(e.FileFullPath);
+
+                        // Создаем материал
+                        var materialController = new MaterialEditorController();
+                        var material = materialController.CreateMaterial(metadata.Guid);
+
+                        // Определяем путь для сохранения материала
+                        string materialPath = Path.Combine(
+                            Path.GetDirectoryName(e.FileFullPath),
+                            $"{Path.GetFileNameWithoutExtension(e.FileName).Replace("Representation.g", "")}_Material.mat"
+                        );
+
+                        // Сохраняем материал
+                        materialController.SaveMaterial(material, materialPath);
+
+                        // Открываем материал для редактирования
+                        //materialController.SetCurrentMaterial(material);
+
+                        Status.SetStatus($"Created material: {material.Name}");
+                    }
+                }
+            });
+
             _directoryExplorerController.FileSelected += (fileData) =>
             {
                 IInspectable inspectable = InspectorDistributor.GetInspectable(fileData);
