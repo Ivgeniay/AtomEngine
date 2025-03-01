@@ -17,7 +17,7 @@ namespace Editor
         private GL _gl;
         private bool _isGLInitialized = false;
 
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             GLController.OnGLInitialized += OnGLInitialized;
             GLController.OnGLDeInitialized += Dispose;

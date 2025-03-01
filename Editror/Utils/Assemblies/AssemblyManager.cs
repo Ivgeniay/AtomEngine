@@ -10,17 +10,14 @@ namespace Editor
 {
     public class AssemblyManager : IService
     {
-        private string _coreDllName = "EngineLib";
-        private string _renderDllName = "OpenglLib";
         private Dictionary<TAssembly, string> _assemblyMap;
         private Dictionary<TAssembly, Assembly> _assemblyDict = new Dictionary<TAssembly, Assembly>();
-        public static AssemblyManager Instance { get; } = new();
 
         private readonly HashSet<Assembly> _assemblies = new();
         private Assembly _user_script_assembly;
         private bool _isInitialized = false;
 
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             if (_isInitialized) return Task.CompletedTask;
 
@@ -28,12 +25,13 @@ namespace Editor
                 IEnumerable<Assembly> initialAssemblies = AppDomain.CurrentDomain.GetAssemblies();
 
             _assemblyMap = new Dictionary<TAssembly, string>
-            {
-                { TAssembly.Core, "EngineLib"},
-                { TAssembly.Render, "OpenglLib" },
-                { TAssembly.SilkOpenGL, "Silk.NET.OpenGL" },
-                { TAssembly.SilkMath, "Silk.NET.Maths" }
-            };
+                {
+                    { TAssembly.Core, "EngineLib"},
+                    { TAssembly.Render, "OpenglLib" },
+                    { TAssembly.SilkOpenGL, "Silk.NET.OpenGL" },
+                    { TAssembly.SilkMath, "Silk.NET.Maths" },
+                    { TAssembly.ComponentGenerator, "ComponentGenerator" },
+                };
 
                 foreach (var assembly in initialAssemblies)
                 {
@@ -50,8 +48,11 @@ namespace Editor
                         if (fileName.Equals(pair.Value + ".dll"))
                         {
                             Assembly assembly = Assembly.LoadFrom(filePath);
-                            _assemblyDict[pair.Key] = assembly;
-                            _assemblies.Add(assembly);
+                            if (assembly != null)
+                            {
+                                _assemblyDict[pair.Key] = assembly;
+                                _assemblies.Add(assembly);
+                            }
                             break;
                         }
                     }
@@ -128,7 +129,10 @@ namespace Editor
             }
         }
 
-        internal void UpdateScriptAssembly(Assembly assembly) => _user_script_assembly = assembly;
+        internal void UpdateScriptAssembly(Assembly assembly)
+        {
+            _user_script_assembly = assembly;
+        }
         internal Assembly GetUserScriptAssembly()
         {
             if (_user_script_assembly == null)
@@ -155,6 +159,7 @@ namespace Editor
         Core,
         Render,
         SilkMath,
-        SilkOpenGL
+        SilkOpenGL,
+        ComponentGenerator,
     }
 }

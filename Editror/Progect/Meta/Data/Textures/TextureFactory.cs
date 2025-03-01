@@ -13,7 +13,7 @@ namespace Editor
     {
         private Dictionary<string, Texture> _cacheTexture = new Dictionary<string, Texture>();
 
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             return Task.CompletedTask;
         }

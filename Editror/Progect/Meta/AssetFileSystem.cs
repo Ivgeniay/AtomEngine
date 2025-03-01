@@ -48,7 +48,7 @@ namespace Editor
         /// <summary>
         /// Инициализирует файловую систему ресурсов
         /// </summary>
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             if (_isInitialized) return Task.CompletedTask;
 
@@ -63,7 +63,7 @@ namespace Editor
                 }
 
                 // Инициализируем менеджер метаданных
-                _metadataManager.Initialize();
+                _metadataManager.InitializeAsync();
 
                 // Запускаем наблюдение за файловой системой
                 StartFileWatcher();

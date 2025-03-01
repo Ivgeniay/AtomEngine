@@ -32,6 +32,7 @@ namespace Editor
             var result = new Dictionary<string, IComponent>();
             reader.Read();
 
+            var assemblyManager = ServiceHub.Get<AssemblyManager>();
             while (reader.TokenType != JsonToken.EndObject)
             {
                 if (reader.TokenType != JsonToken.PropertyName)
@@ -45,7 +46,7 @@ namespace Editor
 
                 if (propertyName != null)
                 {
-                    var componentType = AssemblyManager.Instance.FindType(propertyName);
+                    var componentType = assemblyManager.FindType(propertyName);
                     if (componentType != null && typeof(IComponent).IsAssignableFrom(componentType))
                     {
                         var component = (IComponent?)serializer.Deserialize(reader, componentType);

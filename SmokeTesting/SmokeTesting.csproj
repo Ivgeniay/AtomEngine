@@ -5,10 +5,18 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <GeneratedScriptsFolder>Generated</GeneratedScriptsFolder>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <MSBuildTreatWarningsAsErrors>false</MSBuildTreatWarningsAsErrors>
+    <CompilerGeneratedFilesOutputPath>$(GeneratedScriptsFolder)</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>
+  
 
   <ItemGroup>
     <ProjectReference Include="..\CommonLib\CommonLib.csproj" />
+    <ProjectReference Include="..\ComponentGenerator\ComponentGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\EngineLib\EngineLib.csproj" />
     <ProjectReference Include="..\OpenglLib\OpenglLib.csproj" />
   </ItemGroup>

@@ -26,7 +26,7 @@ namespace Editor
         
         public Configuration() { }
 
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             if (_isInitialized) return Task.CompletedTask;
 

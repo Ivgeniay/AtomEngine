@@ -13,7 +13,7 @@ namespace Editor
         private Dictionary<string, OpenglLib.Mat> _shaderInstanceCache = new Dictionary<string, OpenglLib.Mat>();
         private TextureFactory _textureFactory;
 
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             _textureFactory = ServiceHub.Get<TextureFactory>();
             return Task.CompletedTask;

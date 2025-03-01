@@ -12,7 +12,7 @@ namespace Editor
         private Dictionary<string, MaterialAsset> _cacheMaterials = new Dictionary<string, MaterialAsset>();
         private MaterialAsset _currentMaterial;
 
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             return Task.CompletedTask;
         }

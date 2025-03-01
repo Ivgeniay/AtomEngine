@@ -70,7 +70,7 @@ namespace Editor
         /// <summary>
         /// Инициализирует менеджер метаданных и сканирует директорию ресурсов
         /// </summary>
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             if (_isInitialized)
                 return Task.CompletedTask;
@@ -501,7 +501,7 @@ namespace Editor
         public AssetMetadata GetMetadata(string filePath)
         {
             if (!_isInitialized)
-                Initialize();
+                InitializeAsync();
 
             if (_metadataCache.TryGetValue(filePath, out var metadata))
                 return metadata;
@@ -539,7 +539,7 @@ namespace Editor
         public string GetPathByGuid(string guid)
         {
             if (!_isInitialized)
-                Initialize();
+                InitializeAsync();
 
             if (_guidToPathMap.TryGetValue(guid, out var path))
                 return path;
@@ -645,7 +645,7 @@ namespace Editor
         public List<string> FindDependentAssets(string guid)
         {
             if (!_isInitialized)
-                Initialize();
+                InitializeAsync();
 
             var dependentAssets = new List<string>();
 
@@ -666,7 +666,7 @@ namespace Editor
         public List<string> FindAssetsByType(MetadataType assetType)
         {
             if (!_isInitialized)
-                Initialize();
+                InitializeAsync();
 
             return _metadataCache
                 .Where(kv => kv.Value.AssetType.Equals(assetType))
@@ -680,7 +680,7 @@ namespace Editor
         public List<string> FindAssetsByTag(string tag)
         {
             if (!_isInitialized)
-                Initialize();
+                InitializeAsync();
 
             return _metadataCache
                 .Where(kv => kv.Value.Tags.Contains(tag))

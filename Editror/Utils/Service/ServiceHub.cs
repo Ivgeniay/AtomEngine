@@ -11,6 +11,7 @@ namespace Editor
     {
         private static ConcurrentDictionary<Type, IService> services = new ConcurrentDictionary<Type, IService>();
         private static Queue<IService> _queueInitializingService = new Queue<IService>();
+        public static int QuontityInInitOrder { get =>  _queueInitializingService.Count; }
 
         public static void RegisterService<T>() where T : class, IService, new()
         {
@@ -30,7 +31,7 @@ namespace Editor
                 if (service != null)
                 {
                     OnStartInitializeCollback?.Invoke(service.GetType());
-                    await service.Initialize();
+                    await service.InitializeAsync();
                     OnInitializedCallback?.Invoke(service.GetType());
                 }
             }

@@ -2,6 +2,8 @@
 using Avalonia.Controls;
 using System.Linq;
 using AtomEngine;
+using Avalonia.Layout;
+using Avalonia.Media;
 
 namespace Editor
 {
@@ -22,7 +24,18 @@ namespace Editor
 
         public IEnumerable<Control> GetCustomControls()
         {
-            return null;
+            var panel = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var addComponentButton = new Button
+            {
+                Content = "Add Component",
+                Classes = { "inspectorActionButton" },
+                Command = new Command(() => DebLogger.Debug($"Add Component at {_entity}")),
+            };
+
+            panel.Children.Add(addComponentButton);
+
+            yield return panel;
         }
 
         public IEnumerable<PropertyDescriptor> GetProperties()

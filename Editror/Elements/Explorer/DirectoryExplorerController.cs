@@ -10,6 +10,10 @@ using AtomEngine;
 using System.IO;
 using Avalonia;
 using System;
+using Avalonia.Threading;
+using Avalonia.Media;
+using System.Threading.Tasks;
+using Avalonia.VisualTree;
 
 
 namespace Editor
@@ -161,11 +165,7 @@ namespace Editor
                 Margin = new Avalonia.Thickness(5),
                 ItemsSource = _fileItems
             };
-
-
-            DragDrop.SetAllowDrop(_fileList, true);
-            _fileList.AddHandler(DragDrop.DragOverEvent, DragOver);
-            _fileList.AddHandler(DragDrop.DropEvent, Drop);
+            
 
             _fileList.SelectionChanged += OnFileListSelectionChanged;
 
@@ -196,6 +196,9 @@ namespace Editor
             Grid.SetRow(_overlayCanvas, 1);
             Grid.SetColumnSpan(_overlayCanvas, 3);
             Children.Add(_overlayCanvas);
+
+            InitializeDragAndDrop();
+            //EnableTreeViewDragDrop();
 
             RefreshView();
         }
@@ -617,64 +620,358 @@ namespace Editor
         }
 
         #region DrugNDrop
-        private void OnListBoxItemPointerPressed(object sender, PointerPressedEventArgs e)
+
+        private DispatcherTimer _expandTimer;
+        private ListBoxItem _dragItem;
+        private Point _dragStartPoint;
+        private bool _isDragInProgress = false;
+        private PointerPressedEventArgs _lastPointerPressedEvent;
+        private Border _dropIndicator;
+        private TreeViewItem _lastHoveredTreeItem;
+
+        private void InitializeDragAndDrop()
         {
-            if (sender is ListBoxItem item && e.GetCurrentPoint(item).Properties.IsLeftButtonPressed)
+            _fileList.ContainerPrepared += (sender, e) =>
             {
-                if (item.DataContext is string fileName)
+                if (e.Container is ListBoxItem item)
                 {
-                    var data = new DataObject();
-                    data.Set(DataFormats.Text, fileName);
-                    DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+                    item.AddHandler(InputElement.PointerPressedEvent, OnListBoxItemPointerPressed, RoutingStrategies.Tunnel);
                 }
+            };
+
+            DragDrop.SetAllowDrop(_treeView, true);
+            _treeView.AddHandler(DragDrop.DragOverEvent, OnTreeViewDragOver);
+            _treeView.AddHandler(DragDrop.DropEvent, OnTreeViewDrop);
+
+            CreateDropIndicator();
+        }
+
+        private void CreateDropIndicator()
+        {
+            _dropIndicator = new Border
+            {
+                BorderThickness = new Thickness(2),
+                BorderBrush = new SolidColorBrush(Colors.DodgerBlue),
+                Background = new SolidColorBrush(Color.FromArgb(50, 30, 144, 255)),
+                IsVisible = false,
+                IsHitTestVisible = false
+            };
+
+            _overlayCanvas.Children.Add(_dropIndicator);
+        }
+
+        private void OnListBoxItemPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (e.GetCurrentPoint(sender as Visual).Properties.IsLeftButtonPressed &&
+                sender is ListBoxItem item &&
+                item.DataContext is string fileName)
+            {
+                // Сохраняем начальное состояние
+                _dragItem = item;
+                _dragStartPoint = e.GetPosition(null);
+                _lastPointerPressedEvent = e;
+
+                // Добавляем обработчики для отслеживания движения и отпускания мыши
+                item.AddHandler(InputElement.PointerMovedEvent, OnDragPointerMoved, RoutingStrategies.Tunnel);
+                item.AddHandler(InputElement.PointerReleasedEvent, OnDragPointerReleased, RoutingStrategies.Tunnel);
+
+                //e.Handled = true;
             }
         }
 
-        private void DragOver(object sender, DragEventArgs e)
+        private void OnDragPointerMoved(object? sender, PointerEventArgs e)
         {
-            if (e.Data.Contains(DataFormats.Text))
+            if (_dragItem != null && _lastPointerPressedEvent != null && !_isDragInProgress)
             {
-                e.DragEffects = DragDropEffects.Move;
-            }
-            else
-            {
-                e.DragEffects = DragDropEffects.None;
-            }
-        }
+                // Получаем текущую позицию
+                var currentPosition = e.GetPosition(null);
 
-        private void Drop(object sender, DragEventArgs e)
-        {
-            if (e.Data.Contains(DataFormats.Text))
-            {
-                var fileName = e.Data.Get(DataFormats.Text) as string;
-                if (fileName != null)
+                if (Math.Abs(currentPosition.X - _dragStartPoint.X) > 3 ||
+                    Math.Abs(currentPosition.Y - _dragStartPoint.Y) > 3)
                 {
-                    var targetControl = e.Source as Control;
-                    var targetFileName = targetControl?.DataContext as string;
-
-                    if (targetFileName != null && fileName != targetFileName)
+                    if (_dragItem.DataContext is string fileName)
                     {
-                        string sourcePath = Path.Combine(_currentPath, fileName);
-                        string targetPath = Path.Combine(_currentPath, targetFileName);
-
-                        try
-                        {
-                            string tempPath = Path.Combine(_currentPath, $"{Path.GetFileNameWithoutExtension(fileName)}_temp{Path.GetExtension(fileName)}");
-
-                            File.Move(sourcePath, tempPath);
-                            File.Move(targetPath, sourcePath);
-                            File.Move(tempPath, targetPath);
-
-                            RefreshView();
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Error during drag&drop: {ex.Message}");
-                        }
+                        StartDragOperation(fileName, _lastPointerPressedEvent);
                     }
                 }
             }
         }
+
+        private void OnDragPointerReleased(object? sender, PointerReleasedEventArgs e)
+        {
+            if (sender is ListBoxItem item)
+            {
+                item.RemoveHandler(InputElement.PointerMovedEvent, OnDragPointerMoved);
+                item.RemoveHandler(InputElement.PointerReleasedEvent, OnDragPointerReleased);
+            }
+
+            _isDragInProgress = false;
+            _dragItem = null;
+            _lastPointerPressedEvent = null;
+        }
+
+        private void StartDragOperation(string fileName, PointerPressedEventArgs e)
+        {
+            // Устанавливаем флаг, что перетаскивание началось
+            _isDragInProgress = true;
+
+            // Создаем данные для перетаскивания
+            var fileEvent = new FileSelectionEvent()
+            {
+                FileName = fileName,
+                FileFullPath = Path.Combine(_currentPath, fileName),
+                FileExtension = Path.GetExtension(fileName),
+                FilePath = _currentPath
+            };
+
+            var data = new DataObject();
+            data.Set(DataFormats.Text, fileEvent.ToString());
+
+            // Запускаем операцию перетаскивания
+            DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
+        }
+
+
+
+        // Directory
+        private void OnTreeViewDragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.Contains(DataFormats.Text))
+            {
+                try
+                {
+                    // Пытаемся получить данные о перетаскиваемом файле
+                    var jsonData = e.Data.Get(DataFormats.Text) as string;
+                    if (!string.IsNullOrEmpty(jsonData))
+                    {
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
+
+                        // Находим элемент дерева под курсором
+                        var position = e.GetPosition(_treeView);
+                        var treeItem = FindTreeViewItemAtPosition(_treeView, position);
+
+                        if (treeItem != null && treeItem.Tag is string targetPath && Directory.Exists(targetPath))
+                        {
+                            // Проверяем, что файл не перетаскивается в ту же папку
+                            if (Path.GetDirectoryName(fileEvent.FileFullPath) != targetPath)
+                            {
+                                // Показываем визуальный индикатор
+                                ShowDropIndicator(treeItem);
+
+                                // Разрешаем операцию перемещения
+                                e.DragEffects = DragDropEffects.Move;
+
+                                // Меняем выделение в дереве
+                                if (_lastHoveredTreeItem != treeItem)
+                                {
+                                    _treeView.SelectedItem = treeItem;
+                                    _lastHoveredTreeItem = treeItem;
+                                }
+
+                                e.Handled = true;
+                                return;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Игнорируем ошибки при проверке данных перетаскивания
+                }
+            }
+
+            // Если мы дошли сюда, значит перетаскивание в эту позицию не разрешено
+            HideDropIndicator();
+            e.DragEffects = DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        private void OnTreeViewDrop(object sender, DragEventArgs e)
+        {
+            // Скрываем индикатор перетаскивания
+            HideDropIndicator();
+
+            if (e.Data.Contains(DataFormats.Text))
+            {
+                try
+                {
+                    // Получаем данные о перетаскиваемом файле
+                    var jsonData = e.Data.Get(DataFormats.Text) as string;
+                    if (!string.IsNullOrEmpty(jsonData))
+                    {
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
+
+                        // Получаем целевую папку
+                        if (_treeView.SelectedItem is TreeViewItem selectedItem &&
+                            selectedItem.Tag is string targetPath &&
+                            Directory.Exists(targetPath))
+                        {
+                            // Формируем путь назначения
+                            string destinationPath = Path.Combine(targetPath, fileEvent.FileName);
+
+                            // Проверяем, не пытаемся ли переместить файл в ту же самую папку
+                            if (Path.GetDirectoryName(fileEvent.FileFullPath) != targetPath)
+                            {
+                                HandleFileMoveOperation(fileEvent.FileFullPath, destinationPath);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Status.SetStatus($"Ошибка при перемещении файла: {ex.Message}");
+                }
+            }
+
+            e.Handled = true;
+        }
+
+        private async void HandleFileMoveOperation(string sourcePath, string destinationPath)
+        {
+            try
+            {
+                bool overwrite = false;
+
+                // Проверяем, существует ли файл в папке назначения
+                if (File.Exists(destinationPath))
+                {
+                    // Спрашиваем пользователя о перезаписи
+                    overwrite = await ShowFileExistsDialog(Path.GetFileName(destinationPath));
+
+                    if (!overwrite)
+                        return; // Пользователь отказался перезаписывать
+                }
+
+                // Перемещаем файл
+                if (overwrite && File.Exists(destinationPath))
+                    File.Delete(destinationPath);
+
+                File.Move(sourcePath, destinationPath);
+
+                // Обновляем интерфейс
+                RefreshView();
+                Status.SetStatus($"Файл {Path.GetFileName(sourcePath)} перемещен успешно");
+            }
+            catch (Exception ex)
+            {
+                Status.SetStatus($"Ошибка при перемещении файла: {ex.Message}");
+            }
+        }
+
+        private TreeViewItem FindTreeViewItemAtPosition(TreeView treeView, Point position)
+        {
+            // Получаем элемент под курсором
+            Visual visual = treeView.InputHitTest(position) as Visual;
+
+            while (visual != null)
+            {
+                if (visual is TreeViewItem item)
+                    return item;
+
+                visual = visual.GetVisualAncestors().FirstOrDefault();
+            }
+
+            return null;
+        }
+
+        private void ShowDropIndicator(Control target)
+        {
+            if (_dropIndicator != null)
+            {
+                var bounds = target.Bounds;
+                var position = target.TranslatePoint(new Point(0, 0), _overlayCanvas);
+
+                if (position.HasValue)
+                {
+                    Canvas.SetLeft(_dropIndicator, position.Value.X);
+                    Canvas.SetTop(_dropIndicator, position.Value.Y);
+                    _dropIndicator.Width = bounds.Width;
+                    _dropIndicator.Height = bounds.Height;
+                    _dropIndicator.IsVisible = true;
+                }
+            }
+        }
+
+        private void HideDropIndicator()
+        {
+            if (_dropIndicator != null)
+            {
+                _dropIndicator.IsVisible = false;
+            }
+        }
+
+        private async Task<bool> ShowFileExistsDialog(string fileName)
+        {
+            // Создаем диалоговое окно
+            var window = new Window
+            {
+                Title = "Файл существует",
+                Width = 400,
+                Height = 150,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            var panel = new StackPanel
+            {
+                Margin = new Thickness(20),
+                Spacing = 20
+            };
+
+            panel.Children.Add(new TextBlock
+            {
+                Text = $"Файл '{fileName}' уже существует. Перезаписать?",
+                TextWrapping = TextWrapping.Wrap
+            });
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Spacing = 10
+            };
+
+            bool result = false;
+
+            var yesButton = new Button { Content = "Да", Width = 80 };
+            yesButton.Click += (s, e) =>
+            {
+                result = true;
+                window.Close();
+            };
+
+            var noButton = new Button { Content = "Нет", Width = 80 };
+            noButton.Click += (s, e) =>
+            {
+                result = false;
+                window.Close();
+            };
+
+            buttonPanel.Children.Add(yesButton);
+            buttonPanel.Children.Add(noButton);
+
+            panel.Children.Add(buttonPanel);
+            window.Content = panel;
+
+            // Отображаем диалог и ждем ответа
+            await window.ShowDialog(GetWindowFromVisual(this));
+
+            return result;
+        }
+
+        private Window GetWindowFromVisual(Control control)
+        {
+            while (control != null)
+            {
+                if (control is Window window)
+                    return window;
+
+                control = control.Parent as Control;
+            }
+
+            return null;
+        }
+
+
         #endregion
 
         #region Commands

@@ -4,6 +4,6 @@ namespace Editor
 {
     internal interface IService
     {
-        public Task Initialize();
+        public Task InitializeAsync();
     }
 }

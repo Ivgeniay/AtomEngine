@@ -47,6 +47,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CommonLib\CommonLib.csproj" />
+    <ProjectReference Include="..\ComponentGenerator\ComponentGenerator.csproj" />
     <ProjectReference Include="..\EngineLib\EngineLib.csproj" />
     <ProjectReference Include="..\OpenglLib\OpenglLib.csproj" />
   </ItemGroup>

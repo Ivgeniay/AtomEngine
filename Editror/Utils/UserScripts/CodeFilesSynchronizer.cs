@@ -32,7 +32,7 @@ namespace Editor
         /// <summary>
         /// Инициализирует синхронизатор файлов кода
         /// </summary>
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             if (_isInitialized)
                 return Task.CompletedTask;

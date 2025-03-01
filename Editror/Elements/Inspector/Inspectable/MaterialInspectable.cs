@@ -19,13 +19,11 @@ namespace Editor
 
         public IEnumerable<Control> GetCustomControls()
         {
-            // Можно добавить превью материала или другие специальные контролы
             return null;
         }
 
         public IEnumerable<PropertyDescriptor> GetProperties()
         {
-            // Основные свойства материала
             yield return new PropertyDescriptor
             {
                 Name = "Name",
@@ -53,7 +51,6 @@ namespace Editor
                 //    IsReadOnly = true
                 //};
 
-                // Uniform-переменные
                 foreach (var pair in _material.UniformValues)
                 {
                     yield return CreatePropertyDescriptorForUniform(pair.Key, pair.Value);
@@ -71,7 +68,6 @@ namespace Editor
                 //    IsReadOnly = true
                 //};
 
-                // Текстуры
                 foreach (var pair in _material.TextureReferences)
                 {
                     yield return CreatePropertyDescriptorForTexture(pair.Key, pair.Value);
@@ -108,8 +104,6 @@ namespace Editor
 
         private PropertyDescriptor CreatePropertyDescriptorForTexture(string name, string textureGuid)
         {
-            // Для текстур можно создать специальный тип в инспекторе, 
-            // который будет отображать превью и кнопку выбора
             return new PropertyDescriptor
             {
                 Name = $"{name} (Texture)",

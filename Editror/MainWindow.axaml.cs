@@ -8,6 +8,7 @@ using AtomEngine;
 using System;
 using Editor.Utils.Generator;
 using System.IO;
+using Avalonia;
 
 namespace Editor
 {
@@ -31,6 +32,10 @@ namespace Editor
             SystemDecorations = SystemDecorations.Full;
             //ExtendClientAreaToDecorationsHint = true;
             //ExtendClientAreaTitleBarHeightHint = 30;
+#if DEBUG
+            this.AttachDevTools();
+#endif
+
             InitializeComponent();
 
             InitializeToolbar();

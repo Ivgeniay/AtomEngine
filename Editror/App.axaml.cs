@@ -6,6 +6,7 @@ using AtomEngine;
 using Avalonia;
 using System;
 using Application = Avalonia.Application;
+using System.Threading;
 
 namespace Editor
 {
@@ -63,18 +64,18 @@ namespace Editor
                 ServiceHub.RegisterService<MaterialFactory>();
                 ServiceHub.RegisterService<ResourceManager>();
 
+                int delay = 1000;
+
                 await ServiceHub.Initialize(
                     async (type) =>
                     {
-                        await Task.Delay(200);
                         await loadingWindow.UpdateLoadingStatus($"Начало инициализации {type}...");
-                        await Task.Delay(200);
+                        await Task.Delay(delay);
                     },
                     async (type) =>
                     {
-                        await Task.Delay(200);
                         await loadingWindow.UpdateLoadingStatus($"Инициализации {type} завершена.");
-                        await Task.Delay(200);
+                        await Task.Delay(delay);
                     });
 
                 await loadingWindow.UpdateLoadingStatus("Компиляция проекта...");
@@ -92,6 +93,24 @@ namespace Editor
             catch (Exception ex)
             {
                 DebLogger.Error($"Ошибка при инициализации: {ex}");
+            }
+        }
+
+        private async Task WaitForServiceInitializationCompletion()
+        {
+            var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+
+            try
+            {
+                while (ServiceHub.QuontityInInitOrder > 0)
+                {
+                    await Task.Delay(100, cancellationTokenSource.Token);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                DebLogger.Error("Превышено время ожидания инициализации сервисов");
+                throw;
             }
         }
     }

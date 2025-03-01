@@ -12,7 +12,7 @@ namespace Editor
 
         public string GetPath(DirectoryType directoryType) => paths[directoryType];
 
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             if (_isInitialize) return Task.CompletedTask;
 

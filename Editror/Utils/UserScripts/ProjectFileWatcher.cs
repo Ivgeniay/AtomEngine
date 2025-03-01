@@ -19,7 +19,7 @@ namespace Editor
         /// <summary>
         /// Инициализирует вотчер файлов проекта
         /// </summary>
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             if (_isInitialized)
                 return Task.CompletedTask;

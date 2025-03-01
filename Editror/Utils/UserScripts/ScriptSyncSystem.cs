@@ -15,7 +15,7 @@ namespace Editor
         /// <summary>
         /// Инициализирует всю систему синхронизации скриптов
         /// </summary>
-        public Task Initialize()
+        public Task InitializeAsync()
         {
             if (_isInitialized)
                 return Task.CompletedTask;
@@ -55,16 +55,16 @@ namespace Editor
             });
         }
 
-        internal async Task Compile()
+        internal Task Compile()
         {
-            await Task.Run(() => {
+            return Task.Run(() => {
                 bool success = ServiceHub.Get<ScriptProjectGenerator>().BuildProject();
                 if (success)
                 {
                     var assembly = ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly();
                     if (assembly != null)
                     {
-                        AssemblyManager.Instance.UpdateScriptAssembly(assembly);
+                        ServiceHub.Get<AssemblyManager>().UpdateScriptAssembly(assembly);
                         DebLogger.Info("Проект скриптов успешно скомпилирован и загружен");
                     }
                     else
@@ -150,7 +150,7 @@ namespace Editor
                     }
 
                     // Обновляем ссылку на сборку в AssemblyManager
-                    AssemblyManager.Instance.UpdateScriptAssembly(assembly);
+                    ServiceHub.Get<AssemblyManager>().UpdateScriptAssembly(assembly);
 
                     DebLogger.Info("Проект скриптов успешно перекомпилирован и загружен");
                 });

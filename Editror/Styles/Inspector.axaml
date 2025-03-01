@@ -49,6 +49,55 @@
     <Setter Property="Margin" Value="0,0,0,8"/>
   </Style>
 
+  <!-- Кнопки инспектора -->
+  <Style Selector="Button.inspectorActionButton">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#555555"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="8 4"/>
+    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="Margin" Value="0 0"/>
+    <Setter Property="Height" Value="28"/>
+  </Style>
+
+  <Style Selector="Button.inspectorActionButton:pointerover">
+    <Setter Property="Background" Value="#44444A"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Button.inspectorActionButton:pressed">
+    <Setter Property="Background" Value="#2D2D30"/>
+  </Style>
+
+  <!-- Стили для кнопок-иконок в инспекторе -->
+  <Style Selector="Button.inspectorIconButton">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="#AAAAAA"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Width" Value="24"/>
+    <Setter Property="Height" Value="24"/>
+    <Setter Property="Padding" Value="4"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+
+  <Style Selector="Button.inspectorIconButton:pointerover">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Button.inspectorIconButton:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
   <!-- Заголовки компонентов -->
   <Style Selector="TextBlock.componentHeader">
     <Setter Property="FontSize" Value="12"/>

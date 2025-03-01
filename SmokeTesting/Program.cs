@@ -17,6 +17,7 @@ namespace SmokeTesting
             using App app = new App(options: new AppOptions() { Width = 800, Height = 600, Debug = true });
             app.NativeWindow.Load += () => { OnLoad(app); }; 
 
+            TestComponent testComponent = new TestComponent();
 
             app.Run();
         }

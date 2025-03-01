@@ -18,11 +18,14 @@ namespace Editor
         private Assembly _renderAssembly;
         private Assembly _silkMathAssembly;
         private Assembly _silkOpenGlAssembly;
+        private Assembly _componentGeneratorAssembly;
         private bool _isInitialized = false;
+        private string RootNamespace = "UserScripts";
 
-        
 
-        public Task Initialize()
+
+
+        public Task InitializeAsync()
         {
             if (_isInitialized) return Task.CompletedTask;
 
@@ -45,10 +48,13 @@ namespace Editor
                 var projectFilePath = Path.Combine(_scriptProjectPath, $"{projConfig}.csproj");
                 if (File.Exists(projectFilePath)) return true;
 
-                _coreAssembly = AssemblyManager.Instance.GetAssembly(TAssembly.Core);
-                _renderAssembly = AssemblyManager.Instance.GetAssembly(TAssembly.Render);
-                _silkMathAssembly = AssemblyManager.Instance.GetAssembly(TAssembly.SilkMath);
-                _silkOpenGlAssembly = AssemblyManager.Instance.GetAssembly(TAssembly.SilkOpenGL);
+                var assemblyManager = ServiceHub.Get<AssemblyManager>();
+
+                _coreAssembly = assemblyManager.GetAssembly(TAssembly.Core);
+                _renderAssembly = assemblyManager.GetAssembly(TAssembly.Render);
+                _silkMathAssembly = assemblyManager.GetAssembly(TAssembly.SilkMath);
+                _silkOpenGlAssembly = assemblyManager.GetAssembly(TAssembly.SilkOpenGL);
+                _componentGeneratorAssembly = assemblyManager.GetAssembly(TAssembly.ComponentGenerator);
 
                 GenerateProjectFile();
 
@@ -117,9 +123,26 @@ namespace Editor
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <!-- Указываем корневую папку для новых элементов -->
-    <RootNamespace>UserScripts</RootNamespace>
+    <RootNamespace>{RootNamespace}</RootNamespace>
   </PropertyGroup>
+
+  <!-- Analizator Settings -->
+  <PropertyGroup>
+    <GeneratedScriptsFolder>Generated</GeneratedScriptsFolder>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(GeneratedScriptsFolder)</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+
+<ItemGroup>
+    <Compile Remove=""$(GeneratedScriptsFolder)\**"" />
+    <EmbeddedResource Remove=""$(GeneratedScriptsFolder)\**"" />
+    <None Remove=""$(GeneratedScriptsFolder)\**"" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Analyzer Include=""{_componentGeneratorAssembly.Location}"" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include=""{_coreAssembly.GetName().Name}"">
@@ -135,7 +158,6 @@ namespace Editor
       <HintPath>{_silkOpenGlAssembly.Location}</HintPath>
     </Reference>
   </ItemGroup>
-
 </Project>
 ";
             File.WriteAllText(Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj"), csprojContent);

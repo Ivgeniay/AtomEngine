@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenglLib.Tests", "OpenglLi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Editor", "Editror\Editor.csproj", "{822B7588-4DA6-428C-A572-310CC51217AB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComponentGenerator", "ComponentGenerator\ComponentGenerator.csproj", "{08F386C3-E70A-43FD-809C-616F28AF922D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,10 @@ Global
 		{822B7588-4DA6-428C-A572-310CC51217AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{822B7588-4DA6-428C-A572-310CC51217AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{822B7588-4DA6-428C-A572-310CC51217AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{08F386C3-E70A-43FD-809C-616F28AF922D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{08F386C3-E70A-43FD-809C-616F28AF922D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{08F386C3-E70A-43FD-809C-616F28AF922D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{08F386C3-E70A-43FD-809C-616F28AF922D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

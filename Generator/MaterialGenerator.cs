@@ -58,8 +58,7 @@ namespace OpenglLib.Generator
                 var uniform_blocks = GeneratorHelper.ParseUniformBlocks(vertexSource + "\n" + fragmentSource);
                 var materialCode = GenerateMaterialClass(materialName, vertexSource, fragmentSource, uniforms, uniform_blocks);
 
-                context.AddSource($"{materialName}Material.g.cs",
-                    SourceText.From(materialCode, Encoding.UTF8));
+                context.AddSource($"{materialName}Material.g.cs", SourceText.From(materialCode, Encoding.UTF8));
             }
             catch (Exception ex)
             {
