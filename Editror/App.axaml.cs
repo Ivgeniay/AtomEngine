@@ -37,18 +37,31 @@ namespace Editor
         {
             try
             {
+                // Проверка директор
                 ServiceHub.RegisterService<DirectoryExplorer>();
+                // Загрузка конфигураций
                 ServiceHub.RegisterService<Configuration>();
+                // Загрузка сборок
                 ServiceHub.RegisterService<AssemblyManager>();
+                // Сканирование файлов в Assets
                 ServiceHub.RegisterService<MetadataManager>();
+                // Вотчер событий в Assets
                 ServiceHub.RegisterService<AssetFileSystem>();
+                // Вотчер событий отношений проекта пользовательских скриптов и папки Assets
                 ServiceHub.RegisterService<ScriptProjectGenerator>();
+                // Вотчер событий в папке с проектом пользовательских скриптов
                 ServiceHub.RegisterService<ProjectFileWatcher>();
+
                 ServiceHub.RegisterService<ScriptSyncSystem>();
+                // Сервис синхронизации состояния между папками пользовательских скриптов и папкой Assets
                 ServiceHub.RegisterService<CodeFilesSynchronizer>();
+                // Менеджер загрузки и сохранения состояний материалов
                 ServiceHub.RegisterService<MaterialManager>();
+                
+                // Фабрики
                 ServiceHub.RegisterService<TextureFactory>();
                 ServiceHub.RegisterService<MaterialFactory>();
+                ServiceHub.RegisterService<ResourceManager>();
 
                 await ServiceHub.Initialize(
                     async (type) =>

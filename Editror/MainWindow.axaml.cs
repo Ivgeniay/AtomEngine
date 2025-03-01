@@ -18,7 +18,7 @@ namespace Editor
         private EditorStatusBar _statusBar;
 
         private ConsoleController _consoleController;
-        private OpenGlController _openGlController;
+        private GLController _openGlController;
         private HierarchyController _hierarchyController;
         private WorldController _worldController;
         private InspectorController _inspectorController;
@@ -214,14 +214,26 @@ namespace Editor
                         Text = "Scene",
                         Description = "",
                         Action = () => {
-                            if (_openGlController == null) _openGlController = new OpenGlController();
 
-                            _openGlController.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
-                            _openGlController.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch;
+                            _openGlController = new GLController();
+                            //_openGlController.HorizontalAlignment = HorizontalAlignment.Stretch;
+                            //_openGlController.VerticalAlignment = VerticalAlignment.Stretch;
 
                             var sceneWindow = _windowFactory.CreateWindow("Scene", _openGlController, 270, 320, 500, 200);
                             sceneWindow.OnClose += (sender) => _openGlController.Dispose();
-                            _openGlController = null;
+    
+                            // Инициализируем контроллер сцены
+                            //SceneController.Initialize(_openGlController);
+
+
+                            //if (_openGlController == null) _openGlController = new OpenGlController();
+
+                            //_openGlController.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
+                            //_openGlController.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch;
+
+                            //var sceneWindow = _windowFactory.CreateWindow("Scene", _openGlController, 270, 320, 500, 200);
+                            //sceneWindow.OnClose += (sender) => _openGlController.Dispose();
+                            //_openGlController = null;
                         }
                     },
                     new EditorToolbarButton()
