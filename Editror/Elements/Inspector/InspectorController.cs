@@ -37,7 +37,7 @@ namespace Editor
             _scrollViewer.Content = _container;
             Children.Add(_scrollViewer);
 
-            EnableDropInInspector();
+            //EnableDropInInspector();
         }
 
         public void Inspect(IInspectable inspectable)

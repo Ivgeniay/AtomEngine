@@ -93,7 +93,8 @@ namespace Editor
                 string output = process.StandardOutput.ReadToEnd();
                 DebLogger.Debug(output);
                 string error = process.StandardError.ReadToEnd();
-                if (!string.IsNullOrEmpty(error)) DebLogger.Error(error);
+                if (!string.IsNullOrEmpty(error)) 
+                    DebLogger.Error(error);
                 process.WaitForExit();
 
                 if (process.ExitCode != 0)
@@ -123,6 +124,7 @@ namespace Editor
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>{RootNamespace}</RootNamespace>
   </PropertyGroup>
 

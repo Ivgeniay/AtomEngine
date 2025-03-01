@@ -10,11 +10,11 @@ namespace Editor
     {
         private readonly object _worldLock = new object();
 
-        public List<WorldData1> Worlds = new List<WorldData1>(); 
+        public List<WorldData> Worlds = new List<WorldData>(); 
         public string ScenePath { get; set; } = string.Empty;
 
-        [JsonIgnore] private WorldData1 _currentWorldData { get; set; }
-        public WorldData1 CurrentWorldData
+        [JsonIgnore] private WorldData _currentWorldData { get; set; }
+        public WorldData CurrentWorldData
         {
             get
             {
@@ -24,7 +24,7 @@ namespace Editor
                     {
                         if (Worlds.Count == 0)
                         {
-                            WorldData1 newWorld = SceneFileHelper.CreateNewScene();
+                            WorldData newWorld = SceneFileHelper.CreateNewScene();
                             Worlds.Add(newWorld);
                             _currentWorldData = newWorld;
                         }
@@ -44,7 +44,7 @@ namespace Editor
                 }
             }
         }
-        public ProjectScene(List<WorldData1> worlds, WorldData1 currentWorldData)
+        public ProjectScene(List<WorldData> worlds, WorldData currentWorldData)
         {
             Worlds = worlds;
             _currentWorldData = currentWorldData;
@@ -57,7 +57,7 @@ namespace Editor
         internal void AddEntity(string entityName)
         {
             Entity entity = CurrentWorldData.World.CreateEntity();
-            EntityData1 newEntityData = new EntityData1()
+            EntityData newEntityData = new EntityData()
             {
                 Name = entityName,
                 Id = entity.Id,
@@ -69,7 +69,7 @@ namespace Editor
         internal void AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
         {
             Entity entity = CurrentWorldData.World.CreateEntity();
-            EntityData1 newEntityData = new EntityData1()
+            EntityData newEntityData = new EntityData()
             {
                 Name = hierarchyEntity.Name,
                 Id = entity.Id,
@@ -114,7 +114,7 @@ namespace Editor
 
         internal void CreateWorld(string worldName)
         {
-            var newWorldData = new WorldData1();
+            var newWorldData = new WorldData();
             newWorldData.WorldName = worldName;
             Worlds.Add(newWorldData);
             MakeDirty();
@@ -133,7 +133,7 @@ namespace Editor
         public void MakeDirty() => IsDirty = true;
         public void MakeUndirty() => Worlds.ForEach(e => e.IsDirty = false);
 
-        private uint GetAvailableId(List<EntityData1> entities)
+        private uint GetAvailableId(List<EntityData> entities)
         {
             var sortedEntities = entities.OrderBy(e => e.Id).ToList();
 

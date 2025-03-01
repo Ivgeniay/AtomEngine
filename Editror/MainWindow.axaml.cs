@@ -612,8 +612,8 @@ namespace Editor
             CleanInspector();
             CleanHyerarchy();
             CleanWorlds();
-            WorldData1 standartSceneData = SceneFileHelper.CreateNewScene();
-            _currentScene = new ProjectScene(new List<WorldData1>() { standartSceneData }, standartSceneData);
+            WorldData standartSceneData = SceneFileHelper.CreateNewScene();
+            _currentScene = new ProjectScene(new List<WorldData>() { standartSceneData }, standartSceneData);
             InspectorDistributor.Initialize(_currentScene);
             UpdateControllers();
             Status.SetStatus($"Created new scene: {_currentScene.WorldName}");

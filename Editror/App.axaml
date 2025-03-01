@@ -16,5 +16,7 @@
         <StyleInclude Source="/Styles/World.axaml"/>
         <StyleInclude Source="/Styles/Inspector.axaml"/>
         <StyleInclude Source="/Styles/DirectoryExplorer.axaml"/>
+      
+        <StyleInclude Source="/Styles/VisualElements/ObjectField.axaml"/>
     </Application.Styles>
 </Application>

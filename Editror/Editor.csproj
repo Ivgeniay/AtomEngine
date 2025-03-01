@@ -34,6 +34,7 @@
     <AvaloniaXaml Remove="Styles\StatusBar.axaml" />
     <AvaloniaXaml Remove="Styles\Title.axaml" />
     <AvaloniaXaml Remove="Styles\Toolbar.axaml" />
+    <AvaloniaXaml Remove="Styles\VisualElements\ObjectField.axaml" />
     <AvaloniaXaml Remove="Styles\World.axaml" />
   </ItemGroup>
 
@@ -75,6 +76,9 @@
       <SubType>Designer</SubType>
     </AvaloniaResource>
     <AvaloniaResource Update="Styles\Toolbar.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
+    <AvaloniaResource Update="Styles\VisualElements\ObjectField.axaml">
       <SubType>Designer</SubType>
     </AvaloniaResource>
     <AvaloniaResource Update="Styles\World.axaml">

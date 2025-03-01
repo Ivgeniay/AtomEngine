@@ -3,6 +3,7 @@ using AtomEngine;
 using System.IO;
 using System;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Editor
 {
@@ -18,6 +19,19 @@ namespace Editor
             ".js", // JavaScript
             ".ts"  // TypeScript
         };
+
+        private readonly HashSet<string> _excludedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "bin",
+            "obj",
+            "Generated", 
+            ".vs",       
+            ".git",      
+            ".idea",     
+            "node_modules", 
+            "Temp",     
+            "Library"   
+        };  
 
         private string _projectPath;
         private string _assetsPath;
@@ -41,6 +55,8 @@ namespace Editor
             {
                 _projectPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.CSharp_Assembly);
                 _assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
+
+                SynchronizeDirectories();
 
                 _assetFileSystem = ServiceHub.Get<AssetFileSystem>();
                 _assetFileSystem.AssetCreated += OnAssetCreated;
@@ -489,7 +505,7 @@ namespace Editor
         }
 
         /// <summary>
-        /// Проверяет, должен ли файл синхронизироваться (на основе расширения)
+        /// Проверяет, должен ли файл синхронизироваться (на основе расширения и исключенных директорий)
         /// </summary>
         private bool IsSupportedCodeFile(string path)
         {
@@ -497,7 +513,13 @@ namespace Editor
                 return false;
 
             string extension = Path.GetExtension(path);
-            return _supportedExtensions.Contains(extension);
+
+            if (!_supportedExtensions.Contains(extension))
+                return false;
+
+            string basePath = path.StartsWith(_projectPath) ? _projectPath : _assetsPath;
+
+            return !IsInExcludedDirectory(path, basePath);
         }
 
         /// <summary>
@@ -540,5 +562,188 @@ namespace Editor
                 return _inProcessFiles.Contains(path);
             }
         }
+
+
+        /// <summary>
+        /// Проверяет, находится ли файл в исключаемой директории
+        /// </summary>
+        private bool IsInExcludedDirectory(string path, string basePath)
+        {
+            // Получаем относительный путь
+            string relativePath = GetRelativePath(path, basePath);
+            string[] pathSegments = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            // Проверяем каждый сегмент пути
+            foreach (var segment in pathSegments)
+            {
+                if (_excludedDirectories.Contains(segment))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        internal bool IsInExcludedDirectory(string path)
+        {
+            // Определяем базовую директорию
+            string basePath = path.StartsWith(_projectPath) ? _projectPath : _assetsPath;
+
+            // Используем приватный метод для проверки
+            return IsInExcludedDirectory(path, basePath);
+        }
+
+        #region SyncFilesOnStart
+        /// <summary>
+        /// Выполняет полную синхронизацию между директориями при запуске
+        /// </summary>
+        private void SynchronizeDirectories()
+        {
+            try
+            {
+                DebLogger.Info("Начинаем полную синхронизацию кодовых файлов...");
+
+                var projectFiles = GetCodeFiles(_projectPath);
+                var assetFiles = GetCodeFiles(_assetsPath);
+
+                var projectPathsDict = projectFiles.ToDictionary(
+                    p => GetRelativePath(p, _projectPath),
+                    p => p
+                );
+
+                var assetPathsDict = assetFiles.ToDictionary(
+                    p => GetRelativePath(p, _assetsPath),
+                    p => p
+                );
+
+                foreach (var relativePath in assetPathsDict.Keys)
+                {
+                    var assetPath = assetPathsDict[relativePath];
+
+                    if (!projectPathsDict.TryGetValue(relativePath, out string projectPath))
+                    {
+                        projectPath = Path.Combine(_projectPath, relativePath);
+                        DebLogger.Debug($"Создание файла в Project: {projectPath}");
+                        CopyFile(assetPath, projectPath);
+                    }
+                    else
+                    {
+                        if (ShouldUpdateFile(assetPath, projectPath))
+                        {
+                            DebLogger.Debug($"Обновление файла в Project: {projectPath}");
+                            CopyFile(assetPath, projectPath);
+                        }
+                    }
+                }
+
+                foreach (var relativePath in projectPathsDict.Keys)
+                {
+                    var projectPath = projectPathsDict[relativePath];
+
+                    if (!assetPathsDict.TryGetValue(relativePath, out string assetPath))
+                    {
+                        assetPath = Path.Combine(_assetsPath, relativePath);
+                        DebLogger.Debug($"Создание файла в Assets: {assetPath}");
+                        CopyFile(projectPath, assetPath);
+                    }
+                }
+
+                DebLogger.Info("Полная синхронизация кодовых файлов завершена");
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка при синхронизации директорий: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Получает список файлов кода в указанной директории
+        /// </summary>
+        private List<string> GetCodeFiles(string directory)
+        {
+            var files = new List<string>();
+
+            foreach (var ext in _supportedExtensions)
+            {
+                var allFiles = Directory.GetFiles(directory, $"*{ext}", SearchOption.AllDirectories);
+
+                foreach (var file in allFiles)
+                {
+                    if (!IsInExcludedDirectory(file, directory))
+                    {
+                        files.Add(file);
+                    }
+                }
+            }
+
+            return files;
+        }
+
+        /// <summary>
+        /// Проверяет, нужно ли обновить файл (true если source новее)
+        /// </summary>
+        private bool ShouldUpdateFile(string sourcePath, string targetPath)
+        {
+            try
+            {
+                var sourceInfo = new FileInfo(sourcePath);
+                var targetInfo = new FileInfo(targetPath);
+
+                if (sourceInfo.LastWriteTimeUtc - targetInfo.LastWriteTimeUtc > TimeSpan.FromSeconds(2))
+                {
+                    return sourceInfo.LastWriteTimeUtc > targetInfo.LastWriteTimeUtc;
+                }
+
+                string sourceHash = CalculateFileHash(sourcePath);
+                string targetHash = CalculateFileHash(targetPath);
+
+                return sourceHash != targetHash;
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Warn($"Ошибка при сравнении файлов {sourcePath} и {targetPath}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Копирует файл, создавая необходимые директории
+        /// </summary>
+        private void CopyFile(string sourcePath, string targetPath)
+        {
+            try
+            {
+                var targetDir = Path.GetDirectoryName(targetPath);
+                if (!Directory.Exists(targetDir))
+                {
+                    Directory.CreateDirectory(targetDir);
+                }
+
+                File.Copy(sourcePath, targetPath, true);
+
+                var sourceInfo = new FileInfo(sourcePath);
+                File.SetLastWriteTimeUtc(targetPath, sourceInfo.LastWriteTimeUtc);
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка при копировании файла из {sourcePath} в {targetPath}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Рассчитывает хеш содержимого файла
+        /// </summary>
+        private string CalculateFileHash(string filePath)
+        {
+            using (var md5 = System.Security.Cryptography.MD5.Create())
+            using (var stream = File.OpenRead(filePath))
+            {
+                byte[] hash = md5.ComputeHash(stream);
+                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+            }
+        }
+        #endregion
+
     }
 }

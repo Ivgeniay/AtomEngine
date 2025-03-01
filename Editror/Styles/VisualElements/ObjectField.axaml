@@ -1,0 +1,40 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Editor="using:Editor">
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <Editor:ObjectField Width="200" />
+    </Border>
+  </Design.PreviewWith>
+
+  <Style Selector="Editor|ObjectField">
+    <Setter Property="Height" Value="24" />
+    <Setter Property="Margin" Value="2" />
+  </Style>
+
+  <Style Selector="Border.objectFieldBorder">
+    <Setter Property="Background" Value="#383838" />
+    <Setter Property="BorderBrush" Value="#2D2D2D" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="3" />
+  </Style>
+
+  <Style Selector="Border.objectFieldBorder:pointerover">
+    <Setter Property="BorderBrush" Value="#505050" />
+  </Style>
+
+  <Style Selector="Button.objectFieldButton">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="FontSize" Value="14" />
+  </Style>
+
+  <Style Selector="Button.objectFieldButton:pointerover">
+    <Setter Property="Background" Value="#505050" />
+  </Style>
+
+  <Style Selector="Button.objectFieldButton:pressed">
+    <Setter Property="Background" Value="#404040" />
+  </Style>
+</Styles>

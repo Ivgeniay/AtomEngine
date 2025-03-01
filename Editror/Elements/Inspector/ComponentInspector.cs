@@ -9,16 +9,17 @@ namespace Editor
 {
     public class ComponentInspector
     {
+        private IEnumerable<MemberInfo> _members;
         public IEnumerable<PropertyDescriptor> CreateDescriptors(IComponent component)
         {
             var type = component.GetType();
 
-            var members = type
+            _members = type
                 .GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 .Where(m => m is FieldInfo);
                 //.Where(m => m is PropertyInfo || m is FieldInfo);
 
-            foreach (var member in members)
+            foreach (var member in _members)
             {
                 if (member.GetCustomAttribute<NonSerializedAttribute>() != null 
                     || member.GetCustomAttribute<JsonIgnoreAttribute>() != null
@@ -85,6 +86,16 @@ namespace Editor
 
         private void SetValue(IComponent component, MemberInfo member, object value)
         {
+            if (value is GLValueRedirection redirection)
+            {
+                var guidMember = _members.FirstOrDefault(m => m.Name == member.Name + "GUID");
+                if (guidMember != null)
+                {
+                    SetValue(component, guidMember, redirection.Value);
+                }
+                return;
+            }
+
             switch (member)
             {
                 case PropertyInfo prop:
@@ -97,5 +108,10 @@ namespace Editor
                     break;
             }
         }
+    }
+
+    public class GLValueRedirection
+    {
+        public object Value { get; set; }
     }
 }

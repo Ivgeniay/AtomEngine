@@ -8,7 +8,9 @@ namespace AtomEngine
     public partial struct ShaderComponent : IComponent, IDisposable
     {
         public Entity Owner { get; }
+
         public readonly ShaderBase Shader;
+        private string ShaderGUID;
 
         public ShaderComponent(Entity owner, ShaderBase shader)
         {

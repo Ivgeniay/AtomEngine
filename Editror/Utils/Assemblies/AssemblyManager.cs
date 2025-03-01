@@ -10,8 +10,15 @@ namespace Editor
 {
     public class AssemblyManager : IService
     {
-        private Dictionary<TAssembly, string> _assemblyMap;
         private Dictionary<TAssembly, Assembly> _assemblyDict = new Dictionary<TAssembly, Assembly>();
+        private Dictionary<TAssembly, string> _assemblyMap = new Dictionary<TAssembly, string>
+                {
+                    { TAssembly.Core, "EngineLib"},
+                    { TAssembly.Render, "OpenglLib" },
+                    { TAssembly.SilkOpenGL, "Silk.NET.OpenGL" },
+                    { TAssembly.SilkMath, "Silk.NET.Maths" },
+                    { TAssembly.ComponentGenerator, "ComponentGenerator" },
+                };
 
         private readonly HashSet<Assembly> _assemblies = new();
         private Assembly _user_script_assembly;
@@ -24,21 +31,13 @@ namespace Editor
             return Task.Run(() => {
                 IEnumerable<Assembly> initialAssemblies = AppDomain.CurrentDomain.GetAssemblies();
 
-            _assemblyMap = new Dictionary<TAssembly, string>
-                {
-                    { TAssembly.Core, "EngineLib"},
-                    { TAssembly.Render, "OpenglLib" },
-                    { TAssembly.SilkOpenGL, "Silk.NET.OpenGL" },
-                    { TAssembly.SilkMath, "Silk.NET.Maths" },
-                    { TAssembly.ComponentGenerator, "ComponentGenerator" },
-                };
-
                 foreach (var assembly in initialAssemblies)
-                {
                     _assemblies.Add(assembly);
-                }
 
-                var baseDirectry = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Base);
+                string baseDirectry = ServiceHub
+                                        .Get<DirectoryExplorer>()
+                                        .GetPath(DirectoryType.Base);
+
                 foreach (var filePath in Directory.GetFiles(baseDirectry, "*.dll"))
                 {
                     string fileName = Path.GetFileName(filePath);

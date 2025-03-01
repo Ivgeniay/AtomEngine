@@ -37,14 +37,45 @@ namespace ComponentGenerator
     public class ComponentSourceGenerator : ISourceGenerator
     {
         private const string IComponentTypeName = "IComponent";
-
-        // Types to ignore when generating GUID fields
+        
+        // Ignore types
         private static readonly HashSet<string> IgnoredTypes = new HashSet<string>
         {
-            "bool", "byte", "sbyte", "char", "decimal", "double", "float", "int", "uint",
-            "long", "ulong", "short", "ushort", 
-            
-            "string", "String", "System.String"
+            "int", "System.Int16", "System.Int32", "System.Int64",
+            "uint", "System.UInt16", "System.UInt32", "System.UInt64",
+            "float", "System.Single",
+            "double", "System.Double",
+            "decimal", "System.Decimal",
+            "bool", "System.Boolean",
+            "byte", "System.Byte", "System.SByte",
+            "char", "System.Char",
+            "string", "String", "System.String",
+            "Vector2", "Numerics.Vector2", "System.Numerics.Vector2",
+            "Vector3", "Numerics.Vector3", "System.Numerics.Vector3",
+            "Vector4", "Numerics.Vector4", "System.Numerics.Vector4",
+
+            "Vector2D<float>", "Maths.Vector2D<float>", "NET.Maths.Vector2D<float>", "Silk.NET.Maths.Vector2D<float>",
+            "Vector3D<float>", "Maths.Vector3D<float>", "NET.Maths.Vector3D<float>", "Silk.NET.Maths.Vector3D<float>",
+            "Vector4D<float>", "Maths.Vector4D<float>", "NET.Maths.Vector4D<float>", "Silk.NET.Maths.Vector4D<float>",
+
+            "Matrix4x4", "Numerics.Matrix4x4", "System.Numerics.Matrix4x4",
+            "Matrix3x3", "Numerics.Matrix3x3", "System.Numerics.Matrix3x3",
+            "Matrix3x2", "Numerics.Matrix3x2", "System.Numerics.Matrix3x2",
+            "Matrix2x2", "Numerics.Matrix2x2", "System.Numerics.Matrix2x2",
+
+            "Matrix2X2<float>", "Maths.Matrix2X2<float>", "NET.Maths.Matrix2X2<float>", "Silk.NET.Maths.Matrix2X2<float>",
+            "Matrix2X3<float>", "Maths.Matrix2X3<float>", "NET.Maths.Matrix2X3<float>", "Silk.NET.Maths.Matrix2X3<float>",
+            "Matrix2X4<float>", "Maths.Matrix2X4<float>", "NET.Maths.Matrix2X4<float>", "Silk.NET.Maths.Matrix2X4<float>",
+
+            "Matrix3X2<float>", "Maths.Matrix3X2<float>", "NET.Maths.Matrix3X2<float>", "Silk.NET.Maths.Matrix3X2<float>",
+            "Matrix3X3<float>", "Maths.Matrix3X3<float>", "NET.Maths.Matrix3X3<float>", "Silk.NET.Maths.Matrix3X3<float>",
+            "Matrix3X4<float>", "Maths.Matrix3X4<float>", "NET.Maths.Matrix3X4<float>", "Silk.NET.Maths.Matrix3X4<float>",
+
+            "Matrix4X2<float>", "Maths.Matrix4X2<float>", "NET.Maths.Matrix4X2<float>", "Silk.NET.Maths.Matrix4X2<float>",
+            "Matrix4X3<float>", "Maths.Matrix4X3<float>", "NET.Maths.Matrix4X3<float>", "Silk.NET.Maths.Matrix4X3<float>",
+            "Matrix4X4<float>", "Maths.Matrix4X4<float>", "NET.Maths.Matrix4X4<float>", "Silk.NET.Maths.Matrix4X4<float>",
+
+            "Entity", "AtomEngine.Entity",
         };
 
         public void Initialize(GeneratorInitializationContext context)
@@ -68,13 +99,8 @@ namespace ComponentGenerator
                 return;
             }
 
-            ReportMessage(context, "CG001", "Receiver",
-                    $"Total found components: {receiver.FoundComponents.Count}", DiagnosticSeverity.Warning);
             foreach (var componentStruct in receiver.FoundComponents)
             {
-                ReportMessage(context, "CG001", "Receiver",
-                    $"Processing component: {componentStruct.StructSyntax.Identifier}", DiagnosticSeverity.Warning);
-
                 try
                 {
                     ProcessComponent(context, componentStruct);
@@ -169,41 +195,7 @@ namespace ComponentGenerator
 
             return membersToAddGuid;
         }
-
-        //private List<ISymbol> GetMembersRequiringGuids(INamedTypeSymbol symbol)
-        //{
-        //    var membersToAddGuid = new List<ISymbol>();
-
-        //    try
-        //    {
-        //        foreach (var member in symbol.GetMembers())
-        //        {
-        //            if (member.DeclaredAccessibility != Accessibility.Public)
-        //                continue;
-
-        //            if (member is IFieldSymbol fieldSymbol && !fieldSymbol.IsStatic)
-        //            {
-        //                if (!ShouldIgnoreType(fieldSymbol.Type))
-        //                {
-        //                    membersToAddGuid.Add(fieldSymbol);
-        //                }
-        //            }
-        //            else if (member is IPropertySymbol propertySymbol && !propertySymbol.IsStatic)
-        //            {
-        //                if (propertySymbol.GetMethod != null && propertySymbol.SetMethod != null &&
-        //                    !ShouldIgnoreType(propertySymbol.Type))
-        //                {
-        //                    membersToAddGuid.Add(propertySymbol);
-        //                }
-        //            }
-        //        }
-        //    }
-        //    catch (Exception)
-        //    {
-        //    }
-
-        //    return membersToAddGuid;
-        //}
+        
 
         private bool ShouldIgnoreType(ITypeSymbol type)
         {
@@ -296,7 +288,7 @@ namespace ComponentGenerator
                 sb.AppendLine($"{indent}    /// <summary>");
                 sb.AppendLine($"{indent}    /// GUID поле для {memberName} типа {memberType}");
                 sb.AppendLine($"{indent}    /// </summary>");
-                sb.AppendLine($"{indent}    public string {guidFieldName};");
+                sb.AppendLine($"{indent}    private string {guidFieldName};");
                 sb.AppendLine();
             }
 

@@ -1,9 +1,9 @@
-﻿using System.IO;
-using System;
-using AtomEngine;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Linq;
+using AtomEngine;
+using System.IO;
+using System;
 
 namespace Editor
 {
@@ -14,7 +14,10 @@ namespace Editor
 
         public Task InitializeAsync()
         {
-            return Task.CompletedTask;
+            return Task.Run(() => {
+                string assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
+                CacheAllMaterials(assetsPath);
+            });
         }
 
         public MaterialAsset CreateMaterial(string shaderRepresentationGuid)
@@ -103,7 +106,6 @@ namespace Editor
 
             //MetadataManager.Instance.SaveMetadata(path, metadata);
         }
-
         public MaterialAsset LoadMaterial(string path)
         {
             if (!File.Exists(path))
@@ -125,7 +127,8 @@ namespace Editor
 
             return asset;
         }
-
+        public string GetPath(MaterialAsset material) =>
+            _cacheMaterials.Where(e => e.Value.Equals(material)).FirstOrDefault().Key;
 
         public void InitializeUniformsFromShaderRepresentation(MaterialAsset material, string shaderRepresentationPath)
         {
@@ -228,6 +231,32 @@ namespace Editor
             material.ShaderRepresentationTypeName = $"OpenglLib.{fileName}";
         }
 
-        
+        private void CacheAllMaterials(string rootDirectory)
+        {
+            try
+            {
+                var matFiles = Directory.GetFiles(rootDirectory, "*.mat", SearchOption.AllDirectories);
+
+                foreach (var matFile in matFiles)
+                {
+                    try
+                    {
+                        var material = LoadMaterial(matFile);
+                        if (material != null)
+                        {
+                            DebLogger.Debug($"Cached material: {matFile}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Warn($"Failed to cache material {matFile}: {ex.Message}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Error while scanning for materials: {ex.Message}");
+            }
+        }
     }
 }

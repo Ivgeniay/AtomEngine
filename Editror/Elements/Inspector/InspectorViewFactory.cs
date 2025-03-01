@@ -24,8 +24,11 @@ namespace Editor
             AddOrUpdateViewMappingFabric(typeof(Silk.NET.Maths.Vector2D<float>), (descriptor) => new Vector2SilkView(descriptor));
             AddOrUpdateViewMappingFabric(typeof(Silk.NET.Maths.Vector3D<float>), (descriptor) => new Vector3SilkView(descriptor));
             AddOrUpdateViewMappingFabric(typeof(Editor.ComponentPropertiesView), (descriptor) => new ComponentPropertiesView(descriptor));
+
             RegisterEnumViewHandler();
             RegisterCollectionHandler();
+            ShaderViewHandler();
+            TextureViewHandler();
         }
 
         private static void RegisterCollectionHandler()
@@ -38,6 +41,20 @@ namespace Editor
         private static void RegisterEnumViewHandler()
         {
             _viewCreatorPredicates.Add((type => type.IsEnum, descriptor => new EnumView(descriptor)));
+        }
+
+        private static void ShaderViewHandler()
+        {
+            Func<Type, bool> TypePredicate = type => type.IsAssignableTo(typeof(AtomEngine.RenderEntity.ShaderBase));
+            Func<PropertyDescriptor, IInspectorView> fabric = descriptor => new ShaderView(descriptor);
+            _viewCreatorPredicates.Add((TypePredicate, fabric));
+        }
+
+        private static void TextureViewHandler()
+        {
+            Func<Type, bool> TypePredicate = type => type.IsAssignableTo(typeof(OpenglLib.Texture));
+            Func<PropertyDescriptor, IInspectorView> fabric = descriptor => new TextureView(descriptor);
+            _viewCreatorPredicates.Add((TypePredicate, fabric));
         }
 
         public static void AddOrUpdateViewMappingFabric(Type type, Func<PropertyDescriptor, IInspectorView> creator)

@@ -8,7 +8,7 @@ namespace Editor
 {
     internal static class SceneSerializer
     {
-        public async static void SaveScene(string path, WorldData1 scene)
+        public async static void SaveScene(string path, WorldData scene)
         {
             try
             {
@@ -27,16 +27,16 @@ namespace Editor
             }
         }
 
-        public static async Task<WorldData1> LoadScene(string path)
+        public static async Task<WorldData> LoadScene(string path)
         {
-            WorldData1 scene = new WorldData1();
+            WorldData scene = new WorldData();
             try
             {
                 using (StreamReader stream = new StreamReader(path))
                 {
                     Status.SetStatus("Loading scene...");
                     var sceneData = await stream.ReadToEndAsync();
-                    scene = JsonConvert.DeserializeObject<WorldData1>(sceneData);
+                    scene = JsonConvert.DeserializeObject<WorldData>(sceneData);
                     Status.SetStatus($"Scene {scene} loaded");
                 }
             }

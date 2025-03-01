@@ -79,6 +79,9 @@ namespace Editor
                 if (Directory.Exists(e.FullPath))
                     return;
 
+                if (_synchronizer.IsInExcludedDirectory(e.FullPath))
+                    return;
+
                 DebLogger.Debug($"Обнаружен новый файл в проекте: {e.FullPath}");
                 _synchronizer.OnProjectFileCreated(e.FullPath);
             }
@@ -95,6 +98,9 @@ namespace Editor
                 if (Directory.Exists(e.FullPath))
                     return;
 
+                if (_synchronizer.IsInExcludedDirectory(e.FullPath))
+                    return;
+
                 DebLogger.Debug($"Обнаружено изменение файла в проекте: {e.FullPath}");
                 _synchronizer.OnProjectFileChanged(e.FullPath);
             }
@@ -108,6 +114,9 @@ namespace Editor
         {
             try
             {
+                if (_synchronizer.IsInExcludedDirectory(e.FullPath))
+                    return;
+
                 DebLogger.Debug($"Обнаружено удаление файла в проекте: {e.FullPath}");
                 _synchronizer.OnProjectFileDeleted(e.FullPath);
             }
@@ -121,6 +130,9 @@ namespace Editor
         {
             try
             {
+                if (_synchronizer.IsInExcludedDirectory(e.OldFullPath) || _synchronizer.IsInExcludedDirectory(e.FullPath))
+                    return;
+
                 DebLogger.Debug($"Обнаружено переименование файла в проекте: {e.OldFullPath} -> {e.FullPath}");
                 _synchronizer.OnProjectFileRenamed(e.OldFullPath, e.FullPath);
             }

@@ -7,17 +7,17 @@ using AtomEngine;
 
 namespace Editor
 {
-    internal class WorldData1
+    internal class WorldData
     {
         public string WorldName { get; set; } = "World_0";
-        public List<EntityData1> Entities { get; set; } = new List<EntityData1>();
-        public List<SystemDescriptor1> SystemDescriptors { get; set; } = new List<SystemDescriptor1>();
+        public List<EntityData> Entities { get; set; } = new List<EntityData>();
+        public List<SystemDescriptor> SystemDescriptors { get; set; } = new List<SystemDescriptor>();
         [JsonIgnore]
         public bool IsDirty { get; set; }
 
         [JsonIgnore]
         public World World { get; private set; }
-        public WorldData1()
+        public WorldData()
         {
             World = new World();
         }

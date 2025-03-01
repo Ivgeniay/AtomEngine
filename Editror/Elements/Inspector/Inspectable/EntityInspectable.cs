@@ -34,7 +34,6 @@ namespace Editor
             };
 
             panel.Children.Add(addComponentButton);
-
             yield return panel;
         }
 
