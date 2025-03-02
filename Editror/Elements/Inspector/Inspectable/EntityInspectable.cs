@@ -24,7 +24,7 @@ namespace Editor
 
         public IEnumerable<Control> GetCustomControls()
         {
-            var panel = new StackPanel { Orientation = Orientation.Horizontal };
+            var panel = new StackPanel { Orientation = Orientation.Vertical };
 
             var addComponentButton = new Button
             {
@@ -34,6 +34,7 @@ namespace Editor
             };
 
             panel.Children.Add(addComponentButton);
+
             yield return panel;
         }
 

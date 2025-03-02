@@ -11,15 +11,13 @@ namespace Editor
         {
             var panel = new StackPanel { Margin = new Thickness(0, 5, 0, 5) };
 
-            // Заголовок компонента
             panel.Children.Add(new TextBlock
             {
-                Text = Descriptor.Name,
+                Text = descriptor.Name,
                 Classes = { "componentHeader" }
             });
 
-            // Отображаем все свойства компонента
-            var properties = (List<PropertyDescriptor>)Descriptor.Value;
+            var properties = (List<PropertyDescriptor>)descriptor.Value;
             foreach (var property in properties)
             {
                 var view = InspectorViewFactory.CreateView(property);

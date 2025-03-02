@@ -6,11 +6,11 @@ namespace Editor
 {
     internal abstract class BasePropertyView : IInspectorView
     {
-        protected readonly PropertyDescriptor Descriptor;
+        protected readonly PropertyDescriptor descriptor;
 
         protected BasePropertyView(PropertyDescriptor descriptor)
         {
-            Descriptor = descriptor;
+            this.descriptor = descriptor;
         }
 
         public abstract Control GetView();
@@ -29,7 +29,7 @@ namespace Editor
 
             var label = new TextBlock
             {
-                Text = Descriptor.Name,
+                Text = descriptor.Name,
                 Classes = { "propertyLabel" }
             };
             Grid.SetColumn(label, 0);

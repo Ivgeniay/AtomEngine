@@ -1,4 +1,5 @@
-﻿using Avalonia.Controls;
+﻿using AtomEngine;
+using Avalonia.Controls;
 using System;
 
 namespace Editor
@@ -9,28 +10,19 @@ namespace Editor
 
         public override Control GetView()
         {
-            var grid = CreateBaseLayout();
+            FloatField field = new FloatField();
+            field.Label = descriptor.Name;
 
-            var numericUpDown = new NumericUpDown
+            field.ValueChanged += (sender, e) =>
             {
-                Value = Convert.ToDecimal(Descriptor.Value),
-                Increment = 0.1M,
-                Classes = { "vectorEditor" },
-                IsEnabled = !Descriptor.IsReadOnly
-            };
-
-            numericUpDown.ValueChanged += (s, e) =>
-            {
-                if (numericUpDown.Value != null)
+                if (field.Value != null)
                 {
-                    Descriptor.OnValueChanged?.Invoke((float)numericUpDown.Value);
+                    DebLogger.Debug($"KEK: {e}");
+                    descriptor.OnValueChanged?.Invoke((float)field.Value);
                 }
             };
 
-            Grid.SetColumn(numericUpDown, 1);
-            grid.Children.Add(numericUpDown);
-
-            return grid;
+            return field;
         }
     }
 }

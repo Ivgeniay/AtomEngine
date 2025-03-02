@@ -8,32 +8,23 @@ namespace Editor
         public StringView(PropertyDescriptor descriptor) : base(descriptor) { }
         public override Control GetView()
         {
-            var grid = CreateBaseLayout();
+            StringField field = new StringField();
+            field.Label = descriptor.Name;
 
-            var textBox = new TextBox
-            {
-                Text = Descriptor.Value?.ToString() ?? string.Empty,
-                IsReadOnly = Descriptor.IsReadOnly,
-                Classes = { "propertyEditor" }
-            };
-
-            textBox.KeyDown += (s, e) =>
+            field.KeyDown += (s, e) =>
             {
                 if (e.Key == Key.Enter)
                 {
-                    Descriptor.OnValueChanged?.Invoke(textBox.Text);
-                    textBox.Focus();
+                    descriptor.OnValueChanged?.Invoke(field.Text);
+                    field.Focus();
                 }
             };
-            textBox.LostFocus += (s, e) =>
+            field.LostFocus += (s, e) =>
             {
-                Descriptor.OnValueChanged?.Invoke(textBox.Text);
+                descriptor.OnValueChanged?.Invoke(field.Text);
             };
 
-            Grid.SetColumn(textBox, 1);
-            grid.Children.Add(textBox);
-
-            return grid;
+            return field;
         }
     }
 }

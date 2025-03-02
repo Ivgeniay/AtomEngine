@@ -1,4 +1,5 @@
 ﻿using Avalonia.Controls;
+using Silk.NET.Maths;
 using System.Numerics;
 
 namespace Editor.Elements.Inspector.View
@@ -8,81 +9,16 @@ namespace Editor.Elements.Inspector.View
         public Vector2View(PropertyDescriptor descriptor) : base(descriptor) { }
         public override Control GetView()
         {
-            var grid = CreateBaseLayout();
+            var vector = (Vector2)descriptor.Value;
+            Vector2FloatField field = new Vector2FloatField();
 
-            var vectorGrid = new Grid
+            field.Label = descriptor.Name;
+            field.ValueChanged += (s, e) =>
             {
-                ColumnDefinitions =
-                {
-                    new ColumnDefinition { Width = GridLength.Auto },
-                    new ColumnDefinition { Width = GridLength.Star },
-                    new ColumnDefinition { Width = GridLength.Auto },
-                    new ColumnDefinition { Width = GridLength.Star },
-                },
+                descriptor.OnValueChanged?.Invoke(e);
             };
 
-            var vector = (Vector2)Descriptor.Value;
-
-            var xLabel = new TextBlock
-            {
-                Text = "X",
-                Classes = { "propertyLabel" },
-                Width = 15
-            };
-
-            var xInput = new NumericUpDown
-            {
-                Value = (decimal)vector.X,
-                Classes = { "vectorEditor" },
-                Increment = 0.1M,
-                FormatString = "0.##",
-                IsEnabled = !Descriptor.IsReadOnly
-            };
-
-            var yLabel = new TextBlock
-            {
-                Text = "Y",
-                Classes = { "propertyLabel" },
-                Width = 15
-            };
-
-            var yInput = new NumericUpDown
-            {
-                Value = (decimal)vector.Y,
-                Classes = { "vectorEditor" },
-                Increment = 0.1M,
-                FormatString = "0.##",
-                IsEnabled = !Descriptor.IsReadOnly
-            };
-
-            Grid.SetColumn(xLabel, 0);
-            Grid.SetColumn(xInput, 1);
-            Grid.SetColumn(yLabel, 2);
-            Grid.SetColumn(yInput, 3);
-
-            vectorGrid.Children.Add(xLabel);
-            vectorGrid.Children.Add(xInput);
-            vectorGrid.Children.Add(yLabel);
-            vectorGrid.Children.Add(yInput);
-
-            xInput.ValueChanged += (s, e) =>
-            {
-                if (xInput.Value == null) return;
-                var newVector = new Vector2((float)xInput.Value, (float)yInput.Value);
-                Descriptor.OnValueChanged?.Invoke(newVector);
-            };
-
-            yInput.ValueChanged += (s, e) =>
-            {
-                if (yInput.Value == null) return;
-                var newVector = new Vector2((float)xInput.Value, (float)yInput.Value);
-                Descriptor.OnValueChanged?.Invoke(newVector);
-            };
-
-            Grid.SetColumn(vectorGrid, 1);
-            grid.Children.Add(vectorGrid);
-
-            return grid;
+            return field;
         }
     }
 
@@ -92,81 +28,16 @@ namespace Editor.Elements.Inspector.View
         public Vector2SilkView(PropertyDescriptor descriptor) : base(descriptor) { }
         public override Control GetView()
         {
-            var grid = CreateBaseLayout();
+            var vector = (Vector2D<float>)descriptor.Value;
+            Vector2FloatSilkField field = new Vector2FloatSilkField();
 
-            var vectorGrid = new Grid
+            field.Label = descriptor.Name;
+            field.ValueChanged += (s, e) =>
             {
-                ColumnDefinitions =
-                {
-                    new ColumnDefinition { Width = GridLength.Auto },
-                    new ColumnDefinition { Width = GridLength.Star },
-                    new ColumnDefinition { Width = GridLength.Auto },
-                    new ColumnDefinition { Width = GridLength.Star },
-                },
+                descriptor.OnValueChanged?.Invoke(e);
             };
 
-            var vector = (Silk.NET.Maths.Vector2D<float>)Descriptor.Value;
-
-            var xLabel = new TextBlock
-            {
-                Text = "X",
-                Classes = { "propertyLabel" },
-                Width = 15
-            };
-
-            var xInput = new NumericUpDown
-            {
-                Value = (decimal)vector.X,
-                Classes = { "vectorEditor" },
-                Increment = 0.1M,
-                FormatString = "0.##",
-                IsEnabled = !Descriptor.IsReadOnly
-            };
-
-            var yLabel = new TextBlock
-            {
-                Text = "Y",
-                Classes = { "propertyLabel" },
-                Width = 15
-            };
-
-            var yInput = new NumericUpDown
-            {
-                Value = (decimal)vector.Y,
-                Classes = { "vectorEditor" },
-                Increment = 0.1M,
-                FormatString = "0.##",
-                IsEnabled = !Descriptor.IsReadOnly
-            };
-
-            Grid.SetColumn(xLabel, 0);
-            Grid.SetColumn(xInput, 1);
-            Grid.SetColumn(yLabel, 2);
-            Grid.SetColumn(yInput, 3);
-
-            vectorGrid.Children.Add(xLabel);
-            vectorGrid.Children.Add(xInput);
-            vectorGrid.Children.Add(yLabel);
-            vectorGrid.Children.Add(yInput);
-
-            xInput.ValueChanged += (s, e) =>
-            {
-                if (xInput.Value == null) return;
-                var newVector = new Vector2((float)xInput.Value, (float)yInput.Value);
-                Descriptor.OnValueChanged?.Invoke(newVector);
-            };
-
-            yInput.ValueChanged += (s, e) =>
-            {
-                if (yInput.Value == null) return;
-                var newVector = new Vector2((float)xInput.Value, (float)yInput.Value);
-                Descriptor.OnValueChanged?.Invoke(newVector);
-            };
-
-            Grid.SetColumn(vectorGrid, 1);
-            grid.Children.Add(vectorGrid);
-
-            return grid;
+            return field;
         }
     }
 }

@@ -18,11 +18,11 @@ namespace Editor
             var headerGrid = CreateBaseLayout();
             mainPanel.Children.Add(headerGrid);
 
-            Type elementType = GetElementType(Descriptor.Type);
+            Type elementType = GetElementType(descriptor.Type);
             if (elementType == null)
-                return new TextBlock { Text = $"Unsupported collection type: {Descriptor.Type.Name}" };
+                return new TextBlock { Text = $"Unsupported collection type: {descriptor.Type.Name}" };
 
-            var itemsList = ConvertToObjectList(Descriptor.Value as IEnumerable);
+            var itemsList = ConvertToObjectList(descriptor.Value as IEnumerable);
 
             var itemsPanel = new StackPanel { Margin = new Thickness(10, 0, 0, 0), Spacing = 3 };
             RenderItems(itemsPanel, itemsList, elementType);
@@ -33,7 +33,7 @@ namespace Editor
                 Content = $"Add {GetFriendlyTypeName(elementType)}",
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Classes = { "inspectorButton" },
-                IsEnabled = !Descriptor.IsReadOnly,
+                IsEnabled = !descriptor.IsReadOnly,
                 Margin = new Thickness(10, 5, 0, 0)
             };
 
@@ -74,7 +74,7 @@ namespace Editor
                     Name = string.Empty,
                     Type = elementType,
                     Value = item,
-                    IsReadOnly = Descriptor.IsReadOnly,
+                    IsReadOnly = descriptor.IsReadOnly,
                     OnValueChanged = newValue => {
                         items[index] = newValue;
                         UpdateCollection(items, elementType);
@@ -89,7 +89,7 @@ namespace Editor
                     Width = 24,
                     Height = 24,
                     Classes = { "inspectorButton" },
-                    IsEnabled = !Descriptor.IsReadOnly,
+                    IsEnabled = !descriptor.IsReadOnly,
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(5, 0, 0, 0)
                 };
@@ -144,7 +144,7 @@ namespace Editor
         {
             object result;
 
-            if (Descriptor.Type.IsArray)
+            if (descriptor.Type.IsArray)
             {
                 Array array = Array.CreateInstance(elementType, items.Count);
                 for (int i = 0; i < items.Count; i++)
@@ -163,7 +163,7 @@ namespace Editor
                 result = typedList;
             }
 
-            Descriptor.OnValueChanged?.Invoke(result);
+            descriptor.OnValueChanged?.Invoke(result);
         }
 
         private object CreateDefaultValue(Type type)

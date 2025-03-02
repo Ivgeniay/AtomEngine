@@ -13,7 +13,7 @@ namespace Editor
 
             var textBlock = new TextBlock
             {
-                Text = $"[Unsupported type: {Descriptor.Type}]",
+                Text = $"[Unsupported type: {descriptor.Type}]",
                 Foreground = Brushes.Gray,
                 FontStyle = FontStyle.Italic
             };

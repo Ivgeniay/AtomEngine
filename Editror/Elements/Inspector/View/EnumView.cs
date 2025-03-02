@@ -15,12 +15,12 @@ namespace Editor
             var comboBox = new ComboBox
             {
                 Classes = { "propertyEditor" },
-                IsEnabled = !Descriptor.IsReadOnly,
+                IsEnabled = !descriptor.IsReadOnly,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
             };
 
-            Type enumType = Descriptor.Type;
+            Type enumType = descriptor.Type;
             var values = Enum.GetValues(enumType).Cast<object>().ToList();
 
             foreach (var value in values)
@@ -28,12 +28,12 @@ namespace Editor
                 comboBox.Items.Add(value);
             }
 
-            comboBox.SelectedItem = Descriptor.Value;
+            comboBox.SelectedItem = descriptor.Value;
             comboBox.SelectionChanged += (s, e) =>
             {
                 if (comboBox.SelectedItem != null)
                 {
-                    Descriptor.OnValueChanged?.Invoke(comboBox.SelectedItem);
+                    descriptor.OnValueChanged?.Invoke(comboBox.SelectedItem);
                 }
             };
 

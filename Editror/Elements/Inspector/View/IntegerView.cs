@@ -13,8 +13,8 @@ namespace Editor
 
             var numericUpDown = new NumericUpDown
             {
-                Value = Convert.ToInt32(Descriptor.Value),
-                IsEnabled = !Descriptor.IsReadOnly,
+                Value = Convert.ToInt32(descriptor.Value),
+                IsEnabled = !descriptor.IsReadOnly,
                 Classes = { "vectorEditor" },
             };
 
@@ -22,7 +22,7 @@ namespace Editor
             {
                 if (numericUpDown.Value != null)
                 {
-                    Descriptor.OnValueChanged?.Invoke(numericUpDown.Value);
+                    descriptor.OnValueChanged?.Invoke(numericUpDown.Value);
                 }
             };
 

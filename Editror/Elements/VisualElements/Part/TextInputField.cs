@@ -1,14 +1,8 @@
 ﻿using System.Globalization;
-using System.Reactive.Linq;
 using Avalonia.Controls;
-using Avalonia.Layout;
-using Avalonia.Media;
 using Avalonia;
 using System;
-using System.Text.RegularExpressions;
-using Silk.NET.Vulkan;
-using Avalonia.Threading;
-using Avalonia.Input;
+using AtomEngine;
 
 namespace Editor
 {
@@ -31,11 +25,11 @@ namespace Editor
         public static readonly StyledProperty<int?> MaxLengthProperty =
             AvaloniaProperty.Register<TextInputField, int?>(nameof(MaxLength), null);
 
-        public static readonly StyledProperty<int?> MaxValueProperty =
-            AvaloniaProperty.Register<TextInputField, int?>(nameof(MaxValue), null);
+        public static readonly StyledProperty<decimal?> MaxValueProperty =
+            AvaloniaProperty.Register<TextInputField, decimal?>(nameof(MaxValue), null);
 
-        public static readonly StyledProperty<int?> MinValueProperty =
-            AvaloniaProperty.Register<TextInputField, int?>(nameof(MinValue), null);
+        public static readonly StyledProperty<decimal?> MinValueProperty =
+            AvaloniaProperty.Register<TextInputField, decimal?>(nameof(MinValue), null);
 
         #endregion
 
@@ -89,7 +83,7 @@ namespace Editor
         /// <summary>
         /// Максимальное значение для числовых полей
         /// </summary>
-        public int? MaxValue
+        public decimal? MaxValue
         {
             get => GetValue(MaxValueProperty);
             set => SetValue(MaxValueProperty, value);
@@ -98,7 +92,7 @@ namespace Editor
         /// <summary>
         /// Минимальное значение для числовых полей
         /// </summary>
-        public int? MinValue
+        public decimal? MinValue
         {
             get => GetValue(MinValueProperty);
             set => SetValue(MinValueProperty, value);
@@ -119,9 +113,8 @@ namespace Editor
 
         private Border _mainBorder;
         private TextBox _textBox;
-        private bool _processingTextChange = false;
-        private string _previousText = string.Empty;
-        private int _previousCaretIndex = 0;
+        private NumericUpDown _numericValidator;
+        private bool _isSettingText = false;
 
         #endregion
 
@@ -131,10 +124,6 @@ namespace Editor
         public TextInputField()
         {
             InitializeComponent();
-            Text = string.Empty;
-            _textBox.Text = string.Empty;
-            _previousText = string.Empty;
-            _previousCaretIndex = 0;
             SetupEventHandlers();
         }
 
@@ -145,23 +134,28 @@ namespace Editor
         {
             ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
 
-            // Основная рамка
             _mainBorder = new Border
             {
                 Classes = { "textInputBorder" },
                 Padding = new Thickness(4, 0)
             };
 
-            Children.Add(_mainBorder);
-
-            // Текстовое поле
             _textBox = new TextBox
             {
                 Classes = { "textInpuntTextbox" },
                 Watermark = Placeholder
             };
 
+            _numericValidator = new NumericUpDown
+            {
+                IsVisible = false,
+                Width = 0,
+                Height = 0
+            };
+
             _mainBorder.Child = _textBox;
+            Children.Add(_mainBorder);
+            Children.Add(_numericValidator);
         }
 
         /// <summary>
@@ -173,11 +167,11 @@ namespace Editor
             {
                 if (e.Property == TextProperty)
                 {
-                    UpdateTextBox();
+                    UpdateTextBoxFromText();
                 }
                 else if (e.Property == InputTypeProperty)
                 {
-                    UpdateInputType();
+                    UpdateValidatorForInputType();
                 }
                 else if (e.Property == PlaceholderProperty)
                 {
@@ -191,162 +185,62 @@ namespace Editor
                 {
                     _textBox.MaxLength = MaxLength ?? int.MaxValue;
                 }
-            };
-
-            _textBox.GetObservable(TextBox.TextProperty).Subscribe(text =>
-            {
-                if (_processingTextChange) return;
-
-                _processingTextChange = true;
-                try
+                else if (e.Property == MinValueProperty || e.Property == MaxValueProperty)
                 {
-                    // Проверяем, вызовет ли новый текст переполнение
-                    bool willOverflow = CheckOverflow(text);
-
-                    if (willOverflow)
-                    {
-                        // Возвращаем предыдущее состояние
-                        _textBox.Text = _previousText;
-                        //_textBox.CaretIndex = _previousCaretIndex;
-
-                        // Показываем предупреждение
-                        ShowOverflowWarning();
-                    }
-                    else
-                    {
-                        // Если нет переполнения, обрабатываем нормально
-                        if (text != Text)
-                        {
-                            // Получаем корректное значение
-                            object processedValue = GetAvailableInput(text);
-                            string newText = processedValue.ToString();
-
-                            // Обновляем Text свойство
-                            Text = newText;
-
-                            // Обновляем текст в TextBox
-                            if (_textBox.Text != newText)
-                            {
-                                int caretIndex = _textBox.CaretIndex;
-                                _textBox.Text = newText;
-                                _textBox.CaretIndex = Math.Min(caretIndex, newText.Length);
-                            }
-
-                            // Сохраняем успешное состояние как предыдущее
-                            _previousText = _textBox.Text;
-                            _previousCaretIndex = _textBox.CaretIndex;
-
-                            // Скрываем предупреждение
-                            HideOverflowWarning();
-
-                            // Вызываем событие изменения
-                            TextChanged?.Invoke(this, Text);
-                        }
-                    }
-                }
-                finally
-                {
-                    _processingTextChange = false;
-                }
-            });
-
-            //_textBox. += (s, e) =>
-            //{
-            //    if (!_processingTextChange && !CheckOverflow(_textBox.Text))
-            //    {
-            //        _previousCaretIndex = _textBox.CaretIndex;
-            //    }
-            //};
-
-            _textBox.GotFocus += (s, e) =>
-            {
-                if (!CheckOverflow(_textBox.Text))
-                {
-                    HideOverflowWarning();
+                    UpdateValidatorLimits();
                 }
             };
 
-            // Прямая обработка KeyDown для более быстрого реагирования
-            _textBox.KeyDown += (s, e) =>
-            {
-                if (_processingTextChange) return;
-
-                // После каждого нажатия клавиши проверяем актуальность текста
-                if (e.Key != Key.Tab)
-                {
-                    // Используем Dispatcher для гарантии выполнения после обновления UI
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        // Проверяем и исправляем расхождение между Text и TextBox.Text
-                        if (Text != _textBox.Text)
-                        {
-                            _processingTextChange = true;
-                            try
-                            {
-                                _textBox.Text = Text;
-                                _textBox.InvalidateVisual();
-                            }
-                            finally
-                            {
-                                _processingTextChange = false;
-                            }
-                        }
-                    }, DispatcherPriority.Render);
-                }
-            };
-
-
-            this.PropertyChanged += (s, e) =>
-            {
-                if (e.Property == TextProperty && !_processingTextChange)
-                {
-                    _processingTextChange = true;
-                    try
-                    {
-                        UpdateTextBox();
-                    }
-                    finally
-                    {
-                        _processingTextChange = false;
-                    }
-                }
-                else if (e.Property == InputTypeProperty)
-                {
-                    UpdateInputType();
-                }
-            };
-
-            UpdateInputType();
+            _textBox.TextChanged += OnTextBoxTextChanged;
+            _numericValidator.ValueChanged += OnNumericValidatorValueChanged;
+            UpdateValidatorForInputType();
         }
 
         /// <summary>
-        /// Обновляет текст в текстбоксе
+        /// Обновляет валидатор в соответствии с текущим типом ввода
         /// </summary>
-        private void UpdateTextBox()
-        {
-            if (_textBox.Text != Text)
-            {
-                _textBox.Text = Text;
-            }
-        }
-
-        /// <summary>
-        /// Применяет настройки типа ввода
-        /// </summary>
-        private void UpdateInputType()
+        private void UpdateValidatorForInputType()
         {
             switch (InputType)
             {
                 case TextInputType.Integer:
                     _textBox.Classes.Remove("passwordInput");
                     _textBox.PasswordChar = '\0';
-                    MinValue = -2147483648;
-                    MaxValue = 2147483647;
+
+                    _numericValidator.FormatString = "0";
+                    _numericValidator.Increment = 1;
+                    _numericValidator.Minimum = MinValue ?? decimal.MinValue;
+                    _numericValidator.Maximum = MaxValue ?? decimal.MaxValue;
+
+                    if (!string.IsNullOrEmpty(Text) && decimal.TryParse(Text, out decimal intValue))
+                    {
+                        _numericValidator.Value = intValue;
+                    }
+                    else
+                    {
+                        _numericValidator.Value = 0;
+                    }
                     break;
 
                 case TextInputType.Float:
                     _textBox.Classes.Remove("passwordInput");
                     _textBox.PasswordChar = '\0';
+
+                    _numericValidator.FormatString = "0.####";
+                    _numericValidator.Increment = 0.1m;
+                    _numericValidator.Minimum = MinValue ?? decimal.MinValue;
+                    _numericValidator.Maximum = MaxValue ?? decimal.MaxValue;
+
+                    if (!string.IsNullOrEmpty(Text) &&
+                        decimal.TryParse(Text.Replace(',', '.'),
+                        NumberStyles.Any, CultureInfo.InvariantCulture, out decimal floatValue))
+                    {
+                        _numericValidator.Value = floatValue;
+                    }
+                    else
+                    {
+                        _numericValidator.Value = 0;
+                    }
                     break;
 
                 case TextInputType.Password:
@@ -362,220 +256,170 @@ namespace Editor
             }
         }
 
-
-        private bool _isOverflowWarning = false;
         /// <summary>
-        /// Проверяет ввод в зависимости от типа
+        /// Обновляет пределы валидатора
         /// </summary>
-        private object GetAvailableInput(string text)
+        private void UpdateValidatorLimits()
         {
-            if (string.IsNullOrEmpty(text))
+            if (InputType == TextInputType.Integer || InputType == TextInputType.Float)
             {
-                return InputType switch
+                _numericValidator.Minimum = MinValue ?? decimal.MinValue;
+                _numericValidator.Maximum = MaxValue ?? decimal.MaxValue;
+
+                // Проверяем текущее значение на соответствие новым ограничениям
+                if (_numericValidator.Value < _numericValidator.Minimum)
                 {
-                    TextInputType.Integer => 0,
-                    TextInputType.Float => 0f,
-                    _ => string.Empty
-                };
-            }
-
-            switch (InputType)
-            {
-                case TextInputType.Integer:
-                    if (text.Length == 1 && text == "-")
-                        return "-";
-
-                    string cleanedInt = Regex.Replace(text, @"[^\d\-]", "");
-
-                    // Обработка минуса
-                    if (cleanedInt.Contains('-'))
-                    {
-                        if (cleanedInt.StartsWith("-"))
-                            cleanedInt = "-" + cleanedInt.Substring(1).Replace("-", "");
-                        else
-                            cleanedInt = cleanedInt.Replace("-", "");
-                    }
-
-                    // Обработка ведущих нулей
-                    if (cleanedInt.StartsWith("0") && cleanedInt.Length > 1 && !cleanedInt.StartsWith("-"))
-                        cleanedInt = cleanedInt.TrimStart('0');
-                    else if (cleanedInt.StartsWith("-0") && cleanedInt.Length > 2)
-                        cleanedInt = "-" + cleanedInt.Substring(2).TrimStart('0');
-
-                    // Проверка на минус для продолжения ввода
-                    if (cleanedInt == "-")
-                        return cleanedInt;
-
-                    // Проверка на парсинг и ограничения
-                    if (int.TryParse(cleanedInt, out int intValue))
-                    {
-                        if (MinValue.HasValue && intValue < MinValue.Value)
-                            return MinValue.Value;
-
-                        if (MaxValue.HasValue && intValue > MaxValue.Value)
-                            return MaxValue.Value;
-
-                        return intValue;
-                    }
-
-                    return string.IsNullOrEmpty(cleanedInt) ? 0 : 0;
-
-                case TextInputType.Float:
-
-                case TextInputType.Password:
-                case TextInputType.String:
-                default:
-                    return text;
+                    _numericValidator.Value = _numericValidator.Minimum;
+                }
+                else if (_numericValidator.Value > _numericValidator.Maximum)
+                {
+                    _numericValidator.Value = _numericValidator.Maximum;
+                }
             }
         }
 
         /// <summary>
-        /// Проверяет, вызовет ли ввод переполнение типа
+        /// Обработчик изменения текста в TextBox
         /// </summary>
-        private bool CheckOverflow(string text)
+        private void OnTextBoxTextChanged(object sender, EventArgs e)
         {
+            if (_isSettingText)
+            {
+                return;
+            }
+
             switch (InputType)
             {
                 case TextInputType.Integer:
-                    // Очищаем и нормализуем ввод
-                    string cleanedInt = Regex.Replace(text, @"[^\d\-]", "");
-
-                    // Обработка минуса
-                    if (cleanedInt.Contains('-'))
+                    if (string.IsNullOrEmpty(_textBox.Text) || _textBox.Text == "-")
                     {
-                        if (cleanedInt.StartsWith("-"))
-                            cleanedInt = "-" + cleanedInt.Substring(1).Replace("-", "");
-                        else
-                            cleanedInt = cleanedInt.Replace("-", "");
+                        Text = _textBox.Text;
+                        return;
                     }
 
-                    // Для промежуточного состояния "-" переполнения нет
-                    if (cleanedInt == "-")
-                        return false;
-
-                    // Проверка на переполнение для положительных чисел
-                    if (!cleanedInt.StartsWith("-"))
+                    // Пытаемся преобразовать в число
+                    if (decimal.TryParse(_textBox.Text, out decimal intValue))
                     {
-                        if (cleanedInt.Length > 10)
-                            return true;
+                        _isSettingText = true;
+                        _numericValidator.Value = intValue;
+                        _isSettingText = false;
 
-                        if (cleanedInt.Length == 10 && string.Compare(cleanedInt, "2147483647") > 0)
-                            return true;
+                        Text = _textBox.Text;
+                        TextChanged?.Invoke(this, intValue.ToString());
                     }
-                    // Проверка на переполнение для отрицательных чисел
                     else
                     {
-                        if (cleanedInt.Length > 11)
-                            return true;
-
-                        if (cleanedInt.Length == 11 && string.Compare(cleanedInt, "-2147483648") < 0)
-                            return true;
+                        UpdateTextBoxFromNumericValidator();
                     }
-
-                    // Проверяем ограничения
-                    if (int.TryParse(cleanedInt, out int intValue))
-                    {
-                        if (MinValue.HasValue && intValue < MinValue.Value)
-                            return true;
-
-                        if (MaxValue.HasValue && intValue > MaxValue.Value)
-                            return true;
-                    }
-
-                    return false;
+                    break;
 
                 case TextInputType.Float:
-                    // Аналогичные проверки для float
-                    string normalizedText = text.Replace(',', '.');
-                    string cleanedFloat = Regex.Replace(normalizedText, @"[^\d\.\-]", "");
-
-                    // Проверка на промежуточные состояния
-                    if (cleanedFloat == "-" || cleanedFloat == "." || cleanedFloat == "-." ||
-                        cleanedFloat == "0." || cleanedFloat == "-0.")
-                        return false;
-
-                    // Проверка на переполнение через парсинг
-                    if (float.TryParse(cleanedFloat, NumberStyles.Float, CultureInfo.InvariantCulture, out float floatValue))
+                    if (string.IsNullOrEmpty(_textBox.Text) || _textBox.Text == "-" ||
+                        _textBox.Text == "." || _textBox.Text == "-." ||
+                        _textBox.Text.EndsWith("."))
                     {
-                        return floatValue == float.PositiveInfinity || floatValue == float.NegativeInfinity;
+                        Text = _textBox.Text;
+                        return;
                     }
 
-                    return false;
+                    string normalizedText = _textBox.Text.Replace(',', '.');
 
+                    if (decimal.TryParse(normalizedText, NumberStyles.Any,
+                        CultureInfo.InvariantCulture, out decimal floatValue))
+                    {
+                        _isSettingText = true;
+                        _numericValidator.Value = floatValue;
+                        _isSettingText = false;
+
+                        Text = normalizedText;
+                        TextChanged?.Invoke(this, normalizedText);
+                    }
+                    else
+                    {
+                        UpdateTextBoxFromNumericValidator();
+                    }
+                    break;
+
+                case TextInputType.String:
+                case TextInputType.Password:
                 default:
-                    return false;
+                    Text = _textBox.Text;
+                    TextChanged?.Invoke(this, Text);
+                    break;
             }
-        }
-
-        private void ShowOverflowWarning()
-        {
-            _mainBorder.Classes.Add("overflowWarning");
-            ToolTip.SetTip(_mainBorder, "Достигнуто максимальное допустимое значение");
-        }
-
-        private void HideOverflowWarning()
-        {
-            _mainBorder.Classes.Remove("overflowWarning");
-            ToolTip.SetTip(_mainBorder, null);
         }
 
         /// <summary>
-        /// Вычисляет оптимальную позицию каретки после валидации текста
+        /// Обработчик изменения значения в NumericUpDown
         /// </summary>
-        /// <param name="oldText">Текст до изменения</param>
-        /// <param name="newText">Текст после валидации</param>
-        /// <param name="oldCaretIndex">Позиция каретки до изменения</param>
-        /// <returns>Новая позиция каретки</returns>
-        private int CalculateCaretPosition(string oldText, string newText, int oldCaretIndex)
+        private void OnNumericValidatorValueChanged(object sender, NumericUpDownValueChangedEventArgs e)
         {
-            // Если позиция в самом конце, сохраняем её в конце
-            if (oldCaretIndex >= oldText.Length)
-                return newText.Length;
+            if (_isSettingText) return;
 
-            // Если тексты идентичны, позиция не меняется
-            if (oldText == newText)
-                return oldCaretIndex;
+            UpdateTextBoxFromNumericValidator();
+        }
 
-            // Находим самое длинное общее начало строк
-            int commonPrefixLength = 0;
-            int minLength = Math.Min(oldCaretIndex, Math.Min(oldText.Length, newText.Length));
+        /// <summary>
+        /// Обновляет TextBox из свойства Text
+        /// </summary>
+        private void UpdateTextBoxFromText()
+        {
+            if (_isSettingText) return;
 
-            for (int i = 0; i < minLength; i++)
+            _isSettingText = true;
+            try
             {
-                if (oldText[i] != newText[i])
-                    break;
-                commonPrefixLength++;
+                _textBox.Text = Text;
+
+                if (InputType == TextInputType.Integer || InputType == TextInputType.Float)
+                {
+                    if (!string.IsNullOrEmpty(Text) &&
+                        decimal.TryParse(Text.Replace(',', '.'),
+                        NumberStyles.Any, CultureInfo.InvariantCulture, out decimal value))
+                    {
+                        _numericValidator.Value = value;
+                    }
+                }
             }
-
-            // Вычисляем коэффициент масштабирования
-            double scale = 1.0;
-
-            // Если каретка находится после общего префикса
-            if (oldCaretIndex > commonPrefixLength)
+            finally
             {
-                // Вычисляем относительную позицию каретки в изменяемой части
-                double relativePos = 0;
-
-                if (oldText.Length > commonPrefixLength)
-                {
-                    relativePos = (double)(oldCaretIndex - commonPrefixLength) /
-                                  (oldText.Length - commonPrefixLength);
-                }
-
-                // Применяем эту относительную позицию к новому тексту
-                int offsetInNew = 0;
-
-                if (newText.Length > commonPrefixLength)
-                {
-                    offsetInNew = (int)Math.Round(relativePos * (newText.Length - commonPrefixLength));
-                    return Math.Min(commonPrefixLength + offsetInNew, newText.Length);
-                }
-
-                return commonPrefixLength;
+                _isSettingText = false;
             }
+        }
 
-            // Если каретка в общем префиксе, оставляем как есть
-            return oldCaretIndex;
+        /// <summary>
+        /// Обновляет TextBox и Text из значения NumericUpDown
+        /// </summary>
+        private void UpdateTextBoxFromNumericValidator()
+        {
+            if (_isSettingText) return;
+
+            _isSettingText = true;
+            try
+            {
+                if (_numericValidator.Value.HasValue)
+                {
+                    string formattedValue;
+
+                    if (InputType == TextInputType.Integer)
+                    {
+                        formattedValue = _numericValidator.Value.Value.ToString();
+                    }
+                    else
+                    {
+                        formattedValue = _numericValidator.Value.Value.ToString(
+                            "0.###", CultureInfo.InvariantCulture);
+                    }
+
+                    _textBox.Text = formattedValue;
+                    Text = formattedValue;
+                    TextChanged?.Invoke(this, formattedValue);
+                }
+            }
+            finally
+            {
+                _isSettingText = false;
+            }
         }
 
         /// <summary>
@@ -583,6 +427,23 @@ namespace Editor
         /// </summary>
         public T GetValue<T>()
         {
+            if ((InputType == TextInputType.Integer || InputType == TextInputType.Float) &&
+                _numericValidator != null && _numericValidator.Value.HasValue)
+            {
+                if (typeof(T) == typeof(int) || typeof(T) == typeof(int?))
+                {
+                    return (T)(object)((int)_numericValidator.Value.Value);
+                }
+                else if (typeof(T) == typeof(float) || typeof(T) == typeof(float?))
+                {
+                    return (T)(object)((float)_numericValidator.Value.Value);
+                }
+                else if (typeof(T) == typeof(decimal) || typeof(T) == typeof(decimal?))
+                {
+                    return (T)(object)_numericValidator.Value.Value;
+                }
+            }
+
             if (string.IsNullOrEmpty(Text))
                 return default;
 
@@ -598,14 +459,16 @@ namespace Editor
                     case TextInputType.Float:
                         if (typeof(T) == typeof(float) || typeof(T) == typeof(float?))
                             return (T)(object)float.Parse(Text.Replace(',', '.'), CultureInfo.InvariantCulture);
+                        if (typeof(T) == typeof(decimal) || typeof(T) == typeof(decimal?))
+                            return (T)(object)decimal.Parse(Text.Replace(',', '.'), CultureInfo.InvariantCulture);
                         break;
                 }
 
-                // Для других типов пробуем конвертировать
                 return (T)Convert.ChangeType(Text, typeof(T));
             }
-            catch
+            catch (Exception ex)
             {
+                DebLogger.Debug($"Ошибка при конвертации '{Text}' в {typeof(T).Name}: {ex.Message}");
                 return default;
             }
         }
@@ -621,10 +484,16 @@ namespace Editor
                 return;
             }
 
-            if (InputType == TextInputType.Float && typeof(T) == typeof(float))
+            if ((InputType == TextInputType.Float || InputType == TextInputType.Integer) &&
+                (typeof(T) == typeof(float) || typeof(T) == typeof(int) ||
+                 typeof(T) == typeof(double) || typeof(T) == typeof(decimal)))
             {
-                // Форматируем число с плавающей точкой
-                Text = ((float)(object)value).ToString(CultureInfo.InvariantCulture);
+                decimal decimalValue = Convert.ToDecimal(value);
+                _isSettingText = true;
+                _numericValidator.Value = decimalValue;
+                _isSettingText = false;
+
+                UpdateTextBoxFromNumericValidator();
             }
             else
             {

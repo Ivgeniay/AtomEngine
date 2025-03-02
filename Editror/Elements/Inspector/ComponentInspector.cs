@@ -16,7 +16,8 @@ namespace Editor
 
             _members = type
                 .GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                .Where(m => m is FieldInfo);
+                .Where(m => m is FieldInfo && m.Name.IndexOf("k__") == -1)
+                .ToList();
                 //.Where(m => m is PropertyInfo || m is FieldInfo);
 
             foreach (var member in _members)

@@ -12,15 +12,15 @@ namespace Editor
 
             var checkBox = new CheckBox
             {
-                IsChecked = Convert.ToBoolean(Descriptor.Value),
-                IsEnabled = !Descriptor.IsReadOnly
+                IsChecked = Convert.ToBoolean(descriptor.Value),
+                IsEnabled = !descriptor.IsReadOnly
             };
 
             checkBox.IsCheckedChanged += (s, e) =>
             {
                 if (checkBox.IsChecked != null)
                 {
-                    Descriptor.OnValueChanged?.Invoke(checkBox.IsChecked.Value);
+                    descriptor.OnValueChanged?.Invoke(checkBox.IsChecked.Value);
                 }
             };
 
