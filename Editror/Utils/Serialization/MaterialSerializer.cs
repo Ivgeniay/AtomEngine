@@ -34,6 +34,7 @@ namespace Editor
 
             var serializableData = new
             {
+                material.Guid,
                 material.ShaderRepresentationGuid,
                 material.ShaderRepresentationTypeName,
                 material.Name,
@@ -48,7 +49,8 @@ namespace Editor
         {
             var settings = new JsonSerializerSettings
             {
-                TypeNameHandling = TypeNameHandling.Auto
+                TypeNameHandling = TypeNameHandling.Auto,
+                ObjectCreationHandling = ObjectCreationHandling.Replace
             };
 
             var deserializedData = JsonConvert.DeserializeObject<MaterialAsset>(json, settings);

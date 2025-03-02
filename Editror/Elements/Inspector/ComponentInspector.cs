@@ -4,29 +4,59 @@ using Newtonsoft.Json;
 using System.Linq;
 using AtomEngine;
 using System;
+using OpenglLib;
+using AtomEngine.RenderEntity;
+using Avalonia.Styling;
 
 namespace Editor
 {
     public class ComponentInspector
     {
         private IEnumerable<MemberInfo> _members;
+        private bool _isGlDependable = false;
+
         public IEnumerable<PropertyDescriptor> CreateDescriptors(IComponent component)
         {
             var type = component.GetType();
 
+            _isGlDependable = type.CustomAttributes.Any(e => e.AttributeType == typeof(GLDependableAttribute));
+
             _members = type
                 .GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                .Where(m => m is FieldInfo && m.Name.IndexOf("k__") == -1)
+                .Where(m =>
+                {
+                    if (m is FieldInfo field)
+                    {
+                        if (!_isGlDependable & GLDependableTypes.IsDependableType(field.FieldType))
+                        {
+                            return false;
+                        }
+
+                        if (m.Name.IndexOf("k__", StringComparison.Ordinal) != -1)
+                        {
+                            return false;
+                        }
+
+                        return true;
+                    }
+                    return false;
+                })
                 .ToList();
-                //.Where(m => m is PropertyInfo || m is FieldInfo);
+            //.Where(m => m is PropertyInfo || m is FieldInfo);
 
             foreach (var member in _members)
             {
-                if (member.GetCustomAttribute<NonSerializedAttribute>() != null 
+                if (member.GetCustomAttribute<NonSerializedAttribute>() != null
                     || member.GetCustomAttribute<JsonIgnoreAttribute>() != null
                     || member.GetCustomAttribute<HideInInspectorAttribute>() != null
                     )
                     continue;
+
+                if (member is FieldInfo field && 
+                    field.Name.EndsWith("GUID") && 
+                    field.IsPrivate && 
+                    field.FieldType == typeof(string))
+                        continue;
 
                 var descriptor = CreateDescriptorForMember(component, member);
                 if (descriptor != null)
@@ -92,7 +122,11 @@ namespace Editor
                 var guidMember = _members.FirstOrDefault(m => m.Name == member.Name + "GUID");
                 if (guidMember != null)
                 {
+                    var val = GetValue(component, guidMember);
+                    DebLogger.Debug($"{guidMember.Name} Before: {val}");
                     SetValue(component, guidMember, redirection.Value);
+                    val = GetValue(component, guidMember);
+                    DebLogger.Debug($"{guidMember.Name} After: {val}");
                 }
                 return;
             }

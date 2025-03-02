@@ -8,40 +8,34 @@ namespace Editor
 {
     internal class ProjectScene
     {
-        private readonly object _worldLock = new object();
-
         public List<WorldData> Worlds = new List<WorldData>(); 
         public string ScenePath { get; set; } = string.Empty;
+        private uint _entityIndexator = 0;
 
         [JsonIgnore] private WorldData _currentWorldData { get; set; }
+
         public WorldData CurrentWorldData
         {
             get
             {
-                lock (_worldLock)
+                if (_currentWorldData == null)
                 {
-                    if (_currentWorldData == null)
+                    if (Worlds.Count == 0)
                     {
-                        if (Worlds.Count == 0)
-                        {
-                            WorldData newWorld = SceneFileHelper.CreateNewScene();
-                            Worlds.Add(newWorld);
-                            _currentWorldData = newWorld;
-                        }
-                        else
-                        {
-                            _currentWorldData = Worlds.First();
-                        }
+                        WorldData newWorld = SceneFileHelper.CreateNewScene();
+                        Worlds.Add(newWorld);
+                        _currentWorldData = newWorld;
                     }
-                    return _currentWorldData;
+                    else
+                    {
+                        _currentWorldData = Worlds.First();
+                    }
                 }
+                return _currentWorldData;
             }
             set
             {
-                lock (_worldLock)
-                {
-                    _currentWorldData = value;
-                }
+                _currentWorldData = value;
             }
         }
         public ProjectScene(List<WorldData> worlds, WorldData currentWorldData)
@@ -56,7 +50,7 @@ namespace Editor
         #region Entity
         internal void AddEntity(string entityName)
         {
-            Entity entity = CurrentWorldData.World.CreateEntity();
+            Entity entity = new Entity(_entityIndexator++, 0);
             EntityData newEntityData = new EntityData()
             {
                 Name = entityName,
@@ -68,7 +62,7 @@ namespace Editor
         }
         internal void AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
         {
-            Entity entity = CurrentWorldData.World.CreateEntity();
+            Entity entity = new Entity(_entityIndexator++, 0);
             EntityData newEntityData = new EntityData()
             {
                 Name = hierarchyEntity.Name,
@@ -92,7 +86,6 @@ namespace Editor
             var world = CurrentWorldData;
             var editableEntity = world.Entities.Where(e => e.Id == entity.Id && e.Version == entity.Version).First();
             world.Entities.Remove(editableEntity);
-            CurrentWorldData.World.DestroyEntity(entity.Id, entity.Version);
             MakeDirty();
         }
         #endregion

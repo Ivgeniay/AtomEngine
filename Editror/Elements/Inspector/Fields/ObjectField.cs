@@ -1,12 +1,7 @@
-﻿using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Layout;
+﻿using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Media;
-using Avalonia;
 using System;
-using System.Linq;
-using System.IO;
 
 namespace Editor
 {
@@ -48,293 +43,83 @@ namespace Editor
             set => SetValue(PlaceholderTextProperty, value);
         }
 
+
+        public static readonly StyledProperty<string> LabelProperty =
+            AvaloniaProperty.Register<ObjectField, string>(nameof(Label), string.Empty);
+
+        /// <summary>
+        /// Текст метки поля
+        /// </summary>
+        public string Label
+        {
+            get => GetValue(LabelProperty);
+            set => SetValue(LabelProperty, value);
+        }
+
         /// <summary>
         /// Событие, вызываемое при изменении объекта
         /// </summary>
         public event EventHandler<string> ObjectChanged;
 
-        private Border _mainBorder;
-        private Image _previewImage;
-        private TextBlock _objectNameText;
-        private Button _browseButton;
-        private Button _clearButton;
-        public object Value;
+        private TextBlock _labelControl;
+        private ObjectInputField _inputField;
+        private bool _isSettingValue = false;
 
         public ObjectField()
         {
             InitializeComponent();
-
-            PropertyChanged += (s, e) => {
-                if (e.Property == ObjectPathProperty)
-                {
-                    UpdateUI();
-                }
-            };
+            SetupEventHandlers();
         }
 
         private void InitializeComponent()
         {
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Для превью
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star }); // Для текста
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Для кнопок
+            Margin = new Thickness(4, 0);
+            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
 
-            // Основная рамка
-            _mainBorder = new Border
+            _labelControl = new TextBlock
             {
-                Classes = { "objectFieldBorder" },
-                Padding = new Thickness(4),
-                Height = 24
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                Classes = { "propertyLabel" }
+            };
+            Label = "Object Field";
+
+            _inputField = new ObjectInputField
+            {
             };
 
-            Children.Add(_mainBorder);
-            Grid.SetColumnSpan(_mainBorder, 3);
+            Grid.SetColumn(_labelControl, 0);
+            Grid.SetColumn(_inputField, 1);
 
-            // Превью изображение
-            _previewImage = new Image
-            {
-                Width = 16,
-                Height = 16,
-                Margin = new Thickness(4, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-
-            // Текстовый блок для имени объекта
-            _objectNameText = new TextBlock
-            {
-                Text = PlaceholderText,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(4, 0),
-                Foreground = new SolidColorBrush(Colors.White)
-            };
-
-            // Кнопка выбора объекта
-            _browseButton = new Button
-            {
-                Content = "⋯",
-                Width = 24,
-                Height = 24,
-                Padding = new Thickness(0),
-                Margin = new Thickness(2, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Classes = { "objectFieldButton" }
-            };
-            _browseButton.Click += OnBrowseButtonClick;
-
-            // Кнопка очистки
-            _clearButton = new Button
-            {
-                Content = "×",
-                Width = 24,
-                Height = 24,
-                Padding = new Thickness(0),
-                Margin = new Thickness(2, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Classes = { "objectFieldButton" }
-            };
-            _clearButton.Click += OnClearButtonClick;
-
-            Grid.SetColumn(_previewImage, 0);
-            Grid.SetColumn(_objectNameText, 1);
-            Grid.SetColumn(_browseButton, 2);
-            Grid.SetColumn(_clearButton, 2);
-
-            Children.Add(_previewImage);
-            Children.Add(_objectNameText);
-            Children.Add(_browseButton);
-            Children.Add(_clearButton);
-
-            // Настраиваем перетаскивание
-            EnableDragDrop();
-
-            UpdateUI();
+            Children.Add(_labelControl);
+            Children.Add(_inputField);
         }
 
-        /// <summary>
-        /// Включает поддержку Drag & Drop
-        /// </summary>
-        private void EnableDragDrop()
+        private void SetupEventHandlers()
         {
-            DragDrop.SetAllowDrop(this, true);
+            _inputField.ObjectChanged += (sender, e) => ObjectChanged?.Invoke(this, e);
 
-            this.AddHandler(DragDrop.DragEnterEvent, OnDragEnter);
-            this.AddHandler(DragDrop.DragLeaveEvent, OnDragLeave);
-            this.AddHandler(DragDrop.DropEvent, OnDrop);
-        }
-
-        /// <summary>
-        /// Обработчик события перетаскивания над компонентом
-        /// </summary>
-        private void OnDragEnter(object sender, DragEventArgs e)
-        {
-            if (e.Data.Contains(DataFormats.Text))
+            this.PropertyChanged += (s, e) =>
             {
-                try
+                if (e.Property == LabelProperty)
                 {
-                    var jsonData = e.Data.Get(DataFormats.Text) as string;
-                    if (!string.IsNullOrEmpty(jsonData))
-                    {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
-
-                        if (IsValidFileType(fileEvent.FileExtension))
-                        {
-                            _mainBorder.BorderBrush = new SolidColorBrush(Colors.DodgerBlue);
-                            _mainBorder.Background = new SolidColorBrush(Color.FromArgb(50, 30, 144, 255));
-                            e.DragEffects = DragDropEffects.Copy;
-                        }
-                        else
-                        {
-                            e.DragEffects = DragDropEffects.None;
-                        }
-                    }
+                    _labelControl.Text = Label;
                 }
-                catch
+                else if (e.Property == AllowedExtensionsProperty)
                 {
-                    e.DragEffects = DragDropEffects.None;
+                    _inputField.AllowedExtensions = AllowedExtensions;
                 }
-            }
-
-            e.Handled = true;
-        }
-
-        /// <summary>
-        /// Обработчик события выхода за пределы компонента при перетаскивании
-        /// </summary>
-        private void OnDragLeave(object sender, DragEventArgs e)
-        {
-            ResetDragVisual();
-            e.Handled = true;
-        }
-
-        /// <summary>
-        /// Обработчик события сброса перетаскиваемого элемента
-        /// </summary>
-        private void OnDrop(object sender, DragEventArgs e)
-        {
-            ResetDragVisual();
-
-            if (e.Data.Contains(DataFormats.Text))
-            {
-                try
+                else if (e.Property == PlaceholderTextProperty)
                 {
-                    var jsonData = e.Data.Get(DataFormats.Text) as string;
-                    if (!string.IsNullOrEmpty(jsonData))
-                    {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
-
-                        if (IsValidFileType(fileEvent.FileExtension))
-                        {
-                            ObjectPath = fileEvent.FileFullPath;
-                            ObjectChanged?.Invoke(this, ObjectPath);
-                            Status.SetStatus($"Объект выбран: {fileEvent.FileName}");
-                        }
-                        else
-                        {
-                            Status.SetStatus($"Неподдерживаемый тип файла: {fileEvent.FileExtension}");
-                        }
-                    }
+                    _inputField.PlaceholderText = PlaceholderText;
                 }
-                catch (Exception ex)
+                else if (e.Property == ObjectPathProperty)
                 {
-                    Status.SetStatus($"Ошибка при обработке файла: {ex.Message}");
+                    _inputField.ObjectPath = ObjectPath;
                 }
-            }
-
-            e.Handled = true;
-        }
-
-        /// <summary>
-        /// Сбрасывает визуальные эффекты перетаскивания
-        /// </summary>
-        private void ResetDragVisual()
-        {
-            _mainBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(45, 45, 45));
-            _mainBorder.Background = new SolidColorBrush(Color.FromRgb(56, 56, 56));
-        }
-
-        /// <summary>
-        /// Проверяет валидность типа файла
-        /// </summary>
-        private bool IsValidFileType(string extension)
-        {
-            if (string.IsNullOrEmpty(extension))
-                return false;
-
-            // Если расширения не указаны, принимаем любые
-            if (AllowedExtensions == null || AllowedExtensions.Length == 0)
-                return true;
-
-            return AllowedExtensions.Any(ext =>
-                extension.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
-        }
-
-        /// <summary>
-        /// Обработчик нажатия кнопки выбора файла
-        /// </summary>
-        private async void OnBrowseButtonClick(object sender, RoutedEventArgs e)
-        {
-            var dialog = new OpenFileDialog
-            {
-                AllowMultiple = false,
-                Title = "Выберите объект"
             };
 
-            // Настраиваем фильтры по расширениям
-            if (AllowedExtensions != null && AllowedExtensions.Length > 0)
-            {
-                dialog.Filters.Add(new FileDialogFilter
-                {
-                    Name = "Поддерживаемые типы",
-                    Extensions = AllowedExtensions.Select(ext => ext.TrimStart('.')).ToList()
-                });
-            }
-
-            var result = await dialog.ShowAsync(
-                Window.GetTopLevel(this) as Window);
-
-            if (result != null && result.Length > 0)
-            {
-                ObjectPath = result[0];
-                ObjectChanged?.Invoke(this, ObjectPath);
-                Status.SetStatus($"Объект выбран: {Path.GetFileName(ObjectPath)}");
-            }
-        }
-
-        /// <summary>
-        /// Обработчик нажатия кнопки очистки
-        /// </summary>
-        private void OnClearButtonClick(object sender, RoutedEventArgs e)
-        {
-            ObjectPath = null;
-            ObjectChanged?.Invoke(this, null);
-            UpdateUI();
-        }
-
-        /// <summary>
-        /// Обновляет пользовательский интерфейс
-        /// </summary>
-        private void UpdateUI()
-        {
-            bool hasObject = !string.IsNullOrEmpty(ObjectPath);
-
-            _objectNameText.Text = hasObject
-                ? Path.GetFileName(ObjectPath)
-                : PlaceholderText;
-
-            _objectNameText.Foreground = hasObject
-                ? new SolidColorBrush(Colors.White)
-                : new SolidColorBrush(Color.FromRgb(170, 170, 170));
-
-            _clearButton.IsVisible = hasObject;
-
-            // Устанавливаем соответствующую иконку в зависимости от типа файла
-            if (hasObject)
-            {
-                string extension = Path.GetExtension(ObjectPath).ToLowerInvariant();
-                // Можно добавить логику для отображения разных иконок в зависимости от типа файла
-                // Например, через словарь ресурсов
-            }
+            _labelControl.Text = Label;
         }
     }
 }

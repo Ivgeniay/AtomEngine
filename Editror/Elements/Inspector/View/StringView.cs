@@ -8,9 +8,11 @@ namespace Editor
         public StringView(PropertyDescriptor descriptor) : base(descriptor) { }
         public override Control GetView()
         {
+            string text = descriptor.Value as string;
+
             StringField field = new StringField();
             field.Label = descriptor.Name;
-
+            field.Text = text;
             field.KeyDown += (s, e) =>
             {
                 if (e.Key == Key.Enter)

@@ -10,8 +10,11 @@ namespace Editor
 
         public override Control GetView()
         {
+            float value = (float)descriptor.Value;
+
             FloatField field = new FloatField();
             field.Label = descriptor.Name;
+            field.Value = value;
 
             field.ValueChanged += (sender, e) =>
             {

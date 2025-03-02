@@ -13,6 +13,7 @@ namespace Editor.Elements.Inspector.View
             Vector2FloatField field = new Vector2FloatField();
 
             field.Label = descriptor.Name;
+            field.Value = vector;
             field.ValueChanged += (s, e) =>
             {
                 descriptor.OnValueChanged?.Invoke(e);
@@ -32,6 +33,7 @@ namespace Editor.Elements.Inspector.View
             Vector2FloatSilkField field = new Vector2FloatSilkField();
 
             field.Label = descriptor.Name;
+            field.Value = vector;
             field.ValueChanged += (s, e) =>
             {
                 descriptor.OnValueChanged?.Invoke(e);

@@ -96,22 +96,5 @@ namespace Editor
             }
         }
 
-        private async Task WaitForServiceInitializationCompletion()
-        {
-            var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-
-            try
-            {
-                while (ServiceHub.QuontityInInitOrder > 0)
-                {
-                    await Task.Delay(100, cancellationTokenSource.Token);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                DebLogger.Error("ѕревышено врем€ ожидани€ инициализации сервисов");
-                throw;
-            }
-        }
     }
 }

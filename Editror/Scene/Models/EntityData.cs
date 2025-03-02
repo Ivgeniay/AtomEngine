@@ -13,6 +13,10 @@ namespace Editor
         [JsonConverter(typeof(ComponentDictionaryConverter))]
         public Dictionary<string, IComponent> Components { get; set; } = new();
 
+        public string Guid { get; set; } = System.Guid.NewGuid().ToString();
+        public bool IsPrefabInstance { get; set; } = false;
+        public string PrefabSourceGuid { get; set; } = string.Empty;
+
         public static Entity CreateEntity(EntityData entityData) => new Entity(entityData.Id, entityData.Version);
         public static EntityData CreateFromEntity(Entity entity) => new EntityData() { Id = entity.Id, Version = entity.Version };
         public static EntityData CreateFromEntity(Entity entity, Dictionary<string, IComponent> components) => new EntityData() { Id = entity.Id, Version = entity.Version, Components = components };

@@ -81,31 +81,8 @@ namespace Editor
         {
             string json = MaterialSerializer.SerializeMaterial(material);
             File.WriteAllText(path, json);
-            //string json = JsonConvert.SerializeObject(material, Formatting.Indented);
-            //File.WriteAllText(path, json);
-
-            //// Создаем метаданные для материала
-            //var metadata = new AssetMetadata
-            //{
-            //    AssetType = MetadataType.Material,
-            //    LastModified = DateTime.UtcNow
-            //};
-
-            //// Добавляем зависимость от шейдерного представления
-            //if (!string.IsNullOrEmpty(material.ShaderRepresentationGuid))
-            //{
-            //    metadata.Dependencies.Add(material.ShaderRepresentationGuid);
-            //}
-
-            //// Добавляем зависимости от текстур
-            //foreach (var textureGuid in material.TextureReferences.Values)
-            //{
-            //    metadata.Dependencies.Add(textureGuid);
-            //}
-
-
-            //MetadataManager.Instance.SaveMetadata(path, metadata);
         }
+
         public MaterialAsset LoadMaterial(string path)
         {
             if (!File.Exists(path))
@@ -127,6 +104,10 @@ namespace Editor
 
             return asset;
         }
+        public MaterialAsset GetMaterial(string guid) => 
+            _cacheMaterials.FirstOrDefault(e => e.Value.Guid == guid).Value;
+        public string GetPath(string guid) => 
+            _cacheMaterials.FirstOrDefault(e => e.Value.Guid == guid).Key;
         public string GetPath(MaterialAsset material) =>
             _cacheMaterials.Where(e => e.Value.Equals(material)).FirstOrDefault().Key;
 

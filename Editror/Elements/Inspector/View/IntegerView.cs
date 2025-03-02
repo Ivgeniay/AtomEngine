@@ -9,27 +9,43 @@ namespace Editor
 
         public override Control GetView()
         {
-            var grid = CreateBaseLayout();
+            int value = (int)descriptor.Value;
 
-            var numericUpDown = new NumericUpDown
+            IntegerField field = new IntegerField();
+            field.IsReadOnly = descriptor.IsReadOnly;
+            field.Value = value;
+            field.ValueChanged += (s, e) =>
             {
-                Value = Convert.ToInt32(descriptor.Value),
-                IsEnabled = !descriptor.IsReadOnly,
-                Classes = { "vectorEditor" },
-            };
-
-            numericUpDown.ValueChanged += (s, e) =>
-            {
-                if (numericUpDown.Value != null)
+                if (field.Value != value)
                 {
-                    descriptor.OnValueChanged?.Invoke(numericUpDown.Value);
+                    descriptor.OnValueChanged?.Invoke(field.Value);
                 }
             };
 
-            Grid.SetColumn(numericUpDown, 1);
-            grid.Children.Add(numericUpDown);
 
-            return grid;
+            return field;
+
+            //var grid = CreateBaseLayout();
+
+            //var numericUpDown = new NumericUpDown
+            //{
+            //    Value = Convert.ToInt32(descriptor.Value),
+            //    IsEnabled = !descriptor.IsReadOnly,
+            //    Classes = { "vectorEditor" },
+            //};
+
+            //numericUpDown.ValueChanged += (s, e) =>
+            //{
+            //    if (numericUpDown.Value != null)
+            //    {
+            //        descriptor.OnValueChanged?.Invoke(numericUpDown.Value);
+            //    }
+            //};
+
+            //Grid.SetColumn(numericUpDown, 1);
+            //grid.Children.Add(numericUpDown);
+
+            //return grid;
         }
     }
 }
