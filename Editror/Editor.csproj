@@ -19,6 +19,7 @@
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="System.Reactive" Version="6.0.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -35,6 +36,7 @@
     <AvaloniaXaml Remove="Styles\Title.axaml" />
     <AvaloniaXaml Remove="Styles\Toolbar.axaml" />
     <AvaloniaXaml Remove="Styles\VisualElements\ObjectField.axaml" />
+    <AvaloniaXaml Remove="Styles\VisualElements\TextInputField.axaml" />
     <AvaloniaXaml Remove="Styles\World.axaml" />
   </ItemGroup>
 
@@ -79,6 +81,9 @@
       <SubType>Designer</SubType>
     </AvaloniaResource>
     <AvaloniaResource Update="Styles\VisualElements\ObjectField.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
+    <AvaloniaResource Update="Styles\VisualElements\TextInputField.axaml">
       <SubType>Designer</SubType>
     </AvaloniaResource>
     <AvaloniaResource Update="Styles\World.axaml">

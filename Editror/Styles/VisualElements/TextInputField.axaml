@@ -1,0 +1,71 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Editor="using:Editor">
+  <Design.PreviewWith>
+    <Border Padding="20">
+    </Border>
+  </Design.PreviewWith>
+
+  <!-- Add Styles Here -->
+  <Style Selector="Border.textInputBorder">
+    <Setter Property="Background" Value="#383838" />
+    <Setter Property="BorderBrush" Value="#2D2D2D" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="3" />
+    <Setter Property="Height" Value="24" />
+  </Style>
+
+  <Style Selector="Border.textInputBorder.overflowWarning">
+    <Setter Property="BorderBrush" Value="#CC0000" />
+    <Setter Property="Background" Value="#33CC0000" />
+    <Style.Animations>
+      <Animation Duration="0:0:0.3" FillMode="Forward">
+        <KeyFrame Cue="0%">
+          <Setter Property="BorderBrush" Value="#CC0000" />
+        </KeyFrame>
+        <KeyFrame Cue="50%">
+          <Setter Property="BorderBrush" Value="#FF0000" />
+        </KeyFrame>
+        <KeyFrame Cue="100%">
+          <Setter Property="BorderBrush" Value="#CC0000" />
+        </KeyFrame>
+      </Animation>
+    </Style.Animations>
+  </Style>
+
+  <Style Selector="Border.textInputBorder:pointerover">
+    <Setter Property="BorderBrush" Value="#505050" />
+  </Style>
+
+  <Style Selector="Border.textInputBorder:focus-within">
+    <Setter Property="BorderBrush" Value="#007ACC" />
+  </Style>
+
+  <Style Selector="TextBox.textInpuntTextbox">
+    <Setter Property="CaretBrush" Value="White"/>
+    <Setter Property="SelectionBrush" Value="#264F78"/>
+    <Setter Property="SelectionForegroundBrush" Value="White"/>
+    <Setter Property="Padding" Value="4,0"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+
+  <!-- Стиль для подсказки (placeholder/watermark) -->
+  <Style Selector="TextBox.textInpuntTextbox:placeholder">
+    <Setter Property="Foreground" Value="#808080"/>
+    
+  </Style>
+
+  <!-- Стиль для поля пароля -->
+  <Style Selector="TextBox.passwordInput">
+    <Setter Property="PasswordChar" Value="*"/>
+  </Style>
+
+  <!-- Стиль для режима только для чтения -->
+  <Style Selector="TextBox:disabled">
+    <Setter Property="Opacity" Value="0.6"/>
+  </Style>
+</Styles>

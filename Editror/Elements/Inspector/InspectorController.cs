@@ -35,6 +35,7 @@ namespace Editor
             };
 
             _scrollViewer.Content = _container;
+
             Children.Add(_scrollViewer);
 
             //EnableDropInInspector();
