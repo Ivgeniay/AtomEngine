@@ -62,7 +62,12 @@ namespace Editor
                 // Фабрики
                 ServiceHub.RegisterService<TextureFactory>();
                 ServiceHub.RegisterService<MaterialFactory>();
+
                 ServiceHub.RegisterService<ResourceManager>();
+                ServiceHub.RegisterService<ToolbarService>();
+                ServiceHub.RegisterService<DraggableWindowManagerService>();
+                ServiceHub.RegisterService<SceneManager>();
+                ServiceHub.RegisterService<InspectorDistributor>();
 
                 int delay = 1000;
 

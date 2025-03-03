@@ -1,9 +1,8 @@
 ﻿using System.Collections.Generic;
 using Avalonia.Controls;
+using Avalonia.Layout;
 using System.Linq;
 using AtomEngine;
-using Avalonia.Layout;
-using Avalonia.Media;
 
 namespace Editor
 {
@@ -46,7 +45,8 @@ namespace Editor
                 {
                     Name = $"Component: {component.GetType().Name}",
                     Type = typeof(ComponentPropertiesView),
-                    Value = _componentInspector.CreateDescriptors(component).ToList()
+                    Value = _componentInspector.CreateDescriptors(component).ToList(),
+                    Context = component,
                 };
             }
         }

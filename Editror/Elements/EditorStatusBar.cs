@@ -5,7 +5,7 @@ using System;
 
 namespace Editor
 {
-    public class EditorStatusBar : IStatusProvider
+    public class EditorStatusBar : Control, IStatusProvider
     {
         private Border _container;
         private TextBlock _statusText;
@@ -22,7 +22,6 @@ namespace Editor
                 throw new ArgumentNullException(nameof(container), "StatusBar container cannot be null");
 
             CreateStatusBar();
-            Status.RegisterStatusProvider(this);
         }
 
         private void CreateStatusBar()

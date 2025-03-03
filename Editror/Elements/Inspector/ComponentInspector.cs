@@ -77,6 +77,7 @@ namespace Editor
 
             return new PropertyDescriptor
             {
+                Context = component,
                 Name = member.Name,
                 Type = memberType,
                 Value = value,

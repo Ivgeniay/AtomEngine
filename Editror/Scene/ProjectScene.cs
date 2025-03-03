@@ -22,7 +22,7 @@ namespace Editor
                 {
                     if (Worlds.Count == 0)
                     {
-                        WorldData newWorld = SceneFileHelper.CreateNewScene();
+                        WorldData newWorld = SceneFileHelper.CreateWorldData();
                         Worlds.Add(newWorld);
                         _currentWorldData = newWorld;
                     }
@@ -43,8 +43,14 @@ namespace Editor
             Worlds = worlds;
             _currentWorldData = currentWorldData;
         }
-        public bool IsDirty { get => Worlds.Any(e => e.IsDirty); private set => CurrentWorldData.IsDirty = value; }
-        public string WorldName { get => CurrentWorldData.WorldName; set { CurrentWorldData.WorldName = value; MakeDirty(); } }
+        public bool IsDirty { 
+            get => Worlds.Any(e => e.IsDirty);
+            private set => CurrentWorldData.IsDirty = value;
+        }
+        public string WorldName {
+            get => CurrentWorldData.WorldName;
+            set { CurrentWorldData.WorldName = value; MakeDirty(); } 
+        }
 
 
         #region Entity

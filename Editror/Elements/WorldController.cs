@@ -13,19 +13,22 @@ namespace Editor
 {
     internal class WorldController : Grid, IWindowed
     {
+        public Action<object> OnClose { get; set; }
+
         private string _baseName = "world";
         private ListBox _worldsList;
         private ObservableCollection<string> _worlds;
         private ContextMenu _worldListContextMenu;
         private ContextMenu _worldContextMenu;
-        public Action<object> OnClose { get; set; }
 
         public event EventHandler<string> WorldSelected;
         public event EventHandler<string> WorldCreated;
         public event EventHandler<(string, string)> WorldRenamed;
         public event EventHandler<string> WorldDeleted;
 
-        public WorldController(ProjectScene scene)
+        private bool _isOpen = false;
+
+        public WorldController()
         {
             _worlds = new ObservableCollection<string>();
 
@@ -306,10 +309,31 @@ namespace Editor
             _worlds.Clear();
         }
 
+        private ProjectScene _currentScene;
         internal void UpdateWorlds(ProjectScene currentScene)
         {
+            _currentScene = currentScene;
+            Redraw();
+        }
+
+        public void Open()
+        {
+            Redraw();
+            _isOpen = true;
+        }
+
+        public void Close()
+        {
+            _isOpen = false;
+        }
+
+        public void Redraw()
+        {
             ClearWorlds();
-            CreateWorldsFromScene(currentScene, withInvoking: false);
+            if (_isOpen && _currentScene != null)
+            {
+                CreateWorldsFromScene(_currentScene, withInvoking: false);
+            }
         }
     }
 }

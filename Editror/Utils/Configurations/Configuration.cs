@@ -15,15 +15,9 @@ namespace Editor
         private const string EXPLORER_CONFIG_FILE = "explorer.config";
         private const string SCENE_CONFIG_FILE = "scenes.config";
         private const string PROJECT_CONFIG_FILE = "project.config";
-
-        private static JsonSerializerSettings settings = new JsonSerializerSettings()
-        {
-            Formatting = Formatting.Indented,
-            ObjectCreationHandling = ObjectCreationHandling.Replace
-        };
+        private const string WINDOW_MANAGER_CONFIG_FILE = "w_manager.config";
 
         private static bool _isInitialized = false;
-        
         public Configuration() { }
 
         public Task InitializeAsync()
@@ -47,6 +41,11 @@ namespace Editor
                     Path.Combine(
                         ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Configurations),
                         PROJECT_CONFIG_FILE));
+                configsSource.Add(
+                    ConfigurationSource.WindowManagerConfigs,
+                    Path.Combine(
+                        ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Configurations),
+                        WINDOW_MANAGER_CONFIG_FILE));
 
                 foreach (KeyValuePair<ConfigurationSource, string> kvp in configsSource)
                 {
@@ -58,13 +57,16 @@ namespace Editor
                         switch (kvp.Key)
                         {
                             case ConfigurationSource.ProjectConfigs:
-                                value = JsonConvert.SerializeObject(new ProjectConfigurations(), settings);
+                                value = JsonConvert.SerializeObject(new ProjectConfigurations(), GlobalDeserializationSettings.Settings);
                                 break;
                             case ConfigurationSource.SceneConfigs:
-                                value = JsonConvert.SerializeObject(new SceneConfiguration(), settings);
+                                value = JsonConvert.SerializeObject(new SceneConfiguration(), GlobalDeserializationSettings.Settings);
                                 break;
                             case ConfigurationSource.ExplorerConfigs:
-                                value = JsonConvert.SerializeObject(new ExplorerConfigurations(), settings);
+                                value = JsonConvert.SerializeObject(new ExplorerConfigurations(), GlobalDeserializationSettings.Settings);
+                                break;
+                            case ConfigurationSource.WindowManagerConfigs:
+                                value = JsonConvert.SerializeObject(new WindowManagerConfiguration(), GlobalDeserializationSettings.Settings);
                                 break;
 
                         }
@@ -88,7 +90,7 @@ namespace Editor
 
         public async void SafeConfiguration(ConfigurationSource source, object s)
         {
-            var ser = JsonConvert.SerializeObject(s);
+            var ser = JsonConvert.SerializeObject(s, Formatting.Indented);
             configsCache[source] = ser;
             await File.WriteAllTextAsync(configsSource[source], ser);
         }
@@ -96,7 +98,7 @@ namespace Editor
         public string GetConfiguration(ConfigurationSource source) => configsCache[source];
         public T GetConfiguration<T>(ConfigurationSource source)
         {
-            T des = JsonConvert.DeserializeObject<T>(configsCache[source], settings);
+            T des = JsonConvert.DeserializeObject<T>(configsCache[source], GlobalDeserializationSettings.Settings);
             return des;
         }
     }

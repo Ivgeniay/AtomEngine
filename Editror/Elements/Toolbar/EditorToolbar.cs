@@ -7,13 +7,17 @@ using System;
 
 namespace Editor
 {
-    internal class EditorToolbar
+    public class EditorToolbar : Control
     {
         private Border _container;
         private List<EditorToolbarCategory> _categories = new List<EditorToolbarCategory>();
+        private Dictionary<EditorToolbarCategory, Flyout> _floyouts = new Dictionary<EditorToolbarCategory, Flyout>();
+        private Dictionary<EditorToolbarCategory, StackPanel> _stack = new Dictionary<EditorToolbarCategory, StackPanel>();
         private StackPanel toolbarPanel;
 
-        public EditorToolbar(Border container)
+        internal Action<object> OnClose { get; set; }
+
+        internal EditorToolbar(Border container)
         {
             _container = container;
 
@@ -46,26 +50,30 @@ namespace Editor
             toolbarBackground.Child = toolbarPanel;
             _container.Child = toolbarBackground;
 
-            UpdateToolbarButtons();
+            UpdateToolbar();
         }
 
         public void RegisterCathegory(EditorToolbarCategory editorToolbarCategory)
         {
             if (!_categories.Contains(editorToolbarCategory))
+            {
                 _categories.Add(editorToolbarCategory);
-
-            UpdateToolbarButtons();
+                UpdateToolbar();
+            }
         }
 
-        public void UpdateToolbarButtons()
+        public void UpdateToolbar()
         {
             toolbarPanel.Children.Clear();
+            _floyouts.Clear();
+            _stack.Clear();
             foreach (var category in _categories)
             {
                 var menuButton = CreateMenuButtonsFromCategory(category);
                 toolbarPanel.Children.Add(menuButton);
             }
         }
+        public IEnumerable<EditorToolbarCategory> GetEditorData() => _categories;
         private Button CreateMenuButtonsFromCategory(EditorToolbarCategory category)
         {
             var button = new Button
@@ -84,25 +92,12 @@ namespace Editor
                 Spacing = 2,
                 Width = 200
             };
+            _floyouts[category] = flyout;
+            _stack[category] = menuItemsPanel;
 
             foreach (EditorToolbarButton item in category.Buttons)
             {
-                var menuItem = new Button
-                {
-                    Content = item.Text,
-                    Classes = { "menuItem" },
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Padding = new Thickness(8, 6)
-                };
-
-                menuItem.Click += (s, e) =>
-                {
-                    item?.Action?.Invoke();
-                    flyout.Hide();
-                };
-
-                menuItemsPanel.Children.Add(menuItem);
+                CreateMenuButton(category, item);
             }
 
             flyout.Content = menuItemsPanel;
@@ -114,6 +109,27 @@ namespace Editor
             };
 
             return button;
+        }
+    
+        public Button CreateMenuButton(EditorToolbarCategory category, EditorToolbarButton button)
+        {
+            var menuItem = new Button
+            {
+                Content = button.Text,
+                Classes = { "menuItem" },
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Left,
+                Padding = new Thickness(8, 6)
+            };
+
+            menuItem.Click += (s, e) =>
+            {
+                button?.Action?.Invoke();
+                _floyouts[category].Hide();
+            };
+
+            _stack[category].Children.Add(menuItem);
+            return menuItem;
         }
     }
 

@@ -1,0 +1,118 @@
+﻿using System.Collections.Generic;
+using Avalonia.Controls;
+using System.Linq;
+using System;
+
+namespace Editor
+{
+    internal class DraggableWindowManager : IDisposable
+    {
+        private readonly Canvas _mainCanvas;
+        private readonly DraggableWindowFactory _windowFactory;
+        private readonly Dictionary<MainControllers, Control> _controllers = new Dictionary<MainControllers, Control>();
+        private readonly Dictionary<MainControllers, Action<Control>> _openHandlers = new Dictionary<MainControllers, Action<Control>>();
+        private readonly Dictionary<MainControllers, Action<Control>> _closeHandlers = new Dictionary<MainControllers, Action<Control>>();
+        private WindowManagerConfiguration _config;
+
+        public DraggableWindowManager(Canvas mainCanvas)
+        {
+            _mainCanvas = mainCanvas ?? throw new ArgumentNullException(nameof(mainCanvas));
+            _windowFactory = new DraggableWindowFactory(_mainCanvas);
+            _config = ServiceHub.Get<Configuration>().GetConfiguration<WindowManagerConfiguration>(ConfigurationSource.WindowManagerConfigs);
+        }
+
+        public void RegisterController(MainControllers name, Control controller)
+        {
+            if (controller == null)
+                throw new ArgumentNullException(nameof(controller));
+
+            _controllers[name] = controller;
+        }
+        public void RegisterOpenHandler(MainControllers type, Action<Control> handler)
+        {
+            _openHandlers[type] = handler;
+        }
+        public void RegisterCloseHandler(MainControllers type, Action<Control> handler)
+        {
+            _closeHandlers[type] = handler;
+        }
+
+
+        public DraggableWindow OpenWindow(MainControllers type, double left = 10, double top = 10, double width = 250, double height = 400)
+        {
+            if (!_controllers.TryGetValue(type, out var controller))
+            {
+                Status.SetStatus($"Контроллер {type} не зарегистрирован");
+                return null;
+            }
+
+            string windowName = type.ToString();
+            double left_ = left;
+            double top_ = top;
+            double width_ = width;
+            double height_ = height;
+            var kvp_conf = _config.Configurations.Where(e => e.Key == type).FirstOrDefault();
+            WindowConfiguration config = null;
+            if (kvp_conf.Value != null)
+            {
+                config = kvp_conf.Value;
+                left_ = config.Left;
+                top_ = config.Top;
+                width_ = config.Width;
+                height_ = config.Height;
+                windowName = config.Title;
+            }
+            else
+            {
+                config = new WindowConfiguration
+                {
+                    Title = windowName,
+                    Width = width_,
+                    Height = height_,
+                    Left = left_,
+                    Top = top_,
+                };
+                _config.Configurations.Add(type, config);
+            }
+            config.IsOpen = true;
+            var window = _windowFactory.CreateWindow(windowName, controller, left_, top_, width_, height_);
+
+            
+            window.SizeChanged += (sender, e) =>
+            {
+                config.Width = e.NewSize.Width;
+                config.Height = e.NewSize.Height;
+            };
+            window.OnPositionChange += (sender, e) =>
+            {
+                config.Left = e.X;
+                config.Top = e.Y;
+            };
+
+            if (_openHandlers.TryGetValue(type, out var openHandler))
+            {
+                openHandler(controller);
+            }
+
+            window.OnClose += (sender) =>
+            {
+                if (_closeHandlers.TryGetValue(type, out var closeHandler))
+                {
+                    closeHandler(controller);
+                }
+                config.IsOpen = false;
+            };
+
+            return window;
+        }
+        public DraggableWindow CreateWindow(string title, Control content = null, double left = 10, double top = 10, double width = 200, double height = 150)
+        {
+            return _windowFactory.CreateWindow(title, content, left, top, width, height);
+        }
+
+        public void Dispose()
+        {
+            ServiceHub.Get<Configuration>().SafeConfiguration(ConfigurationSource.WindowManagerConfigs, _config);
+        }
+    }
+}

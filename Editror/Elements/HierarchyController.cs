@@ -16,13 +16,14 @@ namespace Editor
 {
     internal class HierarchyController : Grid, IWindowed
     {
-        private ListBox _entitiesList;
+        public Action<object> OnClose { get; set; }
+
+        private ObservableCollection<EntityHierarchyItem> _entities;
         private ContextMenu _backgroundContextMenu;
         private ContextMenu _entityContextMenu;
-        private ObservableCollection<EntityHierarchyItem> _entities;
+        private ProjectScene _currentScene;
+        private ListBox _entitiesList;
         private bool isOpen = false;
-
-        public Action<object> OnClose { get; set; }
         
         public event EventHandler<String> EntityCreated;
         public event EventHandler<EntityHierarchyItem> EntitySelected;
@@ -296,25 +297,6 @@ namespace Editor
             }
         }
 
-        private bool HitTestListBoxItems(Point point) => FindItemByPosition(_entitiesList, point) != null;
-
-        private EntityHierarchyItem FindItemByPosition(ListBox listBox, Point point)
-        {
-            for (int i = 0; i < _entities.Count; i++)
-            {
-                var container = listBox.ContainerFromIndex(i) as ListBoxItem;
-                if (container != null)
-                {
-                    var bounds = container.Bounds;
-                    if (bounds.Contains(point))
-                    {
-                        return _entities[i];
-                    }
-                }
-            }
-            return default;
-        }
-
         public void CreateNewEntity(string name, bool withAvoking = true)
         {
             if (withAvoking) 
@@ -423,24 +405,33 @@ namespace Editor
 
         public void UpdateHyerarchy(ProjectScene currentScene)
         {
-            ClearEntities();
-            for(int i = 0; i < currentScene.CurrentWorldData.Entities.Count(); i++)
-            {
-                CreateHierarchyEntity(currentScene.CurrentWorldData.Entities[i], false);
-            }
+            _currentScene = currentScene;
+            Redraw();
         }
 
         public void Dispose() { }
+        public void Redraw()
+        {
+            ClearEntities();
+            if (isOpen && _currentScene != null)
+            {
+                for (int i = 0; i < _currentScene.CurrentWorldData.Entities.Count(); i++)
+                {
+                    CreateHierarchyEntity(_currentScene.CurrentWorldData.Entities[i], false);
+                }
+            }
+        }
 
-        internal void Open()
+        public void Open()
         {
             isOpen = true;
+            Redraw();
 
             _entitiesList.SelectionChanged += SelectionItemList;
             _entitiesList.SelectionChanged += SelectCallback;
             _entitiesList.DoubleTapped += OnEntitiesListDoubleTapped;
         }
-        internal void Close()
+        public void Close()
         {
             isOpen = false;
 
@@ -497,8 +488,9 @@ namespace Editor
                 DeleteEntity(selectedEntity);
             }
         }
-
         #endregion
+
+
     }
 
     public struct EntityHierarchyItem : INotifyPropertyChanged, IEquatable<EntityHierarchyItem>

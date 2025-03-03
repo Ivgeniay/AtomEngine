@@ -11,10 +11,10 @@ using AtomEngine;
 
 namespace Editor
 {
-
-    public class ConsoleController : Grid, ILogger
+    public class ConsoleController : ContentControl, IWindowed, ILogger
     {
         public static ConsoleController Instance;
+        private Grid _mainGrid;
         private ScrollViewer _scrollViewer;
         private StackPanel _logPanel;
         private TextBox _commandInput;
@@ -22,8 +22,12 @@ namespace Editor
         private ComboBox _filterComboBox;
         private const int MaxLogEntries = 1000;
         private List<LogEntry> _logEntries = new List<LogEntry>();
+        private bool _isOpen = false;
 
         public LogLevel LogLevel { get; set; } = LogLevel.All;
+
+        public Action<object> OnClose { get; set; }
+
         private List<ConsoleCommand> _commands = new List<ConsoleCommand>();
         private class LogEntry
         {
@@ -61,7 +65,6 @@ namespace Editor
                 return Level.ToString().ToUpper();
             }
         }
-        
 
         public ConsoleController()
         {
@@ -70,10 +73,12 @@ namespace Editor
             InitializeDefaultCommands();
             Log("Console initialized", LogLevel.Info);
         }
+
         public void RegisterConsoleCommand(ConsoleCommand command)
         {
-            if (!_commands.Contains(command))_commands.Add(command);
+            if (!_commands.Contains(command)) _commands.Add(command);
         }
+
         private void InitializeDefaultCommands()
         {
             _commands.Add(new ConsoleCommand()
@@ -142,11 +147,13 @@ namespace Editor
                 }
             });
         }
+
         private void InitializeUI()
         {
-            this.RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
-            this.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            this.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            _mainGrid = new Grid();
+            _mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
+            _mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            _mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             // Панель инструментов
             var toolbarPanel = new StackPanel
@@ -178,8 +185,7 @@ namespace Editor
                 }
             }
             _filterComboBox.Items.Add("None");
-            _filterComboBox.SelectedItem = 0;
-            _filterComboBox.SelectedValue = "All";
+            _filterComboBox.SelectedIndex = 0;
 
             _filterComboBox.SelectionChanged += (s, e) =>
             {
@@ -238,9 +244,11 @@ namespace Editor
             Grid.SetRow(toolbarPanel, 1);
             Grid.SetRow(_commandInput, 2);
 
-            this.Children.Add(_scrollViewer);
-            this.Children.Add(toolbarPanel);
-            this.Children.Add(_commandInput);
+            _mainGrid.Children.Add(_scrollViewer);
+            _mainGrid.Children.Add(toolbarPanel);
+            _mainGrid.Children.Add(_commandInput);
+
+            this.Content = _mainGrid;
         }
 
         private void ProcessCommand(string command)
@@ -337,17 +345,8 @@ namespace Editor
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 Margin = new Thickness(0, 0, 0, 1),
-                //Padding = new Thickness(5) // Добавляем отступ для текста
             };
 
-            //var logText = new TextBlock
-            //{
-            //    Text = $"[{entry.GetTimestampString()}] [{entry.GetLevelString()}] {entry.Message}",
-            //    TextWrapping = TextWrapping.Wrap,
-            //    Foreground = entry.GetColor(),
-            //    FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
-            //    HorizontalAlignment = HorizontalAlignment.Stretch
-            //};
             var logText = new TextBox
             {
                 Text = $"[{entry.GetTimestampString()}] [{entry.GetLevelString()}] {entry.Message}",
@@ -400,19 +399,42 @@ namespace Editor
 
             LogLevel = result;
         }
+
         public void EnableLevel(LogLevel logLevel)
         {
             LogLevel |= logLevel;
         }
+
         public void DisableLevel(LogLevel logLevel)
         {
             LogLevel &= ~logLevel;
         }
+
         public void SetOnlyLevel(LogLevel logLevel)
         {
             LogLevel = LogLevel.None;
             LogLevel |= logLevel;
         }
 
+        public void Open()
+        {
+            _isOpen = true;
+            DebLogger.AddLogger(this);
+        }
+
+        public void Close()
+        {
+            _isOpen = false;
+            DebLogger.RemoveLogger(this);
+            OnClose?.Invoke(this);
+        }
+
+        public void Dispose()
+        {
+        }
+
+        public void Redraw()
+        {
+        }
     }
 }

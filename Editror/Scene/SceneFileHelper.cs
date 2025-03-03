@@ -48,8 +48,7 @@ namespace Editor
                     return null;
                 }
 
-                // Десериализуем JSON
-                ProjectScene? sceneData = JsonConvert.DeserializeObject<ProjectScene>(fileContent);
+                ProjectScene? sceneData = JsonConvert.DeserializeObject<ProjectScene>(fileContent, GlobalDeserializationSettings.Settings);
 
                 if (sceneData != null)
                 {
@@ -130,7 +129,7 @@ namespace Editor
         /// </summary>
         /// <param name="window">Родительское окно</param>
         /// <returns>Данные новой сцены или null</returns>
-        public static WorldData CreateNewScene()
+        public static WorldData CreateWorldData()
         {
             var newScene = new WorldData
             {

@@ -1,9 +1,9 @@
-﻿using Avalonia;
+﻿using System.Collections.Generic;
 using Avalonia.Controls;
 using Avalonia.Input;
-using System;
-using System.Collections.Generic;
 using System.Linq;
+using Avalonia;
+using System;
 
 namespace Editor
 {
@@ -144,7 +144,7 @@ namespace Editor
             if (query.Value != null) query.Value.Close();
         }
 
-        private void AttachDragHandlers(Border window, Border titleBar)
+        private void AttachDragHandlers(DraggableWindow window, Border titleBar)
         {
             Point startPoint = new Point();
             bool isDragging = false;
@@ -188,6 +188,8 @@ namespace Editor
 
                 Canvas.SetLeft(window, newOffset.X);
                 Canvas.SetTop(window, newOffset.Y);
+
+                window.OnPositionChange?.Invoke(window, new Vector(newOffset.X, newOffset.Y));
             };
         }
 

@@ -12,7 +12,7 @@ namespace Editor
         private StackPanel _container;
         private ScrollViewer _scrollViewer;
         private IInspectable _currentInspectable;
-        private bool isOpend = false;
+        private bool _isOpend = false;
 
         public Action<object> OnClose { get; set; }
 
@@ -44,7 +44,7 @@ namespace Editor
         public void Inspect(IInspectable inspectable)
         {
             _currentInspectable = inspectable;
-            if (isOpend) RefreshView();
+            if (_isOpend) RefreshView();
             else Clean();
         }
         
@@ -52,9 +52,8 @@ namespace Editor
         {
             Clean();
 
-            if (_currentInspectable == null) return;
+            if (!_isOpend || _currentInspectable == null) return;
 
-            // Заголовок
             _container.Children.Add(new TextBlock
             {
                 Text = _currentInspectable.Title,
@@ -90,7 +89,7 @@ namespace Editor
 
         public void Open()
         {
-            isOpend = true;
+            _isOpend = true;
             if (_currentInspectable == null) return;
             Clean();
             RefreshView();
@@ -99,7 +98,7 @@ namespace Editor
         public void Close()
         {
             Clean();
-            isOpend = false;
+            _isOpend = false;
         }
 
         public void CleanInspected()
@@ -157,7 +156,7 @@ namespace Editor
                         if (!string.IsNullOrEmpty(jsonData))
                         {
                             var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
-                            var inspectable = InspectorDistributor.GetInspectable(fileEvent);
+                            var inspectable = ServiceHub.Get<InspectorDistributor>().GetInspectable(fileEvent);
 
                             if (inspectable != null)
                             {
@@ -183,6 +182,11 @@ namespace Editor
         public void Dispose()
         {
             OnClose?.Invoke(this);
+        }
+
+        public void Redraw()
+        {
+            RefreshView();
         }
     }
 }

@@ -47,13 +47,7 @@ namespace Editor
 
         public static MaterialAsset DeserializeMaterial(string json)
         {
-            var settings = new JsonSerializerSettings
-            {
-                TypeNameHandling = TypeNameHandling.Auto,
-                ObjectCreationHandling = ObjectCreationHandling.Replace
-            };
-
-            var deserializedData = JsonConvert.DeserializeObject<MaterialAsset>(json, settings);
+            var deserializedData = JsonConvert.DeserializeObject<MaterialAsset>(json, GlobalDeserializationSettings.Settings);
 
             if (deserializedData.UniformValues != null)
             {

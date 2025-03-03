@@ -5,5 +5,6 @@
         ProjectConfigs,
         ExplorerConfigs,
         SceneConfigs,
+        WindowManagerConfigs,
     }
 }

@@ -18,8 +18,11 @@ using Avalonia.VisualTree;
 
 namespace Editor
 {
-    public class DirectoryExplorerController : Grid
+    public class ExplorerController : Grid, IWindowed
     {
+        public event Action<FileSelectionEvent> FileSelected;
+        public event Action<string> DirectorySelected;
+
         private readonly string _rootPath;
         private string _currentPath;
         private readonly ExplorerConfigurations configs;
@@ -38,18 +41,13 @@ namespace Editor
         private ContextMenu _explorerContextMenu;
         private ContextMenu _fileContextMenu;
 
-        public event Action<FileSelectionEvent> FileSelected;
-        public event Action<string> DirectorySelected;
+        private bool _isOpen = false;
 
-        public DirectoryExplorerController(ExplorerConfigurations configs) : this()
+        public ExplorerController()
         {
-            if (configs != null) this.configs = configs;
-            RefreshView();
-        }
-
-        public DirectoryExplorerController()
-        {
-            this.configs = new ExplorerConfigurations();
+            this.configs = ServiceHub
+                .Get<Configuration>()
+                .GetConfiguration<ExplorerConfigurations>(ConfigurationSource.ExplorerConfigs);
 
             Classes.Add("directoryExplorer");
 
@@ -744,7 +742,7 @@ namespace Editor
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData, GlobalDeserializationSettings.Settings);
 
                         // Находим элемент дерева под курсором
                         var position = e.GetPosition(_treeView);
@@ -799,7 +797,7 @@ namespace Editor
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData, GlobalDeserializationSettings.Settings);
 
                         // Получаем целевую папку
                         if (_treeView.SelectedItem is TreeViewItem selectedItem &&
@@ -979,6 +977,8 @@ namespace Editor
         private string _clipboardPath;
         private bool _isCut;
         private bool _isDirectory;
+
+        public Action<object> OnClose => throw new NotImplementedException();
 
         private void OnNewFolderCommand()
         {
@@ -1354,6 +1354,7 @@ namespace Editor
         }
 
         #endregion
+        
         public void ExcludeFileExtension(string e)
         {
             if (string.IsNullOrEmpty(e))
@@ -1364,6 +1365,28 @@ namespace Editor
             this.configs.ExcludeExtension.Add(e);
             ServiceHub.Get<Configuration>().SafeConfiguration(ConfigurationSource.ExplorerConfigs, this.configs);
             DebLogger.Info($"{e} was added as excluded file extension");
+        }
+
+        public void Open()
+        {
+            _isOpen = true;
+        }
+
+        public void Close()
+        {
+            _isOpen = false;
+        }
+
+        public void Dispose()
+        {
+        }
+
+        public void Redraw()
+        {
+            if (_isOpen)
+            {
+                RefreshView();
+            }
         }
     }
 }

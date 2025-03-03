@@ -29,25 +29,31 @@ namespace Editor
             FieldInfo targetField = null;
             object targetObject = null;
 
-            var target = descriptor.OnValueChanged.Target;
+            //var target = descriptor.OnValueChanged.Target;
+            //if (target != null)
+            //{
+            //    Type targetType = target.GetType();
+            //    var componentField = targetType.GetField("component", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            //    if (componentField != null)
+            //    {
+            //        targetObject = componentField.GetValue(target);
+            //        if (targetObject != null)
+            //        {
+            //            targetField = targetObject.GetType().GetField(descriptor.Name + "GUID", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            //        }
+            //    }
+            //}
+
+            var target = descriptor.Context;
             if (target != null)
             {
                 Type targetType = target.GetType();
-                var componentField = targetType.GetField("component", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-                if (componentField != null)
-                {
-                    targetObject = componentField.GetValue(target);
-                    if (targetObject != null)
-                    {
-                        targetField = targetObject.GetType().GetField(descriptor.Name + "GUID", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-                    }
-
-                }
+                targetField = targetType.GetField(descriptor.Name + "GUID", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
             }
 
             if (targetField != null)
             {
-                var guid = targetField.GetValue(targetObject);
+                var guid = targetField.GetValue(target);
                 if (guid != null)
                 {
                     return ServiceHub.Get<MaterialManager>().GetPath((string)guid);
@@ -62,6 +68,8 @@ namespace Editor
             objectField.AllowedExtensions = new string[] { ".mat" };
             objectField.Label = descriptor.Name;
             objectField.ObjectPath = Path.GetFileName(GettingStartValue()) ?? string.Empty;
+
+
             objectField.ObjectChanged += (sender, e) =>
             {
                 if (e != null)
