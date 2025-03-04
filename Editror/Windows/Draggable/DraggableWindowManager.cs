@@ -114,5 +114,18 @@ namespace Editor
         {
             ServiceHub.Get<Configuration>().SafeConfiguration(ConfigurationSource.WindowManagerConfigs, _config);
         }
+
+        internal void OpenStartedWindow()
+        {
+            foreach (var type in _controllers)
+            {
+                var pair = _config.Configurations.FirstOrDefault(e => e.Key == type.Key);
+                if (pair.Value != null && pair.Value.IsOpen)
+                {
+                    var conf = pair.Value;
+                    OpenWindow(type.Key, conf.Left, conf.Top, conf.Width, conf.Height);
+                }
+            }
+        }
     }
 }

@@ -12,12 +12,14 @@ namespace Editor
         private StackPanel _container;
         private ScrollViewer _scrollViewer;
         private IInspectable _currentInspectable;
+        private InspectorViewFactory _inspectorViewFactory;
         private bool _isOpend = false;
 
         public Action<object> OnClose { get; set; }
 
         public InspectorController()
         {
+            _inspectorViewFactory = ServiceHub.Get<InspectorViewFactory>();
             InitialializeUI();
         }
 
@@ -82,11 +84,11 @@ namespace Editor
 
             foreach (var property in _currentInspectable.GetProperties())
             {
-                var view = InspectorViewFactory.CreateView(property);
+                var view = _inspectorViewFactory.CreateView(property);
                 _innerContainer.Children.Add(view.GetView());
             }
         }
-
+        
         public void Open()
         {
             _isOpend = true;

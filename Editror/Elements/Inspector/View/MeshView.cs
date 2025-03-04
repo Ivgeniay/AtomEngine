@@ -1,17 +1,13 @@
-﻿using AtomEngine;
-using AtomEngine.RenderEntity;
-using Avalonia.Controls;
-using Avalonia.Layout;
+﻿using Avalonia.Controls;
 using System;
 using System.IO;
 using System.Reflection;
-using System.Xml.Linq;
 
 namespace Editor
 {
-    internal class ShaderView : BasePropertyView
+    internal class MeshView : BasePropertyView
     {
-        public ShaderView(PropertyDescriptor descriptor) : base(descriptor) { }
+        public MeshView(PropertyDescriptor descriptor) : base(descriptor) { }
 
         private string? GettingStartValue()
         {
@@ -30,7 +26,7 @@ namespace Editor
                 var guid = targetField.GetValue(target);
                 if (guid != null)
                 {
-                    return ServiceHub.Get<MaterialManager>().GetPath((string)guid);
+                    return ServiceHub.Get<MeshManager>().GetPath((string)guid);
                 }
             }
             return null;
@@ -39,7 +35,7 @@ namespace Editor
         public override Control GetView()
         {
             ObjectField objectField = new ObjectField();
-            objectField.AllowedExtensions = new string[] { ".mat" };
+            objectField.AllowedExtensions = new string[] { ".obj" };
             objectField.Label = descriptor.Name;
             objectField.ObjectPath = Path.GetFileName(GettingStartValue()) ?? string.Empty;
 
@@ -48,10 +44,10 @@ namespace Editor
             {
                 if (e != null)
                 {
-                    var materialAsset = ServiceHub.Get<MaterialManager>().LoadMaterial(e);
+                    var metaData = ServiceHub.Get<MetadataManager>().GetMetadata(e);
                     descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
                     {
-                        Value = materialAsset.Guid,
+                        Value = metaData.Guid,
                     });
                 }
                 else
@@ -64,6 +60,5 @@ namespace Editor
             };
             return objectField;
         }
-
     }
 }

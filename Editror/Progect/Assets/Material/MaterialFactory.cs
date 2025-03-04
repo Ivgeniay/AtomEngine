@@ -5,12 +5,13 @@ using System.Threading.Tasks;
 using System.Reflection;
 using System;
 using OpenglLib;
+using AtomEngine.RenderEntity;
 
 namespace Editor
 {
     internal class MaterialFactory : IService, IDisposable
     {
-        private Dictionary<string, OpenglLib.Mat> _shaderInstanceCache = new Dictionary<string, OpenglLib.Mat>();
+        private Dictionary<string, ShaderBase> _shaderInstanceCache = new Dictionary<string, ShaderBase>();
         private TextureFactory _textureFactory;
 
         public Task InitializeAsync()
@@ -19,7 +20,7 @@ namespace Editor
             return Task.CompletedTask;
         }
 
-        public OpenglLib.Mat CreateMaterialInstance(GL gl, MaterialAsset material)
+        public ShaderBase CreateMaterialInstance(GL gl, MaterialAsset material)
         {
             if (material == null)
             {
@@ -27,7 +28,7 @@ namespace Editor
                 return null;
             }
 
-            if (_shaderInstanceCache.TryGetValue(material.Guid, out OpenglLib.Mat cachedInstance))
+            if (_shaderInstanceCache.TryGetValue(material.Guid, out ShaderBase cachedInstance))
             {
                 return cachedInstance;
             }
@@ -51,7 +52,7 @@ namespace Editor
             }
         }
 
-        public OpenglLib.Mat CreateMaterialInstance(GL gl, string materialPath)
+        public ShaderBase CreateMaterialInstance(GL gl, string materialPath)
         {
             try
             {
@@ -71,7 +72,7 @@ namespace Editor
             }
         }
 
-        public OpenglLib.Mat CreateMaterialInstanceFromGuid(GL gl, string materialGuid)
+        public ShaderBase CreateMaterialInstanceFromGuid(GL gl, string materialGuid)
         {
             try
             {
@@ -91,7 +92,7 @@ namespace Editor
             }
         }
 
-        private OpenglLib.Mat CreateShaderRepresentationInstance(GL gl, string typeName)
+        private ShaderBase CreateShaderRepresentationInstance(GL gl, string typeName)
         {
             try
             {
@@ -103,8 +104,8 @@ namespace Editor
                     return null;
                 }
 
-                // Проверка, что тип является подклассом Mat
-                if (!typeof(OpenglLib.Mat).IsAssignableFrom(representationType))
+                // Проверка, что тип является подклассом ShaderBase
+                if (!typeof(ShaderBase).IsAssignableFrom(representationType))
                 {
                     DebLogger.Error($"Тип {typeName} не является допустимым шейдерным представлением (должен наследовать от Mat)");
                     return null;
@@ -119,7 +120,7 @@ namespace Editor
                 }
 
                 // Создание и возврат экземпляра
-                return (OpenglLib.Mat)constructor.Invoke(new object[] { gl });
+                return (ShaderBase)constructor.Invoke(new object[] { gl });
             }
             catch (Exception ex)
             {
@@ -153,7 +154,7 @@ namespace Editor
             {
                 foreach (var t in assembly.GetTypes())
                 {
-                    if (t.Name == simpleTypeName && typeof(OpenglLib.Mat).IsAssignableFrom(t))
+                    if (t.Name == simpleTypeName && typeof(ShaderBase).IsAssignableFrom(t))
                     {
                         return t;
                     }
@@ -163,7 +164,7 @@ namespace Editor
             return null;
         }
 
-        private void ApplyUniformValues(OpenglLib.Mat instance, Dictionary<string, object> uniformValues)
+        private void ApplyUniformValues(ShaderBase instance, Dictionary<string, object> uniformValues)
         {
             if (uniformValues == null || uniformValues.Count == 0)
             {
@@ -282,7 +283,7 @@ namespace Editor
             return value;
         }
 
-        private void ApplyTextures(GL gl, OpenglLib.Mat instance, Dictionary<string, string> textureReferences)
+        private void ApplyTextures(GL gl, ShaderBase instance, Dictionary<string, string> textureReferences)
         {
             if (textureReferences == null || textureReferences.Count == 0)
             {

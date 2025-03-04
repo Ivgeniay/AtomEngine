@@ -148,22 +148,12 @@ namespace Editor
                                 nameof(TransformComponent),
                                 new TransformComponent
                                 {
-                                    Position = new Vector3()
+                                    Position = new Vector3(0, 0, -5)
                                 }
                             },
                             {
-                                nameof(ColliderComponent),
-                                new ColliderComponent
-                                {
-
-                                }
-                            },
-                            {
-                                nameof(ShaderComponent),
-                                new ShaderComponent
-                                {
-
-                                }
+                                nameof(CameraComponent),
+                                new CameraComponent()
                             }
                         }
                     },
@@ -179,7 +169,33 @@ namespace Editor
                                 new TransformComponent
                                 {
                                     Position = Vector3.UnitX,
+                                    Rotation = new Vector3(0, -90, 0),
                                 }
+                            }
+                        }
+                    },
+                    new EntityData
+                    {
+                        Id = 2,
+                        Name = "Cube",
+                        Version = 0,
+                        Components = new Dictionary<string, IComponent>
+                        {
+                            {
+                                nameof(TransformComponent),
+                                new TransformComponent()
+                            },
+                            {
+                                nameof(ColliderComponent),
+                                new ColliderComponent()
+                            },
+                            {
+                                nameof(ShaderComponent),
+                                new ShaderComponent()
+                            },
+                            {
+                                nameof(MeshComponent),
+                                new MeshComponent()
                             }
                         }
                     }

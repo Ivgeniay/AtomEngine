@@ -25,5 +25,10 @@ namespace Editor
         {
             _dManager?.Dispose();
         }
+
+        internal void OpenStartedWindow()
+        {
+            _dManager.OpenStartedWindow();
+        }
     }
 }

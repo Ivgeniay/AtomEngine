@@ -4,30 +4,27 @@ using Newtonsoft.Json;
 using System.Linq;
 using AtomEngine;
 using System;
-using OpenglLib;
-using AtomEngine.RenderEntity;
-using Avalonia.Styling;
 
 namespace Editor
 {
     public class ComponentInspector
     {
-        private IEnumerable<MemberInfo> _members;
-        private bool _isGlDependable = false;
+        private Dictionary<IComponent, IEnumerable<MemberInfo>> _componentMap = new Dictionary<IComponent, IEnumerable<MemberInfo>>();
+        private Dictionary<IComponent, bool> _isGlDependableMap = new Dictionary<IComponent, bool>();
 
         public IEnumerable<PropertyDescriptor> CreateDescriptors(IComponent component)
         {
             var type = component.GetType();
 
-            _isGlDependable = type.CustomAttributes.Any(e => e.AttributeType == typeof(GLDependableAttribute));
+            _isGlDependableMap[component] = type.CustomAttributes.Any(e => e.AttributeType == typeof(GLDependableAttribute));
 
-            _members = type
+            var members = type
                 .GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                 .Where(m =>
                 {
                     if (m is FieldInfo field)
                     {
-                        if (!_isGlDependable & GLDependableTypes.IsDependableType(field.FieldType))
+                        if (!_isGlDependableMap[component] & GLDependableTypes.IsDependableType(field.FieldType))
                         {
                             return false;
                         }
@@ -40,11 +37,11 @@ namespace Editor
                         return true;
                     }
                     return false;
-                })
-                .ToList();
+                });
             //.Where(m => m is PropertyInfo || m is FieldInfo);
+            _componentMap[component] = members;
 
-            foreach (var member in _members)
+            foreach (var member in members)
             {
                 if (member.GetCustomAttribute<NonSerializedAttribute>() != null
                     || member.GetCustomAttribute<JsonIgnoreAttribute>() != null
@@ -120,7 +117,7 @@ namespace Editor
         {
             if (value is GLValueRedirection redirection)
             {
-                var guidMember = _members.FirstOrDefault(m => m.Name == member.Name + "GUID");
+                var guidMember = _componentMap[component].FirstOrDefault(m => m.Name == member.Name + "GUID");
                 if (guidMember != null)
                 {
                     var val = GetValue(component, guidMember);

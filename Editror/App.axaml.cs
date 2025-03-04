@@ -56,13 +56,16 @@ namespace Editor
                 ServiceHub.RegisterService<ScriptSyncSystem>();
                 // Сервис синхронизации состояния между папками пользовательских скриптов и папкой Assets
                 ServiceHub.RegisterService<CodeFilesSynchronizer>();
-                // Менеджер загрузки и сохранения состояний материалов
+                // Менеджер загрузки и сохранения состояний ресурсов
                 ServiceHub.RegisterService<MaterialManager>();
+                ServiceHub.RegisterService<MeshManager>();
                 
                 // Фабрики
                 ServiceHub.RegisterService<TextureFactory>();
                 ServiceHub.RegisterService<MaterialFactory>();
+                ServiceHub.RegisterService<MeshFactory>();
 
+                ServiceHub.RegisterService<InspectorViewFactory>();
                 ServiceHub.RegisterService<ResourceManager>();
                 ServiceHub.RegisterService<ToolbarService>();
                 ServiceHub.RegisterService<DraggableWindowManagerService>();

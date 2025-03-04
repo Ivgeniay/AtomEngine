@@ -6,7 +6,11 @@ namespace Editor
 {
     internal class ComponentPropertiesView : BasePropertyView
     {
-        public ComponentPropertiesView(PropertyDescriptor descriptor) : base(descriptor) { }
+        InspectorViewFactory _inspectorViewFactory;
+        public ComponentPropertiesView(PropertyDescriptor descriptor) : base(descriptor) {
+            _inspectorViewFactory = ServiceHub.Get<InspectorViewFactory>();
+        }
+
         public override Control GetView()
         {
             var panel = new StackPanel { Margin = new Thickness(0, 5, 0, 5) };
@@ -20,7 +24,7 @@ namespace Editor
             var properties = (List<PropertyDescriptor>)descriptor.Value;
             foreach (var property in properties)
             {
-                var view = InspectorViewFactory.CreateView(property);
+                var view = _inspectorViewFactory.CreateView(property);
                 panel.Children.Add(view.GetView());
             }
 

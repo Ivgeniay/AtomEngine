@@ -10,7 +10,10 @@ namespace Editor
 {
     internal class GenericCollectionView : BasePropertyView
     {
-        public GenericCollectionView(PropertyDescriptor descriptor) : base(descriptor) { }
+        InspectorViewFactory _inspectorViewFactory;
+        public GenericCollectionView(PropertyDescriptor descriptor) : base(descriptor) {
+            _inspectorViewFactory = ServiceHub.Get<InspectorViewFactory>();
+        }
 
         public override Control GetView()
         {
@@ -81,7 +84,7 @@ namespace Editor
                     }
                 };
 
-                var itemControl = InspectorViewFactory.CreateView(itemDescriptor).GetView();
+                var itemControl = _inspectorViewFactory.CreateView(itemDescriptor).GetView();
 
                 var removeButton = new Button
                 {

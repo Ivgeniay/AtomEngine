@@ -7,10 +7,9 @@ using System;
 
 namespace Editor
 {
-    public class MaterialManager : IService
+    internal class MaterialManager : IService
     {
         private Dictionary<string, MaterialAsset> _cacheMaterials = new Dictionary<string, MaterialAsset>();
-        private MaterialAsset _currentMaterial;
 
         public Task InitializeAsync()
         {
@@ -20,7 +19,7 @@ namespace Editor
             });
         }
 
-        public MaterialAsset CreateMaterial(string shaderRepresentationGuid)
+        internal MaterialAsset CreateMaterial(string shaderRepresentationGuid)
         {
             var material = new MaterialAsset
             {
@@ -65,7 +64,7 @@ namespace Editor
             _cacheMaterials.Add(filePath, material);
             return material;
         }
-        public void SaveMaterial(MaterialAsset material)
+        internal void SaveMaterial(MaterialAsset material)
         {
             string path = _cacheMaterials.Where(e => e.Value == material).FirstOrDefault().Key;
             if (path != null)
@@ -77,13 +76,13 @@ namespace Editor
                 DebLogger.Error($"Saving material {material.Name}. Unkown path to safe");
             }
         }
-        public void SaveMaterial(MaterialAsset material, string path)
+        internal void SaveMaterial(MaterialAsset material, string path)
         {
             string json = MaterialSerializer.SerializeMaterial(material);
             File.WriteAllText(path, json);
         }
 
-        public MaterialAsset LoadMaterial(string path)
+        internal MaterialAsset LoadMaterial(string path)
         {
             if (!File.Exists(path))
             {
@@ -104,14 +103,14 @@ namespace Editor
 
             return asset;
         }
-        public MaterialAsset GetMaterial(string guid) => 
+        internal MaterialAsset GetMaterial(string guid) => 
             _cacheMaterials.FirstOrDefault(e => e.Value.Guid == guid).Value;
-        public string GetPath(string guid) => 
+        internal string GetPath(string guid) => 
             _cacheMaterials.FirstOrDefault(e => e.Value.Guid == guid).Key;
-        public string GetPath(MaterialAsset material) =>
+        internal string GetPath(MaterialAsset material) =>
             _cacheMaterials.Where(e => e.Value.Equals(material)).FirstOrDefault().Key;
 
-        public void InitializeUniformsFromShaderRepresentation(MaterialAsset material, string shaderRepresentationPath)
+        internal void InitializeUniformsFromShaderRepresentation(MaterialAsset material, string shaderRepresentationPath)
         {
             if (!File.Exists(shaderRepresentationPath))
             {
@@ -147,8 +146,7 @@ namespace Editor
                 DebLogger.Error($"Error analyzing shader representation: {ex.Message}");
             }
         }
-
-        public T GetUniformValue<T>(MaterialAsset material, string name)
+        internal T GetUniformValue<T>(MaterialAsset material, string name)
         {
             if (material.UniformValues.TryGetValue(name, out var value))
             {
@@ -171,6 +169,7 @@ namespace Editor
 
             return default;
         }
+        
         private object ConvertJObjectToTypedValue(object value, string typeName)
         {
             if (value is Newtonsoft.Json.Linq.JObject jObject)
@@ -211,7 +210,6 @@ namespace Editor
             if (fileName.IndexOf(".") > -1) fileName = fileName.Substring(0, fileName.IndexOf("."));
             material.ShaderRepresentationTypeName = $"OpenglLib.{fileName}";
         }
-
         private void CacheAllMaterials(string rootDirectory)
         {
             try

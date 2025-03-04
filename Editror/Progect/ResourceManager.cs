@@ -24,7 +24,6 @@ namespace Editor
             return Task.CompletedTask;
         }
 
-        // Обработка события инициализации GL
         private void OnGLInitialized(GL gl)
         {
             _gl = gl;
@@ -38,7 +37,6 @@ namespace Editor
             return GetResource(guid) as T;
         }
 
-        // Получение ресурса по GUID
         public object GetResource(string guid)
         {
             if (string.IsNullOrEmpty(guid))
@@ -58,7 +56,6 @@ namespace Editor
             return resource;
         }
 
-        // Загрузка ресурса по GUID
         private object LoadResourceByGuid(string guid)
         {
             var meta = ServiceHub.Get<MetadataManager>().GetMetadataByGuid(guid);
@@ -77,7 +74,6 @@ namespace Editor
             return null;
         }
 
-        // Загрузка текстуры
         private Texture LoadTextureResource(string guid)
         {
             if (!_isGLInitialized || _gl == null)
@@ -87,7 +83,6 @@ namespace Editor
             return texture;
         }
 
-        // Загрузка материала
         private ShaderBase LoadMaterialResource(string guid)
         {
             if (!_isGLInitialized || _gl == null)

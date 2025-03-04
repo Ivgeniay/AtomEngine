@@ -1,24 +1,20 @@
 ﻿using AtomEngine.RenderEntity;
+using Newtonsoft.Json;
 
 namespace AtomEngine
 {
-    public struct MeshComponent : IComponent, IDisposable
+    [GLDependable]
+    public partial struct MeshComponent : IComponent
     {
         public Entity Owner { get; }
         public readonly MeshBase Mesh;
+        [JsonProperty]
+        private string MeshGUID;
 
         public MeshComponent(Entity owner, MeshBase mesh)
         {
             Owner = owner;
             Mesh = mesh;
-        }
-
-        public void Dispose()
-        {
-            if (Mesh is IDisposable disposableMesh)
-            {
-                disposableMesh.Dispose();
-            }
         }
     }
 }

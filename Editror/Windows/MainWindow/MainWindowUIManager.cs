@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using System.Linq;
 using AtomEngine;
 using System.IO;
+using System;
 
 namespace Editor
 {
@@ -298,6 +299,11 @@ namespace Editor
         {
             foreach (var controller in _controls)
                 controller.Redraw();
+        }
+
+        internal void Start()
+        {
+            _windowService.OpenStartedWindow();
         }
     }
 }
