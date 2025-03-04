@@ -1,15 +1,10 @@
-﻿using System.Reflection;
-using Newtonsoft.Json;
+﻿using System.Text.RegularExpressions;
 using Silk.NET.OpenGL;
-using AtomEngine;
-using Silk.NET.Maths;
-using System.Text.RegularExpressions;
 
 namespace OpenglLib
 {
     public class Mat : Shader
     {
-
         public Mat(GL gl) : base(gl) { }
 
         protected void SetTexture(string textureUnit, string texTarget, int location, int index, Texture texture)

@@ -7,7 +7,6 @@ namespace OpenglLib
 {
     public class Shader : ShaderBase
     {
-        private uint _handle;
         public readonly GL _gl;
         protected readonly Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
         protected readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
@@ -15,37 +14,9 @@ namespace OpenglLib
 
         protected string VertexSource;
         protected string FragmentSource;
-
-        public uint Handle => _handle;
         public Shader(GL gl, string vertexSource = "", string fragmentSource = "")
         { 
             _gl = gl;
-
-            //vertexSource = string.IsNullOrEmpty(vertexSource) ? VertexSource : vertexSource;
-            //fragmentSource = string.IsNullOrEmpty(fragmentSource) ? FragmentSource : fragmentSource;
-
-            //if (string.IsNullOrEmpty(vertexSource)) throw new ShaderError("Vertex shader in null or empty");
-            //if (string.IsNullOrEmpty(fragmentSource)) throw new ShaderError("Fragment shader in null or empty");
-
-            //Result<uint, Error> mb_vertexShader = CompileShader(ShaderType.VertexShader, vertexSource);
-            //uint vertexShader = mb_vertexShader.Unwrap();
-
-            //Result<uint, Error> mb_fragmentShader = CompileShader(ShaderType.FragmentShader, fragmentSource);
-            //uint fragmentShader = mb_fragmentShader.Unwrap();
-
-            //_handle = _gl.CreateProgram();
-            //_gl.AttachShader(_handle, vertexShader);
-            //_gl.AttachShader(_handle, fragmentShader);
-            //LinkProgram();
-            //CleanupResources(vertexShader, fragmentShader);
-
-            //CacheAttributes();
-            //CacheUniforms();
-
-            //DebLogger.Info("==================SHADER_ATTRIBUTES=================");
-            //foreach (var item in _attributeLocations) DebLogger.Info(item.Key, " : ", item.Value);
-            //DebLogger.Info("===================SHADER_UNIFORMS==================");
-            //foreach (var item in _uniformLocations) DebLogger.Info(item.Key, " : ", item.Value);
         }
 
         public void SetUpShader(string vertexSource = "", string fragmentSource = "")
@@ -68,9 +39,9 @@ namespace OpenglLib
             uint fragmentShader = mb_fragmentShader.Unwrap();
 
 
-            _handle = _gl.CreateProgram();
-            _gl.AttachShader(_handle, vertexShader);
-            _gl.AttachShader(_handle, fragmentShader);
+            handle = _gl.CreateProgram();
+            _gl.AttachShader(handle, vertexShader);
+            _gl.AttachShader(handle, fragmentShader);
             LinkProgram();
             CleanupResources(vertexShader, fragmentShader);
 
@@ -85,7 +56,7 @@ namespace OpenglLib
 
         public override void Use()
         {
-            _gl.UseProgram(_handle);
+            _gl.UseProgram(handle);
         }
 
         public override void SetUniform(string name, object value)
@@ -229,8 +200,8 @@ namespace OpenglLib
 
         private void CleanupResources(uint vertexShader, uint fragmentShader)
         {
-            _gl.DetachShader(_handle, vertexShader);
-            _gl.DetachShader(_handle, fragmentShader);
+            _gl.DetachShader(handle, vertexShader);
+            _gl.DetachShader(handle, fragmentShader);
             _gl.DeleteShader(vertexShader);
             _gl.DeleteShader(fragmentShader);
         }
@@ -249,34 +220,34 @@ namespace OpenglLib
 
         private void LinkProgram()
         {
-            _gl.LinkProgram(_handle);
-            _gl.GetProgram(_handle, GLEnum.LinkStatus, out int success);
+            _gl.LinkProgram(handle);
+            _gl.GetProgram(handle, GLEnum.LinkStatus, out int success);
             if (success == 0)
             { 
-                throw new Exception($"Error linking shader program: {_gl.GetProgramInfoLog(_handle)}");
+                throw new Exception($"Error linking shader program: {_gl.GetProgramInfoLog(handle)}");
             }
         }
 
         private void CacheAttributes()
         {
-            _gl.GetProgram(_handle, GLEnum.ActiveAttributes, out int attributeCount);
+            _gl.GetProgram(handle, GLEnum.ActiveAttributes, out int attributeCount);
 
             for (uint i = 0; i < attributeCount; i++)
             {
-                string attributeName = _gl.GetActiveAttrib(_handle, i, out int size, out AttributeType type);
-                uint location = (uint)_gl.GetAttribLocation(_handle, attributeName);
+                string attributeName = _gl.GetActiveAttrib(handle, i, out int size, out AttributeType type);
+                uint location = (uint)_gl.GetAttribLocation(handle, attributeName);
                 _attributeLocations[attributeName] = location;
             }
         }
 
         private void CacheUniforms()
         {
-            _gl.GetProgram(_handle, GLEnum.ActiveUniforms, out int uniformCount);
+            _gl.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformCount);
 
             for (int i = 0; i < uniformCount; i++)
             {
-                string uniformName = _gl.GetActiveUniform(_handle, (uint)i, out int size, out UniformType type);
-                int location = _gl.GetUniformLocation(_handle, uniformName);
+                string uniformName = _gl.GetActiveUniform(handle, (uint)i, out int size, out UniformType type);
+                int location = _gl.GetUniformLocation(handle, uniformName);
 
                 _uniformLocations[uniformName] = location;
                 _uniformInfo[uniformName] = new UniformInfo
@@ -291,10 +262,10 @@ namespace OpenglLib
 
         public override void Dispose()
         {
-            _gl.DeleteProgram(_handle);
+            _gl.DeleteProgram(handle);
         }
 
         
-        public static explicit operator uint(Shader shader) => shader._handle;
+        public static explicit operator uint(Shader shader) => shader.handle;
     }
 }

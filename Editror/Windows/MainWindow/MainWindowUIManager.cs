@@ -16,7 +16,7 @@ namespace Editor
 
         private List<IWindowed> _controls = new List<IWindowed>();
         private ConsoleController _consoleController;
-        private GLController _openGlController;
+        private SceneViewController _sceneViewController;
         private HierarchyController _hierarchyController;
         private WorldController _worldController;
         private InspectorController _inspectorController;
@@ -32,6 +32,7 @@ namespace Editor
                 _worldController?.UpdateWorlds(e);
                 _inspectorController?.Redraw();
                 _explorerController?.Redraw();
+                _sceneViewController?.SetScene(_sceneManager.CurrentScene);
             };
             _windowService = ServiceHub.Get<DraggableWindowManagerService>();
             RegisterControllersHandlers();
@@ -64,6 +65,11 @@ namespace Editor
                 var consoleController = (ConsoleController)controller;
                 consoleController.Open();
             });
+            _windowService.RegisterOpenHandler(MainControllers.SceneRender, controller =>
+            {
+                var sceneViewController = (SceneViewController)controller;
+                sceneViewController.Open();
+            });
 
             _windowService.RegisterCloseHandler(MainControllers.Hierarchy, controller =>
             {
@@ -89,6 +95,11 @@ namespace Editor
             {
                 var consoleController = (ConsoleController)controller;
                 consoleController.Close();
+            });
+            _windowService.RegisterCloseHandler(MainControllers.SceneRender, controller =>
+            {
+                var sceneViewController = (SceneViewController)controller;
+                sceneViewController.Close();
             });
         }
 
@@ -117,6 +128,10 @@ namespace Editor
                 case MainControllers.Console:
                     _consoleController = (ConsoleController)controller;
                     _controls.Add(_consoleController);
+                    break;
+                case MainControllers.SceneRender:
+                    _sceneViewController = (SceneViewController)controller;
+                    _controls.Add(_sceneViewController);
                     break;
             }
         }

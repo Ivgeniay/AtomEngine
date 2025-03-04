@@ -37,12 +37,14 @@ namespace Editor
             var worlds = new WorldController();
             var console = new ConsoleController();
             var explorer = new ExplorerController();
+            var sceneView = new SceneViewController();
 
             _uIManager.RegisterController(MainControllers.Hierarchy, hierarhy);
             _uIManager.RegisterController(MainControllers.Inspector, inspector);
             _uIManager.RegisterController(MainControllers.World, worlds);
             _uIManager.RegisterController(MainControllers.Console, console);
             _uIManager.RegisterController(MainControllers.Explorer, explorer);
+            _uIManager.RegisterController(MainControllers.SceneRender, sceneView);
 
             _uIManager.Initialize();
 
