@@ -25,26 +25,12 @@ namespace Editor
         private Border _toolbarBorder;
         private Grid _renderCanvas;
 
-        // Камера редактора
-        private Vector3 _cameraPosition = new Vector3(5, 5, -10);
-        private Vector3 _cameraTarget = Vector3.Zero;
-        private Vector3 _cameraUp = Vector3.UnitY;
-        private float _cameraSpeed = 0.1f;
-        private float _cameraRotationSpeed = 0.01f;
+        private EditorCamera _camera;
 
-        // Состояние мыши
-        private Point _lastMousePosition;
-        private bool _isLeftMouseDown;
-        private bool _isRightMouseDown;
-        private bool _isMiddleMouseDown;
-
-        // Выбранные объекты в сцене
         private Dictionary<uint, EntityData> _entitiesInScene = new Dictionary<uint, EntityData>();
 
-        // Текущая сцена
         private ProjectScene _currentScene;
 
-        // Grid для визуализации сцены
         private GridShader _gridShader;
         private TransformMode _currentTransformMode = TransformMode.Translate;
         private bool _isPerspective = true;
@@ -56,15 +42,25 @@ namespace Editor
         {
             InitializeUI();
             InitializeEvents();
+
+            _camera = new EditorCamera(
+                        position: new Vector3(5, 5, -10),
+                        target: Vector3.Zero,
+                        up: Vector3.UnitY,
+                        root: _renderCanvas
+                    );
+            
+            this.Focus();
         }
 
         private void InitializeUI()
         {
+            this.Focusable = true;
+
             _mainGrid = new Grid();
             _mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             _mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
 
-            // Панель инструментов сцены
             _toolbarBorder = new Border
             {
                 Height = 48,
@@ -78,7 +74,6 @@ namespace Editor
                 Margin = new Thickness(5)
             };
 
-            // Кнопки для управления сценой
             var translateButton = new Button { Content = "Translate", Classes = { "toolButton" } };
             var rotateButton = new Button { Content = "Rotate", Classes = { "toolButton" } };
             var scaleButton = new Button { Content = "Scale", Classes = { "toolButton" } };
@@ -116,10 +111,12 @@ namespace Editor
             _renderCanvas.PointerMoved += OnPointerMoved;
             _renderCanvas.PointerWheelChanged += OnPointerWheelChanged;
 
-            // Настройка таймера рендеринга
+            KeyDown += OnKeyDown;
+            KeyUp += OnKeyUp;
+
             _renderTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(16) // ~60 FPS
+                Interval = TimeSpan.FromMilliseconds(16)
             };
             _renderTimer.Tick += (sender, args) => Render();
         }
@@ -209,31 +206,8 @@ namespace Editor
                 gl.ClearColor(0.2f, 0.2f, 0.2f, 1.0f);
                 gl.Enable(EnableCap.DepthTest);
 
-                Matrix4x4 view = Matrix4x4.CreateLookAt(
-                    _cameraPosition,
-                    _cameraTarget,
-                    _cameraUp);
-
-                float aspectRatio = (float)_renderCanvas.Bounds.Width / (float)_renderCanvas.Bounds.Height;
-                Matrix4x4 projection;
-
-                if (_isPerspective)
-                {
-                    projection = Matrix4x4.CreatePerspectiveFieldOfView(
-                        MathF.PI / 4.0f,  // 45 градусов
-                        aspectRatio,
-                        0.1f,
-                        1000.0f);
-                }
-                else
-                {
-                    float size = Vector3.Distance(_cameraPosition, _cameraTarget) * 0.1f;
-                    projection = Matrix4x4.CreateOrthographic(
-                        size * aspectRatio,
-                        size,
-                        0.1f,
-                        1000.0f);
-                }
+                var view = _camera.GetViewMatrix();
+                Matrix4x4 projection = _camera.GetProjection(_isPerspective);
 
                 // Рендерим сетку
                 RenderGrid(gl, view, projection);
@@ -463,7 +437,6 @@ namespace Editor
 
         private void Render()
         {
-            // Запускаем рендеринг через GLController
             _glController?.Invalidate();
         }
 
@@ -471,132 +444,49 @@ namespace Editor
 
         private void OnPointerPressed(object sender, PointerPressedEventArgs e)
         {
-            var point = e.GetPosition(_renderCanvas);
-            _lastMousePosition = point;
-
-            var properties = e.GetCurrentPoint(_renderCanvas).Properties;
-
-            if (properties.IsLeftButtonPressed)
-                _isLeftMouseDown = true;
-
-            if (properties.IsRightButtonPressed)
-                _isRightMouseDown = true;
-
-            if (properties.IsMiddleButtonPressed)
-                _isMiddleMouseDown = true;
+            _camera.HandlePointerPressed(e.GetPosition(this), e.GetCurrentPoint(this).Properties.PointerUpdateKind);
         }
 
         private void OnPointerReleased(object sender, PointerReleasedEventArgs e)
         {
-            var properties = e.GetCurrentPoint(_renderCanvas).Properties;
+            _camera.HandlePointerReleased(e.GetCurrentPoint(this).Properties.PointerUpdateKind);
 
-            if (e.InitialPressMouseButton == MouseButton.Left)
-            {
-                _isLeftMouseDown = false;
-                if (!_isRightMouseDown && !_isMiddleMouseDown)
-                {
-                    // Выбор объекта по клику
-                    PickObject(e.GetPosition(_renderCanvas));
-                }
-            }
-
-            if (e.InitialPressMouseButton == MouseButton.Right)
-                _isRightMouseDown = false;
-
-            if (e.InitialPressMouseButton == MouseButton.Middle)
-                _isMiddleMouseDown = false;
+            //var properties = e.GetCurrentPoint(_renderCanvas).Properties;
+            //if (e.InitialPressMouseButton == MouseButton.Left)
+            //{
+            //    _isLeftMouseDown = false;
+            //    if (!_isRightMouseDown && !_isMiddleMouseDown)
+            //    {
+            //        // Выбор объекта по клику
+            //        PickObject(e.GetPosition(_renderCanvas));
+            //    }
+            //}
         }
 
-        private void OnPointerMoved(object sender, PointerEventArgs e)
+        private void OnPointerMoved(object? sender, PointerEventArgs e)
         {
-            var point = e.GetPosition(_renderCanvas);
-            var delta = point - _lastMousePosition;
-
-            // Вращение камеры с правой кнопкой мыши
-            if (_isRightMouseDown)
-            {
-                RotateCamera(delta);
-            }
-
-            // Панорамирование с средней кнопкой мыши
-            if (_isMiddleMouseDown)
-            {
-                PanCamera(delta);
-            }
-
-            _lastMousePosition = point;
+            _camera.HandlePointerMoved(e.GetPosition(this));
         }
 
-        private void OnPointerWheelChanged(object sender, PointerWheelEventArgs e)
+        private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
         {
-            // Зум с колесиком мыши
-            ZoomCamera(e.Delta.Y);
-        }
-
-        private void RotateCamera(Point delta)
-        {
-            // Вращение камеры вокруг центра
-            var angleY = delta.X * _cameraRotationSpeed;
-            var angleX = delta.Y * _cameraRotationSpeed;
-
-            // Вектор от цели к камере
-            var direction = _cameraPosition - _cameraTarget;
-
-            // Поворот вокруг оси Y (влево-вправо)
-            var rotationY = Matrix4x4.CreateRotationY((float)-angleY);
-            direction = Vector3.Transform(direction, rotationY);
-
-            // Вычисляем правый вектор камеры
-            var right = Vector3.Cross(_cameraUp, direction);
-            right = Vector3.Normalize(right);
-
-            // Поворот вокруг правого вектора (вверх-вниз)
-            var rotationX = Matrix4x4.CreateFromAxisAngle(right, (float)-angleX);
-            direction = Vector3.Transform(direction, rotationX);
-
-            // Обновляем позицию камеры
-            _cameraPosition = _cameraTarget + direction;
-        }
-
-        private void PanCamera(Point delta)
-        {
-            // Перемещение камеры в плоскости просмотра
-            var direction = _cameraPosition - _cameraTarget;
-            var distance = direction.Length();
-
-            // Вычисляем правый вектор камеры
-            var forward = Vector3.Normalize(direction);
-            var right = Vector3.Cross(_cameraUp, forward);
-            right = Vector3.Normalize(right);
-
-            // Перемещение вправо/влево
-            var rightOffset = right * (float)delta.X * _cameraSpeed * (distance * 0.01f);
-            // Перемещение вверх/вниз
-            var upOffset = _cameraUp * (float)delta.Y * _cameraSpeed * (distance * 0.01f);
-
-            // Обновляем позицию и цель камеры
-            _cameraPosition -= rightOffset - upOffset;
-            _cameraTarget -= rightOffset - upOffset;
-        }
-
-        private void ZoomCamera(double delta)
-        {
-            // Приближение/отдаление камеры
-            var direction = _cameraPosition - _cameraTarget;
-            var forward = Vector3.Normalize(direction);
-
-            // Скорость зума зависит от расстояния до цели
-            var zoomSpeed = Math.Max(0.01f, direction.Length() * 0.05f);
-            var offset = forward * (float)delta * zoomSpeed;
-
-            // Обновляем позицию камеры
-            _cameraPosition -= offset;
+            _camera.HandlePointerWheelChanged(e.Delta);
         }
 
         private void PickObject(Point point)
         {
             // TODO: Реализовать выбор объекта по клику
             // Для этого потребуется рейкастинг в сцене
+        }
+
+        private void OnKeyDown(object? sender, KeyEventArgs e)
+        {
+            _camera.HandleKeyboardInput(e);
+        }
+
+        private void OnKeyUp(object? sender, KeyEventArgs e)
+        {
+            
         }
 
         private void SetTransformMode(TransformMode mode)
