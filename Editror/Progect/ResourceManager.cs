@@ -17,10 +17,21 @@ namespace Editor
         private GL _gl;
         private bool _isGLInitialized = false;
 
+        private MetadataManager _metadataManager;
+        private TextureFactory _textureFactory;
+        private MaterialFactory _materialFactory;
+        private MeshFactory _meshFactory;
+
         public Task InitializeAsync()
         {
             GLController.OnGLInitialized += OnGLInitialized;
             GLController.OnGLDeInitialized += Dispose;
+
+            _metadataManager = ServiceHub.Get<MetadataManager>();
+            _textureFactory = ServiceHub.Get<TextureFactory>();
+            _materialFactory = ServiceHub.Get<MaterialFactory>();
+            _meshFactory = ServiceHub.Get<MeshFactory>();
+
             return Task.CompletedTask;
         }
 
@@ -58,7 +69,7 @@ namespace Editor
 
         private object LoadResourceByGuid(string guid)
         {
-            var meta = ServiceHub.Get<MetadataManager>().GetMetadataByGuid(guid);
+            var meta = _metadataManager.GetMetadataByGuid(guid);
             if (meta == null)
                 return null;
 
@@ -70,6 +81,10 @@ namespace Editor
             {
                 return LoadMaterialResource(guid);
             }
+            else if (meta.AssetType == MetadataType.Model)
+            {
+                return LoadMeshResource(guid);
+            }
 
             return null;
         }
@@ -79,7 +94,7 @@ namespace Editor
             if (!_isGLInitialized || _gl == null)
                 return null;
 
-            var texture = ServiceHub.Get<TextureFactory>().CreateTextureFromGuid(_gl, guid);
+            var texture = _textureFactory.CreateTextureFromGuid(_gl, guid);
             return texture;
         }
 
@@ -88,8 +103,17 @@ namespace Editor
             if (!_isGLInitialized || _gl == null)
                 return null;
 
-            var material = ServiceHub.Get<MaterialFactory>().CreateMaterialInstanceFromGuid(_gl, guid);
+            var material = _materialFactory.CreateMaterialInstanceFromGuid(_gl, guid);
             return material ;
+        }
+
+        private MeshBase LoadMeshResource(string guid)
+        {
+            if (!_isGLInitialized || _gl == null)
+                return null;
+
+            var mesh = _meshFactory.CreateMeshInstanceFromGuid(_gl, guid);
+            return mesh;
         }
       
 
@@ -99,13 +123,12 @@ namespace Editor
 
             foreach (var kvp in _resourceCache)
             {
-                if (kvp.Value is Texture || kvp.Value is MaterialAsset)
+                if (kvp.Value is Texture || kvp.Value is MaterialAsset || kvp.Value is MeshBase)
                 {
                     resourcesNeedingReload.Add(kvp.Key);
                 }
             }
 
-            // Перезагружаем каждый ресурс
             foreach (var guid in resourcesNeedingReload)
             {
                 var oldResource = _resourceCache[guid];
@@ -136,8 +159,9 @@ namespace Editor
                 }
             }
 
-            ServiceHub.Get<TextureFactory>().Dispose();
-            ServiceHub.Get<MaterialFactory>().Dispose();
+            _textureFactory.Dispose();
+            _materialFactory.Dispose();
+            _meshFactory.Dispose();
 
             _resourceCache.Clear();
             _objectToGuidCache.Clear();

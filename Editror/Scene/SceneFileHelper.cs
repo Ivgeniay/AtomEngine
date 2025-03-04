@@ -148,7 +148,7 @@ namespace Editor
                                 nameof(TransformComponent),
                                 new TransformComponent
                                 {
-                                    Position = new Vector3(0, 0, -5)
+                                    Position = new Vector3(0, 0, -5),
                                 }
                             },
                             {

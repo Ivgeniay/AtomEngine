@@ -1,11 +1,7 @@
 ﻿using Avalonia.OpenGL.Controls;
-using System.Diagnostics;
-using Avalonia.Controls;
 using Avalonia.OpenGL;
 using Silk.NET.OpenGL;
 using System;
-using Avalonia;
-using AtomEngine;
 
 namespace Editor
 {
