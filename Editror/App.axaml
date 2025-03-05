@@ -18,6 +18,7 @@
         <StyleInclude Source="/Styles/DirectoryExplorer.axaml"/>
       
         <StyleInclude Source="/Styles/VisualElements/ObjectField.axaml"/>
+        <StyleInclude Source="/Styles/VisualElements/SearchPopup.axaml"/>
         <StyleInclude Source="/Styles/VisualElements/TextInputField.axaml"/>
     </Application.Styles>
 </Application>

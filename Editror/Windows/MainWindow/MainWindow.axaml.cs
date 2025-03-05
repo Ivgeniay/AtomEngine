@@ -10,6 +10,7 @@ namespace Editor
 {
     public partial class MainWindow : Window
     {
+        public static Canvas MainCanvas_ { get; private set; }
         private MainWindowUIManager _uIManager;
         private SceneManager _sceneManager;
 
@@ -28,6 +29,7 @@ namespace Editor
 
             InitializeStatusBar();
 
+            MainCanvas_ = MainCanvas;
             ServiceHub.Get<DraggableWindowManagerService>().SetCanvas(MainCanvas);
             _sceneManager = ServiceHub.Get<SceneManager>();
             _sceneManager.SetMainWindow(this);

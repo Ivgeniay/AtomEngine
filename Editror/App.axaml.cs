@@ -71,6 +71,7 @@ namespace Editor
                 ServiceHub.RegisterService<DraggableWindowManagerService>();
                 ServiceHub.RegisterService<SceneManager>();
                 ServiceHub.RegisterService<InspectorDistributor>();
+                ServiceHub.RegisterService<ComponentService>();
 
                 int delay = 1000;
 

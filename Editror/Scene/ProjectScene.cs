@@ -148,5 +148,19 @@ namespace Editor
 
             return expectedId;
         }
+
+        internal void AddComponent(uint entityId, Type typeComponent)
+        {
+            var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
+            var instanceComponent = Activator.CreateInstance(typeComponent);
+            IComponent interfacesDomponent = (IComponent)instanceComponent;
+            entityData.Components.Add(typeComponent.Name, interfacesDomponent);
+        }
+
+        internal void RemoveComponent(uint entityId, Type typeComponent)
+        {
+            var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
+            entityData.Components.Remove(typeComponent.Name);
+        }
     }
 }

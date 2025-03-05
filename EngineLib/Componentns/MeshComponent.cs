@@ -1,8 +1,10 @@
 ﻿using AtomEngine.RenderEntity;
+using EngineLib;
 using Newtonsoft.Json;
 
 namespace AtomEngine
 {
+    [TooltipCategoryComponent(ComponentCategory.Render)]
     [GLDependable]
     public partial struct MeshComponent : IComponent
     {

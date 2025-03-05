@@ -1,12 +1,9 @@
 ﻿using System.Collections.Generic;
 using Avalonia.Controls;
-using System.Linq;
-using System.IO;
-using System;
-using HarfBuzzSharp;
-using AtomEngine;
 using Silk.NET.OpenGL;
-using Silk.NET.Assimp;
+using System.Linq;
+using AtomEngine;
+using System;
 
 namespace Editor
 {
@@ -28,7 +25,7 @@ namespace Editor
 
         public virtual string Title => $"Asset Metadata";
 
-        public virtual IEnumerable<Control> GetCustomControls()
+        public virtual IEnumerable<Control> GetCustomControls(Panel parent)
         {
             return null;
         }
@@ -105,7 +102,6 @@ namespace Editor
             };
 
         }
-
         protected void Save()
         {
             if (_filePath == null) ServiceHub.Get<MetadataManager>().SaveMetadata(_metadata);
@@ -125,7 +121,7 @@ namespace Editor
 
         public override string Title => $"Texture Metadata";
 
-        public override IEnumerable<Control> GetCustomControls()
+        public override IEnumerable<Control> GetCustomControls(Panel parent)
         {
             return null;
         }
@@ -394,7 +390,7 @@ namespace Editor
 
         public override string Title => $"Shader Metadata";
 
-        public override IEnumerable<Control> GetCustomControls()
+        public override IEnumerable<Control> GetCustomControls(Panel parent)
         {
             return null;
         }
@@ -447,7 +443,7 @@ namespace Editor
 
         public override string Title => $"Script Metadata";
 
-        public override IEnumerable<Control> GetCustomControls()
+        public override IEnumerable<Control> GetCustomControls(Panel parent)
         {
             return null;
         }

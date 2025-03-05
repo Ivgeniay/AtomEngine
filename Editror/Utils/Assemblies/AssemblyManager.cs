@@ -1,15 +1,16 @@
 ﻿using System.Collections.Generic;
-using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Reflection;
 using System.Linq;
 using System.IO;
 using System;
-using System.Threading.Tasks;
 
 namespace Editor
 {
     public class AssemblyManager : IService
     {
+        public Action OnUserScriptAsseblyRebuild;
+
         private Dictionary<TAssembly, Assembly> _assemblyDict = new Dictionary<TAssembly, Assembly>();
         private Dictionary<TAssembly, string> _assemblyMap = new Dictionary<TAssembly, string>
                 {
@@ -103,6 +104,13 @@ namespace Editor
         {
             foreach (var assembly in _assemblies)
             {
+                if (assembly.FullName.StartsWith("System") || 
+                    assembly.FullName.StartsWith("Avalonia") ||
+                    assembly.FullName.StartsWith("Microsoft") ||
+                    assembly.FullName.Contains("Generator")
+                    )
+                    continue;
+
                 var types = assembly.GetTypes()
                     .Where(t => !t.IsAbstract && !t.IsInterface && typeof(T).IsAssignableFrom(t));
 
@@ -111,27 +119,15 @@ namespace Editor
             }
         }
 
-        public void AddAssembly(Assembly assembly)
+        internal void AddAssembly(Assembly assembly)
         {
             _assemblies.Add(assembly);
-        }
-
-        public void AddAssemblyFromFile(string path)
-        {
-            try
-            {
-                var assembly = Assembly.LoadFrom(path);
-                _assemblies.Add(assembly);
-            }
-            catch (FileNotFoundError ex)
-            {
-                throw;
-            }
         }
 
         internal void UpdateScriptAssembly(Assembly assembly)
         {
             _user_script_assembly = assembly;
+            OnUserScriptAsseblyRebuild?.Invoke();
         }
         internal Assembly GetUserScriptAssembly()
         {
@@ -139,9 +135,14 @@ namespace Editor
             {
                 try
                 {
-                    ProjectConfigurations pConf = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                    ProjectConfigurations pConf = ServiceHub
+                        .Get<Configuration>()
+                        .GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+
                     UpdateScriptAssembly(
-                        ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly(pConf.BuildType)
+                        ServiceHub
+                            .Get<ScriptProjectGenerator>()
+                            .LoadCompiledAssembly(pConf.BuildType)
                         );
                     return _user_script_assembly;
                 }

@@ -18,7 +18,8 @@ namespace Editor
             FieldInfo targetField = null;
             object targetObject = null;
 
-            var target = descriptor.Context;
+            EntityInspectorContext context = (EntityInspectorContext)descriptor.Context;
+            var target = context.Component;
             if (target != null)
             {
                 Type targetType = target.GetType();

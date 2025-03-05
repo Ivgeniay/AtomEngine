@@ -11,8 +11,9 @@ namespace Editor
     {
         private Dictionary<IComponent, IEnumerable<MemberInfo>> _componentMap = new Dictionary<IComponent, IEnumerable<MemberInfo>>();
         private Dictionary<IComponent, bool> _isGlDependableMap = new Dictionary<IComponent, bool>();
+        private Dictionary<IComponent, EntityInspectorContext> _contexMap = new Dictionary<IComponent, EntityInspectorContext>();
 
-        public IEnumerable<PropertyDescriptor> CreateDescriptors(IComponent component)
+        public IEnumerable<PropertyDescriptor> CreateDescriptors(IComponent component, EntityInspectorContext context)
         {
             var type = component.GetType();
 
@@ -40,6 +41,7 @@ namespace Editor
                 });
             //.Where(m => m is PropertyInfo || m is FieldInfo);
             _componentMap[component] = members;
+            _contexMap[component] = context;
 
             foreach (var member in members)
             {
@@ -74,7 +76,7 @@ namespace Editor
 
             return new PropertyDescriptor
             {
-                Context = component,
+                Context = _contexMap[component],
                 Name = member.Name,
                 Type = memberType,
                 Value = value,

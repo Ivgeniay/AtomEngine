@@ -69,7 +69,7 @@ namespace Editor
 
             _container.Children.Add(_innerContainer);
 
-            var customControls = _currentInspectable.GetCustomControls();
+            var customControls = _currentInspectable.GetCustomControls(_innerContainer);
             if (customControls != null)
             {
                 foreach (var control in customControls)

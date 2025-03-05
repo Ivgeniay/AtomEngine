@@ -25,6 +25,16 @@ namespace Editor
         }
         internal ProjectScene CurrentScene { get =>  _currentScene; }
 
+        public void AddComponent(uint entityId, Type typeComponent)
+        {
+            _currentScene.AddComponent(entityId, typeComponent);
+        }
+
+        public void RemoveComponent(uint entityId, Type typeComponent)
+        {
+            _currentScene.RemoveComponent(entityId, typeComponent);
+        }
+
         public Task InitializeAsync() => Task.CompletedTask;
 
         /// <summary>

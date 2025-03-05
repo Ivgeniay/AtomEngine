@@ -2,7 +2,6 @@
 using Avalonia.Controls;
 using System.IO;
 using System;
-using System.Reflection.PortableExecutable;
 
 namespace Editor
 {
@@ -17,7 +16,7 @@ namespace Editor
 
         public string Title => $"Material: {_material.Name}";
 
-        public IEnumerable<Control> GetCustomControls()
+        public IEnumerable<Control> GetCustomControls(Panel parent)
         {
             return null;
         }
