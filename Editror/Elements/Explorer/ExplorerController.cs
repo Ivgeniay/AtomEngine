@@ -710,10 +710,8 @@ namespace Editor
 
         private void StartDragOperation(string fileName, PointerPressedEventArgs e)
         {
-            // Устанавливаем флаг, что перетаскивание началось
             _isDragInProgress = true;
 
-            // Создаем данные для перетаскивания
             var fileEvent = new FileSelectionEvent()
             {
                 FileName = fileName,
@@ -725,7 +723,6 @@ namespace Editor
             var data = new DataObject();
             data.Set(DataFormats.Text, fileEvent.ToString());
 
-            // Запускаем операцию перетаскивания
             DragDrop.DoDragDrop(e, data, DragDropEffects.Move);
         }
 
@@ -738,28 +735,22 @@ namespace Editor
             {
                 try
                 {
-                    // Пытаемся получить данные о перетаскиваемом файле
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
                         var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData, GlobalDeserializationSettings.Settings);
 
-                        // Находим элемент дерева под курсором
                         var position = e.GetPosition(_treeView);
                         var treeItem = FindTreeViewItemAtPosition(_treeView, position);
 
                         if (treeItem != null && treeItem.Tag is string targetPath && Directory.Exists(targetPath))
                         {
-                            // Проверяем, что файл не перетаскивается в ту же папку
                             if (Path.GetDirectoryName(fileEvent.FileFullPath) != targetPath)
                             {
-                                // Показываем визуальный индикатор
                                 ShowDropIndicator(treeItem);
 
-                                // Разрешаем операцию перемещения
                                 e.DragEffects = DragDropEffects.Move;
 
-                                // Меняем выделение в дереве
                                 if (_lastHoveredTreeItem != treeItem)
                                 {
                                     _treeView.SelectedItem = treeItem;

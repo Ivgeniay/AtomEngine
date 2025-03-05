@@ -92,23 +92,23 @@ namespace Editor
         /// <summary>
         /// Обработчик события создания файла в Assets
         /// </summary>
-        private void OnAssetCreated(string assetPath)
+        private void OnAssetCreated(FileCreateEvent assetData)
         {
-            if (!IsSupportedCodeFile(assetPath))
+            if (!IsSupportedCodeFile(assetData.FileFullPath))
                 return;
 
-            if (IsFileInProcess(assetPath))
+            if (IsFileInProcess(assetData.FileFullPath))
                 return;
 
             try
             {
-                string relativePath = GetRelativePath(assetPath, _assetsPath);
+                string relativePath = GetRelativePath(assetData.FileFullPath, _assetsPath);
                 string projectFilePath = Path.Combine(_projectPath, relativePath);
 
-                AddToProcessing(assetPath);
+                AddToProcessing(assetData.FileFullPath);
                 AddToProcessing(projectFilePath);
 
-                DebLogger.Debug($"Синхронизация (создание): {assetPath} -> {projectFilePath}");
+                DebLogger.Debug($"Синхронизация (создание): {assetData} -> {projectFilePath}");
 
                 try
                 {
@@ -118,14 +118,14 @@ namespace Editor
                         Directory.CreateDirectory(projectFileDir);
                     }
 
-                    string content = File.ReadAllText(assetPath);
+                    string content = File.ReadAllText(assetData.FileFullPath);
                     File.WriteAllText(projectFilePath, content);
 
                     DebLogger.Debug($"Файл скопирован из Assets в проект: {projectFilePath}");
                 }
                 finally
                 {
-                    RemoveFromProcessing(assetPath);
+                    RemoveFromProcessing(assetData.FileFullPath);
                     RemoveFromProcessing(projectFilePath);
                 }
             }
@@ -138,41 +138,47 @@ namespace Editor
         /// <summary>
         /// Обработчик события изменения файла в Assets
         /// </summary>
-        private void OnAssetChanged(string assetPath)
+        private void OnAssetChanged(FileChangedEvent assetData)
         {
-            if (!IsSupportedCodeFile(assetPath))
+            if (!IsSupportedCodeFile(assetData.FileFullPath))
                 return;
 
-            if (IsFileInProcess(assetPath))
+            if (IsFileInProcess(assetData.FileFullPath))
                 return;
 
             try
             {
-                string relativePath = GetRelativePath(assetPath, _assetsPath);
+                string relativePath = GetRelativePath(assetData.FileFullPath, _assetsPath);
                 string projectFilePath = Path.Combine(_projectPath, relativePath);
 
                 if (!File.Exists(projectFilePath))
                 {
                     DebLogger.Debug($"Файл не существует в проекте, будет создан: {projectFilePath}");
-                    OnAssetCreated(assetPath);
+                    OnAssetCreated(new FileCreateEvent()
+                    {
+                        FileExtension = assetData.FileExtension,
+                        FileFullPath = assetData.FileFullPath,
+                        FileName = assetData.FileName,
+                        FilePath = assetData.FileFullPath,
+                    });
                     return;
                 }
 
-                AddToProcessing(assetPath);
+                AddToProcessing(assetData.FileFullPath);
                 AddToProcessing(projectFilePath);
 
-                DebLogger.Debug($"Синхронизация (изменение): {assetPath} -> {projectFilePath}");
+                DebLogger.Debug($"Синхронизация (изменение): {assetData} -> {projectFilePath}");
 
                 try
                 {
-                    string content = File.ReadAllText(assetPath);
+                    string content = File.ReadAllText(assetData.FileFullPath);
                     File.WriteAllText(projectFilePath, content);
 
                     DebLogger.Debug($"Файл обновлен в проекте: {projectFilePath}");
                 }
                 finally
                 {
-                    RemoveFromProcessing(assetPath);
+                    RemoveFromProcessing(assetData.FileFullPath);
                     RemoveFromProcessing(projectFilePath);
                 }
             }
@@ -249,7 +255,15 @@ namespace Editor
                 if (!File.Exists(oldProjectFilePath))
                 {
                     DebLogger.Debug($"Файл не существует в проекте, будет создан новый: {newProjectFilePath}");
-                    OnAssetCreated(newAssetPath);
+                    var extension = Path.GetExtension(newAssetPath);
+                    var fName = Path.GetFileName(newAssetPath);
+                    OnAssetCreated(new FileCreateEvent()
+                    {
+                        FileExtension = extension,
+                        FileName = fName.Substring(0, fName.IndexOf(extension)),
+                        FileFullPath = newAssetPath,
+                        FilePath = newAssetPath.Substring(0, newAssetPath.IndexOf(fName)),
+                    });
                     return;
                 }
 

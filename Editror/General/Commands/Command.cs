@@ -21,4 +21,23 @@ namespace Editor
             _execute?.Invoke();
         }
     }
+
+    public class Command<T>
+    {
+        private readonly Action<T> _execute;
+
+        public Command(Action<T> execute)
+        {
+            _execute = execute;
+        }
+
+        public event EventHandler CanExecuteChanged;
+
+        public bool CanExecute(object parameter) => true;
+
+        public void Execute(T parameter)
+        {
+            _execute?.Invoke(parameter);
+        }
+    }
 }

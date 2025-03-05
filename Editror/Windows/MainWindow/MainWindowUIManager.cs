@@ -264,6 +264,18 @@ namespace Editor
             });
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
             {
+                Extension = ".glsl",
+                Name = "Try To Compile",
+                Description = "Checking to compiling code",
+                Action = (e) =>
+                {
+                    var result = GlslCodeGenerator.TryToCompile(e);
+                    if (result.Success) DebLogger.Info(result);
+                    else DebLogger.Error(result);
+                }
+            });
+            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
                 Extension = ".cs",
                 Name = "Create Material",
                 Description = "Create material from shader representation",

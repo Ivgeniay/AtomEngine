@@ -12,6 +12,7 @@ using Silk.NET.OpenGL;
 using Avalonia.Media;
 using System.Linq;
 using System.Reflection;
+using Editor.Utils.Generator;
 
 namespace Editor
 {
@@ -519,6 +520,7 @@ namespace Editor
 
             _renderTimer?.Stop();
         }
+
 
         #endregion
 

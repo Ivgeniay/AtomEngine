@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using AtomEngine;
 using Avalonia;
 using System;
+using Editor.Utils.Generator;
 
 namespace Editor
 {
@@ -192,10 +193,6 @@ namespace Editor
                         Description = "",
                         Action = () => {
                             _uIManager.OpenWindow(MainControllers.SceneRender);
-                            //_openGlController = new GLController();
-
-                            //var sceneWindow = _uIManager.CreateWindow("Scene", _openGlController, 270, 320, 500, 200);
-                            //sceneWindow.OnClose += (sender) => _openGlController.Dispose();
                         }
                     },
                     new EditorToolbarButton()
@@ -333,6 +330,18 @@ namespace Editor
             _sceneManager.HandleNewScene().GetAwaiter().GetResult();
             _uIManager.Start();
             _sceneManager.InitializeStandartScene();
+
+            ServiceHub.Get<AssetFileSystem>().RegisterCommand(new FileEventCommand()
+            {
+                FileExtension = ".glsl",
+                Type = FileEventType.FileChanged,
+                Command = new Command<FileEvent>((e) =>
+                {
+                    var result = GlslCodeGenerator.TryToCompile(e);
+                    if (result.Success) DebLogger.Info(result);
+                    else DebLogger.Error(result);
+                })
+            });
         }
 
         private void InitializeComponent()

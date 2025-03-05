@@ -3,6 +3,8 @@ using Avalonia.OpenGL;
 using Silk.NET.OpenGL;
 using System;
 using AtomEngine;
+using Editor.Utils.Generator;
+using System.IO;
 
 namespace Editor
 {
@@ -73,5 +75,8 @@ namespace Editor
                 DebLogger.Error($"Ошибка при запросе рендеринга: {ex.Message}");
             }
         }
+
+
     }
+
 }

@@ -1,11 +1,9 @@
-﻿using AtomEngine;
-using System;
+﻿using System.Text.RegularExpressions;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using AtomEngine;
+using System.IO;
+using System;
 
 namespace Editor
 {
@@ -33,10 +31,12 @@ namespace Editor
             @"~$"                 // Временные файлы Office
         };
 
-        public event Action<string> AssetChanged;
-        public event Action<string> AssetCreated;
-        public event Action<string> AssetDeleted;
-        public event Action<string, string> AssetRenamed;
+        public event Action<FileChangedEvent>? AssetChanged;
+        public event Action<FileCreateEvent>? AssetCreated;
+        public event Action<string>? AssetDeleted;
+        public event Action<string, string>? AssetRenamed;
+
+        private List<FileEventCommand> _commands = new List<FileEventCommand>();
 
         // Дебаунсинг событий. (ОС может кидать одно и то же событие несколько раз)
         private Dictionary<string, DateTime> _lastProcessedEvents = new Dictionary<string, DateTime>();
@@ -182,7 +182,26 @@ namespace Editor
                 }
 
                 _metadataManager.HandleFileCreated(e.FullPath);
-                AssetCreated?.Invoke(e.FullPath);
+
+                var extension = Path.GetExtension(e.FullPath);
+                var fName = Path.GetFileName(e.FullPath);
+                FileCreateEvent eventData = new FileCreateEvent()
+                {
+                    FileExtension = extension,
+                    FileName = fName.Substring(0, fName.IndexOf(extension)),
+                    FilePath = e.FullPath.Substring(0, e.FullPath.IndexOf(Path.GetFileName(e.FullPath))),
+                    FileFullPath = e.FullPath,
+                };
+                AssetCreated?.Invoke(eventData);
+
+                foreach(var command in _commands)
+                {
+                    if (command.Type == FileEventType.FileCreate &&
+                        command.FileExtension == eventData.FileExtension)
+                    {
+                        command.Command.Execute(eventData);
+                    }
+                }
 
                 DebLogger.Info($"Создан новый ресурс: {e.FullPath}");
             }
@@ -335,7 +354,26 @@ namespace Editor
                 }
 
                 _metadataManager.HandleFileChanged(e.FullPath);
-                AssetChanged?.Invoke(e.FullPath);
+
+                var extension = Path.GetExtension(e.FullPath);
+                var fName = Path.GetFileName(e.FullPath);
+                FileChangedEvent eventData = new FileChangedEvent()
+                {
+                    FileExtension = extension,
+                    FileName = fName.Substring(0, fName.IndexOf(extension)),
+                    FilePath = e.FullPath.Substring(0, e.FullPath.IndexOf(Path.GetFileName(e.FullPath))),
+                    FileFullPath = e.FullPath,
+                };
+                AssetChanged?.Invoke(eventData);
+
+                foreach (var command in _commands)
+                {
+                    if (command.Type == FileEventType.FileChanged &&
+                        command.FileExtension == eventData.FileExtension)
+                    {
+                        command.Command.Execute(eventData);
+                    }
+                }
 
                 DebLogger.Info($"Изменен ресурс: {e.FullPath}");
             }
@@ -345,10 +383,18 @@ namespace Editor
             }
         }
 
+        public void RegisterCommand(FileEventCommand fileEventCommand)
+        {
+            if (!_commands.Contains(fileEventCommand) )
+            {
+                _commands.Add(fileEventCommand);
+            }
+        }
+
         /// <summary>
         /// Копирует файл ресурса с сохранением метаданных
         /// </summary>
-        public bool CopyAsset(string sourcePath, string destinationPath)
+        internal bool CopyAsset(string sourcePath, string destinationPath)
         {
             try
             {
@@ -386,7 +432,7 @@ namespace Editor
         /// <summary>
         /// Перемещает файл ресурса с сохранением метаданных
         /// </summary>
-        public bool MoveAsset(string sourcePath, string destinationPath)
+        internal bool MoveAsset(string sourcePath, string destinationPath)
         {
             try
             {
@@ -425,7 +471,7 @@ namespace Editor
         /// <summary>
         /// Импортирует файл извне в директорию ресурсов
         /// </summary>
-        public string ImportAsset(string externalFilePath, string relativePath = null)
+        internal string ImportAsset(string externalFilePath, string relativePath = null)
         {
             try
             {
@@ -470,7 +516,7 @@ namespace Editor
         /// <summary>
         /// Экспортирует ресурс во внешнюю директорию
         /// </summary>
-        public bool ExportAsset(string assetPath, string exportPath)
+        internal bool ExportAsset(string assetPath, string exportPath)
         {
             try
             {
@@ -495,7 +541,7 @@ namespace Editor
         /// <summary>
         /// Получает относительный путь ресурса от корневой директории ресурсов
         /// </summary>
-        public string GetRelativePath(string fullPath)
+        internal string GetRelativePath(string fullPath)
         {
             if (string.IsNullOrEmpty(fullPath) || !fullPath.StartsWith(_assetsPath))
                 return null;
@@ -506,7 +552,7 @@ namespace Editor
         /// <summary>
         /// Получает полный путь ресурса по относительному пути
         /// </summary>
-        public string GetFullPath(string relativePath)
+        internal string GetFullPath(string relativePath)
         {
             if (string.IsNullOrEmpty(relativePath))
                 return null;
@@ -517,7 +563,7 @@ namespace Editor
         /// <summary>
         /// Определяет тип ресурса по его расширению
         /// </summary>
-        public MetadataType GetAssetTypeByExtension(string extension)
+        internal MetadataType GetAssetTypeByExtension(string extension)
         {
             if (string.IsNullOrEmpty(extension))
                 return MetadataType.Unknown;
@@ -531,7 +577,7 @@ namespace Editor
         /// <summary>
         /// Получает список всех ресурсов указанного типа
         /// </summary>
-        public List<string> GetAssetsByType(MetadataType assetType)
+        internal List<string> GetAssetsByType(MetadataType assetType)
         {
             return _metadataManager.FindAssetsByType(assetType);
         }
@@ -539,7 +585,7 @@ namespace Editor
         /// <summary>
         /// Получает список всех ресурсов с указанным тегом
         /// </summary>
-        public List<string> GetAssetsByTag(string tag)
+        internal List<string> GetAssetsByTag(string tag)
         {
             return _metadataManager.FindAssetsByTag(tag);
         }
@@ -547,7 +593,7 @@ namespace Editor
         /// <summary>
         /// Проверяет, является ли путь путем к ресурсу (находится в директории ресурсов)
         /// </summary>
-        public bool IsAssetPath(string path)
+        internal bool IsAssetPath(string path)
         {
             if (string.IsNullOrEmpty(path))
                 return false;
@@ -558,7 +604,7 @@ namespace Editor
         /// <summary>
         /// Получает путь к ресурсу по его GUID
         /// </summary>
-        public string GetAssetPathByGuid(string guid)
+        internal string GetAssetPathByGuid(string guid)
         {
             return _metadataManager.GetPathByGuid(guid);
         }
@@ -566,7 +612,7 @@ namespace Editor
         /// <summary>
         /// Получает GUID ресурса по его пути
         /// </summary>
-        public string GetAssetGuid(string assetPath)
+        internal string GetAssetGuid(string assetPath)
         {
             var metadata = _metadataManager.GetMetadata(assetPath);
             return metadata?.Guid;
@@ -575,7 +621,7 @@ namespace Editor
         /// <summary>
         /// Добавляет тег к ресурсу
         /// </summary>
-        public void AddAssetTag(string assetPath, string tag)
+        internal void AddAssetTag(string assetPath, string tag)
         {
             _metadataManager.AddTag(assetPath, tag);
         }
@@ -583,7 +629,7 @@ namespace Editor
         /// <summary>
         /// Удаляет тег у ресурса
         /// </summary>
-        public void RemoveAssetTag(string assetPath, string tag)
+        internal void RemoveAssetTag(string assetPath, string tag)
         {
             _metadataManager.RemoveTag(assetPath, tag);
         }
@@ -591,7 +637,7 @@ namespace Editor
         /// <summary>
         /// Обновляет настройки импорта ресурса
         /// </summary>
-        public void UpdateAssetImportSettings(string assetPath, Dictionary<string, object> settings)
+        internal void UpdateAssetImportSettings(string assetPath, Dictionary<string, object> settings)
         {
             _metadataManager.UpdateImportSettings(assetPath, settings);
         }
@@ -611,5 +657,18 @@ namespace Editor
                 _fileWatcher = null;
             }
         }
+    }
+
+    public class FileEventCommand
+    {
+        public string FileExtension { get; set; } = string.Empty;
+        public FileEventType Type = FileEventType.FileCreate;
+        public Command<FileEvent> Command { get; set; }
+    }
+
+    public enum FileEventType
+    {
+        FileChanged,
+        FileCreate
     }
 }

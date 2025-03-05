@@ -1,6 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System;
+using System.Text;
+using Silk.NET.OpenGL;
+using AtomEngine;
+using Silk.NET.Windowing;
 
 namespace Editor.Utils.Generator
 {
@@ -151,6 +155,178 @@ namespace Editor.Utils.Generator
             }
 
             return generatedMaterials;
+        }
+
+        internal unsafe static CompilationResult TryToCompile(FileEvent e)
+        {
+            CompilationResult result = new CompilationResult();
+            result.FilePath = e.FileFullPath;
+            GL _gl = null;
+
+            try
+            {
+                result.Log.Append("Cheking existing file: ");
+                if (!File.Exists(e.FileFullPath))
+                {
+                    result.Success = false;
+                    result.Message = "File not found";
+                    result.Log.AppendLine($"{e.FileFullPath} is not exist");
+                    return result;
+                }
+                result.Log.AppendLine($"{e.FileName} found");
+
+                string shaderSource = File.ReadAllText(e.FileFullPath);
+
+                result.Log.Append("Cheking full shader: ");
+                if (!GlslParser.IsCompleteShaderFile(shaderSource))
+                {
+                    result.Success = false;
+                    result.Message = "Not full";
+                    result.Log.AppendLine("There is no complete shader (required #vertex and #fragment sections)");
+                    return result;
+                }
+                result.Log.AppendLine("full shader");
+
+                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
+
+                var options = WindowOptions.Default;
+                options.Size = new Silk.NET.Maths.Vector2D<int>(1, 1);
+                options.Title = "GLSL Compiler";
+                options.VSync = false;
+                options.ShouldSwapAutomatically = false;
+                options.IsVisible = false;
+                options.API = new GraphicsAPI(
+                    ContextAPI.OpenGL,
+                    ContextProfile.Core,
+                    ContextFlags.Debug,
+                    new APIVersion(3, 3)
+                );
+
+                using var window = Window.Create(options);
+                window.Initialize();
+
+                _gl = window.CreateOpenGL();
+
+                if (_gl != null)
+                {
+                    var glVersion = _gl.GetString(Silk.NET.OpenGL.StringName.Version);
+                    var shaderVersion = _gl.GetString(Silk.NET.OpenGL.StringName.ShadingLanguageVersion);
+
+                    result.Log.AppendLine($"OpenGL версия: {*glVersion}");
+                    result.Log.AppendLine($"GLSL версия: {*shaderVersion}");
+
+                    uint vertexShader = CompileShader(_gl, vertexSource, Silk.NET.OpenGL.ShaderType.VertexShader, result);
+                    if (vertexShader == 0)
+                    {
+                        result.Success = false;
+                        result.Message = "Fail compiling #vertex shader";
+                        return result;
+                    }
+
+                    uint fragmentShader = CompileShader(_gl, fragmentSource, Silk.NET.OpenGL.ShaderType.FragmentShader, result);
+                    if (fragmentShader == 0)
+                    {
+                        _gl.DeleteShader(vertexShader);
+
+                        result.Success = false;
+                        result.Message = "Fail compiling #fragment shader";
+                        return result;
+                    }
+
+                    result.Log.Append("Starting creating shader programm: ");
+                    uint program = _gl.CreateProgram();
+                    _gl.AttachShader(program, vertexShader);
+                    _gl.AttachShader(program, fragmentShader);
+                    _gl.LinkProgram(program);
+
+                    _gl.GetProgram(program, Silk.NET.OpenGL.ProgramPropertyARB.LinkStatus, out int linkStatus);
+                    if (linkStatus == 0)
+                    {
+                        string linkLog = _gl.GetProgramInfoLog(program);
+
+                        _gl.DeleteShader(vertexShader);
+                        _gl.DeleteShader(fragmentShader);
+                        _gl.DeleteProgram(program);
+
+                        result.Success = false;
+                        result.Log.AppendLine($"Error linking programm: {linkLog}");
+                        result.Message = "Ошибка линковки программы: " + linkLog;
+                        return result;
+                    }
+                    result.Log.AppendLine("Done");
+
+                    _gl.DeleteShader(vertexShader);
+                    _gl.DeleteShader(fragmentShader);
+                    _gl.DeleteProgram(program);
+
+                    result.Success = true;
+                    result.Message = "Shader succefully compiled";
+                    return result;
+                }
+                else
+                {
+                    result.Success = false;
+                    result.Message = "Нет доступа к GL контексту. Откройте окно сцены";
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Message = "Произошла ошибка: " + ex.Message;
+                return result;
+            }
+            finally
+            {
+                _gl?.Dispose();
+            }
+        }
+
+        private static uint CompileShader(GL gl, string source, ShaderType type, CompilationResult result)
+        {
+            result.Log.Append($"Cheking ${type} comlilation: ");
+            try
+            {
+                uint shader = gl.CreateShader(type);
+                gl.ShaderSource(shader, source);
+                gl.CompileShader(shader);
+
+                gl.GetShader(shader, ShaderParameterName.CompileStatus, out int status);
+                if (status == 0)
+                {
+                    string log = gl.GetShaderInfoLog(shader);
+                    result.Log.AppendLine($" {log}");
+                    gl.GetShader(shader, ShaderParameterName.InfoLogLength, out int logLength);
+                    if (logLength > 0)
+                    {
+                        string log6 = gl.GetShaderInfoLog(shader);
+                    }
+
+                    gl.DeleteShader(shader);
+                    return 0;
+                }
+                result.Log.AppendLine(" Done");
+                return shader;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Исключение при компиляции {type}: {ex.Message}");
+                return 0;
+            }
+        }
+    }
+
+
+    public class CompilationResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
+        public StringBuilder Log { get; set; } = new StringBuilder();
+
+        public override string ToString()
+        {
+            return $"{(Success ? "Успех" : "Ошибка")}: {Message}\n{Log.ToString()}";
         }
     }
 }
