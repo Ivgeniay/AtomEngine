@@ -18,6 +18,7 @@ namespace Editor
         private Assembly _renderAssembly;
         private Assembly _silkMathAssembly;
         private Assembly _silkOpenGlAssembly;
+        private Assembly _silkCoreGlAssembly;
         private Assembly _newtonsoftJsonAssembly;
         private Assembly _componentGeneratorAssembly;
         private bool _isInitialized = false;
@@ -55,6 +56,7 @@ namespace Editor
                 _renderAssembly = assemblyManager.GetAssembly(TAssembly.Render);
                 _silkMathAssembly = assemblyManager.GetAssembly(TAssembly.SilkMath);
                 _silkOpenGlAssembly = assemblyManager.GetAssembly(TAssembly.SilkOpenGL);
+                _silkCoreGlAssembly = assemblyManager.GetAssembly(TAssembly.SilkNetCore);
                 _newtonsoftJsonAssembly = assemblyManager.GetAssembly(TAssembly.NewtonsoftJson);
                 _componentGeneratorAssembly = assemblyManager.GetAssembly(TAssembly.ComponentGenerator);
 
@@ -160,6 +162,9 @@ namespace Editor
     </Reference>
     <Reference Include=""{_silkOpenGlAssembly.GetName().Name}"">
       <HintPath>{_silkOpenGlAssembly.Location}</HintPath>
+    </Reference>
+    <Reference Include=""{_silkCoreGlAssembly.GetName().Name}"">
+      <HintPath>{_silkCoreGlAssembly.Location}</HintPath>
     </Reference>
     <Reference Include=""{_newtonsoftJsonAssembly.GetName().Name}"">
       <HintPath>{_newtonsoftJsonAssembly.Location}</HintPath>

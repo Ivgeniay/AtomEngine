@@ -1,8 +1,8 @@
-﻿using Avalonia;
+﻿using Avalonia.Controls.Primitives;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia;
 using System;
 
 namespace Editor

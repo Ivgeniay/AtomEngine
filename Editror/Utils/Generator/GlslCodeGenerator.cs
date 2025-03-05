@@ -3,7 +3,6 @@ using System.IO;
 using System;
 using System.Text;
 using Silk.NET.OpenGL;
-using AtomEngine;
 using Silk.NET.Windowing;
 
 namespace Editor.Utils.Generator

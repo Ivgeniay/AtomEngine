@@ -184,12 +184,12 @@ namespace Editor
                 _metadataManager.HandleFileCreated(e.FullPath);
 
                 var extension = Path.GetExtension(e.FullPath);
-                var fName = Path.GetFileName(e.FullPath);
+                var fName = Path.GetFileNameWithoutExtension(e.FullPath);
                 FileCreateEvent eventData = new FileCreateEvent()
                 {
                     FileExtension = extension,
-                    FileName = fName.Substring(0, fName.IndexOf(extension)),
-                    FilePath = e.FullPath.Substring(0, e.FullPath.IndexOf(Path.GetFileName(e.FullPath))),
+                    FileName = fName,
+                    FilePath = e.FullPath.Substring(0, e.FullPath.IndexOf(fName)),
                     FileFullPath = e.FullPath,
                 };
                 AssetCreated?.Invoke(eventData);
@@ -356,12 +356,12 @@ namespace Editor
                 _metadataManager.HandleFileChanged(e.FullPath);
 
                 var extension = Path.GetExtension(e.FullPath);
-                var fName = Path.GetFileName(e.FullPath);
+                var fName = Path.GetFileNameWithoutExtension(e.FullPath);
                 FileChangedEvent eventData = new FileChangedEvent()
                 {
                     FileExtension = extension,
-                    FileName = fName.Substring(0, fName.IndexOf(extension)),
-                    FilePath = e.FullPath.Substring(0, e.FullPath.IndexOf(Path.GetFileName(e.FullPath))),
+                    FileName = fName,
+                    FilePath = e.FullPath.Substring(0, e.FullPath.IndexOf(fName)),
                     FileFullPath = e.FullPath,
                 };
                 AssetChanged?.Invoke(eventData);

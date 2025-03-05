@@ -7,19 +7,6 @@
     </Border>
   </Design.PreviewWith>
 
-  <!-- Стили для ComponentSearchDialog -->
-  <Style Selector="Editor|ComponentSearchDialog">
-    <Setter Property="Background" Value="#252526"/>
-    <Setter Property="BorderBrush" Value="#3F3F46"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="3"/>
-    <Setter Property="Width" Value="300"/>
-    <Setter Property="MaxHeight" Value="300"/>
-    <Setter Property="ZIndex" Value="9999"/>
-    <Setter Property="BoxShadow" Value="0 3 5 0 #0A0A0A"/>
-    <!-- Гарантируем, что диалог будет поверх всех элементов -->
-    <Setter Property="ClipToBounds" Value="False"/>
-  </Style>
 
   <!-- Основные стили для ComponentSearchDialog -->
   <Style Selector="Editor|ComponentSearchDialog">
@@ -27,7 +14,7 @@
     <Setter Property="BorderBrush" Value="#3F3F46"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="3"/>
-    <Setter Property="Width" Value="300"/>
+    <Setter Property="Width" Value="250"/>
     <Setter Property="MaxHeight" Value="300"/>
     <Setter Property="ZIndex" Value="9999"/>
     <Setter Property="BoxShadow" Value="0 3 5 0 #0A0A0A"/>
@@ -37,18 +24,23 @@
   <!-- Стили для поля поиска -->
   <Style Selector="Editor|ComponentSearchDialog TextBox">
     <Setter Property="Background" Value="#2D2D30"/>
-    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="Foreground" Value="#DCDCDC"/>
     <Setter Property="BorderBrush" Value="#3F3F46"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="Padding" Value="8 4"/>
+    <Setter Property="Padding" Value="5 3"/>
     <Setter Property="CornerRadius" Value="2"/>
-    <Setter Property="CaretBrush" Value="#CCCCCC"/>
     <Setter Property="SelectionBrush" Value="#264F78"/>
     <Setter Property="SelectionForegroundBrush" Value="#FFFFFF"/>
+
+    <Setter Property="FontFamily" Value="Consolas, Menlo, Monospace"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="CaretBrush" Value="#007ACC"/>
   </Style>
 
   <Style Selector="Editor|ComponentSearchDialog TextBox:focus">
+    <Setter Property="Background" Value="#252526"/>
     <Setter Property="BorderBrush" Value="#007ACC"/>
+    <Setter Property="Foreground" Value="#E6E6E6"/>
   </Style>
 
   <Style Selector="Editor|ComponentSearchDialog TextBox:pointerover">

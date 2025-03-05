@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using AtomEngine;
 using Silk.NET.Maths;
 
 namespace Editor
@@ -31,14 +32,12 @@ namespace Editor
 
         public static void ExtractUniformProperties(string code, in Dictionary<string, object> properties, in List<string> samplers)
         {
-            // Регулярное выражение для поиска объявлений свойств для uniform-переменных
             // Ищем объявления вида: public [тип] [имя] { get; set; }
             var propertyRegex = new System.Text.RegularExpressions.Regex(
                 @"public\s+(?:unsafe\s+)?(\w+(?:<\w+>)?)\s+(\w+)\s*\{",
                 System.Text.RegularExpressions.RegexOptions.Multiline
             );
 
-            // Регулярное выражение для поиска объявлений методов для семплерных типов
             // Ищем объявления вида: public void [имя]_SetTexture(OpenglLib.Texture texture)
             var samplerRegex = new System.Text.RegularExpressions.Regex(
                 @"public\s+void\s+(\w+)_SetTexture\s*\(OpenglLib\.Texture\s+\w+\)",
@@ -54,7 +53,6 @@ namespace Editor
                     string typeName = match.Groups[1].Value;
                     string propertyName = match.Groups[2].Value;
 
-                    // Пропускаем свойства для семплерных типов (они будут обрабатываться отдельно)
                     if (typeName.Contains("Array") || propertyName.EndsWith("Location") ||
                         typeName.Contains("Struct") || IsSamplerType(typeName))
                         continue;

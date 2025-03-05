@@ -293,7 +293,6 @@ namespace Editor
             builder.AppendLine("            {");
             builder.AppendLine($"                if ({locationFieldName} == -1)");
             builder.AppendLine($"                {{");
-            builder.AppendLine($"                   DebLogger.Warn(\"You try to set value to -1 lcation field\");");
             builder.AppendLine($"                   return;");
             builder.AppendLine($"                }}");
             builder.AppendLine($"                {cashFieldName} = value;");

@@ -20,6 +20,7 @@ namespace Editor
                     { TAssembly.SilkMath, "Silk.NET.Maths" },
                     { TAssembly.ComponentGenerator, "ComponentGenerator" },
                     { TAssembly.NewtonsoftJson, "Newtonsoft.Json" },
+                    { TAssembly.SilkNetCore, "Silk.NET.Core"}
                 };
 
         private readonly HashSet<Assembly> _assemblies = new();
@@ -102,6 +103,11 @@ namespace Editor
 
         public IEnumerable<Type> FindTypesByInterface<T>()
         {
+            var ts = _user_script_assembly.GetTypes()
+                    .Where(t => !t.IsAbstract && !t.IsInterface && typeof(T).IsAssignableFrom(t));
+            foreach (var type in ts)
+                yield return type;
+
             foreach (var assembly in _assemblies)
             {
                 if (assembly.FullName.StartsWith("System") || 
@@ -161,6 +167,7 @@ namespace Editor
         Render,
         SilkMath,
         SilkOpenGL,
+        SilkNetCore,
         ComponentGenerator,
         NewtonsoftJson,
     }
