@@ -36,8 +36,8 @@ namespace ComponentGenerator
     [Generator]
     public class ComponentSourceGenerator : ISourceGenerator
     {
-        private const string GLDependableComponentAttributeFullName = "GLDependableComponentAttribute";
-        private const string GLDependableComponentAttributeName = "GLDependableComponent";
+        private const string GLDependableComponentAttributeFullName = "GLDependableAttribute";
+        private const string GLDependableComponentAttributeName = "GLDependable";
         private const string IComponentTypeName = "IComponent";
 
         // Ignore types
@@ -82,8 +82,6 @@ namespace ComponentGenerator
 
         public void Initialize(GeneratorInitializationContext context)
         {
-            Console.WriteLine("Source Generator Initialized");
-
             var receiver = new SyntaxReceiver();
             context.RegisterForSyntaxNotifications(() => receiver);
         }
@@ -91,7 +89,7 @@ namespace ComponentGenerator
         public void Execute(GeneratorExecutionContext context)
         {
             ReportMessage(context, "CG001", "Receiver",
-                    "Старт генерации", DiagnosticSeverity.Warning);
+                    "Start generation", DiagnosticSeverity.Warning);
 
             if (!(context.SyntaxContextReceiver is SyntaxReceiver receiver))
             {
@@ -286,7 +284,6 @@ namespace ComponentGenerator
                     memberType = propertySymbol.Type.ToDisplayString();
                 }
 
-                // Добавляем GUID-поле только если его еще нет
                 sb.AppendLine($"{indent}    /// <summary>");
                 sb.AppendLine($"{indent}    /// GUID поле для {memberName} типа {memberType}");
                 sb.AppendLine($"{indent}    /// </summary>");
@@ -368,6 +365,7 @@ namespace ComponentGenerator
                 {
                     foreach (var attribute in structSymbol.GetAttributes())
                     {
+                        //ReportMessage(context, "CG001", "Receiver", "Start generation", DiagnosticSeverity.Warning);
                         string attributeName = attribute.AttributeClass?.Name;
                         if (attributeName == GLDependableComponentAttributeName || attributeName == GLDependableComponentAttributeFullName)
                         {

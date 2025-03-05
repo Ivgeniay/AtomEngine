@@ -25,7 +25,7 @@ namespace OpenglLib
             {
                 return LoadFromResources(modelPath, gl, _assimp);
             }
-            return LoadFromFile(modelPath);
+            return LoadFromFile(modelPath, gl, _assimp);
         }
 
         private unsafe static Result<Model, Error> LoadFromResources(string modelPath, GL gl, Assimp _assimp)
@@ -251,65 +251,97 @@ namespace OpenglLib
 
 
 
-        private static Result<Model, Error> LoadFromFile(string shaderName)
+        private static Result<Model, Error> LoadFromFile(string modelPath, GL gl, Assimp assimp)
         {
-            var normalizedShaderName = NormalizePath(shaderName);
-            var basePath = _customBasePath;
-
-            // Сначала пробуем найти файл по полному пути
-            var fullPath = Path.Combine(basePath, normalizedShaderName);
-
-            if (!System.IO.File.Exists(fullPath))
+            try
             {
-                // Если файл не найден, ищем все файлы с таким именем
-                var fileName = Path.GetFileName(normalizedShaderName);
-                var searchResults = Directory
-                    .GetFiles(basePath, fileName, SearchOption.AllDirectories)
-                    .Select(path => NormalizePath(Path.GetRelativePath(basePath, path)))
-                    .ToList();
+                var normalizedModelPath = NormalizePath(modelPath);
+                var basePath = _customBasePath;
 
-                if (!searchResults.Any())
+                // Сначала пробуем найти файл по полному пути
+                var fullPath = Path.Combine(basePath, normalizedModelPath);
+
+                if (!System.IO.File.Exists(fullPath))
                 {
-                    var availableShaders = Directory
-                        .GetFiles(basePath, "*.glsl", SearchOption.AllDirectories)
-                        .Select(path => NormalizePath(Path.GetRelativePath(basePath, path)));
+                    // Если файл не найден, ищем все файлы с таким именем
+                    var fileName = Path.GetFileName(normalizedModelPath);
+                    var searchResults = Directory
+                        .GetFiles(basePath, fileName, SearchOption.AllDirectories)
+                        .Select(path => NormalizePath(Path.GetRelativePath(basePath, path)))
+                        .ToList();
 
-                    throw new ShaderError(
-                        $"Shader file not found: {shaderName}\n" +
-                        $"Searched in: {basePath}\n" +
-                        $"Available shaders:\n{string.Join("\n", availableShaders)}");
-                }
-
-                // Если найдено больше одного файла, проверяем на точное совпадение пути
-                if (searchResults.Count > 1)
-                {
-                    var normalizedSearchPath = NormalizePath(normalizedShaderName);
-                    var exactMatch = searchResults
-                        .FirstOrDefault(path =>
-                            string.Equals(path, normalizedSearchPath, StringComparison.OrdinalIgnoreCase));
-
-                    if (exactMatch != null)
+                    if (!searchResults.Any())
                     {
-                        // Нашли точное совпадение по относительному пути
-                        fullPath = Path.Combine(basePath, exactMatch);
+                        var availableModels = Directory
+                            .GetFiles(basePath, "*.obj", SearchOption.AllDirectories)
+                            .Concat(Directory.GetFiles(basePath, "*.fbx", SearchOption.AllDirectories))
+                            .Concat(Directory.GetFiles(basePath, "*.3ds", SearchOption.AllDirectories))
+                            .Select(path => NormalizePath(Path.GetRelativePath(basePath, path)));
+
+                        throw new MeshError(
+                            $"Model file not found: {modelPath}\n" +
+                            $"Searched in: {basePath}\n" +
+                            $"Available models:\n{string.Join("\n", availableModels)}");
+                    }
+
+                    // Если найдено больше одного файла, проверяем на точное совпадение пути
+                    if (searchResults.Count > 1)
+                    {
+                        var normalizedSearchPath = NormalizePath(normalizedModelPath);
+                        var exactMatch = searchResults
+                            .FirstOrDefault(path =>
+                                string.Equals(path, normalizedSearchPath, StringComparison.OrdinalIgnoreCase));
+
+                        if (exactMatch != null)
+                        {
+                            // Нашли точное совпадение по относительному пути
+                            fullPath = Path.Combine(basePath, exactMatch);
+                        }
+                        else
+                        {
+                            // Если файл с таким именем существует в нескольких местах и нет точного совпадения пути
+                            throw new MeshError(
+                                $"Ambiguous model name: {modelPath}\n" +
+                                $"Multiple matches found:\n{string.Join("\n", searchResults)}");
+                        }
                     }
                     else
                     {
-                        // Если файл с таким именем существует в нескольких местах и нет точного совпадения пути
-                        throw new ShaderError(
-                            $"Ambiguous shader name: {shaderName}\n" +
-                            $"Multiple matches found:\n{string.Join("\n", searchResults)}");
+                        // Если найден только один файл, используем его
+                        fullPath = Path.Combine(basePath, searchResults[0]);
                     }
                 }
-                else
+
+                unsafe
                 {
-                    // Если найден только один файл, используем его
-                    fullPath = Path.Combine(basePath, searchResults[0]);
+                    uint postProcessFlags = (uint)(PostProcessSteps.Triangulate |
+                                                  PostProcessSteps.GenerateNormals |
+                                                  PostProcessSteps.FlipUVs);
+
+                    Scene* scene = assimp.ImportFile(fullPath, postProcessFlags);
+
+                    if (scene == null)
+                    {
+                        string errorMsg = Marshal.PtrToStringAnsi((IntPtr)assimp.GetErrorString());
+                        throw new MeshError($"Failed to load model from file: {fullPath}. Assimp error: {errorMsg}");
+                    }
+
+                    // Создаем модель и загружаем её
+                    Model model = new Model(gl);
+                    model.Directory = Path.GetDirectoryName(fullPath);
+
+                    ProcessNode(scene->MRootNode, scene, gl, assimp, model);
+
+                    return new Result<Model, Error>(model);
                 }
             }
+            catch (Exception ex)
+            {
+                if (ex is MeshError)
+                    return new Result<Model, Error>(ex as MeshError);
 
-            string res = System.IO.File.ReadAllText(fullPath);
-            return new Result<Model, Error>(new NotImplementedError("Kek"));
+                return new Result<Model, Error>(new MeshError($"Error loading model from file: {ex.Message}"));
+            }
         }
 
         private static string NormalizePath(string path)

@@ -94,4 +94,8 @@
       <SubType>Designer</SubType>
     </AvaloniaResource>
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Utils\OpenGL\" />
+  </ItemGroup>
 </Project>

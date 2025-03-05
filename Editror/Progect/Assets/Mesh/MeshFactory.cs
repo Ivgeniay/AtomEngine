@@ -30,7 +30,7 @@ namespace Editor
                     DebLogger.Error($"Не удалось загрузить материал из пути: {meshPath}");
                     return null;
                 }
-                Result<Model, Error> mb_model = ModelLoader.LoadModel(meshText, gl, _assimp);
+                Result<Model, Error> mb_model = ModelLoader.LoadModel(meshPath, gl, _assimp, false);
                 var model = mb_model.Unwrap();
                 var mesh = model.Meshes[0];
                 return mesh;

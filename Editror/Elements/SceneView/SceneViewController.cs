@@ -12,7 +12,6 @@ using Silk.NET.OpenGL;
 using Avalonia.Media;
 using System.Linq;
 using System.Reflection;
-using Editor.Utils.Generator;
 
 namespace Editor
 {
@@ -252,12 +251,17 @@ namespace Editor
                     // Создаем матрицу модели из компонента трансформации
                     Matrix4x4 model = CreateModelMatrix(transform);
 
-                    // Ищем все GL-зависимые компоненты в сущности
-                    var glDependableComponents = FindGLDependableComponents(entity);
+                    // Ищем шейдер и меш среди компонентов сущности
+                    ShaderBase shader = null;
+                    MeshBase mesh = null;
 
-                    foreach (var component in glDependableComponents)
+                    // Находим компоненты с шейдерами и мешами
+                    FindRenderableComponents(entity, out shader, out mesh);
+
+                    // Если нашли и шейдер, и меш - рендерим сущность
+                    if (shader != null && mesh != null)
                     {
-                        RenderGLDependableComponent(gl, component, model, view, projection);
+                        RenderEntityWithShaderAndMesh(gl, shader, mesh, model, view, projection);
                     }
                 }
                 catch (Exception ex)
@@ -265,6 +269,103 @@ namespace Editor
                     DebLogger.Error($"Ошибка при рендеринге сущности {entity.Name}: {ex.Message}");
                 }
             }
+        }
+
+        private void FindRenderableComponents(EntityData entity, out ShaderBase shader, out MeshBase mesh)
+        {
+            shader = null;
+            mesh = null;
+
+            var glDependableComponents = FindGLDependableComponents(entity);
+
+            foreach (var component in glDependableComponents)
+            {
+                // Ищем шейдер, если он еще не найден
+                if (shader == null)
+                {
+                    var shaderFields = FindFieldsByBaseType(component.GetType(), typeof(ShaderBase));
+                    foreach (var shaderField in shaderFields)
+                    {
+                        var shaderGuidField = component.GetType().GetField(shaderField.Name + "GUID",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                        if (shaderGuidField != null)
+                        {
+                            string shaderGuid = (string)shaderGuidField.GetValue(component);
+                            if (!string.IsNullOrEmpty(shaderGuid))
+                            {
+                                shader = _resourceManager.GetResource<ShaderBase>(shaderGuid);
+                                if (shader != null)
+                                {
+                                    shaderField.SetValue(component, shader);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Ищем меш, если он еще не найден
+                if (mesh == null)
+                {
+                    var meshFields = FindFieldsByBaseType(component.GetType(), typeof(MeshBase));
+                    foreach (var meshField in meshFields)
+                    {
+                        var meshGuidField = component.GetType().GetField(meshField.Name + "GUID",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                        if (meshGuidField != null)
+                        {
+                            string meshGuid = (string)meshGuidField.GetValue(component);
+                            if (!string.IsNullOrEmpty(meshGuid))
+                            {
+                                mesh = _resourceManager.GetResource<MeshBase>(meshGuid);
+                                if (mesh != null)
+                                {
+                                    meshField.SetValue(component, mesh);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Если нашли и шейдер, и меш, можно прекратить поиск
+                if (shader != null && mesh != null)
+                    break;
+            }
+        }
+
+        private unsafe void RenderEntityWithShaderAndMesh(GL gl, ShaderBase shader, MeshBase mesh, Matrix4x4 model, Matrix4x4 view, Matrix4x4 projection)
+        {
+            // Используем шейдер
+            shader.Use();
+
+            // Устанавливаем MVP матрицы в шейдер, если шейдер поддерживает эти uniform-переменные
+            try
+            {
+                // Получаем местоположения uniform-переменных
+                var modelLoc = gl.GetUniformLocation(shader.Handle, "model");
+                var viewLoc = gl.GetUniformLocation(shader.Handle, "view");
+                var projLoc = gl.GetUniformLocation(shader.Handle, "projection");
+
+                // Устанавливаем uniform-переменные
+                if (modelLoc >= 0)
+                    gl.UniformMatrix4(modelLoc, 1, false, GetMatrix4x4Values(model));
+
+                if (viewLoc >= 0)
+                    gl.UniformMatrix4(viewLoc, 1, false, GetMatrix4x4Values(view));
+
+                if (projLoc >= 0)
+                    gl.UniformMatrix4(projLoc, 1, false, GetMatrix4x4Values(projection));
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Warn($"Не удалось установить MVP матрицы в шейдер: {ex.Message}");
+            }
+
+            // Рендерим меш
+            mesh.Draw(shader);
         }
 
         private bool TryGetTransformComponent(EntityData entity, out TransformComponent transform)
@@ -294,7 +395,7 @@ namespace Editor
 
             if (transform.Scale != Vector3.One)
             {
-                model *= Matrix4x4.CreateScale(transform.Scale);
+                //model *= Matrix4x4.CreateScale(transform.Scale);
             }
 
             return model;

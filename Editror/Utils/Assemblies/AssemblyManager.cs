@@ -83,6 +83,9 @@ namespace Editor
 
         public Type? FindType(string typeName)
         {
+            var tp = _user_script_assembly.GetTypes().FirstOrDefault(t => t.Name == typeName);
+            if (tp != null) return tp;
+
             foreach (var assembly in _assemblies)
             {
                 try
@@ -93,8 +96,25 @@ namespace Editor
                     if (type != null)
                         return type;
                 }
+                catch (ReflectionTypeLoadException)
+                {
+                    continue;
+                }
+                catch (FileNotFoundException)
+                {
+                    continue;
+                }
+                catch (BadImageFormatException)
+                {
+                    continue;
+                }
+                catch (Exception ex) when (ex is AssemblyError || ex is TypeLoadException)
+                {
+                    continue;
+                }
                 catch (AssemblyError ex)
-                { }
+                { 
+                }
             }
             return null;
         }

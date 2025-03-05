@@ -31,7 +31,8 @@ namespace Editor
                 var guid = targetField.GetValue(target);
                 if (guid != null)
                 {
-                    return ServiceHub.Get<MaterialManager>().GetPath((string)guid);
+                    return ServiceHub.Get<MetadataManager>().GetPathByGuid((string)guid);
+                    //return ServiceHub.Get<MaterialManager>().GetPath((string)guid);
                 }
             }
             return null;
@@ -49,10 +50,11 @@ namespace Editor
             {
                 if (e != null)
                 {
-                    var materialAsset = ServiceHub.Get<MaterialManager>().LoadMaterial(e);
+                    //var materialAsset = ServiceHub.Get<MaterialManager>().LoadMaterial(e);
+                    var metaData = ServiceHub.Get<MetadataManager>().LoadMetadata(e+".meta");
                     descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
                     {
-                        Value = materialAsset.Guid,
+                        Value = metaData.Guid,
                     });
                 }
                 else

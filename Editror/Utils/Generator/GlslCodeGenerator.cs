@@ -4,6 +4,8 @@ using System;
 using System.Text;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
+using OpenglLib;
+using System.Reflection.Metadata;
 
 namespace Editor.Utils.Generator
 {
@@ -160,7 +162,7 @@ namespace Editor.Utils.Generator
         {
             CompilationResult result = new CompilationResult();
             result.FilePath = e.FileFullPath;
-            GL _gl = null;
+            GL gl = null;
 
             try
             {
@@ -204,17 +206,17 @@ namespace Editor.Utils.Generator
                 using var window = Window.Create(options);
                 window.Initialize();
 
-                _gl = window.CreateOpenGL();
+                gl = window.CreateOpenGL();
 
-                if (_gl != null)
+                if (gl != null)
                 {
-                    var glVersion = _gl.GetString(Silk.NET.OpenGL.StringName.Version);
-                    var shaderVersion = _gl.GetString(Silk.NET.OpenGL.StringName.ShadingLanguageVersion);
+                    var glVersion = gl.GetString(StringName.Version);
+                    var shaderVersion = gl.GetString(StringName.ShadingLanguageVersion);
 
                     result.Log.AppendLine($"OpenGL версия: {*glVersion}");
                     result.Log.AppendLine($"GLSL версия: {*shaderVersion}");
 
-                    uint vertexShader = CompileShader(_gl, vertexSource, Silk.NET.OpenGL.ShaderType.VertexShader, result);
+                    uint vertexShader = CompileShader(gl, vertexSource, ShaderType.VertexShader, result);
                     if (vertexShader == 0)
                     {
                         result.Success = false;
@@ -222,10 +224,10 @@ namespace Editor.Utils.Generator
                         return result;
                     }
 
-                    uint fragmentShader = CompileShader(_gl, fragmentSource, Silk.NET.OpenGL.ShaderType.FragmentShader, result);
+                    uint fragmentShader = CompileShader(gl, fragmentSource, ShaderType.FragmentShader, result);
                     if (fragmentShader == 0)
                     {
-                        _gl.DeleteShader(vertexShader);
+                        gl.DeleteShader(vertexShader);
 
                         result.Success = false;
                         result.Message = "Fail compiling #fragment shader";
@@ -233,30 +235,33 @@ namespace Editor.Utils.Generator
                     }
 
                     result.Log.Append("Starting creating shader programm: ");
-                    uint program = _gl.CreateProgram();
-                    _gl.AttachShader(program, vertexShader);
-                    _gl.AttachShader(program, fragmentShader);
-                    _gl.LinkProgram(program);
+                    uint program = gl.CreateProgram();
+                    gl.AttachShader(program, vertexShader);
+                    gl.AttachShader(program, fragmentShader);
+                    gl.LinkProgram(program);
 
-                    _gl.GetProgram(program, Silk.NET.OpenGL.ProgramPropertyARB.LinkStatus, out int linkStatus);
+                    gl.GetProgram(program, ProgramPropertyARB.LinkStatus, out int linkStatus);
                     if (linkStatus == 0)
                     {
-                        string linkLog = _gl.GetProgramInfoLog(program);
+                        string linkLog = gl.GetProgramInfoLog(program);
 
-                        _gl.DeleteShader(vertexShader);
-                        _gl.DeleteShader(fragmentShader);
-                        _gl.DeleteProgram(program);
+                        gl.DeleteShader(vertexShader);
+                        gl.DeleteShader(fragmentShader);
+                        gl.DeleteProgram(program);
 
                         result.Success = false;
                         result.Log.AppendLine($"Error linking programm: {linkLog}");
-                        result.Message = "Ошибка линковки программы: " + linkLog;
+                        result.Message = "Error linking programm: " + linkLog;
                         return result;
                     }
                     result.Log.AppendLine("Done");
 
-                    _gl.DeleteShader(vertexShader);
-                    _gl.DeleteShader(fragmentShader);
-                    _gl.DeleteProgram(program);
+                    CacheAttributes(gl, program, result);
+                    CacheUniforms(gl, program, result);
+
+                    gl.DeleteShader(vertexShader);
+                    gl.DeleteShader(fragmentShader);
+                    gl.DeleteProgram(program);
 
                     result.Success = true;
                     result.Message = "Shader succefully compiled";
@@ -265,7 +270,7 @@ namespace Editor.Utils.Generator
                 else
                 {
                     result.Success = false;
-                    result.Message = "Нет доступа к GL контексту. Откройте окно сцены";
+                    result.Message = "No access to GL context";
                     return result;
                 }
             }
@@ -277,7 +282,7 @@ namespace Editor.Utils.Generator
             }
             finally
             {
-                _gl?.Dispose();
+                gl?.Dispose();
             }
         }
 
@@ -312,6 +317,33 @@ namespace Editor.Utils.Generator
                 Console.WriteLine($"Исключение при компиляции {type}: {ex.Message}");
                 return 0;
             }
+        }
+        private static void CacheAttributes(GL gl, uint handle, CompilationResult result)
+        {
+            gl.GetProgram(handle, GLEnum.ActiveAttributes, out int attributeCount);
+
+            result.Log.AppendLine($"======== ATTRIBUTES ======");
+            for (uint i = 0; i < attributeCount; i++)
+            {
+                string attributeName = gl.GetActiveAttrib(handle, i, out int size, out AttributeType type);
+                uint location = (uint)gl.GetAttribLocation(handle, attributeName);
+                result.Log.AppendLine($"Attribute:{attributeName} Location:{location} Type:{type}");
+            }
+            result.Log.AppendLine("\n"); 
+        }
+        private static void CacheUniforms(GL gl, uint handle, CompilationResult result)
+        {
+            result.Log.AppendLine($"======== UNIFORMS ======");
+            gl.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformCount);
+
+            for (int i = 0; i < uniformCount; i++)
+            {
+                string uniformName = gl.GetActiveUniform(handle, (uint)i, out int size, out UniformType type);
+                int location = gl.GetUniformLocation(handle, uniformName);
+
+                result.Log.AppendLine($"Name:{uniformName} Location:{location} Size:{size} Type:{type}");
+            }
+            result.Log.AppendLine($"===================");
         }
     }
 

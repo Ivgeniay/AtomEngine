@@ -132,8 +132,8 @@ namespace Editor
             builder.AppendLine("{");
             builder.AppendLine($"    public partial class {materialName}Representation : Mat");
             builder.AppendLine("    {");
-            builder.AppendLine($"        protected string VertexSource = @\"{vertexSource.Replace("\"", "\"\"")}\";");
-            builder.AppendLine($"        protected string FragmentSource = @\"{fragmentSource.Replace("\"", "\"\"")}\";");
+            builder.AppendLine($"        protected new string VertexSource = @\"{vertexSource.Replace("\"", "\"\"")}\";");
+            builder.AppendLine($"        protected new string FragmentSource = @\"{fragmentSource.Replace("\"", "\"\"")}\";");
 
             builder.AppendLine("*construct*");
             construcBuilder.AppendLine($"        public {materialName}Representation(GL gl) : base(gl)");
