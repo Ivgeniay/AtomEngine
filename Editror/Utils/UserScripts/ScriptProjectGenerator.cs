@@ -21,6 +21,7 @@ namespace Editor
         private Assembly _silkCoreGlAssembly;
         private Assembly _newtonsoftJsonAssembly;
         private Assembly _componentGeneratorAssembly;
+        private Assembly _commonLib;
         private bool _isInitialized = false;
         private string RootNamespace = "UserScripts";
 
@@ -59,6 +60,7 @@ namespace Editor
                 _silkCoreGlAssembly = assemblyManager.GetAssembly(TAssembly.SilkNetCore);
                 _newtonsoftJsonAssembly = assemblyManager.GetAssembly(TAssembly.NewtonsoftJson);
                 _componentGeneratorAssembly = assemblyManager.GetAssembly(TAssembly.ComponentGenerator);
+                _commonLib = assemblyManager.GetAssembly(TAssembly.CommonLib);
 
                 GenerateProjectFile();
 
@@ -168,6 +170,9 @@ namespace Editor
     </Reference>
     <Reference Include=""{_newtonsoftJsonAssembly.GetName().Name}"">
       <HintPath>{_newtonsoftJsonAssembly.Location}</HintPath>
+    </Reference>
+    <Reference Include=""{_commonLib.GetName().Name}"">
+      <HintPath>{_commonLib.Location}</HintPath>
     </Reference>
   </ItemGroup>
 </Project>

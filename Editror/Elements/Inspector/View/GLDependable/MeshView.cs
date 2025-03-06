@@ -10,28 +10,6 @@ namespace Editor
     {
         public MeshView(PropertyDescriptor descriptor) : base(descriptor) { }
 
-        private string? GettingStartValue(EntityInspectorContext context)
-        {
-            FieldInfo targetField = null;
-            object targetObject = null;
-
-            var target = context.Component;
-            if (target != null)
-            {
-                Type targetType = target.GetType();
-                targetField = targetType.GetField(descriptor.Name + "GUID", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-            }
-
-            if (targetField != null)
-            {
-                var guid = targetField.GetValue(target);
-                if (guid != null)
-                {
-                    return ServiceHub.Get<MeshManager>().GetPath((string)guid);
-                }
-            }
-            return null;
-        }
 
         public override Control GetView()
         {
@@ -40,7 +18,7 @@ namespace Editor
             objectField.Label = descriptor.Name;
 
             string? meshGuid = GettingGUID();
-            if (meshGuid != null)
+            if (!string.IsNullOrWhiteSpace(meshGuid))
             {
                 objectField.ObjectPath = ServiceHub.Get<MeshManager>().GetPath(meshGuid);
             }

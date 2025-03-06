@@ -3,7 +3,8 @@
         xmlns:local="using:Editor"
         x:Class="Editor.MainWindow"
         Title="Editor"
-        Width="800" Height="600">
+        Width="800" Height="600"
+        WindowState="Maximized">
   
   <Window.Styles>
   </Window.Styles>

@@ -309,7 +309,7 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
                     break;
                 case "float":
-                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, valuef);");
                     break;
                 case "double":
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
@@ -346,13 +346,13 @@ namespace Editor
                     break;
 
                 case "vec2":
-                    builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
+                    builder.AppendLine($"                _gl.Uniform2({locationFieldName}, (float)value.X, (float)value.Y);");
                     break;
                 case "vec3":
-                    builder.AppendLine($"                _gl.Uniform3({locationFieldName}, value.X, value.Y, value.Z);");
+                    builder.AppendLine($"                _gl.Uniform3({locationFieldName}, (float)value.X, (float)value.Y, (float)value.Z);");
                     break;
                 case "vec4":
-                    builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
+                    builder.AppendLine($"                _gl.Uniform4({locationFieldName}, (float)value.X, (float)value.Y, (float)value.Z, (float)value.W);");
                     break;
 
                 case "mat2":

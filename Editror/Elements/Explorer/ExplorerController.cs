@@ -1382,9 +1382,27 @@ namespace Editor
         {
         }
 
-        private void Redraw(FileEvent fileChangedEvent) => Redraw();
-        private void Redraw(string filePath) => Redraw();
-        private void Redraw(string oldFilePath, string newFilePath) => Redraw();
+        private void Redraw(FileEvent fileChangedEvent)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                Redraw();
+            });
+        }
+        private void Redraw(string filePath)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                Redraw();
+            });
+        }
+        private void Redraw(string oldFilePath, string newFilePath)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                Redraw();
+            });
+        }
         public void Redraw()
         {
             if (_isOpen)

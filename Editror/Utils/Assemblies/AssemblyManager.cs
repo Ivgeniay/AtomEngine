@@ -20,7 +20,8 @@ namespace Editor
                     { TAssembly.SilkMath, "Silk.NET.Maths" },
                     { TAssembly.ComponentGenerator, "ComponentGenerator" },
                     { TAssembly.NewtonsoftJson, "Newtonsoft.Json" },
-                    { TAssembly.SilkNetCore, "Silk.NET.Core"}
+                    { TAssembly.SilkNetCore, "Silk.NET.Core"},
+                    { TAssembly.CommonLib, "CommonLib"}
                 };
 
         private readonly HashSet<Assembly> _assemblies = new();
@@ -188,6 +189,7 @@ namespace Editor
         SilkMath,
         SilkOpenGL,
         SilkNetCore,
+        CommonLib,
         ComponentGenerator,
         NewtonsoftJson,
     }

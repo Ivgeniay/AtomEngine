@@ -197,6 +197,7 @@ namespace Editor
                     if (property != null && property.CanWrite)
                     {
                         object convertedValue = ConvertValueToTargetType(value, property.PropertyType);
+                        instance.Use();
                         property.SetValue(instance, convertedValue);
                     }
                 }
@@ -329,6 +330,7 @@ namespace Editor
 
                         if (texture != null)
                         {
+                            instance.Use();
                             method.Invoke(instance, new object[] { texture });
                             DebLogger.Debug($"Применена текстура {textureName} к материалу {instanceType.Name}");
                         }

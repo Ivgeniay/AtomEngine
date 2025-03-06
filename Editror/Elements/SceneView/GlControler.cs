@@ -25,10 +25,14 @@ namespace Editor
         {
             _gl = GL.GetApi(gl.GetProcAddress);
             _isInitialized = true;
-            //_gl.ClearColor(0.1f, 0.1f, 0.4f, 1.0f);
+
             _gl.Enable(EnableCap.DepthTest);
             _gl.Enable(EnableCap.CullFace);
-            _gl.CullFace(TriangleFace.Back);
+            _gl.Enable(EnableCap.Blend);
+
+            _gl.CullFace(TriangleFace.Front);
+            _gl.DepthFunc(DepthFunction.Lequal);
+
             OnGLInitialized?.Invoke(_gl);
         }
 

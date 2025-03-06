@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
+using Editor.Utils.Generator;
 using Avalonia.Markup.Xaml;
 using Avalonia.Controls;
 using AtomEngine;
 using Avalonia;
 using System;
-using Editor.Utils.Generator;
 
 namespace Editor
 {

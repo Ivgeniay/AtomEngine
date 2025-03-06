@@ -367,6 +367,24 @@ namespace Editor
 
                 if (projLoc >= 0)
                     gl.UniformMatrix4(projLoc, 1, false, GetMatrix4x4Values(projection));
+
+                //if (shader.GetType().FullName == "OpenglLib.TestGlslCodeRepresentation")
+                //{
+                //    var col = gl.GetUniformLocation(shader.Handle, "col");
+                //    if (col >= 0)
+                //    {
+                //        gl.GetActiveUniform(shader.Handle, (uint)col, out int size, out UniformType type);
+                //        DebLogger.Debug($"Униформа col имеет тип: {type}, размер: {size}");
+
+                //        DebLogger.Debug($"Устанавливаем цвет: (0.0, 0.7, 0.0) в location {col}");
+                //        gl.Uniform3(col, 0.0f, 0.7f, 0.0f);
+                //        gl.Flush();
+
+                //        float[] actualColValue = new float[3];
+                //        gl.GetUniform(shader.Handle, col, actualColValue);
+                //        DebLogger.Debug($"Фактический цвет после установки: ({actualColValue[0]}, {actualColValue[1]}, {actualColValue[2]})");
+                //    }
+                //}
             }
             catch (Exception ex)
             {
@@ -646,7 +664,15 @@ namespace Editor
 
         internal void ComponentChange(uint worldId, uint entityId, IComponent component)
         {
-            
+            var renderPair = _componentRenderCache.FirstOrDefault(e => e.Key.Id == entityId);
+            var renderCache = renderPair.Value;
+            if (renderCache != null)
+            {
+                if (renderCache.ShaderObject == component || renderCache.MeshObject == component)
+                {
+                    _componentRenderCache.Remove(renderPair.Key);
+                }
+            }
         }
 
         private class RenderPairCache
