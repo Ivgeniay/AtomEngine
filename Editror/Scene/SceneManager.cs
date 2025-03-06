@@ -3,12 +3,17 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Newtonsoft.Json;
 using System;
+using AtomEngine;
 
 namespace Editor
 {
     internal class SceneManager : IService
     {
         public Action<ProjectScene> OnSceneInitialize;
+        public Action<ProjectScene> OnSceneChange;
+        public Action OnSceneBeforeSave;
+        public Action OnSceneAfterSave;
+        public Action<uint, uint, IComponent> OnComponentChange;
 
         private ProjectScene _currentScene;
         private Window _mainWindow; 
@@ -25,15 +30,63 @@ namespace Editor
         }
         internal ProjectScene CurrentScene { get =>  _currentScene; }
 
-        public void AddComponent(uint entityId, Type typeComponent)
+        internal void AddComponent(uint entityId, Type typeComponent)
         {
             _currentScene.AddComponent(entityId, typeComponent);
+            OnSceneChange?.Invoke(_currentScene);
         }
-
-        public void RemoveComponent(uint entityId, Type typeComponent)
+        internal void RemoveComponent(uint entityId, Type typeComponent)
         {
             _currentScene.RemoveComponent(entityId, typeComponent);
+            OnSceneChange?.Invoke(_currentScene);
         }
+        internal void ComponentChange(uint entityId, IComponent component)
+        {
+            OnComponentChange?.Invoke(_currentScene.CurrentWorldData.WorldId, entityId, component);
+            OnSceneChange?.Invoke(_currentScene);
+        }
+        internal void AddEntity(string entityName)
+        {
+            _currentScene.AddEntity(entityName);
+            OnSceneChange?.Invoke(_currentScene);
+        }
+        internal void AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
+        {
+            _currentScene.AddDuplicateEntity(hierarchyEntity);
+            OnSceneChange?.Invoke(_currentScene);
+        }
+        internal void RenameEntity(EntityHierarchyItem entity)
+        {
+            _currentScene.RenameEntity(entity);
+            OnSceneChange?.Invoke(_currentScene);
+        }
+        internal void DeleteEntity(EntityHierarchyItem entity)
+        {
+            _currentScene.DeleteEntity(entity);
+            OnSceneChange?.Invoke(_currentScene);
+        }
+        internal void RenameWorld((string, string) worldNameLastCurrent)
+        {
+            _currentScene.RenameWorld(worldNameLastCurrent);
+            OnSceneChange?.Invoke(_currentScene);
+        }
+        internal void RemoveWorld(string worldName)
+        {
+            _currentScene.RemoveWorld(worldName);
+            OnSceneChange?.Invoke(_currentScene);
+        }
+        internal void CreateWorld(string worldName)
+        {
+            _currentScene.CreateWorld(worldName);
+            OnSceneChange?.Invoke(_currentScene);
+        }
+        internal void SelecteWorld(string worldName)
+        {
+            _currentScene.SelecteWorld(worldName);
+            OnSceneChange?.Invoke(_currentScene);
+        }
+
+
 
         public Task InitializeAsync() => Task.CompletedTask;
 
@@ -136,15 +189,14 @@ namespace Editor
                     PreserveReferencesHandling = PreserveReferencesHandling.Objects,
                     ReferenceLoopHandling = ReferenceLoopHandling.Serialize
                 };
-
+                OnSceneBeforeSave?.Invoke();
                 string jsonContent = JsonConvert.SerializeObject(_currentScene, jsonSettings);
                 bool result = await FileDialogService.WriteTextFileAsync(_currentScene.ScenePath, jsonContent);
                 if (result)
                 {
                     _currentScene.MakeUndirty();
-                    Status.SetStatus($"Save scene succesful");
                 }
-                else Status.SetStatus($"Save scene not succesful");
+                OnSceneAfterSave?.Invoke();
             }
         }
 
@@ -153,7 +205,12 @@ namespace Editor
         /// </summary>
         internal async Task HandleSaveSceneAs()
         {
-            var result = await SceneFileHelper.SaveSceneAsync(_mainWindow, _currentScene);
+            var result = await SceneFileHelper.SaveSceneAsync(
+                _mainWindow, 
+                _currentScene, 
+                beforeSafe: () => OnSceneBeforeSave?.Invoke(),
+                afterSafe: () => OnSceneAfterSave?.Invoke()
+                );
             if (result.Item1)
             {
                 _currentScene.MakeUndirty();

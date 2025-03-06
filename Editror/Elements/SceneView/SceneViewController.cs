@@ -27,8 +27,10 @@ namespace Editor
 
         private EditorCamera _camera;
 
+        private Dictionary<EntityData, RenderPairCache> _componentRenderCache = new Dictionary<EntityData, RenderPairCache>();
         private Dictionary<uint, EntityData> _entitiesInScene = new Dictionary<uint, EntityData>();
 
+        private SceneManager _sceneManager;
         private ProjectScene _currentScene;
 
         private GridShader _gridShader;
@@ -43,14 +45,13 @@ namespace Editor
             InitializeUI();
             InitializeEvents();
 
+            _sceneManager = ServiceHub.Get<SceneManager>();
             _camera = new EditorCamera(
                         position: new Vector3(5, 5, -10),
                         target: Vector3.Zero,
                         up: Vector3.UnitY,
                         root: _renderCanvas
                     );
-            
-            this.Focus();
         }
 
         private void InitializeUI()
@@ -119,6 +120,8 @@ namespace Editor
                 Interval = TimeSpan.FromMilliseconds(16)
             };
             _renderTimer.Tick += (sender, args) => Render();
+
+
         }
 
         public void SetScene(ProjectScene scene)
@@ -141,9 +144,11 @@ namespace Editor
                 _renderCanvas.Children.Add(_glController);
             }
 
+            _sceneManager.OnSceneBeforeSave += PrepareToSave;
+
             _renderTimer.Start();
             _isOpen = true;
-            Status.SetStatus("Scene view opened");
+            this.Focus();
         }
 
         public void Close()
@@ -156,9 +161,9 @@ namespace Editor
                 Dispose();
                 _glController = null;
             }
+            _sceneManager.OnSceneBeforeSave -= PrepareToSave;
 
             _isOpen = false;
-            Status.SetStatus("Scene view closed");
         }
 
         public void Redraw()
@@ -170,13 +175,8 @@ namespace Editor
         {
             try
             {
-                // Получаем ResourceManager для загрузки ресурсов
                 _resourceManager = ServiceHub.Get<ResourceManager>();
-
-                // Инициализируем сетку для визуализации сцены
                 InitializeGrid(gl);
-
-                DebLogger.Debug("Scene renderer initialized successfully");
             }
             catch (Exception ex)
             {
@@ -188,10 +188,7 @@ namespace Editor
         {
             try
             {
-                // Создаем шейдер для сетки
                 _gridShader = new GridShader(gl);
-
-                DebLogger.Debug("Grid initialized successfully");
             }
             catch (Exception ex)
             {
@@ -209,10 +206,7 @@ namespace Editor
                 var view = _camera.GetViewMatrix();
                 Matrix4x4 projection = _camera.GetProjection(_isPerspective);
 
-                // Рендерим сетку
                 RenderGrid(gl, view, projection);
-
-                // Рендерим все сущности сцены
                 RenderEntities(gl, view, projection);
             }
             catch (Exception ex)
@@ -237,32 +231,46 @@ namespace Editor
                 }
             }
         }
-
+        
         private void RenderEntities(GL gl, Matrix4x4 view, Matrix4x4 projection)
         {
             foreach (var entity in _entitiesInScene.Values)
             {
                 try
                 {
-                    // Ищем компонент трансформации
                     if (!TryGetTransformComponent(entity, out TransformComponent transform))
                         continue;
 
-                    // Создаем матрицу модели из компонента трансформации
                     Matrix4x4 model = CreateModelMatrix(transform);
-
-                    // Ищем шейдер и меш среди компонентов сущности
-                    ShaderBase shader = null;
-                    MeshBase mesh = null;
-
-                    // Находим компоненты с шейдерами и мешами
-                    FindRenderableComponents(entity, out shader, out mesh);
-
-                    // Если нашли и шейдер, и меш - рендерим сущность
-                    if (shader != null && mesh != null)
+                    if (_componentRenderCache.TryGetValue(entity, out RenderPairCache renderPairCache))
                     {
-                        RenderEntityWithShaderAndMesh(gl, shader, mesh, model, view, projection);
+                        RenderEntityWithShaderAndMesh(gl, renderPairCache.Shader, renderPairCache.Mesh, model, view, projection);
                     }
+                    else
+                    {
+                        ShaderBase shader = null;
+                        MeshBase mesh = null;
+                        FieldInfo shaderFieldInfo = null;
+                        FieldInfo meshFieldInfo = null;
+                        Object shaderObject = null;
+                        Object meshObject = null;
+
+                        FindRenderableComponents(entity, out shader, out shaderFieldInfo, out mesh, out meshFieldInfo, out shaderObject, out meshObject);
+                        if (shader != null && mesh != null)
+                        {
+                            _componentRenderCache[entity] = new RenderPairCache()
+                            {
+                                Shader = shader,
+                                ShaderField = shaderFieldInfo,
+                                Mesh = mesh,
+                                MeshField = meshFieldInfo,
+                                ShaderObject = shaderObject,
+                                MeshObject = meshObject
+                            };
+                            RenderEntityWithShaderAndMesh(gl, shader, mesh, model, view, projection);
+                        }
+                    }
+
                 }
                 catch (Exception ex)
                 {
@@ -271,16 +279,19 @@ namespace Editor
             }
         }
 
-        private void FindRenderableComponents(EntityData entity, out ShaderBase shader, out MeshBase mesh)
+        private void FindRenderableComponents(EntityData entity, out ShaderBase shader, out FieldInfo shaderFieldInfo, out MeshBase mesh, out FieldInfo meshFieldInfo, out object shaderObj, out object meshObj)
         {
             shader = null;
             mesh = null;
+            shaderFieldInfo = null;
+            meshFieldInfo = null;
+            shaderObj = null;
+            meshObj = null;
 
             var glDependableComponents = FindGLDependableComponents(entity);
 
             foreach (var component in glDependableComponents)
             {
-                // Ищем шейдер, если он еще не найден
                 if (shader == null)
                 {
                     var shaderFields = FindFieldsByBaseType(component.GetType(), typeof(ShaderBase));
@@ -297,7 +308,9 @@ namespace Editor
                                 shader = _resourceManager.GetResource<ShaderBase>(shaderGuid);
                                 if (shader != null)
                                 {
+                                    shaderFieldInfo = shaderField;
                                     shaderField.SetValue(component, shader);
+                                    shaderObj = component;
                                     break;
                                 }
                             }
@@ -305,7 +318,6 @@ namespace Editor
                     }
                 }
 
-                // Ищем меш, если он еще не найден
                 if (mesh == null)
                 {
                     var meshFields = FindFieldsByBaseType(component.GetType(), typeof(MeshBase));
@@ -322,7 +334,9 @@ namespace Editor
                                 mesh = _resourceManager.GetResource<MeshBase>(meshGuid);
                                 if (mesh != null)
                                 {
+                                    meshFieldInfo = meshField;
                                     meshField.SetValue(component, mesh);
+                                    meshObj = component;
                                     break;
                                 }
                             }
@@ -330,7 +344,6 @@ namespace Editor
                     }
                 }
 
-                // Если нашли и шейдер, и меш, можно прекратить поиск
                 if (shader != null && mesh != null)
                     break;
             }
@@ -338,18 +351,14 @@ namespace Editor
 
         private unsafe void RenderEntityWithShaderAndMesh(GL gl, ShaderBase shader, MeshBase mesh, Matrix4x4 model, Matrix4x4 view, Matrix4x4 projection)
         {
-            // Используем шейдер
             shader.Use();
 
-            // Устанавливаем MVP матрицы в шейдер, если шейдер поддерживает эти uniform-переменные
             try
             {
-                // Получаем местоположения uniform-переменных
                 var modelLoc = gl.GetUniformLocation(shader.Handle, "model");
                 var viewLoc = gl.GetUniformLocation(shader.Handle, "view");
                 var projLoc = gl.GetUniformLocation(shader.Handle, "projection");
 
-                // Устанавливаем uniform-переменные
                 if (modelLoc >= 0)
                     gl.UniformMatrix4(modelLoc, 1, false, GetMatrix4x4Values(model));
 
@@ -364,7 +373,6 @@ namespace Editor
                 DebLogger.Warn($"Не удалось установить MVP матрицы в шейдер: {ex.Message}");
             }
 
-            // Рендерим меш
             mesh.Draw(shader);
         }
 
@@ -395,7 +403,7 @@ namespace Editor
 
             if (transform.Scale != Vector3.One)
             {
-                //model *= Matrix4x4.CreateScale(transform.Scale);
+                model *= Matrix4x4.CreateScale(transform.Scale);
             }
 
             return model;
@@ -418,14 +426,12 @@ namespace Editor
 
         private bool IsGLDependableComponent(IComponent component)
         {
-            // Проверяем, есть ли атрибут GLDependable на типе компонента
             var componentType = component.GetType();
             var glDependableAttr = componentType.GetCustomAttribute(typeof(GLDependableAttribute), true);
 
             if (glDependableAttr != null)
                 return true;
 
-            // Проверяем, содержит ли компонент поля типа ShaderBase, MeshBase или Texture
             var fields = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
             foreach (var field in fields)
             {
@@ -442,38 +448,32 @@ namespace Editor
         {
             var componentType = component.GetType();
 
-            // Ищем поля с шейдерами и мешами в компоненте
             var shaderField = FindFieldsByBaseType(componentType, typeof(ShaderBase)).FirstOrDefault();
             var meshField = FindFieldsByBaseType(componentType, typeof(MeshBase)).FirstOrDefault();
 
             if (shaderField == null || meshField == null)
                 return;
 
-            // Получаем соответствующие GUID поля
             var shaderGuidField = componentType.GetField(shaderField.Name + "GUID", BindingFlags.NonPublic | BindingFlags.Instance);
             var meshGuidField = componentType.GetField(meshField.Name + "GUID", BindingFlags.NonPublic | BindingFlags.Instance);
 
             if (shaderGuidField == null || meshGuidField == null)
                 return;
 
-            // Получаем значения GUID
             string shaderGuid = (string)shaderGuidField.GetValue(component);
             string meshGuid = (string)meshGuidField.GetValue(component);
 
             if (string.IsNullOrEmpty(shaderGuid) || string.IsNullOrEmpty(meshGuid))
                 return;
 
-            // Получаем шейдер и меш из ResourceManager
             var shader = _resourceManager.GetResource<ShaderBase>(shaderGuid);
             var mesh = _resourceManager.GetResource<MeshBase>(meshGuid);
 
             if (shader != null && mesh != null)
             {
-                // Устанавливаем значения полей компонента
                 shaderField.SetValue(component, shader);
                 meshField.SetValue(component, mesh);
 
-                // Рендерим с использованием этих ресурсов
                 RenderEntity(gl, shader, mesh, model, view, projection);
             }
         }
@@ -603,6 +603,25 @@ namespace Editor
             Status.SetStatus($"Camera projection: {(_isPerspective ? "Perspective" : "Orthographic")}");
         }
 
+        private void PrepareToSave()
+        {
+            SetDefaulFieldValue();
+            FreeChache();
+        }
+        private void FreeChache()
+        {
+            _componentRenderCache.Clear();
+        }
+        private void SetDefaulFieldValue()
+        {
+            foreach(var kvp in _componentRenderCache)
+            {
+                RenderPairCache cache = kvp.Value;
+                cache.ShaderField.SetValue(cache.ShaderObject, null);
+                cache.MeshField.SetValue(cache.MeshObject, null);
+            }
+        }
+
         public void Dispose()
         {
             if (_glController != null)
@@ -619,9 +638,26 @@ namespace Editor
                 _gridShader = null;
             }
 
+            SetDefaulFieldValue();
+            FreeChache();
+            _resourceManager.Dispose();
             _renderTimer?.Stop();
         }
 
+        internal void ComponentChange(uint worldId, uint entityId, IComponent component)
+        {
+            
+        }
+
+        private class RenderPairCache
+        {
+            public ShaderBase Shader = null;
+            public FieldInfo ShaderField = null;
+            public object ShaderObject = null;
+            public MeshBase Mesh = null;
+            public FieldInfo MeshField = null;
+            public object MeshObject = null;
+        }
 
         #endregion
 

@@ -1,24 +1,20 @@
-﻿using AtomEngine;
-using AtomEngine.RenderEntity;
-using Avalonia.Controls;
-using Avalonia.Layout;
+﻿using Avalonia.Controls;
+using Silk.NET.Core.Native;
 using System;
 using System.IO;
 using System.Reflection;
-using System.Xml.Linq;
 
 namespace Editor
 {
-    internal class ShaderView : BasePropertyView
+    internal class MeshView : GLDependableViewBase
     {
-        public ShaderView(PropertyDescriptor descriptor) : base(descriptor) { }
+        public MeshView(PropertyDescriptor descriptor) : base(descriptor) { }
 
-        private string? GettingStartValue()
+        private string? GettingStartValue(EntityInspectorContext context)
         {
             FieldInfo targetField = null;
             object targetObject = null;
 
-            EntityInspectorContext context = (EntityInspectorContext)descriptor.Context;
             var target = context.Component;
             if (target != null)
             {
@@ -31,8 +27,7 @@ namespace Editor
                 var guid = targetField.GetValue(target);
                 if (guid != null)
                 {
-                    return ServiceHub.Get<MetadataManager>().GetPathByGuid((string)guid);
-                    //return ServiceHub.Get<MaterialManager>().GetPath((string)guid);
+                    return ServiceHub.Get<MeshManager>().GetPath((string)guid);
                 }
             }
             return null;
@@ -41,17 +36,25 @@ namespace Editor
         public override Control GetView()
         {
             ObjectField objectField = new ObjectField();
-            objectField.AllowedExtensions = new string[] { ".mat" };
+            objectField.AllowedExtensions = new string[] { ".obj" };
             objectField.Label = descriptor.Name;
-            objectField.ObjectPath = Path.GetFileName(GettingStartValue()) ?? string.Empty;
 
+            string? meshGuid = GettingGUID();
+            if (meshGuid != null)
+            {
+                objectField.ObjectPath = ServiceHub.Get<MeshManager>().GetPath(meshGuid);
+            }
+            else
+            {
+                objectField.ObjectPath = string.Empty;
+            }
 
+            SceneManager sceneManager = ServiceHub.Get<SceneManager>();
             objectField.ObjectChanged += (sender, e) =>
             {
                 if (e != null)
                 {
-                    //var materialAsset = ServiceHub.Get<MaterialManager>().LoadMaterial(e);
-                    var metaData = ServiceHub.Get<MetadataManager>().LoadMetadata(e+".meta");
+                    var metaData = ServiceHub.Get<MetadataManager>().GetMetadata(e);
                     descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
                     {
                         Value = metaData.Guid,
@@ -64,9 +67,10 @@ namespace Editor
                         Value = string.Empty,
                     });
                 }
+
+                if (context != null) sceneManager.ComponentChange(context.EntityId, context.Component);
             };
             return objectField;
         }
-
     }
 }

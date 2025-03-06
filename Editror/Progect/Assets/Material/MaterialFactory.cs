@@ -164,6 +164,14 @@ namespace Editor
             return null;
         }
 
+        internal void ApplyUniformValues(string materialGuid, Dictionary<string, object> uniformValues)
+        {
+            if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
+            {
+                ApplyUniformValues(shader, uniformValues);
+            }
+        }
+
         private void ApplyUniformValues(ShaderBase instance, Dictionary<string, object> uniformValues)
         {
             if (uniformValues == null || uniformValues.Count == 0)
@@ -283,6 +291,14 @@ namespace Editor
             return value;
         }
 
+        internal void ApplyTextures(string materialGuid, Dictionary<string, string> textureReferences)
+        {
+            //if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
+            //{
+            //    ApplyTextures()
+            //}
+        }
+
         private void ApplyTextures(GL gl, ShaderBase instance, Dictionary<string, string> textureReferences)
         {
             if (textureReferences == null || textureReferences.Count == 0)
@@ -304,18 +320,15 @@ namespace Editor
 
                 try
                 {
-                    // Ищем метод SetTexture с подходящим именем
                     string methodName = $"{textureName}_SetTexture";
                     MethodInfo method = instanceType.GetMethod(methodName);
 
                     if (method != null)
                     {
-                        // Создаем текстуру из GUID
                         OpenglLib.Texture texture = _textureFactory.CreateTextureFromGuid(gl, textureGuid);
 
                         if (texture != null)
                         {
-                            // Вызываем метод SetTexture
                             method.Invoke(instance, new object[] { texture });
                             DebLogger.Debug($"Применена текстура {textureName} к материалу {instanceType.Name}");
                         }

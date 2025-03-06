@@ -70,7 +70,7 @@ namespace Editor
         /// <param name="window">Родительское окно</param>
         /// <param name="scene">Данные сцены для сохранения</param>
         /// <returns>true если сохранение успешно, иначе false</returns>
-        public static async Task<(bool, string)> SaveSceneAsync(Window window, ProjectScene scene)
+        public static async Task<(bool, string)> SaveSceneAsync(Window window, ProjectScene scene, Action beforeSafe = null, Action afterSafe = null)
         {
             if (scene == null)
             {
@@ -104,6 +104,7 @@ namespace Editor
                     ReferenceLoopHandling = ReferenceLoopHandling.Serialize
                 };
 
+                beforeSafe?.Invoke();
                 string jsonContent = JsonConvert.SerializeObject(scene, jsonSettings);
                 bool result = await FileDialogService.WriteTextFileAsync(filePath, jsonContent);
 
@@ -113,6 +114,7 @@ namespace Editor
                     Status.SetStatus($"Scene saved {filePath}");
                     return (true, filePath);
                 }
+                afterSafe?.Invoke();
 
                 return (false, string.Empty);
             }
@@ -149,6 +151,7 @@ namespace Editor
                                 new TransformComponent
                                 {
                                     Position = new Vector3(0, 0, -5),
+                                    Scale = new Vector3(1, 1, 1),
                                 }
                             },
                             {
@@ -170,6 +173,7 @@ namespace Editor
                                 {
                                     Position = Vector3.UnitX,
                                     Rotation = new Vector3(0, -90, 0),
+                                    Scale = new Vector3(1, 1, 1),
                                 }
                             }
                         }
@@ -184,14 +188,13 @@ namespace Editor
                             {
                                 nameof(TransformComponent),
                                 new TransformComponent()
+                                {
+                                    Scale = new Vector3(1, 1, 1),
+                                }
                             },
                             {
                                 nameof(ColliderComponent),
                                 new ColliderComponent()
-                            },
-                            {
-                                nameof(ShaderComponent),
-                                new ShaderComponent()
                             },
                             {
                                 nameof(MeshComponent),

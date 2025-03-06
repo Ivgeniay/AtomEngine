@@ -15,6 +15,7 @@ namespace Editor
 
         public override Control GetView()
         {
+            SceneManager sceneManager = ServiceHub.Get<SceneManager>();
             var panel = new StackPanel { Margin = new Thickness(0, 5, 0, 5) };
 
             var header = new StackPanel();
@@ -37,12 +38,11 @@ namespace Editor
                 Classes = { "closeButton" },
                 Command = new Command(() =>
                 {
-                    DebLogger.Info($"Delete {descriptor.Context}");
                     EntityInspectorContext context = (EntityInspectorContext) descriptor.Context;
-                    ServiceHub.Get<SceneManager>().RemoveComponent(context.EntityId, context.Component.GetType());
+                    sceneManager.RemoveComponent(context.EntityId, context.Component.GetType());
                 }),
             });
-
+            
             panel.Children.Add(header);
 
             var properties = (List<PropertyDescriptor>)descriptor.Value;

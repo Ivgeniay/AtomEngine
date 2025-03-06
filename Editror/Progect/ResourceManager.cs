@@ -134,11 +134,9 @@ namespace Editor
                 var oldResource = _resourceCache[guid];
                 Type resourceType = oldResource.GetType();
 
-                // Очищаем ресурс из кэша
                 _resourceCache.Remove(guid);
                 _objectToGuidCache.Remove(oldResource);
 
-                // Загружаем заново
                 var newResource = LoadResourceByGuid(guid);
                 if (newResource != null)
                 {
@@ -148,7 +146,7 @@ namespace Editor
             }
         }
 
-        // Освобождение всех ресурсов
+ 
         public void Dispose()
         {
             foreach (var resource in _resourceCache.Values)

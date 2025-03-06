@@ -34,6 +34,20 @@ namespace Editor
                 _explorerController?.Redraw();
                 _sceneViewController?.SetScene(_sceneManager.CurrentScene);
             };
+
+            _sceneManager.OnComponentChange += (worldId, entityId, component) =>
+            { 
+                _sceneViewController?.ComponentChange(worldId, entityId, component);
+            };
+
+            _sceneManager.OnSceneChange += (e) =>
+            {
+                _hierarchyController?.UpdateHyerarchy(e);
+                _worldController?.UpdateWorlds(e);
+                _inspectorController?.Redraw();
+                _explorerController?.Redraw();
+                _sceneViewController?.SetScene(_sceneManager.CurrentScene);
+            };
             _windowService = ServiceHub.Get<DraggableWindowManagerService>();
             RegisterControllersHandlers();
         }

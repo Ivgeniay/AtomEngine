@@ -41,6 +41,8 @@ namespace Editor
         private ContextMenu _explorerContextMenu;
         private ContextMenu _fileContextMenu;
 
+        private AssetFileSystem fileSystem;
+
         private bool _isOpen = false;
 
         public ExplorerController()
@@ -586,6 +588,7 @@ namespace Editor
         {
             var point = e.GetPosition(_fileList);
             var item = _fileList.SelectedItem as string;
+            if (item == null) return;
 
             if (e.InitialPressMouseButton == MouseButton.Right)
             {
@@ -821,23 +824,19 @@ namespace Editor
             {
                 bool overwrite = false;
 
-                // Проверяем, существует ли файл в папке назначения
                 if (File.Exists(destinationPath))
                 {
-                    // Спрашиваем пользователя о перезаписи
                     overwrite = await ShowFileExistsDialog(Path.GetFileName(destinationPath));
 
                     if (!overwrite)
-                        return; // Пользователь отказался перезаписывать
+                        return;
                 }
 
-                // Перемещаем файл
                 if (overwrite && File.Exists(destinationPath))
                     File.Delete(destinationPath);
 
                 File.Move(sourcePath, destinationPath);
 
-                // Обновляем интерфейс
                 RefreshView();
                 Status.SetStatus($"Файл {Path.GetFileName(sourcePath)} перемещен успешно");
             }
@@ -849,7 +848,6 @@ namespace Editor
 
         private TreeViewItem FindTreeViewItemAtPosition(TreeView treeView, Point position)
         {
-            // Получаем элемент под курсором
             Visual visual = treeView.InputHitTest(position) as Visual;
 
             while (visual != null)
@@ -1360,11 +1358,23 @@ namespace Editor
 
         public void Open()
         {
+            if (fileSystem == null) fileSystem = ServiceHub.Get<AssetFileSystem>();
+            fileSystem.AssetChanged += Redraw;
+            fileSystem.AssetCreated += Redraw;
+            fileSystem.AssetDeleted += Redraw;
+            fileSystem.AssetRenamed += Redraw;
+
             _isOpen = true;
         }
 
         public void Close()
         {
+            if (fileSystem == null) fileSystem = ServiceHub.Get<AssetFileSystem>();
+            fileSystem.AssetChanged -= Redraw;
+            fileSystem.AssetCreated -= Redraw;
+            fileSystem.AssetDeleted -= Redraw;
+            fileSystem.AssetRenamed -= Redraw;
+
             _isOpen = false;
         }
 
@@ -1372,6 +1382,9 @@ namespace Editor
         {
         }
 
+        private void Redraw(FileEvent fileChangedEvent) => Redraw();
+        private void Redraw(string filePath) => Redraw();
+        private void Redraw(string oldFilePath, string newFilePath) => Redraw();
         public void Redraw()
         {
             if (_isOpen)

@@ -3,6 +3,7 @@ using Avalonia.Layout;
 using System.Numerics;
 using Avalonia;
 using System;
+using AtomEngine;
 
 namespace Editor
 {
@@ -172,25 +173,12 @@ namespace Editor
 
             Children.Add(_labelControl);
             Children.Add(vectorGrid);
-
-            //_xInputField.PropertyChanged += (s, e) => {
-            //    if (e.Property == TextInputField.TextProperty)
-            //        UpdateVectorValue();
-            //};
-
-            //_yInputField.PropertyChanged += (s, e) => {
-            //    if (e.Property == TextInputField.TextProperty)
-            //        UpdateVectorValue();
-            //};
-
-            //_zInputField.PropertyChanged += (s, e) => {
-            //    if (e.Property == TextInputField.TextProperty)
-            //        UpdateVectorValue();
-            //};
         }
 
         private void SetupEventHandlers()
         {
+            _isSettingValue = false;
+
             this.PropertyChanged += (s, e) =>
             {
                 if (e.Property == LabelProperty)
@@ -223,11 +211,10 @@ namespace Editor
                 }
             };
 
-            _xInputField.TextChanged += (s, text) => UpdateVectorValue();
-            _yInputField.TextChanged += (s, text) => UpdateVectorValue();
-            _zInputField.TextChanged += (s, text) => UpdateVectorValue();
+            _xInputField.TextChanged += OnTextBoxTextChanged;
+            _yInputField.TextChanged += OnTextBoxTextChanged;
+            _zInputField.TextChanged += OnTextBoxTextChanged;
 
-            // Инициализация начальных значений
             _labelControl.Text = Label;
             UpdateInputFields();
             _xInputField.IsReadOnly = IsReadOnly;
@@ -245,14 +232,32 @@ namespace Editor
             _zInputField.MaxValue = maxValue;
         }
 
-        private void UpdateInputFields()
+        private void OnTextBoxTextChanged(object? sender, string text)
         {
-            _xInputField.SetValue(Value.X);
-            _yInputField.SetValue(Value.Y);
-            _zInputField.SetValue(Value.Z);
+            UpdateVectorValue();
         }
 
-        private void UpdateVectorValue()
+        private void UpdateInputFields()
+        {
+            _xInputField.TextChanged -= OnTextBoxTextChanged;
+            _yInputField.TextChanged -= OnTextBoxTextChanged;
+            _zInputField.TextChanged -= OnTextBoxTextChanged;
+
+            try
+            {
+                _xInputField.SetValue(Value.X);
+                _yInputField.SetValue(Value.Y);
+                _zInputField.SetValue(Value.Z);
+            }
+            finally
+            {
+                _xInputField.TextChanged += OnTextBoxTextChanged;
+                _yInputField.TextChanged += OnTextBoxTextChanged;
+                _zInputField.TextChanged += OnTextBoxTextChanged;
+            }
+        }
+
+        internal void UpdateVectorValue()
         {
             float x = _xInputField.GetValue<float>();
             float y = _yInputField.GetValue<float>();

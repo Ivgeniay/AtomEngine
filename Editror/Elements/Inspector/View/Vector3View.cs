@@ -1,7 +1,6 @@
-﻿using AtomEngine;
-using Avalonia.Controls;
-using Silk.NET.Maths;
+﻿using Avalonia.Controls;
 using System.Numerics;
+using Silk.NET.Maths;
 
 namespace Editor.Elements.Inspector.View
 {
@@ -19,7 +18,6 @@ namespace Editor.Elements.Inspector.View
             {
                 descriptor.OnValueChanged?.Invoke(e);
             };
-
             return field;
         }
     }

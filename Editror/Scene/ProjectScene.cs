@@ -114,7 +114,14 @@ namespace Editor
         internal void CreateWorld(string worldName)
         {
             var newWorldData = new WorldData();
+            int maxId = -1;
+            if (Worlds.Count > 0)
+            {
+                maxId = (int)Worlds.Max(e => e.WorldId);
+            }
+
             newWorldData.WorldName = worldName;
+            newWorldData.WorldId = (uint)(1 + maxId);
             Worlds.Add(newWorldData);
             MakeDirty();
         }
@@ -123,7 +130,6 @@ namespace Editor
         {
             var world = Worlds.Where(w => w.WorldName == worldName).First();
             CurrentWorldData = world;
-            MakeDirty();
         }
 
 
@@ -155,12 +161,14 @@ namespace Editor
             var instanceComponent = Activator.CreateInstance(typeComponent);
             IComponent interfacesDomponent = (IComponent)instanceComponent;
             entityData.Components.Add(typeComponent.Name, interfacesDomponent);
+            MakeDirty();
         }
 
         internal void RemoveComponent(uint entityId, Type typeComponent)
         {
             var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
             entityData.Components.Remove(typeComponent.Name);
+            MakeDirty();
         }
     }
 }

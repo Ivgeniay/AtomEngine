@@ -18,12 +18,14 @@ namespace Editor
             object serializedValue = value;
             UniformValues[name] = serializedValue;
             ServiceHub.Get<MaterialManager>().SaveMaterial(this);
+            ServiceHub.Get<MaterialFactory>().ApplyUniformValues(Guid, UniformValues);
         }
 
         public void SetTexture(string samplerName, string textureGuid)
         {
             TextureReferences[samplerName] = textureGuid;
             ServiceHub.Get<MaterialManager>().SaveMaterial(this);
+            ServiceHub.Get<MaterialFactory>().ApplyTextures(Guid, TextureReferences);
         }
 
     }

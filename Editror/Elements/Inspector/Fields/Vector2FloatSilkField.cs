@@ -183,8 +183,8 @@ namespace Editor
                 }
             };
 
-            _xInputField.TextChanged += (s, text) => UpdateVectorValue();
-            _yInputField.TextChanged += (s, text) => UpdateVectorValue();
+            _xInputField.TextChanged += OnTextBoxTextChanged;
+            _yInputField.TextChanged += OnTextBoxTextChanged;
 
             // Инициализация начальных значений
             _labelControl.Text = Label;
@@ -196,12 +196,28 @@ namespace Editor
             _yInputField.MinValue = MinValue.HasValue ? (decimal?)MinValue.Value : null;
             _yInputField.MaxValue = MaxValue.HasValue ? (decimal?)MaxValue.Value : null;
         }
+        private void OnTextBoxTextChanged(object? sender, string text)
+        {
+            UpdateVectorValue();
+        }
 
         private void UpdateInputFields()
         {
-            _xInputField.SetValue(Value.X);
-            _yInputField.SetValue(Value.Y);
+            _xInputField.TextChanged -= OnTextBoxTextChanged;
+            _yInputField.TextChanged -= OnTextBoxTextChanged;
+
+            try
+            {
+                _xInputField.SetValue(Value.X);
+                _yInputField.SetValue(Value.Y);
+            }
+            finally
+            {
+                _xInputField.TextChanged += OnTextBoxTextChanged;
+                _yInputField.TextChanged += OnTextBoxTextChanged;
+            }
         }
+
 
         private void UpdateVectorValue()
         {
