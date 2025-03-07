@@ -13,6 +13,7 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
+using Silk.NET.Vulkan;
 
 namespace Editor
 {
@@ -29,7 +30,6 @@ namespace Editor
         private EditorCamera _camera;
 
         private Dictionary<EntityData, RenderPairCache> _componentRenderCache = new Dictionary<EntityData, RenderPairCache>();
-        private Dictionary<uint, EntityData> _entitiesInScene = new Dictionary<uint, EntityData>();
 
         private ConcurrentQueue<OpenGLCommand> _glCommands = new ConcurrentQueue<OpenGLCommand>();
 
@@ -41,6 +41,7 @@ namespace Editor
         private TransformMode _currentTransformMode = TransformMode.Translate;
         private bool _isPerspective = true;
         private bool _isOpen = false;
+        private bool _isGlInitialized = false;
 
         public Action<object> OnClose { get; set; }
 
@@ -55,6 +56,12 @@ namespace Editor
                         up: Vector3.UnitY,
                         root: _renderCanvas
                     );
+
+            _resourceManager = ServiceHub.Get<ResourceManager>();
+            _materialFactory = ServiceHub.Get<MaterialFactory>();
+            _sceneManager = ServiceHub.Get<SceneManager>();
+
+            _sceneManager.OnSceneInitialize += SetScene;
         }
 
         private void InitializeUI()
@@ -123,8 +130,6 @@ namespace Editor
                 Interval = TimeSpan.FromMilliseconds(16)
             };
             _renderTimer.Tick += (sender, args) => Render();
-
-
         }
 
         public void SetScene(ProjectScene scene)
@@ -147,12 +152,11 @@ namespace Editor
                 _renderCanvas.Children.Add(_glController);
             }
 
-            _resourceManager = ServiceHub.Get<ResourceManager>();
-            _materialFactory = ServiceHub.Get<MaterialFactory>();
             _materialFactory.SetSceneViewController(this);
 
-            _sceneManager = ServiceHub.Get<SceneManager>();
             _sceneManager.OnSceneBeforeSave += PrepareToSave;
+            _sceneManager.OnSceneAfterSave += UpdateEntitiesFromScene;
+
             _sceneManager.OnComponentChange += ComponentChange;
             _sceneManager.OnComponentAdded += ComponentAdded;
             _sceneManager.OnComponentRemoved += ComponentRemoved;
@@ -174,11 +178,18 @@ namespace Editor
                 Dispose();
                 _glController = null;
             }
+
             _sceneManager.OnSceneBeforeSave -= PrepareToSave;
             _sceneManager.OnComponentChange -= ComponentChange;
+            _sceneManager.OnComponentAdded -= ComponentAdded;
+            _sceneManager.OnComponentRemoved -= ComponentRemoved;
+            _sceneManager.OnEntityCreated -= EntityCreated;
+            _sceneManager.OnEntityRemoved -= EntityRemoved;
+
             _materialFactory.SetSceneViewController(null);
 
             _isOpen = false;
+            _isGlInitialized = false;
         }
 
         public void Redraw()
@@ -190,6 +201,8 @@ namespace Editor
         {
             try
             {
+                _isGlInitialized = true;
+                InitializeComponentCache();
                 InitializeGrid(gl);
             }
             catch (Exception ex)
@@ -214,6 +227,8 @@ namespace Editor
         {
             try
             {
+                if (!_isGlInitialized) return;
+
                 gl.ClearColor(0.2f, 0.2f, 0.2f, 1.0f);
                 gl.Enable(EnableCap.DepthTest);
 
@@ -250,50 +265,28 @@ namespace Editor
                 }
             }
         }
-        
+
         private void RenderEntities(GL gl, Matrix4x4 view, Matrix4x4 projection)
         {
-            foreach (var entity in _entitiesInScene.Values)
+            foreach (var kvp in _componentRenderCache)
             {
                 try
                 {
+                    var entity = kvp.Key;
+                    var renderPairCache = kvp.Value;
+
                     if (!TryGetTransformComponent(entity, out TransformComponent transform))
                         continue;
 
+                    if (renderPairCache.Shader == null || renderPairCache.Mesh == null)
+                        continue;
+
                     Matrix4x4 model = CreateModelMatrix(transform);
-                    if (_componentRenderCache.TryGetValue(entity, out RenderPairCache renderPairCache))
-                    {
-                        RenderEntityWithShaderAndMesh(gl, renderPairCache.Shader, renderPairCache.Mesh, model, view, projection);
-                    }
-                    else
-                    {
-                        ShaderBase shader = null;
-                        MeshBase mesh = null;
-                        FieldInfo shaderFieldInfo = null;
-                        FieldInfo meshFieldInfo = null;
-                        Object shaderObject = null;
-                        Object meshObject = null;
-
-                        FindRenderableComponents(entity, out shader, out shaderFieldInfo, out mesh, out meshFieldInfo, out shaderObject, out meshObject);
-                        if (shader != null && mesh != null)
-                        {
-                            _componentRenderCache[entity] = new RenderPairCache()
-                            {
-                                Shader = shader,
-                                ShaderField = shaderFieldInfo,
-                                Mesh = mesh,
-                                MeshField = meshFieldInfo,
-                                ShaderObject = shaderObject,
-                                MeshObject = meshObject
-                            };
-                            RenderEntityWithShaderAndMesh(gl, shader, mesh, model, view, projection);
-                        }
-                    }
-
+                    RenderEntityWithShaderAndMesh(gl, renderPairCache.Shader, renderPairCache.Mesh, model, view, projection);
                 }
                 catch (Exception ex)
                 {
-                    DebLogger.Error($"Ошибка при рендеринге сущности {entity.Name}: {ex.Message}");
+                    DebLogger.Error($"Ошибка при рендеринге сущности: {ex.Message}");
                 }
             }
         }
@@ -463,40 +456,6 @@ namespace Editor
             return false;
         }
 
-        private void RenderGLDependableComponent(GL gl, IComponent component, Matrix4x4 model, Matrix4x4 view, Matrix4x4 projection)
-        {
-            var componentType = component.GetType();
-
-            var shaderField = FindFieldsByBaseType(componentType, typeof(ShaderBase)).FirstOrDefault();
-            var meshField = FindFieldsByBaseType(componentType, typeof(MeshBase)).FirstOrDefault();
-
-            if (shaderField == null || meshField == null)
-                return;
-
-            var shaderGuidField = componentType.GetField(shaderField.Name + "GUID", BindingFlags.NonPublic | BindingFlags.Instance);
-            var meshGuidField = componentType.GetField(meshField.Name + "GUID", BindingFlags.NonPublic | BindingFlags.Instance);
-
-            if (shaderGuidField == null || meshGuidField == null)
-                return;
-
-            string shaderGuid = (string)shaderGuidField.GetValue(component);
-            string meshGuid = (string)meshGuidField.GetValue(component);
-
-            if (string.IsNullOrEmpty(shaderGuid) || string.IsNullOrEmpty(meshGuid))
-                return;
-
-            var shader = _resourceManager.GetResource<ShaderBase>(shaderGuid);
-            var mesh = _resourceManager.GetResource<MeshBase>(meshGuid);
-
-            if (shader != null && mesh != null)
-            {
-                shaderField.SetValue(component, shader);
-                meshField.SetValue(component, mesh);
-
-                RenderEntity(gl, shader, mesh, model, view, projection);
-            }
-        }
-
         private List<FieldInfo> FindFieldsByBaseType(Type componentType, Type baseType)
         {
             return componentType.GetFields(BindingFlags.Public | BindingFlags.Instance)
@@ -545,15 +504,13 @@ namespace Editor
 
         private void UpdateEntitiesFromScene()
         {
+            if (!_isOpen || !_isGlInitialized) return;
+
             if (_currentScene == null)
                 return;
 
-            _entitiesInScene.Clear();
-
-            foreach (var entity in _currentScene.CurrentWorldData.Entities)
-            {
-                _entitiesInScene[entity.Id] = entity;
-            }
+            FreeChache();
+            InitializeComponentCache();
         }
 
         private void Render()
@@ -632,10 +589,14 @@ namespace Editor
             SetDefaulFieldValue();
             FreeChache();
         }
+        
+        
+        
         private void FreeChache()
         {
             _componentRenderCache.Clear();
         }
+        
         private void SetDefaulFieldValue()
         {
             foreach(var kvp in _componentRenderCache)
@@ -661,49 +622,127 @@ namespace Editor
                 _gridShader.Dispose();
                 _gridShader = null;
             }
+            _isGlInitialized = false;
 
             SetDefaulFieldValue();
             FreeChache();
             _resourceManager.Dispose();
             _renderTimer?.Stop();
+
+            _sceneManager.OnSceneBeforeSave -= PrepareToSave;
+            _sceneManager.OnSceneInitialize -= SetScene;
+
+            _sceneManager.OnComponentChange -= ComponentChange;
+            _sceneManager.OnComponentAdded -= ComponentAdded;
+            _sceneManager.OnComponentRemoved -= ComponentRemoved;
+            _sceneManager.OnEntityCreated -= EntityCreated;
+            _sceneManager.OnEntityRemoved -= EntityRemoved;
         }
 
-        private void ComponentChange(uint worldId, uint entityId, IComponent component)
+
+        private void InitializeComponentCache()
         {
-            var renderPair = _componentRenderCache.FirstOrDefault(e => e.Key.Id == entityId);
-            var renderCache = renderPair.Value;
-            if (renderCache != null)
+            if (!_isOpen || !_isGlInitialized) return;
+
+            if (_currentScene == null || _currentScene.CurrentWorldData == null)
+                return;
+
+            _componentRenderCache.Clear();
+
+            foreach (var entity in _currentScene.CurrentWorldData.Entities)
             {
-                if (renderCache.ShaderObject == component || renderCache.MeshObject == component)
+                CacheEntityComponents(entity);
+            }
+        }
+        public void EntityCreated(uint worldId, uint entityId)
+        {
+            EntityData entity = _currentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+            if (entity == null)
+                return;
+
+            CacheEntityComponents(entity);
+        }
+        public void EntityRemoved(uint worldId, uint entityId)
+        {
+            var entityToRemove = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
+
+            if (entityToRemove != null)
+            {
+                _componentRenderCache.Remove(entityToRemove);
+            }
+        }
+        public void ComponentAdded(uint worldId, uint entityId, IComponent component)
+        {
+            var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
+
+            if (entity != null)
+            {
+                _componentRenderCache.Remove(entity);
+            }
+            else
+            {
+                entity = _currentScene?.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+            }
+
+            if (entity != null)
+            {
+                CacheEntityComponents(entity);
+            }
+        }
+        public void ComponentRemoved(uint worldId, uint entityId, IComponent component)
+        {
+            var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
+
+            if (entity != null)
+            {
+                var cache = _componentRenderCache[entity];
+                if ((cache.ShaderObject?.GetType() == component.GetType()) ||
+                    (cache.MeshObject?.GetType() == component.GetType()))
                 {
-                    _componentRenderCache.Remove(renderPair.Key);
+                    _componentRenderCache.Remove(entity);
+                    CacheEntityComponents(entity);
+                }
+            }
+        }
+        public void ComponentChange(uint worldId, uint entityId, IComponent component)
+        {
+            var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
+            if (entity != null)
+            {
+                var cache = _componentRenderCache[entity];
+                if (cache.ShaderObject == component || cache.MeshObject == component)
+                {
+                    _componentRenderCache.Remove(entity);
+                    CacheEntityComponents(entity);
                 }
             }
         }
 
-        private void ComponentRemoved(uint worldId, uint entityId, IComponent component)
+        private void CacheEntityComponents(EntityData entity)
         {
-        }
-        private void ComponentAdded(uint worldId, uint entityId, IComponent component)
-        {
-        }
-        private void EntityRemoved(uint worldId, uint entityId)
-        {
-            if (_entitiesInScene.TryGetValue(entityId, out var entity))
-            {
-                _entitiesInScene.Remove(entityId);
-            }
-            EntityData entityData = _componentRenderCache.FirstOrDefault(e => e.Key.Id == entityId).Key;
-            if (entityData != null)
-            {
-                _componentRenderCache.Remove(entityData);
-            }
-        }
-        private void EntityCreated(uint worldId, uint entityId)
-        {
-            if (!_entitiesInScene.TryGetValue(entityId, out var entity))
-            {
+            if (!TryGetTransformComponent(entity, out _))
                 return;
+
+            ShaderBase shader = null;
+            MeshBase mesh = null;
+            FieldInfo shaderFieldInfo = null;
+            FieldInfo meshFieldInfo = null;
+            object shaderObject = null;
+            object meshObject = null;
+
+            FindRenderableComponents(entity, out shader, out shaderFieldInfo, out mesh, out meshFieldInfo, out shaderObject, out meshObject);
+
+            if (shader != null && mesh != null)
+            {
+                _componentRenderCache[entity] = new RenderPairCache()
+                {
+                    Shader = shader,
+                    ShaderField = shaderFieldInfo,
+                    Mesh = mesh,
+                    MeshField = meshFieldInfo,
+                    ShaderObject = shaderObject,
+                    MeshObject = meshObject
+                };
             }
         }
 
@@ -725,8 +764,6 @@ namespace Editor
             Rotate,
             Scale
         }
-
-
     }
 
 

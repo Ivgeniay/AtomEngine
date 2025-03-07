@@ -170,7 +170,7 @@ namespace Editor
         internal object RemoveComponent(uint entityId, Type typeComponent)
         {
             var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
-            var component = entityData.Components.FirstOrDefault(e => e.Key == typeComponent.Name);
+            var component = entityData.Components.FirstOrDefault(e => e.Key == typeComponent.Name).Value;
             entityData.Components.Remove(typeComponent.Name);
             MakeDirty();
             return component;

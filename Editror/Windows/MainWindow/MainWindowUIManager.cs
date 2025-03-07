@@ -32,7 +32,6 @@ namespace Editor
                 _worldController?.UpdateWorlds(e);
                 _inspectorController?.Redraw();
                 _explorerController?.Redraw();
-                _sceneViewController?.SetScene(_sceneManager.CurrentScene);
             };
 
             _sceneManager.OnSceneChange += (e) =>
@@ -41,7 +40,6 @@ namespace Editor
                 _worldController?.UpdateWorlds(e);
                 _inspectorController?.Redraw();
                 _explorerController?.Redraw();
-                _sceneViewController?.SetScene(_sceneManager.CurrentScene);
             };
             _windowService = ServiceHub.Get<DraggableWindowManagerService>();
             RegisterControllersHandlers();
