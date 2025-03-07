@@ -31,7 +31,7 @@ namespace Editor
                 {
                     guid = asset.Guid;
                 }
-                descriptor.OnValueChanged(path);
+                descriptor.OnValueChanged(guid);
             };
 
             return imageField;

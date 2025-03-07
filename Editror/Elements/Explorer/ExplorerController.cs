@@ -1,19 +1,19 @@
 ﻿using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using Avalonia.Interactivity;
+using System.Threading.Tasks;
 using Avalonia.LogicalTree;
+using Avalonia.VisualTree;
+using Avalonia.Threading;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Input;
 using System.Linq;
 using AtomEngine;
 using System.IO;
 using Avalonia;
 using System;
-using Avalonia.Threading;
-using Avalonia.Media;
-using System.Threading.Tasks;
-using Avalonia.VisualTree;
 
 
 namespace Editor
@@ -344,18 +344,18 @@ namespace Editor
             }
         }
 
+        private string _selectedFile = string.Empty;
         private void OnFileListSelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
             if (e.AddedItems?.Count > 0 && e.AddedItems[0] is string fileName)
             {
-                string fullPath = Path.Combine(_currentPath, fileName);
-
-                FileSelected?.Invoke(new FileSelectionEvent()
-                {
-                    FileName = fileName,
-                    FileFullPath = fullPath,
-                    FileExtension = Path.GetExtension(fullPath)
-                });
+                _selectedFile = fileName;
+                //FileSelected?.Invoke(new FileSelectionEvent()
+                //{
+                //    FileName = fileName,
+                //    FileFullPath = fullPath,
+                //    FileExtension = Path.GetExtension(fullPath)
+                //});
             }
         }
 
@@ -614,6 +614,28 @@ namespace Editor
                 contexMenu?.Open(this);
                 e.Handled = true;
             }
+            else if (e.InitialPressMouseButton == MouseButton.Left)
+            {
+                _fileContextMenu.Close();
+
+                var visual = e.Source as Visual;
+                if (visual != null)
+                {
+                    var clickedItem = visual.DataContext as string;
+
+                    if (clickedItem != null && clickedItem == _selectedFile)
+                    {
+                        string fullPath = Path.Combine(_currentPath, _selectedFile);
+                        FileSelected?.Invoke(new FileSelectionEvent()
+                        {
+                            FileName = _selectedFile,
+                            FileFullPath = fullPath,
+                            FileExtension = Path.GetExtension(fullPath)
+                        });
+                        _selectedFile = string.Empty;
+                    }
+                }
+            }
             else
             {
                 _fileContextMenu.Close();
@@ -622,7 +644,6 @@ namespace Editor
 
         #region DrugNDrop
 
-        private DispatcherTimer _expandTimer;
         private ListBoxItem _dragItem;
         private Point _dragStartPoint;
         private bool _isDragInProgress = false;
