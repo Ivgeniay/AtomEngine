@@ -12,6 +12,8 @@ using Silk.NET.OpenGL;
 using Avalonia.Media;
 using System.Linq;
 using System.Reflection;
+using SkiaSharp;
+using System.Collections.Concurrent;
 
 namespace Editor
 {
@@ -30,8 +32,11 @@ namespace Editor
         private Dictionary<EntityData, RenderPairCache> _componentRenderCache = new Dictionary<EntityData, RenderPairCache>();
         private Dictionary<uint, EntityData> _entitiesInScene = new Dictionary<uint, EntityData>();
 
+        private ConcurrentQueue<OpenGLCommand> _glCommands = new ConcurrentQueue<OpenGLCommand>();
+
         private SceneManager _sceneManager;
         private ProjectScene _currentScene;
+        private MaterialFactory _materialFactory;
 
         private GridShader _gridShader;
         private TransformMode _currentTransformMode = TransformMode.Translate;
@@ -144,6 +149,9 @@ namespace Editor
                 _renderCanvas.Children.Add(_glController);
             }
 
+            _materialFactory = ServiceHub.Get<MaterialFactory>();
+            _materialFactory.SetSceneViewController(this);
+
             _sceneManager.OnSceneBeforeSave += PrepareToSave;
 
             _renderTimer.Start();
@@ -162,6 +170,7 @@ namespace Editor
                 _glController = null;
             }
             _sceneManager.OnSceneBeforeSave -= PrepareToSave;
+            _materialFactory.SetSceneViewController(null);
 
             _isOpen = false;
         }
@@ -205,6 +214,11 @@ namespace Editor
 
                 var view = _camera.GetViewMatrix();
                 Matrix4x4 projection = _camera.GetProjection(_isPerspective);
+
+                while (_glCommands.TryDequeue(out var command))
+                {
+                    command.Execute(gl);
+                }
 
                 RenderGrid(gl, view, projection);
                 RenderEntities(gl, view, projection);
@@ -367,24 +381,6 @@ namespace Editor
 
                 if (projLoc >= 0)
                     gl.UniformMatrix4(projLoc, 1, false, GetMatrix4x4Values(projection));
-
-                //if (shader.GetType().FullName == "OpenglLib.TestGlslCodeRepresentation")
-                //{
-                //    var col = gl.GetUniformLocation(shader.Handle, "col");
-                //    if (col >= 0)
-                //    {
-                //        gl.GetActiveUniform(shader.Handle, (uint)col, out int size, out UniformType type);
-                //        DebLogger.Debug($"Униформа col имеет тип: {type}, размер: {size}");
-
-                //        DebLogger.Debug($"Устанавливаем цвет: (0.0, 0.7, 0.0) в location {col}");
-                //        gl.Uniform3(col, 0.0f, 0.7f, 0.0f);
-                //        gl.Flush();
-
-                //        float[] actualColValue = new float[3];
-                //        gl.GetUniform(shader.Handle, col, actualColValue);
-                //        DebLogger.Debug($"Фактический цвет после установки: ({actualColValue[0]}, {actualColValue[1]}, {actualColValue[2]})");
-                //    }
-                //}
             }
             catch (Exception ex)
             {
@@ -393,7 +389,7 @@ namespace Editor
 
             mesh.Draw(shader);
         }
-
+       
         private bool TryGetTransformComponent(EntityData entity, out TransformComponent transform)
         {
             transform = new TransformComponent();
@@ -558,6 +554,11 @@ namespace Editor
         private void Render()
         {
             _glController?.Invalidate();
+        }
+
+        public void EnqueueGLCommand(Action<GL> command)
+        {
+            _glCommands.Enqueue(new OpenGLCommand { Execute = command });
         }
 
         #region Обработка пользовательского ввода

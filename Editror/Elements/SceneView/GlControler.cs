@@ -27,7 +27,7 @@ namespace Editor
             _isInitialized = true;
 
             _gl.Enable(EnableCap.DepthTest);
-            _gl.Enable(EnableCap.CullFace);
+            //_gl.Enable(EnableCap.CullFace);
             _gl.Enable(EnableCap.Blend);
 
             _gl.CullFace(TriangleFace.Front);
@@ -81,6 +81,11 @@ namespace Editor
         }
 
 
+    }
+
+    public class OpenGLCommand
+    {
+        public Action<GL> Execute { get; set; }
     }
 
 }

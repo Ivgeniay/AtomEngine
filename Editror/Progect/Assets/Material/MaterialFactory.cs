@@ -6,6 +6,7 @@ using System.Reflection;
 using System;
 using OpenglLib;
 using AtomEngine.RenderEntity;
+using Avalonia.Threading;
 
 namespace Editor
 {
@@ -13,11 +14,17 @@ namespace Editor
     {
         private Dictionary<string, ShaderBase> _shaderInstanceCache = new Dictionary<string, ShaderBase>();
         private TextureFactory _textureFactory;
+        SceneViewController sceneViewController;
 
         public Task InitializeAsync()
         {
             _textureFactory = ServiceHub.Get<TextureFactory>();
             return Task.CompletedTask;
+        }
+
+        public void SetSceneViewController(SceneViewController instance)
+        {
+            this.sceneViewController = instance;
         }
 
         public ShaderBase CreateMaterialInstance(GL gl, MaterialAsset material)
@@ -166,10 +173,20 @@ namespace Editor
 
         internal void ApplyUniformValues(string materialGuid, Dictionary<string, object> uniformValues)
         {
-            if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
-            {
-                ApplyUniformValues(shader, uniformValues);
-            }
+            //Dispatcher.UIThread.Post(() =>
+            //{
+            //    if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
+            //    {
+            //        ApplyUniformValues(shader, uniformValues);
+            //    }
+            //});
+
+            sceneViewController?.EnqueueGLCommand(gl => {
+                if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
+                {
+                    ApplyUniformValues(shader, uniformValues);
+                }
+            });
         }
 
         private void ApplyUniformValues(ShaderBase instance, Dictionary<string, object> uniformValues)
@@ -197,6 +214,7 @@ namespace Editor
                     if (property != null && property.CanWrite)
                     {
                         object convertedValue = ConvertValueToTargetType(value, property.PropertyType);
+                        Type type = convertedValue.GetType();
                         instance.Use();
                         property.SetValue(instance, convertedValue);
                     }
@@ -294,10 +312,13 @@ namespace Editor
 
         internal void ApplyTextures(string materialGuid, Dictionary<string, string> textureReferences)
         {
-            //if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
+            //Dispatcher.UIThread.Post(() =>
             //{
-            //    ApplyTextures()
-            //}
+            //    if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
+            //    {
+            //        ApplyTextures()
+            //    }
+            //});
         }
 
         private void ApplyTextures(GL gl, ShaderBase instance, Dictionary<string, string> textureReferences)
@@ -331,6 +352,7 @@ namespace Editor
                         if (texture != null)
                         {
                             instance.Use();
+                            gl.ActiveTexture(TextureUnit.Texture0);
                             method.Invoke(instance, new object[] { texture });
                             DebLogger.Debug($"Применена текстура {textureName} к материалу {instanceType.Name}");
                         }

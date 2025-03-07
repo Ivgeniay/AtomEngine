@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿
+using System.Collections.Generic;
 using Editor.Utils.Generator;
 using Avalonia.Markup.Xaml;
 using Avalonia.Controls;
@@ -8,6 +9,8 @@ using System;
 
 namespace Editor
 {
+#if MY_FEATURE
+#endif
     public partial class MainWindow : Window
     {
         public static Canvas MainCanvas_ { get; private set; }
