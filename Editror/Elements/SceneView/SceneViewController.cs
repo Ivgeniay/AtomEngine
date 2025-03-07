@@ -1,19 +1,18 @@
-﻿using AtomEngine.RenderEntity;
-using AtomEngine;
-using Avalonia.Controls;
-using Avalonia.Input;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
+using AtomEngine.RenderEntity;
 using Avalonia.Threading;
-using System.Numerics;
+using Avalonia.Controls;
+using System.Reflection;
 using Avalonia.Layout;
-using Avalonia;
-using System;
+using System.Numerics;
 using Silk.NET.OpenGL;
+using Avalonia.Input;
 using Avalonia.Media;
 using System.Linq;
-using System.Reflection;
-using SkiaSharp;
-using System.Collections.Concurrent;
+using AtomEngine;
+using Avalonia;
+using System;
 
 namespace Editor
 {
@@ -50,7 +49,6 @@ namespace Editor
             InitializeUI();
             InitializeEvents();
 
-            _sceneManager = ServiceHub.Get<SceneManager>();
             _camera = new EditorCamera(
                         position: new Vector3(5, 5, -10),
                         target: Vector3.Zero,
@@ -149,10 +147,17 @@ namespace Editor
                 _renderCanvas.Children.Add(_glController);
             }
 
+            _resourceManager = ServiceHub.Get<ResourceManager>();
             _materialFactory = ServiceHub.Get<MaterialFactory>();
             _materialFactory.SetSceneViewController(this);
 
+            _sceneManager = ServiceHub.Get<SceneManager>();
             _sceneManager.OnSceneBeforeSave += PrepareToSave;
+            _sceneManager.OnComponentChange += ComponentChange;
+            _sceneManager.OnComponentAdded += ComponentAdded;
+            _sceneManager.OnComponentRemoved += ComponentRemoved;
+            _sceneManager.OnEntityCreated += EntityCreated;
+            _sceneManager.OnEntityRemoved += EntityRemoved;
 
             _renderTimer.Start();
             _isOpen = true;
@@ -170,6 +175,7 @@ namespace Editor
                 _glController = null;
             }
             _sceneManager.OnSceneBeforeSave -= PrepareToSave;
+            _sceneManager.OnComponentChange -= ComponentChange;
             _materialFactory.SetSceneViewController(null);
 
             _isOpen = false;
@@ -184,7 +190,6 @@ namespace Editor
         {
             try
             {
-                _resourceManager = ServiceHub.Get<ResourceManager>();
                 InitializeGrid(gl);
             }
             catch (Exception ex)
@@ -663,7 +668,7 @@ namespace Editor
             _renderTimer?.Stop();
         }
 
-        internal void ComponentChange(uint worldId, uint entityId, IComponent component)
+        private void ComponentChange(uint worldId, uint entityId, IComponent component)
         {
             var renderPair = _componentRenderCache.FirstOrDefault(e => e.Key.Id == entityId);
             var renderCache = renderPair.Value;
@@ -673,6 +678,32 @@ namespace Editor
                 {
                     _componentRenderCache.Remove(renderPair.Key);
                 }
+            }
+        }
+
+        private void ComponentRemoved(uint worldId, uint entityId, IComponent component)
+        {
+        }
+        private void ComponentAdded(uint worldId, uint entityId, IComponent component)
+        {
+        }
+        private void EntityRemoved(uint worldId, uint entityId)
+        {
+            if (_entitiesInScene.TryGetValue(entityId, out var entity))
+            {
+                _entitiesInScene.Remove(entityId);
+            }
+            EntityData entityData = _componentRenderCache.FirstOrDefault(e => e.Key.Id == entityId).Key;
+            if (entityData != null)
+            {
+                _componentRenderCache.Remove(entityData);
+            }
+        }
+        private void EntityCreated(uint worldId, uint entityId)
+        {
+            if (!_entitiesInScene.TryGetValue(entityId, out var entity))
+            {
+                return;
             }
         }
 

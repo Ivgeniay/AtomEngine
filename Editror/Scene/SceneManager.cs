@@ -2,18 +2,22 @@
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Newtonsoft.Json;
-using System;
 using AtomEngine;
+using System;
 
 namespace Editor
 {
     internal class SceneManager : IService
     {
-        public Action<ProjectScene> OnSceneInitialize;
-        public Action<ProjectScene> OnSceneChange;
-        public Action OnSceneBeforeSave;
-        public Action OnSceneAfterSave;
-        public Action<uint, uint, IComponent> OnComponentChange;
+        public Action<ProjectScene>? OnSceneInitialize;
+        public Action<ProjectScene>? OnSceneChange;
+        public Action? OnSceneBeforeSave;
+        public Action? OnSceneAfterSave;
+        public Action<uint, uint, IComponent>? OnComponentAdded;
+        public Action<uint, uint, IComponent>? OnComponentRemoved;
+        public Action<uint, uint, IComponent>? OnComponentChange;
+        public Action<uint, uint>? OnEntityCreated;
+        public Action<uint, uint>? OnEntityRemoved;
 
         private ProjectScene _currentScene;
         private Window _mainWindow; 
@@ -32,23 +36,23 @@ namespace Editor
 
         internal void AddComponent(uint entityId, Type typeComponent)
         {
-            _currentScene.AddComponent(entityId, typeComponent);
-            OnSceneChange?.Invoke(_currentScene);
+            var instance = _currentScene.AddComponent(entityId, typeComponent);
+            OnComponentAdded?.Invoke(_currentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
         }
         internal void RemoveComponent(uint entityId, Type typeComponent)
         {
-            _currentScene.RemoveComponent(entityId, typeComponent);
-            OnSceneChange?.Invoke(_currentScene);
+            var instance = _currentScene.RemoveComponent(entityId, typeComponent);
+            OnComponentRemoved?.Invoke(_currentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
         }
         internal void ComponentChange(uint entityId, IComponent component)
         {
             OnComponentChange?.Invoke(_currentScene.CurrentWorldData.WorldId, entityId, component);
-            OnSceneChange?.Invoke(_currentScene);
         }
+
         internal void AddEntity(string entityName)
         {
-            _currentScene.AddEntity(entityName);
-            OnSceneChange?.Invoke(_currentScene);
+            uint id = _currentScene.AddEntity(entityName);
+            OnEntityCreated?.Invoke(_currentScene.CurrentWorldData.WorldId, id);
         }
         internal void AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
         {
@@ -57,8 +61,8 @@ namespace Editor
         }
         internal void RenameEntity(EntityHierarchyItem entity)
         {
-            _currentScene.RenameEntity(entity);
-            OnSceneChange?.Invoke(_currentScene);
+            uint id = _currentScene.RenameEntity(entity);
+            OnEntityCreated?.Invoke(_currentScene.CurrentWorldData.WorldId, id);
         }
         internal void DeleteEntity(EntityHierarchyItem entity)
         {

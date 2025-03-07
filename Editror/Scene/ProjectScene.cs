@@ -54,7 +54,7 @@ namespace Editor
 
 
         #region Entity
-        internal void AddEntity(string entityName)
+        internal uint AddEntity(string entityName)
         {
             Entity entity = new Entity(_entityIndexator++, 0);
             EntityData newEntityData = new EntityData()
@@ -65,6 +65,7 @@ namespace Editor
             };
             CurrentWorldData.Entities.Add(newEntityData);
             MakeDirty();
+            return entity.Id;
         }
         internal void AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
         {
@@ -79,12 +80,13 @@ namespace Editor
             MakeDirty();
         }
 
-        internal void RenameEntity(EntityHierarchyItem entity)
+        internal uint RenameEntity(EntityHierarchyItem entity)
         {
             var world = CurrentWorldData;
             var editableEntity = world.Entities.Where(e => e.Id == entity.Id && e.Version == entity.Version).First();
             editableEntity.Name = entity.Name;
             MakeDirty();
+            return entity.Id;
         }
 
         internal void DeleteEntity(EntityHierarchyItem entity)
@@ -155,20 +157,23 @@ namespace Editor
             return expectedId;
         }
 
-        internal void AddComponent(uint entityId, Type typeComponent)
+        internal object AddComponent(uint entityId, Type typeComponent)
         {
             var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
             var instanceComponent = Activator.CreateInstance(typeComponent);
             IComponent interfacesDomponent = (IComponent)instanceComponent;
             entityData.Components.Add(typeComponent.Name, interfacesDomponent);
             MakeDirty();
+            return instanceComponent;
         }
 
-        internal void RemoveComponent(uint entityId, Type typeComponent)
+        internal object RemoveComponent(uint entityId, Type typeComponent)
         {
             var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
+            var component = entityData.Components.FirstOrDefault(e => e.Key == typeComponent.Name);
             entityData.Components.Remove(typeComponent.Name);
             MakeDirty();
+            return component;
         }
     }
 }

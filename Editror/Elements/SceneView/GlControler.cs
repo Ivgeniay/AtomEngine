@@ -1,10 +1,8 @@
 ﻿using Avalonia.OpenGL.Controls;
 using Avalonia.OpenGL;
 using Silk.NET.OpenGL;
-using System;
 using AtomEngine;
-using Editor.Utils.Generator;
-using System.IO;
+using System;
 
 namespace Editor
 {
@@ -16,10 +14,8 @@ namespace Editor
         public static event Action? OnGLDeInitialized;
         public static event Action<GL>? OnRender;
 
-        public static GL GetGL()
-        {
-            return _gl;
-        }
+        uint scaledWidth = 1;
+        uint scaledHeight = 1;
 
         protected override void OnOpenGlInit(GlInterface gl)
         {
@@ -27,11 +23,14 @@ namespace Editor
             _isInitialized = true;
 
             _gl.Enable(EnableCap.DepthTest);
-            //_gl.Enable(EnableCap.CullFace);
             _gl.Enable(EnableCap.Blend);
-
             _gl.CullFace(TriangleFace.Front);
             _gl.DepthFunc(DepthFunction.Lequal);
+
+            // Расчет фактического расширения окна
+            var scalingFactor = VisualRoot?.RenderScaling ?? 1.0;
+            scaledWidth = (uint)(Bounds.Width * scalingFactor);
+            scaledHeight = (uint)(Bounds.Height * scalingFactor);
 
             OnGLInitialized?.Invoke(_gl);
         }
@@ -48,8 +47,7 @@ namespace Editor
             if (!_isInitialized || _gl == null)
                 return;
 
-
-            _gl.Viewport(0, 0, (uint)Bounds.Width, (uint)Bounds.Height);
+            _gl.Viewport(0, 0, scaledWidth, scaledHeight);
             _gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             OnRender?.Invoke(_gl);

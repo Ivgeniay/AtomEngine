@@ -35,11 +35,6 @@ namespace Editor
                 _sceneViewController?.SetScene(_sceneManager.CurrentScene);
             };
 
-            _sceneManager.OnComponentChange += (worldId, entityId, component) =>
-            { 
-                _sceneViewController?.ComponentChange(worldId, entityId, component);
-            };
-
             _sceneManager.OnSceneChange += (e) =>
             {
                 _hierarchyController?.UpdateHyerarchy(e);

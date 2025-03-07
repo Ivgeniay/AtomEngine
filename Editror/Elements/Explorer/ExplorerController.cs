@@ -350,12 +350,6 @@ namespace Editor
             if (e.AddedItems?.Count > 0 && e.AddedItems[0] is string fileName)
             {
                 _selectedFile = fileName;
-                //FileSelected?.Invoke(new FileSelectionEvent()
-                //{
-                //    FileName = fileName,
-                //    FileFullPath = fullPath,
-                //    FileExtension = Path.GetExtension(fullPath)
-                //});
             }
         }
 
@@ -688,16 +682,20 @@ namespace Editor
                 sender is ListBoxItem item &&
                 item.DataContext is string fileName)
             {
-                // Сохраняем начальное состояние
+                if (_dragItem != null)
+                {
+                    _dragItem.RemoveHandler(InputElement.PointerMovedEvent, OnDragPointerMoved);
+                    _dragItem.RemoveHandler(InputElement.PointerReleasedEvent, OnDragPointerReleased);
+                    _dragItem = null;
+                }
+
+                _isDragInProgress = false;
                 _dragItem = item;
                 _dragStartPoint = e.GetPosition(null);
                 _lastPointerPressedEvent = e;
 
-                // Добавляем обработчики для отслеживания движения и отпускания мыши
                 item.AddHandler(InputElement.PointerMovedEvent, OnDragPointerMoved, RoutingStrategies.Tunnel);
                 item.AddHandler(InputElement.PointerReleasedEvent, OnDragPointerReleased, RoutingStrategies.Tunnel);
-
-                //e.Handled = true;
             }
         }
 
@@ -705,7 +703,6 @@ namespace Editor
         {
             if (_dragItem != null && _lastPointerPressedEvent != null && !_isDragInProgress)
             {
-                // Получаем текущую позицию
                 var currentPosition = e.GetPosition(null);
 
                 if (Math.Abs(currentPosition.X - _dragStartPoint.X) > 3 ||
@@ -789,11 +786,9 @@ namespace Editor
                 }
                 catch
                 {
-                    // Игнорируем ошибки при проверке данных перетаскивания
                 }
             }
 
-            // Если мы дошли сюда, значит перетаскивание в эту позицию не разрешено
             HideDropIndicator();
             e.DragEffects = DragDropEffects.None;
             e.Handled = true;
@@ -801,14 +796,12 @@ namespace Editor
 
         private void OnTreeViewDrop(object sender, DragEventArgs e)
         {
-            // Скрываем индикатор перетаскивания
             HideDropIndicator();
 
             if (e.Data.Contains(DataFormats.Text))
             {
                 try
                 {
-                    // Получаем данные о перетаскиваемом файле
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
