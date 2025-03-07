@@ -13,6 +13,7 @@ namespace Editor
     internal class MaterialFactory : IService, IDisposable
     {
         private Dictionary<string, ShaderBase> _shaderInstanceCache = new Dictionary<string, ShaderBase>();
+        private Dictionary<ShaderBase, GL> _glShaderMap = new Dictionary<ShaderBase, GL>();
         private TextureFactory _textureFactory;
         SceneViewController sceneViewController;
 
@@ -50,6 +51,7 @@ namespace Editor
                 ApplyUniformValues(instance, material.UniformValues);
                 ApplyTextures(gl, instance, material.TextureReferences);
                 _shaderInstanceCache[material.Guid] = instance;
+                _glShaderMap[instance] = gl;
                 return instance;
             }
             catch (Exception ex)
@@ -173,14 +175,6 @@ namespace Editor
 
         internal void ApplyUniformValues(string materialGuid, Dictionary<string, object> uniformValues)
         {
-            //Dispatcher.UIThread.Post(() =>
-            //{
-            //    if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
-            //    {
-            //        ApplyUniformValues(shader, uniformValues);
-            //    }
-            //});
-
             sceneViewController?.EnqueueGLCommand(gl => {
                 if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
                 {
@@ -312,13 +306,13 @@ namespace Editor
 
         internal void ApplyTextures(string materialGuid, Dictionary<string, string> textureReferences)
         {
-            //Dispatcher.UIThread.Post(() =>
-            //{
-            //    if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
-            //    {
-            //        ApplyTextures()
-            //    }
-            //});
+            if (_shaderInstanceCache.TryGetValue(materialGuid, out var shaderInstance)) 
+            {
+                sceneViewController?.EnqueueGLCommand( gl =>
+                {
+                    ApplyTextures(gl, shaderInstance, textureReferences);
+                });
+            }
         }
 
         private void ApplyTextures(GL gl, ShaderBase instance, Dictionary<string, string> textureReferences)
@@ -381,6 +375,7 @@ namespace Editor
                 kvp.Value.Dispose();
             }
             _shaderInstanceCache.Clear();
+            _glShaderMap.Clear();
         }
     }
 }

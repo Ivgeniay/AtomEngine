@@ -106,7 +106,7 @@ namespace Editor
             return new PropertyDescriptor
             {
                 Name = $"{name} (Texture)",
-                Type = typeof(string), 
+                Type = typeof(OpenglLib.Texture), 
                 Value = textureGuid,
                 OnValueChanged = newValue => _material.SetTexture(name, (string)newValue)
             };

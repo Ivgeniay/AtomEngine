@@ -1,0 +1,108 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:Editor">
+
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <StackPanel Width="350" Spacing="20">
+        <controls:ImageField Label="Превью изображения" />
+        <controls:ImageField Label="С изображением" ImagePath="/Assets/loading-background.jpg" />
+      </StackPanel>
+    </Border>
+  </Design.PreviewWith>
+
+  <!-- Базовые стили для ImageField -->
+  <Style Selector="controls|ImageField">
+    <Setter Property="Margin" Value="4,0" />
+  </Style>
+
+  <!-- Стили для метки -->
+  <Style Selector="controls|ImageField TextBlock.propertyLabel">
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Foreground" Value="#CCCCCC" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Margin" Value="0,4,0,0" />
+  </Style>
+
+  <!-- Стили для контейнера изображения -->
+  <Style Selector="controls|ImageField Border.imageContainer">
+    <Setter Property="Background" Value="#383838" />
+    <Setter Property="BorderBrush" Value="#2D2D2D" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Margin" Value="0,2,0,2" />
+    <Setter Property="Padding" Value="2" />
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+  </Style>
+
+  <!-- Стиль при наведении на контейнер изображения -->
+  <Style Selector="controls|ImageField Border.imageContainer:pointerover">
+    <Setter Property="BorderBrush" Value="#505050" />
+    <Setter Property="Background" Value="#404040" />
+  </Style>
+
+  <!-- Стили для превью изображения -->
+  <Style Selector="controls|ImageField Image.imagePreview">
+    <Setter Property="Stretch" Value="Uniform" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="MaxHeight" Value="120" />
+  </Style>
+
+  <!-- Стили для текста-заполнителя -->
+  <Style Selector="controls|ImageField TextBlock.placeholderText">
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+    <Setter Property="Foreground" Value="#AAAAAA" />
+    <Setter Property="FontStyle" Value="Italic" />
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="TextAlignment" Value="Center" />
+    <Setter Property="Margin" Value="4" />
+  </Style>
+
+  <!-- Стили для кнопок -->
+  <Style Selector="controls|ImageField Button.actionButton">
+    <Setter Property="Padding" Value="8,4" />
+    <Setter Property="Margin" Value="0,4,4,0" />
+    <Setter Property="Background" Value="#2D2D2D" />
+    <Setter Property="BorderBrush" Value="#505050" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Foreground" Value="#CCCCCC" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="MinWidth" Value="80" />
+  </Style>
+
+  <!-- Стили для кнопок при наведении -->
+  <Style Selector="controls|ImageField Button.actionButton:pointerover">
+    <Setter Property="Background" Value="#404040" />
+    <Setter Property="BorderBrush" Value="#606060" />
+  </Style>
+
+  <!-- Стили для кнопок при нажатии -->
+  <Style Selector="controls|ImageField Button.actionButton:pressed">
+    <Setter Property="Background" Value="#303030" />
+    <Setter Property="BorderBrush" Value="#707070" />
+  </Style>
+
+  <!-- Стили для отключенных кнопок -->
+  <Style Selector="controls|ImageField Button.actionButton:disabled">
+    <Setter Property="Opacity" Value="0.5" />
+  </Style>
+
+  <!-- Стили для индикатора перетаскивания -->
+  <Style Selector="controls|ImageField Border.dropIndicator">
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="BorderBrush" Value="#1E90FF" />
+    <Setter Property="Background" Value="#1E90FF32" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+  </Style>
+
+  <!-- Стили для панели кнопок -->
+  <Style Selector="controls|ImageField StackPanel.buttonPanel">
+    <Setter Property="Orientation" Value="Horizontal" />
+    <Setter Property="Spacing" Value="4" />
+    <Setter Property="Margin" Value="0,4,0,0" />
+  </Style>
+</Styles>

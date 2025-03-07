@@ -103,6 +103,7 @@ namespace Editor
 
             addComponentButton.Command = command;
             panel.Children.Add(addComponentButton);
+
             yield return panel;
         }
 

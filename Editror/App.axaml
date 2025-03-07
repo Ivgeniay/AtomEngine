@@ -20,5 +20,6 @@
         <StyleInclude Source="/Styles/VisualElements/ObjectField.axaml"/>
         <StyleInclude Source="/Styles/VisualElements/SearchPopup.axaml"/>
         <StyleInclude Source="/Styles/VisualElements/TextInputField.axaml"/>
+        <StyleInclude Source="/Styles/VisualElements/ImageField.axaml"/>
     </Application.Styles>
 </Application>
