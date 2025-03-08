@@ -135,17 +135,27 @@ namespace Editor
         public void SetScene(ProjectScene scene)
         {
             _currentScene = scene;
-            UpdateEntitiesFromScene();
+            if (!_isOpen) return;
+
+            EnqueueGLCommand((gl) =>
+            {
+                UpdateEntitiesFromScene();
+            });
         }
         public void UnloadScene()
         {
             _currentScene = null;
-            FreeChache();
-            if (_isOpen)
+            if (!_isOpen) return;
+
+            EnqueueGLCommand((gl) =>
             {
-                Close();
-                Open();
-            }
+                FreeChache();
+            });
+            //if (_isOpen)
+            //{
+            //    Close();
+            //    Open();
+            //}
         }
 
         public void Open()
@@ -608,7 +618,6 @@ namespace Editor
             FreeChache();
         }
         
-        
         private void FreeChache()
         {
             _componentRenderCache.Clear();
@@ -653,7 +662,6 @@ namespace Editor
             _sceneManager.OnEntityRemoved -= EntityRemoved;
         }
 
-
         private void InitializeComponentCache()
         {
             if (!_isOpen || !_isGlInitialized) return;
@@ -661,8 +669,8 @@ namespace Editor
             if (_currentScene == null || _currentScene.CurrentWorldData == null)
                 return;
 
+            
             FreeChache();
-
             foreach (var entity in _currentScene.CurrentWorldData.Entities)
             {
                 CacheEntityComponents(entity);
@@ -670,66 +678,90 @@ namespace Editor
         }
         public void EntityCreated(uint worldId, uint entityId)
         {
-            EntityData entity = _currentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
-            if (entity == null)
-                return;
+            if (!_isOpen) return;
 
-            CacheEntityComponents(entity);
+            EnqueueGLCommand((gl) =>
+            {
+                EntityData entity = _currentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+                if (entity == null)
+                    return;
+
+                CacheEntityComponents(entity);
+            });
         }
         public void EntityRemoved(uint worldId, uint entityId)
         {
-            var entityToRemove = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
+            if (!_isOpen) return;
 
-            if (entityToRemove != null)
+            EnqueueGLCommand((gl) =>
             {
-                _componentRenderCache.Remove(entityToRemove);
-            }
+                var entityToRemove = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
+                if (entityToRemove != null)
+                {
+                    _componentRenderCache.Remove(entityToRemove);
+                }
+            });
         }
         public void ComponentAdded(uint worldId, uint entityId, IComponent component)
         {
-            var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
+            if (_isOpen) return;
 
-            if (entity != null)
+            EnqueueGLCommand((gl) =>
             {
-                _componentRenderCache.Remove(entity);
-            }
-            else
-            {
-                entity = _currentScene?.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
-            }
+                var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
 
-            if (entity != null)
-            {
-                CacheEntityComponents(entity);
-            }
+                if (entity != null)
+                {
+                    _componentRenderCache.Remove(entity);
+                }
+                else
+                {
+                    entity = _currentScene?.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+                }
+
+                if (entity != null)
+                {
+                    CacheEntityComponents(entity);
+                }
+            });
         }
         public void ComponentRemoved(uint worldId, uint entityId, IComponent component)
         {
-            var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
+            if (!_isOpen) return;
 
-            if (entity != null)
+            EnqueueGLCommand((gl) =>
             {
-                var cache = _componentRenderCache[entity];
-                if ((cache.ShaderObject?.GetType() == component.GetType()) ||
-                    (cache.MeshObject?.GetType() == component.GetType()))
+                var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
+
+                if (entity != null)
                 {
-                    _componentRenderCache.Remove(entity);
-                    CacheEntityComponents(entity);
+                    var cache = _componentRenderCache[entity];
+                    if ((cache.ShaderObject?.GetType() == component.GetType()) ||
+                        (cache.MeshObject?.GetType() == component.GetType()))
+                    {
+                        _componentRenderCache.Remove(entity);
+                        CacheEntityComponents(entity);
+                    }
                 }
-            }
+            });
         }
         public void ComponentChange(uint worldId, uint entityId, IComponent component)
         {
-            var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
-            if (entity != null)
+            if (!_isOpen) return;
+
+            EnqueueGLCommand((gl) =>
             {
-                var cache = _componentRenderCache[entity];
-                if (cache.ShaderObject == component || cache.MeshObject == component)
+                var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
+                if (entity != null)
                 {
-                    _componentRenderCache.Remove(entity);
-                    CacheEntityComponents(entity);
+                    var cache = _componentRenderCache[entity];
+                    if (cache.ShaderObject == component || cache.MeshObject == component)
+                    {
+                        _componentRenderCache.Remove(entity);
+                        CacheEntityComponents(entity);
+                    }
                 }
-            }
+            });
         }
 
         private void CacheEntityComponents(EntityData entity)
