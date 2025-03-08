@@ -88,6 +88,7 @@ namespace Editor
             _entitiesList.ItemsSource = _entities;
             _entitiesList.AutoScrollToSelectedItem = true;
             _entitiesList.SelectionMode = SelectionMode.Multiple;
+
             ScrollViewer.SetHorizontalScrollBarVisibility(_entitiesList, ScrollBarVisibility.Disabled);
             ScrollViewer.SetVerticalScrollBarVisibility(_entitiesList, ScrollBarVisibility.Auto);
 
@@ -455,6 +456,7 @@ namespace Editor
             Redraw();
 
             _entitiesList.SelectionChanged += SelectionItemList;
+            _entitiesList.PointerReleased += OnItemListPointerReleased;
             _entitiesList.SelectionChanged += SelectCallback;
             _entitiesList.DoubleTapped += OnEntitiesListDoubleTapped;
         }
@@ -468,11 +470,51 @@ namespace Editor
 
             OnClose?.Invoke(this);
         }
+        
+        private EntityHierarchyItem _selectedFile = EntityHierarchyItem.Null;
         private void SelectionItemList(object? sender, SelectionChangedEventArgs e)
         {
             if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
-                EntitySelected?.Invoke(this, selectedEntity);
+            {
+                _selectedFile = selectedEntity;
+            }
         }
+        private void OnItemListPointerReleased(object? sender, PointerReleasedEventArgs e)
+        {
+            if (_selectedFile == EntityHierarchyItem.Null) return;
+
+            var point = e.GetPosition(_entitiesList);
+
+            if (e.InitialPressMouseButton == MouseButton.Left)
+            {
+                var visual = e.Source as Visual;
+                if (visual != null)
+                {
+                    if (visual.DataContext is EntityHierarchyItem clickedItem)
+                    {
+                        if (clickedItem != null && clickedItem == _selectedFile)
+                        {
+                            _selectedFile = EntityHierarchyItem.Null;
+                            EntitySelected?.Invoke(this, clickedItem);
+                        }
+                    }
+
+                }
+            }
+
+            //if (_entitiesList.SelectedItem is EntityHierarchyItem item)
+            //{
+            //    if (e.InitialPressMouseButton == MouseButton.Left)
+            //    {
+            //        if (item == _selectedFile)
+            //        {
+            //            _selectedFile = EntityHierarchyItem.Null;
+            //            EntitySelected?.Invoke(this, item);
+            //        }
+            //    }
+            //}
+        }
+
         private void SelectCallback(object? sender, SelectionChangedEventArgs t)
         {
             foreach (var entity in t.RemovedItems)
@@ -522,6 +564,7 @@ namespace Editor
 
     public struct EntityHierarchyItem : INotifyPropertyChanged, IEquatable<EntityHierarchyItem>
     {
+        private bool isNull = false;
         private Entity _entity;
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -577,8 +620,8 @@ namespace Editor
         public override string ToString() =>
             $"{_entity} Name:{Name} IsActive:{IsActive} IsVisible:{IsVisible}";
 
-        public bool Equals(EntityHierarchyItem other) => Id == other.Id && Version == other.Version;
-
+        public bool Equals(EntityHierarchyItem other) => Id == other.Id && Version == other.Version && isNull == other.isNull;
+        public static EntityHierarchyItem Null => new EntityHierarchyItem() { isNull = true };
         public static bool operator ==(EntityHierarchyItem left, EntityHierarchyItem right)
         {
             if (ReferenceEquals(left, null))

@@ -13,12 +13,15 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
+using Silk.NET.Vulkan;
 
 namespace Editor
 {
 
     internal class SceneViewController : ContentControl, IWindowed
     {
+        public Action<uint> OnEntitySelected;
+
         private GLController _glController;
         private ResourceManager _resourceManager;
         private DispatcherTimer _renderTimer;
@@ -27,6 +30,7 @@ namespace Editor
         private Grid _renderCanvas;
 
         private EditorCamera _camera;
+        private BVHTree bVHTree;
 
         private Dictionary<EntityData, RenderPairCache> _componentRenderCache = new Dictionary<EntityData, RenderPairCache>();
 
@@ -62,6 +66,8 @@ namespace Editor
 
             _sceneManager.OnSceneInitialize += SetScene;
             _sceneManager.OnScenUnload += UnloadScene;
+
+            BVHTree.Instance.Initialize(new SceneEntityComponentProvider(_sceneManager));
         }
 
         private void InitializeUI()
@@ -556,17 +562,10 @@ namespace Editor
         private void OnPointerReleased(object sender, PointerReleasedEventArgs e)
         {
             _camera.HandlePointerReleased(e.GetCurrentPoint(this).Properties.PointerUpdateKind);
-
-            //var properties = e.GetCurrentPoint(_renderCanvas).Properties;
-            //if (e.InitialPressMouseButton == MouseButton.Left)
-            //{
-            //    _isLeftMouseDown = false;
-            //    if (!_isRightMouseDown && !_isMiddleMouseDown)
-            //    {
-            //        // Выбор объекта по клику
-            //        PickObject(e.GetPosition(_renderCanvas));
-            //    }
-            //}
+            if (e.InitialPressMouseButton == MouseButton.Left)
+            {
+                PickObject(e.GetPosition(_renderCanvas));
+            }
         }
 
         private void OnPointerMoved(object? sender, PointerEventArgs e)
@@ -581,8 +580,50 @@ namespace Editor
 
         private void PickObject(Point point)
         {
-            // TODO: Реализовать выбор объекта по клику
-            // Для этого потребуется рейкастинг в сцене
+            if (!_isOpen || !_isGlInitialized || _currentScene == null)
+                return;
+
+            // Преобразование координат экрана в нормализованные координаты
+            float x = (float)(point.X / _renderCanvas.Bounds.Width) * 2 - 1;
+            float y = 1 - (float)(point.Y / _renderCanvas.Bounds.Height) * 2;
+
+            // Создаем луч из камеры через точку на экране
+            var rayDirection = CalculateRayDirection(x, y);
+            var ray = new BVHTree.BvhRay(_camera.Position, rayDirection);
+
+            if (ray.Raycast(out var hit))
+            {
+                // Находим соответствующий EntityData
+                var entity = _currentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == hit.EntityId);
+                if (entity != null)
+                {
+                    OnEntitySelected?.Invoke(entity.Id);
+                    //// Создаем иерархический элемент и выбираем его
+                    //var hierarchyItem = new EntityHierarchyItem(entity.Id, entity.Version, entity.Name);
+                    //Select.SelectItem(hierarchyItem);
+                    //Status.SetStatus($"Выбран объект: {entity.Name}");
+
+                    //// Также можно вызвать обработчик события EntitySelected
+                    //ServiceHub.Get<InspectorDistributor>()?.GetInspectable(hierarchyItem);
+                }
+            }
+        }
+        private Vector3 CalculateRayDirection(float normalizedX, float normalizedY)
+        {
+            // Создаем вектор направления в пространстве клипов
+            Vector4 clipCoords = new Vector4(normalizedX, normalizedY, -1.0f, 1.0f);
+
+            // Преобразуем в пространство представления
+            Matrix4x4.Invert(_camera.GetProjection(_isPerspective), out var invProjection);
+            Vector4 eyeCoords = Vector4.Transform(clipCoords, invProjection);
+            eyeCoords = new Vector4(eyeCoords.X, eyeCoords.Y, -1.0f, 0.0f);
+
+            // Преобразуем в мировое пространство
+            Matrix4x4.Invert(_camera.GetViewMatrix(), out var invView);
+            Vector4 rayWorld = Vector4.Transform(eyeCoords, invView);
+            Vector3 rayDirection = new Vector3(rayWorld.X, rayWorld.Y, rayWorld.Z);
+
+            return Vector3.Normalize(rayDirection);
         }
 
         private void OnKeyDown(object? sender, KeyEventArgs e)
@@ -694,6 +735,7 @@ namespace Editor
                 if (entityToRemove != null)
                 {
                     _componentRenderCache.Remove(entityToRemove);
+                    BVHTree.Instance.RemoveEntity(entityId);
                 }
             });
         }
@@ -736,6 +778,10 @@ namespace Editor
                     {
                         _componentRenderCache.Remove(entity);
                         CacheEntityComponents(entity);
+                        if (component.GetType() == cache.MeshObject?.GetType())
+                        {
+                            BVHTree.Instance.RemoveEntity(entityId);
+                        }
                     }
                 }
             });
@@ -753,6 +799,7 @@ namespace Editor
                     if (cache.ShaderObject == component || cache.MeshObject == component)
                     {
                         _componentRenderCache.Remove(entity);
+                        BVHTree.Instance.RemoveEntity(entityId);
                         CacheEntityComponents(entity);
                     }
                 }
@@ -793,6 +840,7 @@ namespace Editor
                     ShaderObject = shaderObject,
                     MeshObject = meshObject
                 };
+                BVHTree.Instance.AddEntity(entity.Id, mesh);
             }
         }
 

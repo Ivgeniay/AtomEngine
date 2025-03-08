@@ -9,6 +9,8 @@ namespace AtomEngine.RenderEntity
         public Triangle[] Triangles { get; protected set; }
         public Vertex[] Vertices_ { get; protected set; }
 
+        public IBoundingVolume BoundingVolume { get; protected set; }
+
         public abstract void Dispose();
         public abstract void Draw(ShaderBase shaderBase);
     }

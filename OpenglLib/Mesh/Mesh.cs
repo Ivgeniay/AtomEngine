@@ -29,6 +29,8 @@ namespace OpenglLib
 
             ValidateVertexData();
             SetupMesh();
+
+            BoundingVolume = new BoundingBox(this);
         }
         public Mesh(GL gl, float[] vertices, uint[] indices, List<Texture> textures, PrimitiveType primitiveType = PrimitiveType.Triangles)
         {

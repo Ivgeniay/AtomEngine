@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 using System.Linq;
 using AtomEngine;
@@ -83,7 +84,6 @@ namespace Editor
             CurrentWorldData.Entities.Add(newEntityData);
             MakeDirty();
         }
-
         internal uint RenameEntity(EntityHierarchyItem entity)
         {
             var world = CurrentWorldData;
@@ -92,7 +92,6 @@ namespace Editor
             MakeDirty();
             return entity.Id;
         }
-
         internal void DeleteEntity(EntityHierarchyItem entity)
         {
             var world = CurrentWorldData;
@@ -100,6 +99,7 @@ namespace Editor
             world.Entities.Remove(editableEntity);
             MakeDirty();
         }
+
         #endregion
 
         #region World

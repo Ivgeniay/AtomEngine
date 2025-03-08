@@ -38,8 +38,8 @@ namespace Editor
             _worldListContextMenu = CreateListContextMenus();
 
             _sceneManager = ServiceHub.Get<SceneManager>();
+
             _sceneManager.OnSceneInitialize += UpdateWorlds;
-            _sceneManager.OnSceneDirty += UpdateWorlds;
         }
 
         private void InitializeUI()
@@ -323,8 +323,8 @@ namespace Editor
 
         public void Open()
         {
-            Redraw();
             _isOpen = true;
+            Redraw();
         }
 
         public void Close()

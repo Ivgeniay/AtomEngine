@@ -135,6 +135,7 @@ namespace Editor
             InitializeInspector();
             InitializeExplorer();
             InitializeConsole();
+            InitializrSceneView();
         }
         
         private void InitializeConsole()
@@ -295,7 +296,18 @@ namespace Editor
                 else _inspectorController.CleanInspected();
             };
         }
+        private void InitializrSceneView()
+        {
+            _sceneViewController.OnEntitySelected += (e) =>
+            {
+                DebLogger.Info(e);
+            };
+            //var hierarchyItem = new EntityHierarchyItem(entity.Id, entity.Version, entity.Name);
+            //Select.SelectItem(hierarchyItem);
+            //Status.SetStatus($"Выбран объект: {entity.Name}");
 
+            //ServiceHub.Get<InspectorDistributor>()?.GetInspectable(hierarchyItem);
+        }
         public void OpenWindow(MainControllers mainControllers) => _windowService.OpenWindow(mainControllers);
         public T GetControl<T>() where T : Control, IWindowed
         {

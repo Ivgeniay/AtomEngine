@@ -4,6 +4,8 @@ using Avalonia.Controls;
 using Newtonsoft.Json;
 using AtomEngine;
 using System;
+using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace Editor
 {
@@ -107,10 +109,6 @@ namespace Editor
 
 
         public Task InitializeAsync() => Task.CompletedTask;
-
-        /// <summary>
-        /// Обрабатывает создание новой сцены
-        /// </summary>
         internal async Task HandleNewScene()
         {
             if (CurrentScene != null && CurrentScene.IsDirty)
@@ -146,10 +144,6 @@ namespace Editor
             CurrentScene.Initialize();
             OnSceneInitialize?.Invoke(CurrentScene);
         }
-
-        /// <summary>
-        /// Обрабатывает открытие сцены
-        /// </summary>
         internal async Task HandleOpenScene()
         {
             if (CurrentScene != null && CurrentScene.IsDirty)
@@ -192,10 +186,6 @@ namespace Editor
                 Status.SetStatus($"Opening scene failed");
             }
         }
-
-        /// <summary>
-        /// Обрабатывает сохранение текущей сцены
-        /// </summary>
         internal async Task HandleSaveScene()
         {
             if (string.IsNullOrEmpty(CurrentScene.ScenePath))
@@ -221,10 +211,6 @@ namespace Editor
                 OnSceneAfterSave?.Invoke();
             }
         }
-
-        /// <summary>
-        /// Обрабатывает сохранение сцены с выбором имени файла
-        /// </summary>
         internal async Task HandleSaveSceneAs()
         {
             var result = await SceneFileHelper.SaveSceneAsync(
@@ -242,6 +228,43 @@ namespace Editor
             {
                 Status.SetStatus("Failed to save scene");
             }
+        }
+
+    }
+
+    internal class SceneEntityComponentProvider : IEntityComponentInfoProvider
+    {
+        private SceneManager _sceneManager;
+
+        public SceneEntityComponentProvider(SceneManager sceneManager)
+        {
+            _sceneManager = sceneManager;
+        }
+
+        public unsafe ref T GetComponent<T>(uint entityId) where T : struct, IComponent
+        {
+            Type type = typeof(T);
+            var component = _sceneManager
+                    .CurrentScene
+                    .CurrentWorldData
+                    .Entities
+                    .First(e => e.Id == entityId)
+                    .Components
+                    .FirstOrDefault(e => e.Value.GetType() == type).Value;
+            return ref Unsafe.Unbox<T>(component);
+        }
+        public bool HasComponent<T>(uint entityId) where T : struct, IComponent
+        {
+            Type type = typeof(T);
+            var entityData = _sceneManager
+                    .CurrentScene
+                    .CurrentWorldData
+                    .Entities
+                    .FirstOrDefault(e => e.Id == entityId);
+            if (entityData != null)
+                return entityData.Components.Any(e => e.Value.GetType() == type);
+
+            return false;
         }
     }
 }

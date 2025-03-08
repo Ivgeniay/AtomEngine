@@ -26,8 +26,8 @@ namespace Editor
 
             InitialializeUI();
 
-            _sceneManager.OnSceneDirty += (e) => Redraw();
-            _sceneManager.OnSceneInitialize += (e) => Redraw();
+            //_sceneManager.OnSceneDirty += (e) => Redraw();
+            //_sceneManager.OnSceneInitialize += (e) => Redraw();
         }
 
         private void InitialializeUI()
