@@ -26,6 +26,7 @@ namespace Editor
         public event EventHandler<(string, string)> WorldRenamed;
         public event EventHandler<string> WorldDeleted;
 
+        private SceneManager _sceneManager;
         private bool _isOpen = false;
 
         public WorldController()
@@ -35,6 +36,10 @@ namespace Editor
             InitializeUI();
             _worldContextMenu = CreateElementContextMenu();
             _worldListContextMenu = CreateListContextMenus();
+
+            _sceneManager = ServiceHub.Get<SceneManager>();
+            _sceneManager.OnSceneInitialize += UpdateWorlds;
+            _sceneManager.OnSceneDirty += UpdateWorlds;
         }
 
         private void InitializeUI()

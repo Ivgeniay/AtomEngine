@@ -31,6 +31,8 @@ namespace Editor
         public event EventHandler<EntityHierarchyItem> EntityRenamed;
         public event EventHandler<EntityHierarchyItem> EntityDeleted;
 
+        private SceneManager _sceneManager;
+
 
         public HierarchyController()
         {
@@ -39,6 +41,30 @@ namespace Editor
 
             _entityContextMenu = CreateEntityComtexMenu();
             _backgroundContextMenu = CreateBGContextMenus();
+
+            _sceneManager = ServiceHub.Get<SceneManager>();
+            _sceneManager.OnSceneInitialize += UpdateHyerarchy;
+
+            _sceneManager.OnEntityCreated += (worldId, entityId) =>
+            {
+                var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+                if (entityData != null)
+                {
+                    CreateHierarchyEntity(entityData, false);
+                }
+            };
+            _sceneManager.OnEntityDuplicated += (worldId, entityId) =>
+            {
+                var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+                if (entityData != null)
+                {
+                    CreateHierarchyEntity(entityData, false);
+                }
+            };
+            _sceneManager.OnWorldSelected += (worldId, worldName) =>
+            {
+                UpdateHyerarchy(_sceneManager.CurrentScene);
+            };
         }
 
         private void InitializeUI()
@@ -303,12 +329,13 @@ namespace Editor
                 EntityCreated?.Invoke(this, name);
         }
 
-        public void CreateHierarchyEntity(EntityData entityData, bool withAvoking = true)
+        public EntityHierarchyItem CreateHierarchyEntity(EntityData entityData, bool withAvoking = true)
         {
             var entityItem = new EntityHierarchyItem(entityData.Id, entityData.Version, entityData.Name);
 
             _entities.Add(entityItem);
             _entitiesList.SelectedItem = entityItem;
+            return entityItem;
         }
 
         private string GetUniqueName(string baseName)
@@ -461,12 +488,12 @@ namespace Editor
         }
 
         #region Commands
-        private void CreateNewEntity() => CreateNewEntity("New Entity");
-        private void CreateCube() => CreateNewEntity("Cube");
-        private void CreateSphere() => CreateNewEntity("Sphere");
-        private void CreateCapsule() => CreateNewEntity("Capsule");
-        private void CreateCylinder() => CreateNewEntity("Cylinder");
-        private void CreatePlane() => CreateNewEntity("Plane");
+        private void CreateNewEntity() => CreateNewEntity(GetUniqueName("New Entity"));
+        private void CreateCube() => CreateNewEntity(GetUniqueName("Cube"));
+        private void CreateSphere() => CreateNewEntity(GetUniqueName("Sphere"));
+        private void CreateCapsule() => CreateNewEntity(GetUniqueName("Capsule"));
+        private void CreateCylinder() => CreateNewEntity(GetUniqueName("Cylinder"));
+        private void CreatePlane() => CreateNewEntity(GetUniqueName("Plane"));
         private void StartRenamingCommand()
         {
             if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)

@@ -132,7 +132,7 @@ namespace Editor
             _renderTimer.Tick += (sender, args) => Render();
         }
 
-        public void SetScene(ProjectScene scene)
+        private void SetScene(ProjectScene scene)
         {
             _currentScene = scene;
             if (!_isOpen) return;
@@ -151,11 +151,6 @@ namespace Editor
             {
                 FreeChache();
             });
-            //if (_isOpen)
-            //{
-            //    Close();
-            //    Open();
-            //}
         }
 
         public void Open()
@@ -704,7 +699,7 @@ namespace Editor
         }
         public void ComponentAdded(uint worldId, uint entityId, IComponent component)
         {
-            if (_isOpen) return;
+            if (!_isOpen) return;
 
             EnqueueGLCommand((gl) =>
             {
@@ -761,6 +756,15 @@ namespace Editor
                         CacheEntityComponents(entity);
                     }
                 }
+                else
+                {
+                    entity = _currentScene?.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+                    if (entity != null)
+                    {
+                        CacheEntityComponents(entity);
+                    }
+                }
+
             });
         }
 

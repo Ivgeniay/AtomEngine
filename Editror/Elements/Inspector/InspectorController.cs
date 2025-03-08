@@ -15,12 +15,19 @@ namespace Editor
         private InspectorViewFactory _inspectorViewFactory;
         private bool _isOpend = false;
 
+        private SceneManager _sceneManager;
+
         public Action<object> OnClose { get; set; }
 
         public InspectorController()
         {
             _inspectorViewFactory = ServiceHub.Get<InspectorViewFactory>();
+            _sceneManager = ServiceHub.Get<SceneManager>();
+
             InitialializeUI();
+
+            _sceneManager.OnSceneDirty += (e) => Redraw();
+            _sceneManager.OnSceneInitialize += (e) => Redraw();
         }
 
         private void InitialializeUI()

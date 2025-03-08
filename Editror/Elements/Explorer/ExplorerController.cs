@@ -42,11 +42,16 @@ namespace Editor
         private ContextMenu _fileContextMenu;
 
         private AssetFileSystem fileSystem;
+        private SceneManager _sceneManager;
 
         private bool _isOpen = false;
 
         public ExplorerController()
         {
+            _sceneManager = ServiceHub.Get<SceneManager>();
+            _sceneManager.OnSceneDirty += (e) => Redraw();
+            _sceneManager.OnSceneInitialize += (e) => Redraw();
+
             this.configs = ServiceHub
                 .Get<Configuration>()
                 .GetConfiguration<ExplorerConfigurations>(ConfigurationSource.ExplorerConfigs);

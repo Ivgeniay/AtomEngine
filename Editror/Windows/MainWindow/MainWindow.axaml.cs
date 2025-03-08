@@ -333,8 +333,7 @@ namespace Editor
             _toolbar.RegisterCathegory(helpCategory);
 
             _sceneManager.HandleNewScene().GetAwaiter().GetResult();
-            _uIManager.Start();
-            _sceneManager.InitializeStandartScene();
+            _uIManager.OpenCachedWindows();
 
             ServiceHub.Get<AssetFileSystem>().RegisterCommand(new FileEventCommand()
             {

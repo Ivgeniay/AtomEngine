@@ -52,11 +52,15 @@ namespace Editor
             set { CurrentWorldData.WorldName = value; MakeDirty(); } 
         }
 
+        internal void Initialize()
+        {
+            _entityIndexator = CurrentWorldData.Entities.Max(e => e.Id);
+        }
 
         #region Entity
         internal uint AddEntity(string entityName)
         {
-            Entity entity = new Entity(_entityIndexator++, 0);
+            Entity entity = new Entity(++_entityIndexator, 0);
             EntityData newEntityData = new EntityData()
             {
                 Name = entityName,
@@ -106,14 +110,15 @@ namespace Editor
             MakeDirty();
         }
 
-        internal void RemoveWorld(string worldName)
+        internal WorldData RemoveWorld(string worldName)
         {
             var world = Worlds.Where(w => w.WorldName == worldName).First();
             Worlds.Remove(world);
             MakeDirty();
+            return world;
         }
 
-        internal void CreateWorld(string worldName)
+        internal WorldData CreateWorld(string worldName)
         {
             var newWorldData = new WorldData();
             int maxId = -1;
@@ -126,6 +131,7 @@ namespace Editor
             newWorldData.WorldId = (uint)(1 + maxId);
             Worlds.Add(newWorldData);
             MakeDirty();
+            return newWorldData;
         }
 
         internal void SelecteWorld(string worldName)

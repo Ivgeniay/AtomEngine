@@ -26,21 +26,6 @@ namespace Editor
         {
             _mainWindow = mainWindow;
             _sceneManager = ServiceHub.Get<SceneManager>();
-            _sceneManager.OnSceneInitialize += (e) =>
-            {
-                _hierarchyController?.UpdateHyerarchy(e);
-                _worldController?.UpdateWorlds(e);
-                _inspectorController?.Redraw();
-                _explorerController?.Redraw();
-            };
-
-            _sceneManager.OnSceneChange += (e) =>
-            {
-                _hierarchyController?.UpdateHyerarchy(e);
-                _worldController?.UpdateWorlds(e);
-                _inspectorController?.Redraw();
-                _explorerController?.Redraw();
-            };
             _windowService = ServiceHub.Get<DraggableWindowManagerService>();
             RegisterControllersHandlers();
         }
@@ -170,30 +155,28 @@ namespace Editor
             _hierarchyController.EntityCreated += (s, entityName) =>
             {
                 Select.DeSelectAll();
-                _sceneManager.CurrentScene.AddEntity(entityName);
-                UpdateHyerarchy();
+                _sceneManager.AddEntity(entityName);
                 CleanInspector();
             };
 
             _hierarchyController.EntityDuplicated += (s, entityName) =>
             {
                 Select.DeSelectAll();
-                _sceneManager.CurrentScene.AddDuplicateEntity(entityName);
-                UpdateHyerarchy();
+                _sceneManager.AddDuplicateEntity(entityName);
                 CleanInspector();
             };
 
             _hierarchyController.EntityRenamed += (s, entity) =>
             {
                 Select.DeSelectAll();
-                _sceneManager.CurrentScene.RenameEntity(entity);
+                _sceneManager.RenameEntity(entity);
                 CleanInspector();
             };
 
             _hierarchyController.EntityDeleted += (s, entity) =>
             {
                 Select.DeSelectAll();
-                _sceneManager.CurrentScene.DeleteEntity(entity);
+                _sceneManager.DeleteEntity(entity);
                 CleanInspector();
             };
 
@@ -209,23 +192,22 @@ namespace Editor
             _worldController.WorldRenamed += (sender, e) =>
             {
                 Select.DeSelectAll();
-                _sceneManager.CurrentScene.RenameWorld(e);
+                _sceneManager.RenameWorld(e);
             };
             _worldController.WorldDeleted += (sender, e) =>
             {
                 Select.DeSelectAll();
-                _sceneManager.CurrentScene.RemoveWorld(e);
+                _sceneManager.RemoveWorld(e);
             };
             _worldController.WorldCreated += (sender, e) =>
             {
                 Select.DeSelectAll();
-                _sceneManager.CurrentScene.CreateWorld(e);
+                _sceneManager.CreateWorld(e);
             };
             _worldController.WorldSelected += (sender, e) =>
             {
                 Select.DeSelectAll();
-                _sceneManager.CurrentScene.SelecteWorld(e);
-                UpdateHyerarchy();
+                _sceneManager.SelecteWorld(e);
             };
         }
         private void InitializeInspector() { }
@@ -325,17 +307,8 @@ namespace Editor
         {
             _inspectorController.CleanInspected();
         }
-        private void UpdateHyerarchy()
-        {
-            _hierarchyController.UpdateHyerarchy(_sceneManager.CurrentScene);
-        }
-        public void RedrawControllers()
-        {
-            foreach (var controller in _controls)
-                controller.Redraw();
-        }
 
-        internal void Start()
+        internal void OpenCachedWindows()
         {
             _windowService.OpenStartedWindow();
         }
