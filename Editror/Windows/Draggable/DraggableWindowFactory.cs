@@ -127,7 +127,7 @@ namespace Editor
             return titleBar;
         }
 
-        private void CloseWindow(Border window)
+        internal void CloseWindow(Border window)
         {
             var query = _windows.FirstOrDefault(x => x.Value == window);
             Control contentToRemove = query.Key;

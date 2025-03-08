@@ -13,7 +13,6 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
-using Silk.NET.Vulkan;
 
 namespace Editor
 {
@@ -62,6 +61,7 @@ namespace Editor
             _sceneManager = ServiceHub.Get<SceneManager>();
 
             _sceneManager.OnSceneInitialize += SetScene;
+            _sceneManager.OnScenUnload += UnloadScene;
         }
 
         private void InitializeUI()
@@ -137,6 +137,16 @@ namespace Editor
             _currentScene = scene;
             UpdateEntitiesFromScene();
         }
+        public void UnloadScene()
+        {
+            _currentScene = null;
+            FreeChache();
+            if (_isOpen)
+            {
+                Close();
+                Open();
+            }
+        }
 
         public void Open()
         {
@@ -151,7 +161,6 @@ namespace Editor
 
                 _renderCanvas.Children.Add(_glController);
             }
-
             _materialFactory.SetSceneViewController(this);
 
             _sceneManager.OnSceneBeforeSave += PrepareToSave;
@@ -171,6 +180,9 @@ namespace Editor
         public void Close()
         {
             _renderTimer.Stop();
+
+            SetDefaulFieldValue();
+            FreeChache();
 
             if (_glController != null)
             {
@@ -202,8 +214,8 @@ namespace Editor
             try
             {
                 _isGlInitialized = true;
-                InitializeComponentCache();
                 InitializeGrid(gl);
+                UpdateEntitiesFromScene();
             }
             catch (Exception ex)
             {
@@ -229,12 +241,18 @@ namespace Editor
             {
                 if (!_isGlInitialized) return;
 
+                var scalingFactor = VisualRoot?.RenderScaling ?? 1.0;
+                uint width = (uint)(_renderCanvas.Bounds.Width * scalingFactor);
+                uint height = (uint)(_renderCanvas.Bounds.Height * scalingFactor);
+
+                gl.Viewport(0, 0, width, height);
                 gl.ClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+                gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
                 gl.Enable(EnableCap.DepthTest);
+                gl.DepthFunc(DepthFunction.Lequal);
 
                 var view = _camera.GetViewMatrix();
                 Matrix4x4 projection = _camera.GetProjection(_isPerspective);
-
                 while (_glCommands.TryDequeue(out var command))
                 {
                     command.Execute(gl);
@@ -504,12 +522,12 @@ namespace Editor
 
         private void UpdateEntitiesFromScene()
         {
+            FreeChache();
             if (!_isOpen || !_isGlInitialized) return;
 
             if (_currentScene == null)
                 return;
 
-            FreeChache();
             InitializeComponentCache();
         }
 
@@ -591,7 +609,6 @@ namespace Editor
         }
         
         
-        
         private void FreeChache()
         {
             _componentRenderCache.Clear();
@@ -624,13 +641,10 @@ namespace Editor
             }
             _isGlInitialized = false;
 
-            SetDefaulFieldValue();
-            FreeChache();
-            _resourceManager.Dispose();
+            //_resourceManager?.Dispose();
             _renderTimer?.Stop();
 
             _sceneManager.OnSceneBeforeSave -= PrepareToSave;
-            _sceneManager.OnSceneInitialize -= SetScene;
 
             _sceneManager.OnComponentChange -= ComponentChange;
             _sceneManager.OnComponentAdded -= ComponentAdded;
@@ -647,7 +661,7 @@ namespace Editor
             if (_currentScene == null || _currentScene.CurrentWorldData == null)
                 return;
 
-            _componentRenderCache.Clear();
+            FreeChache();
 
             foreach (var entity in _currentScene.CurrentWorldData.Entities)
             {

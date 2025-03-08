@@ -9,6 +9,7 @@ namespace Editor
     {
         private readonly Canvas _mainCanvas;
         private readonly DraggableWindowFactory _windowFactory;
+        private readonly Dictionary<MainControllers, DraggableWindow> _borderMap = new Dictionary<MainControllers, DraggableWindow>();
         private readonly Dictionary<MainControllers, Control> _controllers = new Dictionary<MainControllers, Control>();
         private readonly Dictionary<MainControllers, Action<Control>> _openHandlers = new Dictionary<MainControllers, Action<Control>>();
         private readonly Dictionary<MainControllers, Action<Control>> _closeHandlers = new Dictionary<MainControllers, Action<Control>>();
@@ -37,6 +38,11 @@ namespace Editor
             _closeHandlers[type] = handler;
         }
 
+        internal void CloseWindow(MainControllers type)
+        {
+            _closeHandlers[type](_controllers[type]);
+            _windowFactory.CloseWindow(_borderMap[type]);
+        }
 
         public DraggableWindow OpenWindow(MainControllers type, double left = 10, double top = 10, double width = 250, double height = 400)
         {
@@ -103,6 +109,7 @@ namespace Editor
                 config.IsOpen = false;
             };
 
+            _borderMap[type] = window;
             return window;
         }
         public DraggableWindow CreateWindow(string title, Control content = null, double left = 10, double top = 10, double width = 200, double height = 150)

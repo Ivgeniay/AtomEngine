@@ -40,7 +40,7 @@ namespace Editor
             _gl = gl;
             _isGLInitialized = true;
 
-            ReloadGLResources();
+            //ReloadGLResources();
         }
 
         public T GetResource<T>(string guid) where T : class
@@ -149,13 +149,13 @@ namespace Editor
  
         public void Dispose()
         {
-            foreach (var resource in _resourceCache.Values)
-            {
-                if (resource is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
-            }
+            //foreach (var resource in _resourceCache.Values)
+            //{
+            //    if (resource is IDisposable disposable)
+            //    {
+            //        disposable.Dispose();
+            //    }
+            //}
 
             _textureFactory.Dispose();
             _materialFactory.Dispose();

@@ -16,6 +16,11 @@ namespace Editor
             _dManager.RegisterOpenHandler(type, handler);
         public void RegisterCloseHandler(MainControllers type, Action<Control> handler) =>
             _dManager.RegisterCloseHandler(type,handler);
+
+        public void CloseWindow(MainControllers type)
+        {
+            _dManager.CloseWindow(type);
+        }
         public DraggableWindow OpenWindow(MainControllers type, double left = 10, double top = 10, double width = 250, double height = 400) =>
             _dManager.OpenWindow(type, left, top, width, height);
         public DraggableWindow CreateWindow(string title, Control content = null, double left = 10, double top = 10, double width = 200, double height = 150) =>

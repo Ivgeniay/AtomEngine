@@ -13,6 +13,7 @@ namespace Editor
         public Action<ProjectScene>? OnSceneChange;
         public Action? OnSceneBeforeSave;
         public Action? OnSceneAfterSave;
+        public Action? OnScenUnload;
         public Action<uint, uint, IComponent>? OnComponentAdded;
         public Action<uint, uint, IComponent>? OnComponentRemoved;
         public Action<uint, uint, IComponent>? OnComponentChange;
@@ -126,6 +127,7 @@ namespace Editor
                 }
             }
 
+            OnScenUnload?.Invoke();
             WorldData standartWorldData = SceneFileHelper.CreateWorldData();
             _currentScene = new ProjectScene(new List<WorldData>() { standartWorldData }, standartWorldData);
             OnSceneInitialize?.Invoke(CurrentScene);
@@ -165,6 +167,7 @@ namespace Editor
             var loadedScene = await SceneFileHelper.OpenSceneAsync(_mainWindow);
             if (loadedScene != null)
             {
+                OnScenUnload?.Invoke();
                 _currentScene = loadedScene;
                 OnSceneInitialize?.Invoke(CurrentScene);
                 Status.SetStatus($"Opened scene: {_currentScene.WorldName}");
