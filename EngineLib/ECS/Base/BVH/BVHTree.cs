@@ -1,5 +1,6 @@
 ﻿using AtomEngine.RenderEntity;
 using System.Numerics;
+using System.Reflection;
 
 namespace AtomEngine
 {
@@ -19,7 +20,7 @@ namespace AtomEngine
         public Vector3 Point { get; set; }
     }
 
-    public class BVHTree
+    public class BVHTree : IDisposable
     {
         private static BVHTree _instance;
         public static BVHTree Instance => _instance ??= new BVHTree();
@@ -39,8 +40,7 @@ namespace AtomEngine
             _entityBounds.Clear();
         }
 
-        // Добавление сущности в дерево
-        public void AddEntity(uint entityId, MeshBase meshBase = null)
+        public void AddEntity(uint entityId)
         {
             if (_componentProvider == null)
                 return;
@@ -52,29 +52,22 @@ namespace AtomEngine
             var transformComponent = _componentProvider.GetComponent<TransformComponent>(entityId);
             var meshComponent = _componentProvider.GetComponent<MeshComponent>(entityId);
 
-            // Здесь нужно получить boundingVolume из meshComponent и преобразовать с учетом transformComponent
-            // Примерный код (требует адаптации к вашей структуре данных):
-            MeshBase mesh = null;
-            if (meshBase != null) mesh = meshBase;
-            else mesh = GetMeshFromComponent(meshComponent);
+            MeshBase mesh = GetMeshFromComponent(meshComponent);
             _entityMesh[entityId] = mesh;
 
             if (mesh?.BoundingVolume == null)
                 return;
 
+            CalculateBound(entityId, transformComponent, mesh);
+            RebuildTree();
+        }
+        private void CalculateBound(uint entityId, TransformComponent transformComponent, MeshBase mesh)
+        {
             var modelMatrix = CreateModelMatrix(transformComponent);
             if (mesh.BoundingVolume.Transform(modelMatrix) is BoundingBox worldBounds)
             {
                 _entityBounds[entityId] = worldBounds;
-                RebuildTree();
             }
-            //var worldBounds = mesh.BoundingVolume.Transform(modelMatrix) as BoundingBox;
-
-            //if (worldBounds != null)
-            //{
-            //    _entityBounds[entityId] = worldBounds;
-            //    RebuildTree();
-            //}
         }
         public void RemoveEntity(uint entityId)
         {
@@ -93,7 +86,6 @@ namespace AtomEngine
             RemoveEntity(entityId);
             AddEntity(entityId);
         }
-
         private void RebuildTree()
         {
             if (_entityBounds.Count == 0)
@@ -103,6 +95,12 @@ namespace AtomEngine
             }
 
             var allEntityIds = _entityBounds.Keys.ToList();
+            foreach ( var entityId in allEntityIds)
+            {
+                var transformComponent = _componentProvider.GetComponent<TransformComponent>(entityId);
+                var mesh = _entityMesh[entityId];
+                CalculateBound(entityId, transformComponent, mesh);
+            }
             var allBounds = ComputeBoundsForEntities(allEntityIds);
             _root = BuildNode(allEntityIds, allBounds);
         }
@@ -212,14 +210,33 @@ namespace AtomEngine
         }
         private MeshBase GetMeshFromComponent(MeshComponent meshComponent)
         {
-            // Реализация в зависимости от вашей структуры
-            return null; // Заглушка
+            var type = meshComponent.GetType();
+            var fields = type
+                .GetFields(BindingFlags.Public | BindingFlags.Instance)
+                .FirstOrDefault(e => typeof(MeshBase).IsAssignableFrom(e.FieldType));
+            if (fields != null)
+            {
+                var value = fields.GetValue(meshComponent);
+                if (value != null) return fields.GetValue(meshComponent) as MeshBase;
+                return null;
+            }
+            return null;
         }
-
         private Matrix4x4 CreateModelMatrix(TransformComponent transform)
         {
-            // Реализация в зависимости от вашей структуры
-            return Matrix4x4.Identity; // Заглушка
+            Matrix4x4 model = Matrix4x4.CreateTranslation(transform.Position);
+            var rad = transform.Rotation.ToRadFromEuler();
+            model *= Matrix4x4.CreateFromYawPitchRoll(rad.X, rad.Y, rad.Z);
+            model *= Matrix4x4.CreateScale(transform.Scale);
+
+            return model;
+        }
+
+        public void Dispose()
+        {
+            _componentProvider = null;
+            _entityBounds.Clear();
+            _entityMesh.Clear();
         }
         public class BvhRay
         {
@@ -237,16 +254,15 @@ namespace AtomEngine
             public bool Raycast(out BvhRaycastHit hit)
             {
                 hit = new BvhRaycastHit();
+
                 if (BVHTree.Instance._root == null)
                     return false;
 
-                // Инициализация переменных для поиска ближайшего пересечения
                 float closestDistance = float.MaxValue;
                 uint closestEntityId = 0;
                 var closestIntersectionPoint = Vector3.Zero;
                 bool hasHit = false;
 
-                // Выполняем поиск пересечений, начиная с корня
                 RaycastNode(BVHTree.Instance._root, ref hasHit, ref closestDistance, ref closestEntityId, ref closestIntersectionPoint);
 
                 if (hasHit)
@@ -297,16 +313,130 @@ namespace AtomEngine
                 distance = float.MaxValue;
                 point = Vector3.Zero;
 
-                if (!BVHTree.Instance._entityBounds.TryGetValue(entityId, out var bounds))
+                if (!BVHTree.Instance._entityBounds.TryGetValue(entityId, out var bounds) ||
+                    !BVHTree.Instance._entityMesh.TryGetValue(entityId, out var mesh))
                     return false;
 
-                // Для простоты используем пересечение с AABB
-                // В реальном приложении здесь должна быть более точная проверка с мешем
-                if (IntersectsAABB(bounds, out distance, out point) && distance <= _maxDistance)
-                    return true;
+                if (!IntersectsAABB(bounds, out var aabbDistance, out var aabbPoint) || aabbDistance > _maxDistance)
+                    return false;
 
-                return false;
+                RayShape rayShape = new RayShape(_origin, _direction, aabbDistance + 0.1f);
+
+                var meshVertices = GetTransformedMeshVertices(entityId, mesh);
+
+                GJKAlgorithm.SupportFunction raySupport = direction => rayShape.GetSupport(direction);
+                GJKAlgorithm.SupportFunction meshSupport = direction => GetSupportFromVertices(meshVertices, direction);
+
+                GJKAlgorithm.Simplex simplex;
+                if (GJKAlgorithm.Intersect(raySupport, meshSupport, out simplex))
+                {
+                    point = GetIntersectionPoint(simplex);
+                    distance = Vector3.Distance(_origin, point);
+
+                    Vector3 toPoint = point - _origin;
+                    float projectionLength = Vector3.Dot(toPoint, _direction);
+
+                    if (projectionLength >= 0 && projectionLength <= _maxDistance)
+                    {
+                        return true;
+                    }
+                }
+
+                // Если GJK не нашел пересечения или точка не на луче, возвращаем результат AABB проверки
+                distance = aabbDistance;
+                point = aabbPoint;
+                return true;
+                //return false;
             }
+
+            private Vector3[] GetTransformedMeshVertices(uint entityId, MeshBase mesh)
+            {
+                // Получаем компонент трансформации
+                var transformComponent = BVHTree.Instance._componentProvider.GetComponent<TransformComponent>(entityId);
+
+                // Вычисляем матрицу трансформации
+                Matrix4x4 modelMatrix = BVHTree.Instance.CreateModelMatrix(transformComponent);
+
+                // Получаем вершины меша
+                Vector3[] vertices;
+
+                if (mesh.Vertices_ != null)
+                {
+                    // Предполагается, что Vertices_ содержит вершины меша
+                    vertices = new Vector3[mesh.Vertices_.Length];
+                    for (int i = 0; i < vertices.Length; i++)
+                    {
+                        vertices[i] = Vector3.Transform(mesh.Vertices_[i].Position, modelMatrix);
+                    }
+                }
+                else if (mesh.BoundingVolume is BoundingBox boundingBox)
+                {
+                    // Если у нас нет доступа к вершинам меша, используем вершины ограничивающего бокса
+                    vertices = boundingBox.GetVertices();
+                    for (int i = 0; i < vertices.Length; i++)
+                    {
+                        vertices[i] = Vector3.Transform(vertices[i], modelMatrix);
+                    }
+                }
+                else
+                {
+                    // Если нет ни вершин, ни бокса, возвращаем пустой массив
+                    vertices = new Vector3[0];
+                }
+
+                return vertices;
+            }
+            private Vector3 GetSupportFromVertices(Vector3[] vertices, Vector3 direction)
+            {
+                if (vertices.Length == 0)
+                    return Vector3.Zero;
+
+                float maxDot = float.MinValue;
+                Vector3 support = Vector3.Zero;
+
+                foreach (var vertex in vertices)
+                {
+                    float dot = Vector3.Dot(vertex, direction);
+                    if (dot > maxDot)
+                    {
+                        maxDot = dot;
+                        support = vertex;
+                    }
+                }
+
+                return support;
+            }
+            private Vector3 GetIntersectionPoint(GJKAlgorithm.Simplex simplex)
+            {
+                if (simplex.Count == 0)
+                    return Vector3.Zero;
+
+                // Простое усреднение точек симплекса как приближение точки пересечения
+                Vector3 center = Vector3.Zero;
+                for (int i = 0; i < simplex.Count; i++)
+                {
+                    center += simplex[i];
+                }
+
+                return center / simplex.Count;
+
+                // Примечание: для более точного определения точки пересечения можно использовать 
+                // дополнительные алгоритмы, такие как EPA (Expanding Polytope Algorithm)
+            }
+
+            //private bool RaycastEntity(uint entityId, out float distance, out Vector3 point)
+            //{
+            //    distance = float.MaxValue;
+            //    point = Vector3.Zero;
+
+            //    if (!BVHTree.Instance._entityBounds.TryGetValue(entityId, out var bounds))
+            //        return false;
+
+            //    if (IntersectsAABB(bounds, out distance, out point) && distance <= _maxDistance)
+            //        return true;
+
+            //    return false;
+            //}
 
             private bool IntersectsAABB(BoundingBox box)
             {
@@ -399,6 +529,30 @@ namespace AtomEngine
                 point = _origin + _direction * distance;
                 return true;
             }
+        }
+    }
+
+    public class RayShape
+    {
+        private Vector3 _origin;
+        private Vector3 _direction;
+        private float _length;
+
+        public RayShape(Vector3 origin, Vector3 direction, float length)
+        {
+            _origin = origin;
+            _direction = Vector3.Normalize(direction);
+            _length = length;
+        }
+
+        public Vector3 GetSupport(Vector3 direction)
+        {
+            float directionDot = Vector3.Dot(_direction, direction);
+
+            if (directionDot > 0)
+                return _origin + _direction * _length;
+
+            return _origin;
         }
     }
 

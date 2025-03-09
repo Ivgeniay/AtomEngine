@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Avalonia;
 using AtomEngine;
 using System;
+using Silk.NET.OpenAL;
 
 namespace Editor
 {
@@ -50,6 +51,15 @@ namespace Editor
             {
                 var view = _inspectorViewFactory.CreateView(property);
                 panel.Children.Add(view.GetView());
+
+                property.OnValueChanged += (e) =>
+                {
+                    if (descriptor.Context != null)
+                    {
+                        var context = (EntityInspectorContext) descriptor.Context;
+                        sceneManager.ComponentChange(context.EntityId, context.Component);
+                    }
+                };
             }
 
             return panel;

@@ -8,7 +8,6 @@ namespace AtomEngine
         public static float RadiansToDegrees(this float radians) => 180f / MathF.PI * radians;
 
         public static Quaternion ToQuaternion(this Vector3 eulerAngles) => (eulerAngles * (MathF.PI / 180f)).ToQuaternionFromRad();
-
         public static Quaternion ToQuaternionFromRad(this Vector3 eulerAngles)
         {
             float pitch = eulerAngles.X;
@@ -29,6 +28,16 @@ namespace AtomEngine
                 cr * cp * cy + sr * sp * sy  
             );
         }
+
+        public static Vector3 ToEulerFromRad(this Vector3 radAngles) => new Vector3(
+            radAngles.X.RadiansToDegrees(), 
+            radAngles.Y.RadiansToDegrees(), 
+            radAngles.Z.RadiansToDegrees());
+
+        public static Vector3 ToRadFromEuler(this Vector3 eulerAngles) => new Vector3(
+            eulerAngles.X.DegreesToRadians(),
+            eulerAngles.Y.DegreesToRadians(),
+            eulerAngles.Z.DegreesToRadians());
 
         public static Vector3 ToEuler(this Quaternion q) => ToEulerRad(q) * (180f / MathF.PI);
         public static Vector3 ToEulerRad(this Quaternion q)

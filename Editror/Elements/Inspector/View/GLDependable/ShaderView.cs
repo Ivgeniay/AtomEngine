@@ -51,7 +51,7 @@ namespace Editor
                     });
                 }
 
-                if (context != null) sceneManager.ComponentChange(context.EntityId, context.Component);
+                //if (context != null) sceneManager.ComponentChange(context.EntityId, context.Component);
             };
             return objectField;
         }

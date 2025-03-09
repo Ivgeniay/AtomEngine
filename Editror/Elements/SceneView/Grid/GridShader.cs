@@ -1,7 +1,6 @@
 ﻿using System.Numerics;
 using Silk.NET.OpenGL;
 using System;
-using AtomEngine;
 
 namespace Editor
 {
@@ -218,7 +217,6 @@ namespace Editor
 
         public void SetMVP(Matrix4x4 model, Matrix4x4 view, Matrix4x4 projection)
         {
-            // Устанавливаем uniform-переменные
             unsafe
             {
                 _gl.UniformMatrix4(_modelLocation, 1, false, (float*)&model);
@@ -240,9 +238,9 @@ namespace Editor
 
             if (_gl != null)
             {
-                //_gl.DeleteVertexArray(_vao);
-                //_gl.DeleteBuffer(_vbo);
-                //_gl.DeleteBuffer(_ebo);
+                _gl.DeleteVertexArray(_vao);
+                _gl.DeleteBuffer(_vbo);
+                _gl.DeleteBuffer(_ebo);
             }
             isDisposed = true;
         }

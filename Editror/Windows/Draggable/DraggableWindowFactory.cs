@@ -4,6 +4,7 @@ using Avalonia.Input;
 using System.Linq;
 using Avalonia;
 using System;
+using System.Threading.Tasks;
 
 namespace Editor
 {
@@ -127,12 +128,17 @@ namespace Editor
             return titleBar;
         }
 
-        internal void CloseWindow(Border window)
+        internal async void CloseWindow(Border window)
         {
             var query = _windows.FirstOrDefault(x => x.Value == window);
             Control contentToRemove = query.Key;
             if (contentToRemove != null)
             {
+                if (contentToRemove is IDisposableController disposableController)
+                {
+                    await disposableController.PrepareForCloseAsync();
+                }
+
                 if (contentToRemove.Parent is Border parentBorder)
                 {
                     parentBorder.Child = null;

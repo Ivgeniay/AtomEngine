@@ -13,12 +13,14 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
-using Silk.NET.Vulkan;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace Editor
 {
 
-    internal class SceneViewController : ContentControl, IWindowed
+
+    internal class SceneViewController : ContentControl, IWindowed, IDisposableController
     {
         public Action<uint> OnEntitySelected;
 
@@ -30,7 +32,8 @@ namespace Editor
         private Grid _renderCanvas;
 
         private EditorCamera _camera;
-        private BVHTree bVHTree;
+        private AABBManager _aabbManager;
+        private SceneEntityComponentProvider sceneEntityComponentProvider;
 
         private Dictionary<EntityData, RenderPairCache> _componentRenderCache = new Dictionary<EntityData, RenderPairCache>();
 
@@ -45,6 +48,9 @@ namespace Editor
         private bool _isPerspective = true;
         private bool _isOpen = false;
         private bool _isGlInitialized = false;
+
+        private bool _isPreparingClose = false;
+        private TaskCompletionSource<bool> _disposeTcs;
 
         public Action<object> OnClose { get; set; }
 
@@ -67,7 +73,8 @@ namespace Editor
             _sceneManager.OnSceneInitialize += SetScene;
             _sceneManager.OnScenUnload += UnloadScene;
 
-            BVHTree.Instance.Initialize(new SceneEntityComponentProvider(_sceneManager));
+            sceneEntityComponentProvider = new SceneEntityComponentProvider(_sceneManager);
+            BVHTree.Instance.Initialize(sceneEntityComponentProvider);
         }
 
         private void InitializeUI()
@@ -135,7 +142,12 @@ namespace Editor
             {
                 Interval = TimeSpan.FromMilliseconds(16)
             };
-            _renderTimer.Tick += (sender, args) => Render();
+            int counter = 0;
+            _renderTimer.Tick += (sender, args) =>
+            {
+                DebLogger.Info($"Tick: {counter++}");
+                Render();
+            };
         }
 
         private void SetScene(ProjectScene scene)
@@ -148,6 +160,7 @@ namespace Editor
                 UpdateEntitiesFromScene();
             });
         }
+        
         public void UnloadScene()
         {
             _currentScene = null;
@@ -189,31 +202,7 @@ namespace Editor
         }
 
         public void Close()
-        {
-            _renderTimer.Stop();
-
-            SetDefaulFieldValue();
-            FreeChache();
-
-            if (_glController != null)
-            {
-                _renderCanvas.Children.Remove(_glController);
-                Dispose();
-                _glController = null;
-            }
-
-            _sceneManager.OnSceneBeforeSave -= PrepareToSave;
-            _sceneManager.OnComponentChange -= ComponentChange;
-            _sceneManager.OnComponentAdded -= ComponentAdded;
-            _sceneManager.OnComponentRemoved -= ComponentRemoved;
-            _sceneManager.OnEntityCreated -= EntityCreated;
-            _sceneManager.OnEntityRemoved -= EntityRemoved;
-
-            _materialFactory.SetSceneViewController(null);
-
-            _isOpen = false;
-            _isGlInitialized = false;
-        }
+        { }
 
         public void Redraw()
         {
@@ -226,6 +215,7 @@ namespace Editor
             {
                 _isGlInitialized = true;
                 InitializeGrid(gl);
+                InitializeAABBManager(gl);
                 UpdateEntitiesFromScene();
             }
             catch (Exception ex)
@@ -246,11 +236,23 @@ namespace Editor
             }
         }
 
+        private void InitializeAABBManager(GL gl)
+        {
+            try
+            {
+                _aabbManager = new AABBManager(gl, sceneEntityComponentProvider);
+            }
+            catch (Exception ex)
+            {
+            }
+        }
+
         private void OnRender(GL gl)
         {
             try
             {
                 if (!_isGlInitialized) return;
+
 
                 var scalingFactor = VisualRoot?.RenderScaling ?? 1.0;
                 uint width = (uint)(_renderCanvas.Bounds.Width * scalingFactor);
@@ -264,6 +266,7 @@ namespace Editor
 
                 var view = _camera.GetViewMatrix();
                 Matrix4x4 projection = _camera.GetProjection(_isPerspective);
+
                 while (_glCommands.TryDequeue(out var command))
                 {
                     command.Execute(gl);
@@ -271,6 +274,13 @@ namespace Editor
 
                 RenderGrid(gl, view, projection);
                 RenderEntities(gl, view, projection);
+
+                _aabbManager?.Render(view, projection);
+
+                if (_isPreparingClose)
+                {
+                    Dispose();
+                }
             }
             catch (Exception ex)
             {
@@ -320,7 +330,14 @@ namespace Editor
             }
         }
 
-        private void FindRenderableComponents(EntityData entity, out ShaderBase shader, out FieldInfo shaderFieldInfo, out MeshBase mesh, out FieldInfo meshFieldInfo, out object shaderObj, out object meshObj)
+        private void FindRenderableComponents(
+            EntityData entity, 
+            out ShaderBase shader, 
+            out FieldInfo shaderFieldInfo, 
+            out MeshBase mesh, 
+            out FieldInfo meshFieldInfo, 
+            out object shaderObj, 
+            out object meshObj)
         {
             shader = null;
             mesh = null;
@@ -552,7 +569,6 @@ namespace Editor
             _glCommands.Enqueue(new OpenGLCommand { Execute = command });
         }
 
-        #region Обработка пользовательского ввода
 
         private void OnPointerPressed(object sender, PointerPressedEventArgs e)
         {
@@ -583,11 +599,9 @@ namespace Editor
             if (!_isOpen || !_isGlInitialized || _currentScene == null)
                 return;
 
-            // Преобразование координат экрана в нормализованные координаты
             float x = (float)(point.X / _renderCanvas.Bounds.Width) * 2 - 1;
             float y = 1 - (float)(point.Y / _renderCanvas.Bounds.Height) * 2;
 
-            // Создаем луч из камеры через точку на экране
             var rayDirection = CalculateRayDirection(x, y);
             var ray = new BVHTree.BvhRay(_camera.Position, rayDirection);
 
@@ -610,15 +624,12 @@ namespace Editor
         }
         private Vector3 CalculateRayDirection(float normalizedX, float normalizedY)
         {
-            // Создаем вектор направления в пространстве клипов
             Vector4 clipCoords = new Vector4(normalizedX, normalizedY, -1.0f, 1.0f);
 
-            // Преобразуем в пространство представления
             Matrix4x4.Invert(_camera.GetProjection(_isPerspective), out var invProjection);
             Vector4 eyeCoords = Vector4.Transform(clipCoords, invProjection);
             eyeCoords = new Vector4(eyeCoords.X, eyeCoords.Y, -1.0f, 0.0f);
 
-            // Преобразуем в мировое пространство
             Matrix4x4.Invert(_camera.GetViewMatrix(), out var invView);
             Vector4 rayWorld = Vector4.Transform(eyeCoords, invView);
             Vector3 rayDirection = new Vector3(rayWorld.X, rayWorld.Y, rayWorld.Z);
@@ -669,34 +680,6 @@ namespace Editor
             }
         }
 
-        public void Dispose()
-        {
-            if (_glController != null)
-            {
-                GLController.OnGLInitialized -= OnGLInitialized;
-                GLController.OnRender -= OnRender;
-                _glController.Dispose();
-                _glController = null;
-            }
-
-            if (_gridShader != null)
-            {
-                _gridShader.Dispose();
-                _gridShader = null;
-            }
-            _isGlInitialized = false;
-
-            //_resourceManager?.Dispose();
-            _renderTimer?.Stop();
-
-            _sceneManager.OnSceneBeforeSave -= PrepareToSave;
-
-            _sceneManager.OnComponentChange -= ComponentChange;
-            _sceneManager.OnComponentAdded -= ComponentAdded;
-            _sceneManager.OnComponentRemoved -= ComponentRemoved;
-            _sceneManager.OnEntityCreated -= EntityCreated;
-            _sceneManager.OnEntityRemoved -= EntityRemoved;
-        }
 
         private void InitializeComponentCache()
         {
@@ -736,6 +719,7 @@ namespace Editor
                 {
                     _componentRenderCache.Remove(entityToRemove);
                     BVHTree.Instance.RemoveEntity(entityId);
+                    _aabbManager.RemoveEntity(entityId);
                 }
             });
         }
@@ -781,6 +765,7 @@ namespace Editor
                         if (component.GetType() == cache.MeshObject?.GetType())
                         {
                             BVHTree.Instance.RemoveEntity(entityId);
+                            _aabbManager.RemoveEntity(entity.Id);
                         }
                     }
                 }
@@ -800,6 +785,7 @@ namespace Editor
                     {
                         _componentRenderCache.Remove(entity);
                         BVHTree.Instance.RemoveEntity(entityId);
+                        _aabbManager.RemoveEntity(entity.Id);
                         CacheEntityComponents(entity);
                     }
                 }
@@ -812,6 +798,11 @@ namespace Editor
                     }
                 }
 
+                if (component is TransformComponent transform)
+                {
+                    BVHTree.Instance.UpdateEntity(entityId);
+                    _aabbManager.UpdateEntity(entityId);
+                }
             });
         }
 
@@ -840,9 +831,64 @@ namespace Editor
                     ShaderObject = shaderObject,
                     MeshObject = meshObject
                 };
-                BVHTree.Instance.AddEntity(entity.Id, mesh);
+                BVHTree.Instance.AddEntity(entity.Id);
+                _aabbManager.AddEntity(entity.Id, mesh);
             }
         }
+        public void Dispose()
+        {
+            SetDefaulFieldValue();
+            FreeChache();
+            _materialFactory.SetSceneViewController(null);
+
+            if (_glController != null)
+            {
+                _renderCanvas.Children.Remove(_glController);
+                GLController.OnGLInitialized -= OnGLInitialized;
+                GLController.OnRender -= OnRender;
+                _glController.Dispose();
+                _glController = null;
+            }
+
+            if (_gridShader != null)
+            {
+                //_gridShader.Dispose();
+                _gridShader = null;
+            }
+            if (_aabbManager != null)
+            {
+                //_aabbManager.Dispose();
+                _aabbManager = null;
+            }
+            _isGlInitialized = false;
+
+            //_resourceManager?.Dispose();
+            _sceneManager.OnSceneBeforeSave -= PrepareToSave;
+
+            _sceneManager.OnComponentChange -= ComponentChange;
+            _sceneManager.OnComponentAdded -= ComponentAdded;
+            _sceneManager.OnComponentRemoved -= ComponentRemoved;
+            _sceneManager.OnEntityCreated -= EntityCreated;
+            _sceneManager.OnEntityRemoved -= EntityRemoved;
+
+            _renderTimer.Stop();
+            _isOpen = false;
+            _isGlInitialized = false;
+        }
+
+        public async Task PrepareForCloseAsync()
+        {
+            if (_isPreparingClose)
+                return;
+
+            _isPreparingClose = true;
+            _disposeTcs = new TaskCompletionSource<bool>();
+
+            await Task.WhenAny(_disposeTcs.Task, Task.Delay(500));
+
+            _isPreparingClose = false;
+        }
+
 
         private class RenderPairCache
         {
@@ -853,16 +899,13 @@ namespace Editor
             public FieldInfo MeshField = null;
             public object MeshObject = null;
         }
-
-        #endregion
-
         private enum TransformMode
         {
             Translate,
             Rotate,
             Scale
         }
+        
+
     }
-
-
 }

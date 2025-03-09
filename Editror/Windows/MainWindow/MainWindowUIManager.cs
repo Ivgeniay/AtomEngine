@@ -5,6 +5,7 @@ using System.Linq;
 using AtomEngine;
 using System.IO;
 using System;
+using System.Threading.Tasks;
 
 namespace Editor
 {
@@ -88,7 +89,7 @@ namespace Editor
                 var consoleController = (ConsoleController)controller;
                 consoleController.Close();
             });
-            _windowService.RegisterCloseHandler(MainControllers.SceneRender, controller =>
+            _windowService.RegisterCloseHandler(MainControllers.SceneRender, async controller =>
             {
                 var sceneViewController = (SceneViewController)controller;
                 sceneViewController.Close();

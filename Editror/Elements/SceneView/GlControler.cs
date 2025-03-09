@@ -52,8 +52,7 @@ namespace Editor
 
         public void ForceRender()
         {
-            if (_isInitialized)
-                this.RequestNextFrameRendering();
+            OnRender?.Invoke(_gl);
         }
 
         public void Dispose()
