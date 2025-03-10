@@ -22,6 +22,7 @@ namespace Editor
         private WorldController _worldController;
         private InspectorController _inspectorController;
         private ExplorerController _explorerController;
+        private NodeGraphController _nodeGraphController;
 
         public MainWindowUIManager(MainWindow mainWindow)
         {
@@ -63,6 +64,8 @@ namespace Editor
                 var sceneViewController = (SceneViewController)controller;
                 sceneViewController.Open();
             });
+
+
 
             _windowService.RegisterCloseHandler(MainControllers.Hierarchy, controller =>
             {
@@ -125,6 +128,10 @@ namespace Editor
                 case MainControllers.SceneRender:
                     _sceneViewController = (SceneViewController)controller;
                     _controls.Add(_sceneViewController);
+                    break;
+                case MainControllers.SystemGraph:
+                    _nodeGraphController = (NodeGraphController)controller;
+                    _controls.Add(_nodeGraphController);
                     break;
             }
         }
@@ -301,13 +308,9 @@ namespace Editor
         {
             _sceneViewController.OnEntitySelected += (e) =>
             {
-                DebLogger.Info(e);
+                _hierarchyController.SelectEntity(e);
             };
-            //var hierarchyItem = new EntityHierarchyItem(entity.Id, entity.Version, entity.Name);
-            //Select.SelectItem(hierarchyItem);
-            //Status.SetStatus($"Выбран объект: {entity.Name}");
 
-            //ServiceHub.Get<InspectorDistributor>()?.GetInspectable(hierarchyItem);
         }
         public void OpenWindow(MainControllers mainControllers) => _windowService.OpenWindow(mainControllers);
         public T GetControl<T>() where T : Control, IWindowed

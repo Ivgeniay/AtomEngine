@@ -90,7 +90,7 @@ namespace Editor
             var menuItemsPanel = new StackPanel
             {
                 Spacing = 2,
-                Width = 200
+                Width = 200,
             };
             _floyouts[category] = flyout;
             _stack[category] = menuItemsPanel;

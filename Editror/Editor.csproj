@@ -31,6 +31,7 @@
     <AvaloniaXaml Remove="Styles\DirectoryExplorer.axaml" />
     <AvaloniaXaml Remove="Styles\Hierarchy.axaml" />
     <AvaloniaXaml Remove="Styles\Inspector.axaml" />
+    <AvaloniaXaml Remove="Styles\NodeGraph.axaml" />
     <AvaloniaXaml Remove="Styles\StatusBar.axaml" />
     <AvaloniaXaml Remove="Styles\Title.axaml" />
     <AvaloniaXaml Remove="Styles\Toolbar.axaml" />
@@ -70,6 +71,9 @@
       <SubType>Designer</SubType>
     </AvaloniaResource>
     <AvaloniaResource Update="Styles\Inspector.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
+    <AvaloniaResource Update="Styles\NodeGraph.axaml">
       <SubType>Designer</SubType>
     </AvaloniaResource>
     <AvaloniaResource Update="Styles\StatusBar.axaml">

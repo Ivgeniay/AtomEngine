@@ -8,6 +8,7 @@
         Explorer,
         Console,
         SceneRender,
-        Game
+        Game,
+        SystemGraph,
     }
 }

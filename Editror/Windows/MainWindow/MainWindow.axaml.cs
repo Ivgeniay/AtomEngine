@@ -44,6 +44,7 @@ namespace Editor
             var console = new ConsoleController();
             var explorer = new ExplorerController();
             var sceneView = new SceneViewController();
+            var _nodeGraphController = new NodeGraphController();
 
             _uIManager.RegisterController(MainControllers.Hierarchy, hierarhy);
             _uIManager.RegisterController(MainControllers.Inspector, inspector);
@@ -51,6 +52,7 @@ namespace Editor
             _uIManager.RegisterController(MainControllers.Console, console);
             _uIManager.RegisterController(MainControllers.Explorer, explorer);
             _uIManager.RegisterController(MainControllers.SceneRender, sceneView);
+            _uIManager.RegisterController(MainControllers.SystemGraph, _nodeGraphController);
 
             _uIManager.Initialize();
 
@@ -222,6 +224,14 @@ namespace Editor
                         Description = "Project file explorer",
                         Action = () => {
                             _uIManager.OpenWindow(MainControllers.Explorer);
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "System Graph",
+                        Description = "System manager",
+                        Action = () => {
+                            _uIManager.OpenWindow(MainControllers.SystemGraph);
                         }
                     },
 

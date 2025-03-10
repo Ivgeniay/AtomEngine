@@ -329,6 +329,15 @@ namespace Editor
             if (withAvoking) 
                 EntityCreated?.Invoke(this, name);
         }
+        public void SelectEntity(uint entityId)
+        {
+            var entityItem = _entities.FirstOrDefault(e => e.Id == entityId);
+            if (entityItem != EntityHierarchyItem.Null)
+            {
+                _entitiesList.SelectedItem = entityItem;
+                EntitySelected?.Invoke(this, entityItem);
+            }
+        }
 
         public EntityHierarchyItem CreateHierarchyEntity(EntityData entityData, bool withAvoking = true)
         {
@@ -501,18 +510,6 @@ namespace Editor
 
                 }
             }
-
-            //if (_entitiesList.SelectedItem is EntityHierarchyItem item)
-            //{
-            //    if (e.InitialPressMouseButton == MouseButton.Left)
-            //    {
-            //        if (item == _selectedFile)
-            //        {
-            //            _selectedFile = EntityHierarchyItem.Null;
-            //            EntitySelected?.Invoke(this, item);
-            //        }
-            //    }
-            //}
         }
 
         private void SelectCallback(object? sender, SelectionChangedEventArgs t)
@@ -564,7 +561,7 @@ namespace Editor
 
     public struct EntityHierarchyItem : INotifyPropertyChanged, IEquatable<EntityHierarchyItem>
     {
-        private bool isNull = false;
+        private bool isNull = true;
         private Entity _entity;
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -573,11 +570,13 @@ namespace Editor
         {
             _entity = new Entity(id, Version);
             Name = name;
+            isNull = false;
         }
         public EntityHierarchyItem(Entity entity, string name)
         {
             Name = name;
             _entity = entity;
+            isNull = false;
         }
 
         public uint Id => _entity.Id;

@@ -145,7 +145,6 @@ namespace Editor
             int counter = 0;
             _renderTimer.Tick += (sender, args) =>
             {
-                DebLogger.Info($"Tick: {counter++}");
                 Render();
             };
         }
