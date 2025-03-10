@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AvaloniaXaml Remove="Styles\Chat.axaml" />
     <AvaloniaXaml Remove="Styles\Console.axaml" />
     <AvaloniaXaml Remove="Styles\Dialogues.axaml" />
     <AvaloniaXaml Remove="Styles\DirectoryExplorer.axaml" />
@@ -58,6 +59,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AvaloniaResource Update="Styles\Chat.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
     <AvaloniaResource Update="Styles\Console.axaml">
       <SubType>Designer</SubType>
     </AvaloniaResource>

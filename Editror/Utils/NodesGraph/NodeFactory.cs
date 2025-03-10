@@ -8,24 +8,6 @@ namespace Editor.NodeSpace
     {
         private Dictionary<string, NodeType> _nodeTypes = new Dictionary<string, NodeType>();
         private int _nextNodeId = 1;
-        public class NodeType
-        {
-            public string Type { get; set; }
-            public string DefaultTitle { get; set; }
-            public Vector2 DefaultSize { get; set; } = new Vector2(200, 100);
-            public List<PortDefinition> InputPorts { get; set; } = new List<PortDefinition>();
-            public List<PortDefinition> OutputPorts { get; set; } = new List<PortDefinition>();
-            public Dictionary<string, object> DefaultData { get; set; } = new Dictionary<string, object>();
-            public Action<Node> Initializer { get; set; }
-
-            public class PortDefinition
-            {
-                public string Name { get; set; }
-                public string Type { get; set; }
-                public bool AllowMultipleConnections { get; set; }
-                public bool AcceptAnyType { get; set; }
-            }
-        }
 
         public void RegisterNodeType(string type, Action<NodeType> configureAction)
         {
@@ -80,5 +62,23 @@ namespace Editor.NodeSpace
         {
             return _nodeTypes.ContainsKey(type);
         }
+    }
+    public class NodeType
+    {
+        public string Type { get; set; }
+        public string DefaultTitle { get; set; }
+        public Vector2 DefaultSize { get; set; } = new Vector2(200, 100);
+        public List<PortDefinition> InputPorts { get; set; } = new List<PortDefinition>();
+        public List<PortDefinition> OutputPorts { get; set; } = new List<PortDefinition>();
+        public Dictionary<string, object> DefaultData { get; set; } = new Dictionary<string, object>();
+        public Action<Node> Initializer { get; set; }
+
+    }
+    public class PortDefinition
+    {
+        public string Name { get; set; }
+        public string Type { get; set; }
+        public bool AllowMultipleConnections { get; set; }
+        public bool AcceptAnyType { get; set; }
     }
 }

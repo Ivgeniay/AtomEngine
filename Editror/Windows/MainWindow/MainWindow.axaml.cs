@@ -45,6 +45,7 @@ namespace Editor
             var explorer = new ExplorerController();
             var sceneView = new SceneViewController();
             var _nodeGraphController = new NodeGraphController();
+            var chat = new ChatController();
 
             _uIManager.RegisterController(MainControllers.Hierarchy, hierarhy);
             _uIManager.RegisterController(MainControllers.Inspector, inspector);
@@ -53,6 +54,7 @@ namespace Editor
             _uIManager.RegisterController(MainControllers.Explorer, explorer);
             _uIManager.RegisterController(MainControllers.SceneRender, sceneView);
             _uIManager.RegisterController(MainControllers.SystemGraph, _nodeGraphController);
+            _uIManager.RegisterController(MainControllers.Chat, chat);
 
             _uIManager.Initialize();
 
@@ -232,6 +234,14 @@ namespace Editor
                         Description = "System manager",
                         Action = () => {
                             _uIManager.OpenWindow(MainControllers.SystemGraph);
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Chat",
+                        Description = "Ai chat",
+                        Action = () => {
+                            _uIManager.OpenWindow(MainControllers.Chat);
                         }
                     },
 

@@ -7,5 +7,6 @@
         Assets,
         Configurations,
         CSharp_Assembly,
+        Cache,
     }
 }

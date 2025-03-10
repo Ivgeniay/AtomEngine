@@ -35,11 +35,30 @@ namespace Editor.NodeSpace
             Vector2 start = GetStartPosition();
             Vector2 end = GetEndPosition();
 
-            float tangentOffset = Math.Abs(end.X - start.X) * 0.5f;
-            tangentOffset = Math.Max(tangentOffset, 50f);
+            float dx = Math.Abs(end.X - start.X);
+            float dy = Math.Abs(end.Y - start.Y);
+
+            float tangentOffset = Math.Max(dx * 0.5f, 50f);
+
+            if (dx < 100)
+            {
+                tangentOffset = Math.Max(100f, tangentOffset);
+            }
 
             StartTangent = new Vector2(start.X + tangentOffset, start.Y);
             EndTangent = new Vector2(end.X - tangentOffset, end.Y);
         }
+
+        //public void CalculateBezierPoints()
+        //{
+        //    Vector2 start = GetStartPosition();
+        //    Vector2 end = GetEndPosition();
+
+        //    float tangentOffset = Math.Abs(end.X - start.X) * 0.5f;
+        //    tangentOffset = Math.Max(tangentOffset, 50f);
+
+        //    StartTangent = new Vector2(start.X + tangentOffset, start.Y);
+        //    EndTangent = new Vector2(end.X - tangentOffset, end.Y);
+        //}
     }
 }

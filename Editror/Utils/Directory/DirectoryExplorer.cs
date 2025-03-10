@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.IO;
 using System;
-using System.Threading.Tasks;
 
 namespace Editor
 {
@@ -23,6 +23,7 @@ namespace Editor
                 paths.Add(DirectoryType.Assets, Path.Combine(paths[DirectoryType.Base], "Assets"));
                 paths.Add(DirectoryType.Configurations, Path.Combine(paths[DirectoryType.Base], "Configurations"));
                 paths.Add(DirectoryType.CSharp_Assembly, Path.Combine(paths[DirectoryType.Base], "Project"));
+                paths.Add(DirectoryType.Cache, Path.Combine(paths[DirectoryType.Base], "Cache"));
 
 
                 foreach (var path in paths.Values)

@@ -10,5 +10,6 @@
         SceneRender,
         Game,
         SystemGraph,
+        Chat,
     }
 }

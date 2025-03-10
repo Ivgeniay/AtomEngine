@@ -1,0 +1,295 @@
+<Styles xmlns="https://github.com/avaloniaui"
+     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+     xmlns:Editor="using:Editor">
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <!-- Предпросмотр элементов чата -->
+      <StackPanel Spacing="10">
+        <Border Classes="chatMessage chatMessageUser">
+          <StackPanel>
+            <TextBlock Text="Привет! Это сообщение пользователя." />
+          </StackPanel>
+        </Border>
+        <Border Classes="chatMessage chatMessageAgent">
+          <StackPanel>
+            <TextBlock Text="Это ответ агента на сообщение пользователя." />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </Border>
+  </Design.PreviewWith>
+  <!-- Стили для ChatController -->
+  <Style Selector="Editor|ChatController">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+  <!-- Стили для ChatListController -->
+  <Style Selector="Editor|ChatListController">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+  <!-- Заголовок списка чатов -->
+  <Style Selector="TextBlock.chatListTitle">
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="Margin" Value="0,0,0,10"/>
+  </Style>
+  <!-- Кнопка создания нового чата -->
+  <Style Selector="Button.newChatButton">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#555555"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="10"/>
+    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+  </Style>
+  <Style Selector="Button.newChatButton:pointerover">
+    <Setter Property="Background" Value="#44444A"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+  <Style Selector="Button.newChatButton:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+  <!-- Сообщение об отсутствии чатов -->
+  <Style Selector="TextBlock.emptyChatMessage">
+    <Setter Property="TextAlignment" Value="Center"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Foreground" Value="#888888"/>
+    <Setter Property="Margin" Value="0,20,0,20"/>
+  </Style>
+  <!-- Элемент списка чатов -->
+  <Style Selector="ListBox.chatList">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector="ListBoxItem">
+    <Setter Property="Padding" Value="8,5"/>
+    <Setter Property="Margin" Value="0,2"/>
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+  <Style Selector="ListBoxItem:pointerover">
+    <Setter Property="Background" Value="#3E3E42"/>
+  </Style>
+  <Style Selector="ListBoxItem:selected">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+  <!-- Название чата в списке -->
+  <Style Selector="TextBlock.chatTitle">
+    <Setter Property="FontWeight" Value="Medium"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="Margin" Value="5,5,0,0"/>
+  </Style>
+  <!-- Превью последнего сообщения в списке -->
+  <Style Selector="TextBlock.chatPreview">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="#888888"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="MaxLines" Value="1"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    <Setter Property="Margin" Value="5,0,0,5"/>
+  </Style>
+  <!-- Время последнего сообщения в списке -->
+  <Style Selector="TextBlock.chatTime">
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="Foreground" Value="#888888"/>
+    <Setter Property="Margin" Value="0,5,5,0"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+  </Style>
+  <!-- Стили для ChatSessionController -->
+  <Style Selector="Editor|ChatSessionController">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+  <!-- Заголовок чата -->
+  <Style Selector="StackPanel.chatHeader">
+    <Setter Property="Orientation" Value="Horizontal"/>
+    <Setter Property="Margin" Value="10,5"/>
+    <Setter Property="Spacing" Value="10"/>
+  </Style>
+  <!-- Кнопка "назад" -->
+  <Style Selector="Button.backButton">
+    <Setter Property="Width" Value="30"/>
+    <Setter Property="Height" Value="30"/>
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#555555"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="15"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.backButton:pointerover">
+    <Setter Property="Background" Value="#44444A"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+  <Style Selector="Button.backButton:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+  <!-- Название текущего чата -->
+  <Style Selector="TextBlock.chatSessionTitle">
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <!-- Область сообщений -->
+  <Style Selector="ScrollViewer.messagesArea">
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+    <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+  </Style>
+  <Style Selector="StackPanel.messagesPanel">
+    <Setter Property="Spacing" Value="10"/>
+    <Setter Property="Margin" Value="10"/>
+  </Style>
+  <!-- Стили для сообщений -->
+  <Style Selector="Border.chatMessage">
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="12,8"/>
+    <Setter Property="MaxWidth" Value="300"/>
+  </Style>
+  <Style Selector="Border.chatMessageUser">
+    <Setter Property="Background" Value="#2B5278"/>
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+  </Style>
+  <Style Selector="Border.chatMessageAgent">
+    <Setter Property="Background" Value="#383838"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+  </Style>
+  <!-- Текст сообщения -->
+  <Style Selector="TextBlock.messageText">
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+  <!-- Время сообщения -->
+  <Style Selector="TextBlock.messageTime">
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="Foreground" Value="#AAAAAA"/>
+    <Setter Property="Margin" Value="0,5,0,0"/>
+  </Style>
+  <Style Selector="TextBlock.messageTimeUser">
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+  </Style>
+  <Style Selector="TextBlock.messageTimeAgent">
+    <Setter Property="HorizontalAlignment" Value="Right"/>
+  </Style>
+  <!-- Область прикрепленных файлов -->
+  <Style Selector="StackPanel.attachmentsPanel">
+    <Setter Property="Orientation" Value="Horizontal"/>
+    <Setter Property="Margin" Value="10,5"/>
+    <Setter Property="Spacing" Value="5"/>
+  </Style>
+  <Style Selector="StackPanel.attachmentItem">
+    <Setter Property="Orientation" Value="Horizontal"/>
+    <Setter Property="Background" Value="#333333"/>
+    <Setter Property="Margin" Value="0,0,5,0"/>
+  </Style>
+  <Style Selector="TextBlock.attachmentName">
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Margin" Value="0,0,5,0"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+  </Style>
+  <Style Selector="Button.removeAttachmentButton">
+    <Setter Property="Width" Value="20"/>
+    <Setter Property="Height" Value="20"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Background" Value="#444444"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.removeAttachmentButton:pointerover">
+    <Setter Property="Background" Value="#555555"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+  <Style Selector="Button.removeAttachmentButton:pressed">
+    <Setter Property="Background" Value="#AA0000"/>
+  </Style>
+  <!-- Область ввода сообщения -->
+  <Style Selector="Grid.inputArea">
+    <Setter Property="Margin" Value="10,5"/>
+  </Style>
+  <Style Selector="Button.attachButton">
+    <Setter Property="Width" Value="40"/>
+    <Setter Property="Height" Value="40"/>
+    <Setter Property="Margin" Value="0,0,5,0"/>
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#555555"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="20"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.attachButton:pointerover">
+    <Setter Property="Background" Value="#44444A"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+  <Style Selector="Button.attachButton:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+  <Style Selector="TextBox.messageInput">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="8,6"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="MinHeight" Value="40"/>
+    <Setter Property="MaxHeight" Value="100"/>
+    <Setter Property="VerticalAlignment" Value="Stretch"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="AcceptsReturn" Value="True"/>
+  </Style>
+  <Style Selector="TextBox.messageInput:pointerover">
+    <Setter Property="BorderBrush" Value="#555555"/>
+  </Style>
+  <Style Selector="TextBox.messageInput:focus">
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+  <Style Selector="Button.sendButton">
+    <Setter Property="Width" Value="40"/>
+    <Setter Property="Height" Value="40"/>
+    <Setter Property="Margin" Value="5,0,0,0"/>
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#555555"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="20"/>
+    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="Button.sendButton:pointerover">
+    <Setter Property="Background" Value="#44444A"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+  <Style Selector="Button.sendButton:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+  <!-- Стили для прикрепленных в сообщении файлов -->
+  <Style Selector="StackPanel.messageAttachment">
+    <Setter Property="Orientation" Value="Horizontal"/>
+    <Setter Property="Margin" Value="0,5,0,0"/>
+  </Style>
+  <Style Selector="TextBlock.attachmentIcon">
+    <Setter Property="Margin" Value="0,0,5,0"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+  </Style>
+  <Style Selector="TextBlock.attachmentLink">
+    <Setter Property="TextDecorations" Value="Underline"/>
+    <Setter Property="Foreground" Value="#ADD8E6"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+</Styles>

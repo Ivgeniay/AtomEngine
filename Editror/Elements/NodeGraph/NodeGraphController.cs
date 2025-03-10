@@ -9,6 +9,7 @@ using Avalonia.Media;
 using Avalonia.Input;
 using Avalonia;
 using System;
+using System.Linq;
 
 namespace Editor
 {
@@ -21,6 +22,7 @@ namespace Editor
         private Canvas _canvas;
         private Grid _mainGrid;
         private Border _toolbarBorder;
+        private StackPanel _toolbarPanel;
         private bool _isOpen = false;
         private DispatcherTimer _renderTimer;
 
@@ -53,30 +55,30 @@ namespace Editor
                 Classes = { "toolbarBackground" }
             };
 
-            var toolbarPanel = new StackPanel
+            _toolbarPanel = new StackPanel
             {
                 Classes = { "toolbarPanel" },
             };
 
-            var addMathNodeButton = new Button { Content = "Add Math Node", Classes = { "toolButton" } };
-            var addNumberNodeButton = new Button { Content = "Add Number Node", Classes = { "toolButton" } };
-            var addOutputNodeButton = new Button { Content = "Add Output Node", Classes = { "toolButton" } };
-            var centerViewButton = new Button { Content = "Center View", Classes = { "toolButton" } };
-            var resetZoomButton = new Button { Content = "Reset Zoom", Classes = { "toolButton" } };
+            //var addMathNodeButton = new Button { Content = "Add Math Node", Classes = { "toolButton" } };
+            //var addNumberNodeButton = new Button { Content = "Add Number Node", Classes = { "toolButton" } };
+            //var addOutputNodeButton = new Button { Content = "Add Output Node", Classes = { "toolButton" } };
+            //var centerViewButton = new Button { Content = "Center View", Classes = { "toolButton" } };
+            //var resetZoomButton = new Button { Content = "Reset Zoom", Classes = { "toolButton" } };
 
-            addMathNodeButton.Click += (s, e) => AddNode("Math", new Vector2(100, 100));
-            addNumberNodeButton.Click += (s, e) => AddNode("Number", new Vector2(100, 200));
-            addOutputNodeButton.Click += (s, e) => AddNode("Output", new Vector2(300, 150));
-            centerViewButton.Click += (s, e) => CenterView();
-            resetZoomButton.Click += (s, e) => ResetZoom();
+            //addMathNodeButton.Click += (s, e) => AddNode("Math", new Vector2(100, 100));
+            //addNumberNodeButton.Click += (s, e) => AddNode("Number", new Vector2(100, 200));
+            //addOutputNodeButton.Click += (s, e) => AddNode("Output", new Vector2(300, 150));
+            //centerViewButton.Click += (s, e) => CenterView();
+            //resetZoomButton.Click += (s, e) => ResetZoom();
 
-            toolbarPanel.Children.Add(addMathNodeButton);
-            toolbarPanel.Children.Add(addNumberNodeButton);
-            toolbarPanel.Children.Add(addOutputNodeButton);
-            toolbarPanel.Children.Add(centerViewButton);
-            toolbarPanel.Children.Add(resetZoomButton);
+            //_toolbarPanel.Children.Add(addMathNodeButton);
+            //_toolbarPanel.Children.Add(addNumberNodeButton);
+            //_toolbarPanel.Children.Add(addOutputNodeButton);
+            //_toolbarPanel.Children.Add(centerViewButton);
+            //_toolbarPanel.Children.Add(resetZoomButton);
 
-            _toolbarBorder.Child = toolbarPanel;
+            _toolbarBorder.Child = _toolbarPanel;
 
             _canvas = new Canvas
             {
@@ -111,6 +113,46 @@ namespace Editor
             _renderTimer.Tick += (sender, args) => Render();
         }
 
+        public void AddToTitle(Control control)
+        {
+            _toolbarPanel.Children.Add(control);
+        }
+
+        public Node AddNode(string type, Vector2 position)
+        {
+            Node node = _nodeGraph.CreateNode(type, null, position);
+
+            if (node != null)
+            {
+                CreateNodeVisual(node);
+                UpdateVisuals();
+                Render();
+            }
+            return node;
+        }
+
+        public void RemoveConnection(NodeConnection connection)
+        {
+            _nodeGraph.RemoveConnection(connection);
+            UpdateConnectionVisuals();
+            Render();
+        }
+
+        public void RemoveNode(Node node)
+        {
+            if (node != null)
+            {
+                var nodeVisual = _nodeVisuals.FirstOrDefault(e => e.Node == node);
+                //_connectionVisuals.First().
+                
+                _nodeGraph.RemoveNode(node);
+
+                CreateNodeVisual(node);
+                UpdateVisuals();
+                Render();
+            }
+        }
+
         private void OnCanvasPointerPressed(object? sender, PointerPressedEventArgs e)
         {
             var point = e.GetPosition(_canvas);
@@ -135,19 +177,17 @@ namespace Editor
                     }
                 }
 
-                // Проверяем, нажали ли на ноду для перетаскивания
                 foreach (var nodeVisual in _nodeVisuals)
                 {
-                    //if (IsPointInRectangle(point, nodeVisual.Position, nodeVisual.Size))
-                    //{
-                    //    _dragNode = nodeVisual.Node;
-                    //    _nodeGraph.SelectNode(_dragNode);
-                    //    e.Handled = true;
-                    //    return;
-                    //}
-                }
+                    if (IsPointInRectangle(point, nodeVisual.Node.Position, nodeVisual.Node.Size))
+                    {
+                        _dragNode = nodeVisual.Node;
+                        _nodeGraph.SelectNode(_dragNode);
+                        e.Handled = true;
+                        return;
+                    }
+            }
 
-                // Нажали на пустую область - готовимся к панорамированию
                 _nodeGraph.HandleMouseDown(mousePos, true, e.KeyModifiers.HasFlag(KeyModifiers.Control));
             }
             else if (e.GetCurrentPoint(_canvas).Properties.IsRightButtonPressed)
@@ -195,7 +235,6 @@ namespace Editor
 
             if (_isDraggingConnection && _dragPort != null)
             {
-                // Проверяем, находится ли курсор над портом
                 bool connectionCreated = false;
                 foreach (var nodeVisual in _nodeVisuals)
                 {
@@ -225,7 +264,7 @@ namespace Editor
 
                 _isDraggingConnection = false;
                 _dragPort = null;
-                Render(); // Перерисовываем для удаления временного соединения
+                Render();
             }
             else if (_dragNode != null)
             {
@@ -237,7 +276,7 @@ namespace Editor
 
             _nodeGraph.HandleMouseUp(mousePos);
             UpdateVisuals();
-            Render(); // Добавляем явный вызов рендера
+            Render();
 
             e.Handled = true;
         }
@@ -288,19 +327,6 @@ namespace Editor
             UpdateVisuals();
         }
 
-        private Node AddNode(string type, Vector2 position)
-        {
-            Node node = _nodeGraph.CreateNode(type, null, position);
-
-            if (node != null)
-            {
-                CreateNodeVisual(node);
-                UpdateVisuals();
-                Render();
-            }
-            return node;
-        }
-
         private void CenterView()
         {
             _nodeGraph.CenterViewOnAllNodes();
@@ -320,13 +346,8 @@ namespace Editor
             _canvas.Children.Add(connectionVisual);
         }
 
-        public void UpdateVisuals()
+        private void UpdateVisuals()
         {
-            foreach (var nodeVisual in _nodeVisuals)
-            {
-                //nodeVisual.UpdateVisual();
-            }
-
             UpdateConnectionVisuals();
         }
 
@@ -377,17 +398,13 @@ namespace Editor
             Point startPoint;
             Point endPoint = _dragConnectionEndPoint;
 
-            // Определяем начальную точку в зависимости от типа перетаскиваемого порта
             if (_dragPort.IsInput)
             {
                 startPoint = GetPortPosition(_dragPort);
-                // Для входного порта конечная точка - это точка под курсором
             }
             else
             {
-                // Для выходного порта начальная точка - это позиция порта
                 startPoint = GetPortPosition(_dragPort);
-                // Конечная точка - это точка под курсором
             }
 
             // Создаем кривую Безье
@@ -437,19 +454,11 @@ namespace Editor
             Render();
         }
 
-        public void RemoveConnection(NodeConnection connection)
-        {
-            _nodeGraph.RemoveConnection(connection);
-            UpdateConnectionVisuals();
-            Render();
-        }
-
         private void CreateNodeVisual(Node node)
         {
             var nodeVisual = new NodeVisual(node);
             _nodeVisuals.Add(nodeVisual);
 
-            // Создаем порты для ноды
             foreach (var port in node.InputPorts)
             {
                 var portVisual = new PortVisual(port, this);
@@ -462,10 +471,7 @@ namespace Editor
                 nodeVisual.AddPortVisual(portVisual);
             }
 
-            // Позиционируем порты
             nodeVisual.UpdatePortPositions();
-
-            // Добавляем ноду на холст
             _canvas.Children.Add(nodeVisual);
         }
 
@@ -530,6 +536,9 @@ namespace Editor
 
     }
 
+
+
+
     public class NodeVisual : Border
     {
         public Node Node { get; private set; }
@@ -564,7 +573,6 @@ namespace Editor
             BorderThickness = new Thickness(1);
             CornerRadius = new CornerRadius(5);
 
-            // Создаем содержимое
             InitializeUI();
 
             Size = Node.Size;
@@ -576,26 +584,21 @@ namespace Editor
         private void InitializeUI()
         {
             _contentPanel = new StackPanel();
-
             _titleBlock = new TextBlock
             {
                 Classes = { "nodeTitle" },
                 Text = Node.Title,
                 Margin = new Thickness(5, 5, 5, 10),
-                //HorizontalAlignment = HorizontalAlignment.Center,
                 FontWeight = FontWeight.Bold,
                 Foreground = new SolidColorBrush(Colors.LightGray)
             };
-
             _contentPanel.Children.Add(_titleBlock);
-
             Child = _contentPanel;
         }
 
         public void AddPortVisual(PortVisual portVisual)
         {
             PortVisuals.Add(portVisual);
-
             _contentPanel.Children.Add(portVisual);
         }
 
@@ -640,8 +643,6 @@ namespace Editor
             }
         }
     }
-
-
 
     public class PortVisual : Border
     {
@@ -742,9 +743,10 @@ namespace Editor
         {
             if (Port.ParentNode != null)
             {
-                Position = new Point(
-                    Port.ParentNode.Position.X + (Port.IsInput ? 0 : Port.ParentNode.Size.X),
-                    Port.ParentNode.Position.Y + RelativePosition.Y);
+                double portX = Port.IsInput ? Port.ParentNode.Position.X : Port.ParentNode.Position.X + Port.ParentNode.Size.X;
+                double portY = Port.ParentNode.Position.Y + RelativePosition.Y;
+
+                Position = new Point(portX, portY);
             }
         }
 
@@ -868,10 +870,21 @@ namespace Editor
                 IsClosed = false
             };
 
+            float dx = (float)Math.Abs(EndPoint.X - StartPoint.X);
+            float tangentOffset = Math.Max(dx * 0.5f, 50f);
+
+            if (dx < 100)
+            {
+                tangentOffset = Math.Max(100f, tangentOffset);
+            }
+
+            Point controlPoint1 = new Point(StartPoint.X + tangentOffset, StartPoint.Y);
+            Point controlPoint2 = new Point(EndPoint.X - tangentOffset, EndPoint.Y);
+
             var bezierSegment = new BezierSegment
             {
-                Point1 = ControlPoint1,
-                Point2 = ControlPoint2,
+                Point1 = controlPoint1,
+                Point2 = controlPoint2,
                 Point3 = EndPoint
             };
 

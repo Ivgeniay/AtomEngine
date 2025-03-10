@@ -46,36 +46,33 @@ namespace Editor.NodeSpace
             {
                 config.DefaultTitle = "Math Operation";
                 config.DefaultSize = new Vector2(180, 120);
-                config.InputPorts.Add(new NodeFactory.NodeType.PortDefinition { Name = "A", Type = "float" });
-                config.InputPorts.Add(new NodeFactory.NodeType.PortDefinition { Name = "B", Type = "float" });
-                config.OutputPorts.Add(new NodeFactory.NodeType.PortDefinition { Name = "Result", Type = "float" });
+                config.InputPorts.Add(new PortDefinition { Name = "A", Type = "float" });
+                config.InputPorts.Add(new PortDefinition { Name = "B", Type = "float" });
+                config.OutputPorts.Add(new PortDefinition { Name = "Result", Type = "float" });
                 config.DefaultData["operation"] = "add";
             });
 
-            // Нода ввода числа
             NodeFactory.RegisterNodeType("Number", config =>
             {
                 config.DefaultTitle = "Number";
                 config.DefaultSize = new Vector2(150, 80);
-                config.OutputPorts.Add(new NodeFactory.NodeType.PortDefinition { Name = "Value", Type = "float" });
+                config.OutputPorts.Add(new PortDefinition { Name = "Value", Type = "float" });
                 config.DefaultData["value"] = 0.0f;
             });
 
-            // Нода вывода
             NodeFactory.RegisterNodeType("Output", config =>
             {
                 config.DefaultTitle = "Output";
                 config.DefaultSize = new Vector2(150, 80);
-                config.InputPorts.Add(new NodeFactory.NodeType.PortDefinition { Name = "Value", Type = "any", AcceptAnyType = true });
+                config.InputPorts.Add(new PortDefinition { Name = "Value", Type = "any", AcceptAnyType = true });
             });
 
-            // Нода переменной
             NodeFactory.RegisterNodeType("Variable", config =>
             {
                 config.DefaultTitle = "Variable";
                 config.DefaultSize = new Vector2(150, 100);
-                config.InputPorts.Add(new NodeFactory.NodeType.PortDefinition { Name = "Set", Type = "any", AcceptAnyType = true });
-                config.OutputPorts.Add(new NodeFactory.NodeType.PortDefinition { Name = "Get", Type = "any", AcceptAnyType = true });
+                config.InputPorts.Add(new PortDefinition { Name = "Set", Type = "any", AcceptAnyType = true });
+                config.OutputPorts.Add(new PortDefinition { Name = "Get", Type = "any", AcceptAnyType = true });
                 config.DefaultData["name"] = "var";
                 config.DefaultData["value"] = 0;
             });
@@ -296,10 +293,8 @@ namespace Editor.NodeSpace
         {
             _lastMousePosition = position;
 
-            // Преобразование позиции с учетом смещения и масштаба вида
             Vector2 graphPosition = ScreenToGraphPosition(position);
 
-            // Проверяем, попали ли в порт для создания соединения
             NodePort hitPort = GetPortAtPosition(graphPosition);
             if (hitPort != null)
             {
@@ -313,13 +308,11 @@ namespace Editor.NodeSpace
                 }
             }
 
-            // Проверяем, попали ли в ноду
             Node hitNode = GetNodeAtPosition(graphPosition);
             if (hitNode != null)
             {
                 if (isLeftButton)
                 {
-                    // Перетаскивание или выбор ноды
                     SelectNode(hitNode, isMultiSelect);
                     _isDragging = true;
                     _dragOffset = graphPosition - hitNode.Position;
@@ -327,12 +320,10 @@ namespace Editor.NodeSpace
             }
             else
             {
-                // Клик на пустом месте
                 if (isLeftButton && !isMultiSelect)
                 {
                     UnselectAllNodes();
 
-                    // Начинаем панорамирование вида
                     _isPanning = true;
                     _panStartPosition = graphPosition;
                 }
@@ -340,20 +331,15 @@ namespace Editor.NodeSpace
         }
         public void HandleMouseMove(Vector2 position)
         {
-            // Преобразование позиции с учетом смещения и масштаба вида
             Vector2 graphPosition = ScreenToGraphPosition(position);
 
             if (_isCreatingConnection && _connectionSource != null)
             {
-                // Обработка создания соединения
                 _draggedPortSource = GetPortAtPosition(graphPosition);
             }
             else if (_isDragging && _selectedNode != null)
             {
-                // Перетаскивание выбранной ноды
                 Vector2 newPos = graphPosition - _dragOffset;
-
-                // Если выбрано несколько нод, перемещаем их все
                 if (_selectedNodes.Count > 1)
                 {
                     Vector2 delta = newPos - _selectedNode.Position;
@@ -369,12 +355,10 @@ namespace Editor.NodeSpace
 
                 _selectedNode.MoveTo(newPos);
 
-                // Обновляем соединения
                 UpdateConnections();
             }
             else if (_isPanning)
             {
-                // Панорамирование вида
                 Vector2 delta = graphPosition - _panStartPosition;
                 ViewOffset -= delta;
             }
@@ -383,17 +367,14 @@ namespace Editor.NodeSpace
         }
         public void HandleMouseUp(Vector2 position)
         {
-            // Преобразование позиции с учетом смещения и масштаба вида
             Vector2 graphPosition = ScreenToGraphPosition(position);
 
             if (_isCreatingConnection && _connectionSource != null)
             {
-                // Завершение создания соединения
                 NodePort targetPort = GetPortAtPosition(graphPosition);
 
                 if (targetPort != null && targetPort != _connectionSource)
                 {
-                    // Определяем выходной и входной порты
                     NodePort outputPort = null;
                     NodePort inputPort = null;
 
@@ -408,7 +389,6 @@ namespace Editor.NodeSpace
                         inputPort = targetPort;
                     }
 
-                    // Создаем соединение
                     if (outputPort != null && inputPort != null)
                     {
                         CreateConnection(outputPort, inputPort);
@@ -426,18 +406,14 @@ namespace Editor.NodeSpace
         {
             float zoomDelta = delta * 0.1f;
 
-            // Ограничиваем масштаб
             float newScale = Math.Clamp(ViewScale + zoomDelta, 0.1f, 2.0f);
 
             if (Math.Abs(newScale - ViewScale) > 0.001f)
             {
-                // Преобразование позиции с учетом текущего смещения и масштаба
                 Vector2 mousePos = ScreenToGraphPosition(position);
 
-                // Новый масштаб
                 ViewScale = newScale;
 
-                // Корректируем смещение, чтобы точка под курсором осталась неподвижной
                 Vector2 newMousePos = ScreenToGraphPosition(position);
                 ViewOffset += (newMousePos - mousePos);
             }

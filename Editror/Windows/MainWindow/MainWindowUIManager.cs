@@ -34,84 +34,18 @@ namespace Editor
 
         private void RegisterControllersHandlers()
         {
-            _windowService.RegisterOpenHandler(MainControllers.Hierarchy, controller =>
+            var mainControllers = Enum.GetValues<MainControllers>();
+            foreach (var controllerName in mainControllers)
             {
-                var hierarchyController = (HierarchyController)controller;
-                hierarchyController.Open();
-            });
-            _windowService.RegisterOpenHandler(MainControllers.Inspector, controller =>
-            {
-                var inspectorController = (InspectorController)controller;
-                inspectorController.Open();
-            });
-            _windowService.RegisterOpenHandler(MainControllers.World, controller =>
-            {
-                var worldController = (WorldController)controller;
-                worldController.Open();
-            });
-            _windowService.RegisterOpenHandler(MainControllers.Explorer, controller =>
-            {
-                var explorerController = (ExplorerController)controller;
-                explorerController.Open();
-            });
-            _windowService.RegisterOpenHandler(MainControllers.Console, controller =>
-            {
-                var consoleController = (ConsoleController)controller;
-                consoleController.Open();
-            });
-            _windowService.RegisterOpenHandler(MainControllers.SceneRender, controller =>
-            {
-                var sceneViewController = (SceneViewController)controller;
-                sceneViewController.Open();
-            });
-            _windowService.RegisterOpenHandler(MainControllers.SystemGraph, controller =>
-            {
-                if (controller is IWindowed windowed)
-                {
-                    windowed.Open();
-                }
-            });
-
-
-
-            _windowService.RegisterCloseHandler(MainControllers.Hierarchy, controller =>
-            {
-                var hierarchyController = (HierarchyController)controller;
-                hierarchyController.Close();
-            });
-            _windowService.RegisterCloseHandler(MainControllers.Inspector, controller =>
-            {
-                var inspectorController = (InspectorController)controller;
-                inspectorController.Close();
-            });
-            _windowService.RegisterCloseHandler(MainControllers.World, controller =>
-            {
-                var worldController = (WorldController)controller;
-                worldController.Close();
-            });
-            _windowService.RegisterCloseHandler(MainControllers.Explorer, controller =>
-            {
-                var explorerController = (ExplorerController)controller;
-                explorerController.Close();
-            });
-            _windowService.RegisterCloseHandler(MainControllers.Console, controller =>
-            {
-                var consoleController = (ConsoleController)controller;
-                consoleController.Close();
-            });
-            _windowService.RegisterCloseHandler(MainControllers.SceneRender, async controller =>
-            {
-                var sceneViewController = (SceneViewController)controller;
-                sceneViewController.Close();
-            });
-            _windowService.RegisterCloseHandler(MainControllers.SystemGraph, async controller =>
-            {
-                if (controller is IWindowed windowed)
-                {
-                    windowed.Close();
-                }
-            });
-            
+                _windowService.RegisterOpenHandler(controllerName, controller => 
+                { 
+                    if (controller is IWindowed windowed) windowed.Open(); 
+                });
+                _windowService.RegisterCloseHandler(controllerName, controller => 
+                { 
+                    if (controller is IWindowed windowed) windowed.Close(); 
+                });
+            }
         }
 
         public void RegisterController(MainControllers controllerType, Control controller)
