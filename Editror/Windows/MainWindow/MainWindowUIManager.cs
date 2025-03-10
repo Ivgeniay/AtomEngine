@@ -64,6 +64,13 @@ namespace Editor
                 var sceneViewController = (SceneViewController)controller;
                 sceneViewController.Open();
             });
+            _windowService.RegisterOpenHandler(MainControllers.SystemGraph, controller =>
+            {
+                if (controller is IWindowed windowed)
+                {
+                    windowed.Open();
+                }
+            });
 
 
 
@@ -97,6 +104,14 @@ namespace Editor
                 var sceneViewController = (SceneViewController)controller;
                 sceneViewController.Close();
             });
+            _windowService.RegisterCloseHandler(MainControllers.SystemGraph, async controller =>
+            {
+                if (controller is IWindowed windowed)
+                {
+                    windowed.Close();
+                }
+            });
+            
         }
 
         public void RegisterController(MainControllers controllerType, Control controller)
