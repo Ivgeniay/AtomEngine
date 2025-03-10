@@ -7,7 +7,6 @@ using Editor.NodeSpace;
 using System.Numerics;
 using Avalonia.Media;
 using Avalonia.Input;
-using System.Linq;
 using Avalonia;
 using System;
 
@@ -16,6 +15,7 @@ namespace Editor
     public class NodeGraphController : ContentControl, IWindowed
     {
         public Action<object> OnClose { get; set; }
+        public Canvas Canvas { get => _canvas; } 
 
         private NodeGraph _nodeGraph;
         private Canvas _canvas;
@@ -24,7 +24,7 @@ namespace Editor
         private bool _isOpen = false;
         private DispatcherTimer _renderTimer;
 
-        private List<NodeVisual> _nodeVisuals = new List<NodeVisual>();
+        public List<NodeVisual> _nodeVisuals = new List<NodeVisual>();
         private List<ConnectionVisual> _connectionVisuals = new List<ConnectionVisual>();
 
         private bool _isLeftMouseDown;
@@ -138,13 +138,13 @@ namespace Editor
                 // Проверяем, нажали ли на ноду для перетаскивания
                 foreach (var nodeVisual in _nodeVisuals)
                 {
-                    if (IsPointInRectangle(point, nodeVisual.Position, nodeVisual.Size))
-                    {
-                        _dragNode = nodeVisual.Node;
-                        _nodeGraph.SelectNode(_dragNode);
-                        e.Handled = true;
-                        return;
-                    }
+                    //if (IsPointInRectangle(point, nodeVisual.Position, nodeVisual.Size))
+                    //{
+                    //    _dragNode = nodeVisual.Node;
+                    //    _nodeGraph.SelectNode(_dragNode);
+                    //    e.Handled = true;
+                    //    return;
+                    //}
                 }
 
                 // Нажали на пустую область - готовимся к панорамированию
@@ -262,8 +262,16 @@ namespace Editor
 
         private void OnNodeDeleted(Node node)
         {
-            // Удаляем визуальное представление ноды
-            _nodeVisuals.RemoveAll(nv => nv.Node == node);
+            for (int i = _nodeVisuals.Count - 1; i >= 0; i--)
+            {
+                if (_nodeVisuals[i].Node == node)
+                {
+                    var nodeVisual = _nodeVisuals[i];
+                    _canvas.Children.Remove(nodeVisual);
+                    _nodeVisuals.RemoveAt(i);
+                }
+            }
+
             UpdateVisuals();
         }
 
@@ -305,35 +313,18 @@ namespace Editor
             UpdateVisuals();
         }
 
-        private void CreateNodeVisual(Node node)
-        {
-            var nodeVisual = new NodeVisual(node);
-            _nodeVisuals.Add(nodeVisual);
-
-            foreach (var port in node.InputPorts)
-            {
-                var portVisual = new PortVisual(port);
-                nodeVisual.PortVisuals.Add(portVisual);
-            }
-
-            foreach (var port in node.OutputPorts)
-            {
-                var portVisual = new PortVisual(port);
-                nodeVisual.PortVisuals.Add(portVisual);
-            }
-        }
-
         private void CreateConnectionVisual(NodeConnection connection)
         {
-            var connectionVisual = new ConnectionVisual(connection);
+            var connectionVisual = new ConnectionVisual(connection, this);
             _connectionVisuals.Add(connectionVisual);
+            _canvas.Children.Add(connectionVisual);
         }
 
-        private void UpdateVisuals()
+        public void UpdateVisuals()
         {
             foreach (var nodeVisual in _nodeVisuals)
             {
-                nodeVisual.Update();
+                //nodeVisual.UpdateVisual();
             }
 
             UpdateConnectionVisuals();
@@ -349,245 +340,34 @@ namespace Editor
 
         private void Render()
         {
-            _canvas.Children.Clear();
+            RemoveTemporaryConnection();
 
-            // Рисуем сетку (по желанию)
-
-            // Рисуем ноды (теперь ноды идут первыми, соединения - поверх)
             foreach (var nodeVisual in _nodeVisuals)
             {
-                DrawNode(nodeVisual);
+                nodeVisual.Update();
             }
 
-            // Рисуем соединения (поверх нод)
             foreach (var connectionVisual in _connectionVisuals)
             {
-                DrawConnection(connectionVisual);
+                connectionVisual.Update();
             }
 
-            // Рисуем временное соединение при перетаскивании
             if (_isDraggingConnection && _dragPort != null)
             {
                 DrawTemporaryConnection();
             }
         }
 
-        private void DrawNode(NodeVisual nodeVisual)
+        private void RemoveTemporaryConnection()
         {
-            var nodeBorder = new Border
+            for (int i = _canvas.Children.Count - 1; i >= 0; i--)
             {
-                Classes = { "nodeBorder" },
-                Background = new SolidColorBrush(nodeVisual.BackgroundColor),
-                BorderBrush = new SolidColorBrush(nodeVisual.Node.IsSelected ? Colors.DodgerBlue : nodeVisual.BorderColor),
-                BorderThickness = new Thickness(nodeVisual.Node.IsSelected ? 2 : 1),
-                Width = nodeVisual.Size.X,
-                Height = nodeVisual.Size.Y
-            };
-
-            var titleBlock = new TextBlock
-            {
-                Classes = { "nodeTitle" },
-                Text = nodeVisual.Node.Title,
-            };
-
-            var contentPanel = new StackPanel();
-            contentPanel.Children.Add(titleBlock);
-
-            nodeVisual.PortVisuals.Clear();
-
-            for (int i = 0; i < nodeVisual.Node.InputPorts.Count; i++)
-            {
-                var port = nodeVisual.Node.InputPorts[i];
-                var portVisual = new PortVisual(port);
-                float spacing = nodeVisual.Size.Y / (nodeVisual.Node.InputPorts.Count + 1);
-                portVisual.RelativePosition = new Vector2(0, (i + 1) * spacing);
-                nodeVisual.PortVisuals.Add(portVisual);
-            }
-
-            for (int i = 0; i < nodeVisual.Node.OutputPorts.Count; i++)
-            {
-                var port = nodeVisual.Node.OutputPorts[i];
-                var portVisual = new PortVisual(port);
-                float spacing = nodeVisual.Size.Y / (nodeVisual.Node.OutputPorts.Count + 1);
-                portVisual.RelativePosition = new Vector2(nodeVisual.Size.X, (i + 1) * spacing);
-                nodeVisual.PortVisuals.Add(portVisual);
-            }
-
-            foreach (var portVisual in nodeVisual.PortVisuals)
-            {
-                var portPanel = new Grid
+                var child = _canvas.Children[i];
+                if (child is Path path && path.Tag == null)
                 {
-                    Margin = new Thickness(5, 2)
-                };
-
-                portPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                portPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
-                portPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var portCircleContainer = new Border
-                {
-                    Classes = { "portCircleContainer" },
-                };
-
-                var portCircle = new Ellipse
-                {
-                    Classes = { "portCircle" },
-                    Fill = new SolidColorBrush(portVisual.Color),
-                    Stroke = Brushes.White,
-                };
-
-                portCircleContainer.Child = portCircle;
-
-                portCircleContainer.PointerEntered += (s, e) =>
-                {
-                    portCircle.Width = 12;
-                    portCircle.Height = 12;
-                    portCircle.Stroke = Brushes.LightBlue;
-                    portCircle.StrokeThickness = 2;
-                };
-
-                portCircleContainer.PointerExited += (s, e) =>
-                {
-                    portCircle.Width = 10;
-                    portCircle.Height = 10;
-                    portCircle.Stroke = Brushes.White;
-                    portCircle.StrokeThickness = 1;
-                };
-
-                portCircleContainer.PointerPressed += (s, e) =>
-                {
-                    if (e.GetCurrentPoint(portCircleContainer).Properties.IsLeftButtonPressed)
-                    {
-                        _dragPort = portVisual.Port;
-                        _isDraggingConnection = true;
-                        _dragConnectionEndPoint = e.GetPosition(_canvas);
-                        e.Handled = true;
-                        Render();
-                    }
-                };
-
-                var portLabel = new TextBlock
-                {
-                    Classes = { "portLabel" },
-                    Text = portVisual.Port.Name,
-                };
-
-                if (portVisual.Port.IsInput)
-                {
-                    Grid.SetColumn(portCircleContainer, 0);
-                    Grid.SetColumn(portLabel, 1);
-                    portLabel.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
-
-                    portVisual.Position = new Point(
-                        nodeVisual.Position.X,
-                        nodeVisual.Position.Y + portVisual.RelativePosition.Y);
+                    _canvas.Children.RemoveAt(i);
                 }
-                else
-                {
-                    Grid.SetColumn(portCircleContainer, 2);
-                    Grid.SetColumn(portLabel, 1);
-                    portLabel.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right;
-
-                    portVisual.Position = new Point(
-                        nodeVisual.Position.X + nodeVisual.Size.X,
-                        nodeVisual.Position.Y + portVisual.RelativePosition.Y);
-                }
-
-                portPanel.Children.Add(portCircleContainer);
-                portPanel.Children.Add(portLabel);
-                contentPanel.Children.Add(portPanel);
             }
-
-            nodeBorder.Child = contentPanel;
-
-            Canvas.SetLeft(nodeBorder, nodeVisual.Position.X);
-            Canvas.SetTop(nodeBorder, nodeVisual.Position.Y);
-            _canvas.Children.Add(nodeBorder);
-            nodeBorder.ZIndex = nodeVisual.Node.ZIndex;
-        }
-
-        private void DrawConnection(ConnectionVisual connectionVisual)
-        {
-            // Создаем контейнер для соединения с большей областью для интерактивности
-            var connectionContainer = new Canvas
-            {
-                Width = _canvas.Width,
-                Height = _canvas.Height,
-                Background = Brushes.Transparent,
-                ZIndex = 100 // Поверх нод
-            };
-
-            var path = new PathFigure
-            {
-                StartPoint = connectionVisual.StartPoint,
-                IsClosed = false
-            };
-
-            var bezierSegment = new BezierSegment
-            {
-                Point1 = connectionVisual.ControlPoint1,
-                Point2 = connectionVisual.ControlPoint2,
-                Point3 = connectionVisual.EndPoint
-            };
-
-            path.Segments = new PathSegments { bezierSegment };
-
-            var pathGeometry = new PathGeometry
-            {
-                Figures = new PathFigures { path }
-            };
-
-            // Создаем две линии: широкую прозрачную для hover и тонкую видимую
-            var invisiblePath = new Path
-            {
-                Stroke = Brushes.Transparent,
-                StrokeThickness = 15, // Широкая область для взаимодействия
-                Data = pathGeometry,
-                ZIndex = 1,
-                Tag = connectionVisual.Connection // Для определения соединения при клике
-            };
-
-            var visiblePath = new Path
-            {
-                Stroke = new SolidColorBrush(connectionVisual.Color),
-                StrokeThickness = connectionVisual.Thickness,
-                Data = pathGeometry,
-                StrokeDashArray = connectionVisual.IsDashed ? new AvaloniaList<double> { 4, 2 } : null,
-                ZIndex = 2
-            };
-
-            // Добавляем обработчики событий
-            invisiblePath.PointerEntered += (s, e) =>
-            {
-                visiblePath.StrokeThickness = connectionVisual.Thickness + 1.5;
-                visiblePath.Stroke = new SolidColorBrush(Colors.LightBlue);
-            };
-
-            invisiblePath.PointerExited += (s, e) =>
-            {
-                visiblePath.StrokeThickness = connectionVisual.Thickness;
-                visiblePath.Stroke = new SolidColorBrush(connectionVisual.Color);
-            };
-
-            invisiblePath.PointerPressed += (s, e) =>
-            {
-                if (e.GetCurrentPoint(invisiblePath).Properties.IsRightButtonPressed)
-                {
-                    // Удаляем соединение при нажатии правой кнопкой мыши
-                    var connection = (s as Path).Tag as NodeConnection;
-                    if (connection != null)
-                    {
-                        _nodeGraph.RemoveConnection(connection);
-                        UpdateConnectionVisuals();
-                        Render();
-                    }
-                    e.Handled = true;
-                }
-            };
-
-            connectionContainer.Children.Add(invisiblePath);
-            connectionContainer.Children.Add(visiblePath);
-            _canvas.Children.Add(connectionContainer);
         }
 
         private void DrawTemporaryConnection()
@@ -647,6 +427,46 @@ namespace Editor
             };
 
             _canvas.Children.Add(drawing);
+        }
+
+        public void StartDraggingConnection(NodePort port, Point startPoint)
+        {
+            _dragPort = port;
+            _isDraggingConnection = true;
+            _dragConnectionEndPoint = startPoint;
+            Render();
+        }
+
+        public void RemoveConnection(NodeConnection connection)
+        {
+            _nodeGraph.RemoveConnection(connection);
+            UpdateConnectionVisuals();
+            Render();
+        }
+
+        private void CreateNodeVisual(Node node)
+        {
+            var nodeVisual = new NodeVisual(node);
+            _nodeVisuals.Add(nodeVisual);
+
+            // Создаем порты для ноды
+            foreach (var port in node.InputPorts)
+            {
+                var portVisual = new PortVisual(port, this);
+                nodeVisual.AddPortVisual(portVisual);
+            }
+
+            foreach (var port in node.OutputPorts)
+            {
+                var portVisual = new PortVisual(port, this);
+                nodeVisual.AddPortVisual(portVisual);
+            }
+
+            // Позиционируем порты
+            nodeVisual.UpdatePortPositions();
+
+            // Добавляем ноду на холст
+            _canvas.Children.Add(nodeVisual);
         }
 
         private Point GetPortPosition(NodePort port)
@@ -709,61 +529,223 @@ namespace Editor
         }
 
     }
-    public class NodeVisual
+
+    public class NodeVisual : Border
     {
-        public Node Node { get; }
-        public Vector2 Position { get; private set; }
-        public Vector2 Size { get; private set; }
-        public Color BackgroundColor { get; private set; } = new Color(51, 51, 51, 255);
-        public Color BorderColor { get; private set; } = new Color(75, 75, 75, 255);
+        public Node Node { get; private set; }
+
+        public Vector2 Size
+        {
+            get => new Vector2((float)Width, (float)Height);
+            set
+            {
+                Width = value.X;
+                Height = value.Y;
+            }
+        }
+
+        public Color BackgroundColor { get; set; } = new Color(51, 51, 51, 255);
+        public Color BorderColor { get; set; } = new Color(75, 75, 75, 255);
         public Color HeaderColor { get; set; } = new Color(60, 60, 60, 255);
         public Color SelectedBorderColor { get; set; } = new Color(0, 125, 255, 255);
 
         public List<PortVisual> PortVisuals { get; } = new List<PortVisual>();
 
+        private TextBlock _titleBlock;
+        private StackPanel _contentPanel;
+
         public NodeVisual(Node node)
         {
             Node = node;
-            Update();
+
+            Classes.Add("nodeBorder");
+            Background = new SolidColorBrush(BackgroundColor);
+            BorderBrush = new SolidColorBrush(BorderColor);
+            BorderThickness = new Thickness(1);
+            CornerRadius = new CornerRadius(5);
+
+            // Создаем содержимое
+            InitializeUI();
+
+            Size = Node.Size;
+            Canvas.SetLeft(this, Node.Position.X);
+            Canvas.SetTop(this, Node.Position.Y);
+            ZIndex = Node.ZIndex;
+        }
+
+        private void InitializeUI()
+        {
+            _contentPanel = new StackPanel();
+
+            _titleBlock = new TextBlock
+            {
+                Classes = { "nodeTitle" },
+                Text = Node.Title,
+                Margin = new Thickness(5, 5, 5, 10),
+                //HorizontalAlignment = HorizontalAlignment.Center,
+                FontWeight = FontWeight.Bold,
+                Foreground = new SolidColorBrush(Colors.LightGray)
+            };
+
+            _contentPanel.Children.Add(_titleBlock);
+
+            Child = _contentPanel;
+        }
+
+        public void AddPortVisual(PortVisual portVisual)
+        {
+            PortVisuals.Add(portVisual);
+
+            _contentPanel.Children.Add(portVisual);
         }
 
         public void Update()
         {
-            Position = Node.Position;
             Size = Node.Size;
+            Canvas.SetLeft(this, Node.Position.X);
+            Canvas.SetTop(this, Node.Position.Y);
 
-            float inputPortSpacing = Size.Y / (Node.InputPorts.Count + 1);
-            float outputPortSpacing = Size.Y / (Node.OutputPorts.Count + 1);
+            _titleBlock.Text = Node.Title;
 
-            for (int i = 0; i < Node.InputPorts.Count; i++)
+            Background = new SolidColorBrush(BackgroundColor);
+            BorderBrush = new SolidColorBrush(Node.IsSelected ? SelectedBorderColor : BorderColor);
+            BorderThickness = new Thickness(Node.IsSelected ? 2 : 1);
+
+            ZIndex = Node.ZIndex;
+            UpdatePortPositions();
+        }
+
+        public void UpdatePortPositions()
+        {
+            float inputPortSpacing = Node.Size.Y / (Node.InputPorts.Count + 1);
+            float outputPortSpacing = Node.Size.Y / (Node.OutputPorts.Count + 1);
+
+            int inputCount = 0;
+            int outputCount = 0;
+
+            foreach (var portVisual in PortVisuals)
             {
-                if (i < PortVisuals.Count && PortVisuals[i].Port == Node.InputPorts[i])
+                if (portVisual.Port.IsInput)
                 {
-                    PortVisuals[i].RelativePosition = new Vector2(0, (i + 1) * inputPortSpacing);
+                    portVisual.RelativePosition = new Vector2(0, (inputCount + 1) * inputPortSpacing);
+                    inputCount++;
                 }
-            }
+                else
+                {
+                    portVisual.RelativePosition = new Vector2(Node.Size.X, (outputCount + 1) * outputPortSpacing);
+                    outputCount++;
+                }
 
-            for (int i = 0; i < Node.OutputPorts.Count; i++)
-            {
-                int index = Node.InputPorts.Count + i;
-                if (index < PortVisuals.Count && PortVisuals[index].Port == Node.OutputPorts[i])
-                {
-                    PortVisuals[index].RelativePosition = new Vector2(Size.X, (i + 1) * outputPortSpacing);
-                }
+                portVisual.UpdatePosition();
             }
         }
     }
-    public class PortVisual
+
+
+
+    public class PortVisual : Border
     {
         public NodePort Port { get; }
         public Vector2 RelativePosition { get; set; }
         public Point Position { get; set; }
         public Color Color { get; private set; }
 
-        public PortVisual(NodePort port)
+        private Ellipse _portCircle;
+        private TextBlock _portLabel;
+        private NodeGraphController _controller;
+
+        public PortVisual(NodePort port, NodeGraphController controller)
         {
             Port = port;
+            _controller = controller;
             Color = GetPortColor();
+            Classes.Add("portCircleContainer");
+
+            InitializeUI();
+        }
+
+        private void InitializeUI()
+        {
+            Grid portGrid = new Grid();
+            portGrid.Margin = new Thickness(5, 2);
+
+            portGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            portGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+            portGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            _portCircle = new Ellipse
+            {
+                Classes = { "portCircle" },
+                Fill = new SolidColorBrush(Color),
+                Stroke = Brushes.White,
+                Width = 10,
+                Height = 10,
+                StrokeThickness = 1
+            };
+
+            _portLabel = new TextBlock
+            {
+                Classes = { "portLabel" },
+                Text = Port.Name,
+            };
+
+            if (Port.IsInput)
+            {
+                Grid.SetColumn(_portCircle, 0);
+                Grid.SetColumn(_portLabel, 1);
+                //_portLabel.HorizontalAlignment = HorizontalAlignment.Left;
+            }
+            else
+            {
+                Grid.SetColumn(_portCircle, 2);
+                Grid.SetColumn(_portLabel, 1);
+                //_portLabel.HorizontalAlignment = HorizontalAlignment.Right;
+            }
+
+            portGrid.Children.Add(_portCircle);
+            portGrid.Children.Add(_portLabel);
+
+            this.Child = portGrid;
+
+            ConfigureEvents();
+        }
+
+        private void ConfigureEvents()
+        {
+            this.PointerEntered += (s, e) =>
+            {
+                _portCircle.Width = 12;
+                _portCircle.Height = 12;
+                _portCircle.Stroke = Brushes.LightBlue;
+                _portCircle.StrokeThickness = 2;
+            };
+
+            this.PointerExited += (s, e) =>
+            {
+                _portCircle.Width = 10;
+                _portCircle.Height = 10;
+                _portCircle.Stroke = Brushes.White;
+                _portCircle.StrokeThickness = 1;
+            };
+
+            this.PointerPressed += (s, e) =>
+            {
+                if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+                {
+                    _controller.StartDraggingConnection(Port, e.GetPosition(_controller.Canvas));
+                    e.Handled = true;
+                }
+            };
+        }
+
+        public void UpdatePosition()
+        {
+            if (Port.ParentNode != null)
+            {
+                Position = new Point(
+                    Port.ParentNode.Position.X + (Port.IsInput ? 0 : Port.ParentNode.Size.X),
+                    Port.ParentNode.Position.Y + RelativePosition.Y);
+            }
         }
 
         private Color GetPortColor()
@@ -779,41 +761,150 @@ namespace Editor
             }
         }
     }
-    public class ConnectionVisual
+
+    public class ConnectionVisual : Canvas
+    {
+        public NodeConnection Connection { get; }
+        public Point StartPoint { get; private set; }
+        public Point EndPoint { get; private set; }
+        public Point ControlPoint1 { get; private set; }
+        public Point ControlPoint2 { get; private set; }
+        public Color Color { get; private set; }
+        public double Thickness { get; } = 2.0;
+        public bool IsDashed { get; } = false;
+
+        private Path _visiblePath;
+        private Path _invisiblePath;
+        private NodeGraphController _controller;
+
+        public ConnectionVisual(NodeConnection connection, NodeGraphController controller)
         {
-            public NodeConnection Connection { get; }
-            public Point StartPoint { get; private set; }
-            public Point EndPoint { get; private set; }
-            public Point ControlPoint1 { get; private set; }
-            public Point ControlPoint2 { get; private set; }
-            public Color Color { get; private set; }
-            public double Thickness { get; } = 2.0;
-            public bool IsDashed { get; } = false;
+            Connection = connection;
+            _controller = controller;
 
-            public ConnectionVisual(NodeConnection connection)
-            {
-                Connection = connection;
-                Update();
+            Color = new Color(
+                (byte)(Connection.Color.W * 255),
+                (byte)(Connection.Color.X * 255),
+                (byte)(Connection.Color.Y * 255),
+                (byte)(Connection.Color.Z * 255));
 
-                Color = new Color(
-                    (byte)(Connection.Color.W * 255),
-                    (byte)(Connection.Color.X * 255),
-                    (byte)(Connection.Color.Y * 255),
-                    (byte)(Connection.Color.Z * 255));
-            }
-
-            public void Update()
-            {
-                Vector2 start = Connection.GetStartPosition();
-                Vector2 end = Connection.GetEndPosition();
-
-                StartPoint = new Point(start.X, start.Y);
-                EndPoint = new Point(end.X, end.Y);
-
-                Connection.CalculateBezierPoints();
-
-                ControlPoint1 = new Point(Connection.StartTangent.X, Connection.StartTangent.Y);
-                ControlPoint2 = new Point(Connection.EndTangent.X, Connection.EndTangent.Y);
-            }
+            InitializeUI();
+            Update();
         }
+
+        private void InitializeUI()
+        {
+            Width = double.NaN;  
+            Height = double.NaN; 
+            Background = Brushes.Transparent;
+            ZIndex = 100;
+
+            _visiblePath = new Path
+            {
+                Stroke = new SolidColorBrush(Color),
+                StrokeThickness = Thickness,
+                StrokeDashArray = IsDashed ? new AvaloniaList<double> { 4, 2 } : null,
+                ZIndex = 2
+            };
+
+            _invisiblePath = new Path
+            {
+                Stroke = Brushes.Transparent,
+                StrokeThickness = 15,
+                ZIndex = 1,
+                Tag = Connection
+            };
+
+            _invisiblePath.PointerEntered += (s, e) =>
+            {
+                _visiblePath.StrokeThickness = Thickness + 1.5;
+                _visiblePath.Stroke = new SolidColorBrush(Colors.LightBlue);
+            };
+
+            _invisiblePath.PointerExited += (s, e) =>
+            {
+                _visiblePath.StrokeThickness = Thickness;
+                _visiblePath.Stroke = new SolidColorBrush(Color);
+            };
+
+            _invisiblePath.PointerPressed += (s, e) =>
+            {
+                if (e.GetCurrentPoint(_invisiblePath).Properties.IsRightButtonPressed)
+                {
+                    var connection = (s as Path).Tag as NodeConnection;
+                    if (connection != null)
+                    {
+                        _controller.RemoveConnection(connection);
+                        e.Handled = true;
+                    }
+                }
+            };
+
+            Children.Add(_invisiblePath);
+            Children.Add(_visiblePath);
+        }
+
+        public void Update()
+        {
+            var start = Connection.GetStartPosition();
+            var end = Connection.GetEndPosition();
+
+            StartPoint = new Point(start.X, start.Y);
+            EndPoint = new Point(end.X, end.Y);
+
+            Connection.CalculateBezierPoints();
+
+            ControlPoint1 = new Point(Connection.StartTangent.X, Connection.StartTangent.Y);
+            ControlPoint2 = new Point(Connection.EndTangent.X, Connection.EndTangent.Y);
+
+            UpdatePathGeometry();
+        }
+
+        private void UpdatePathGeometry()
+        {
+            var path = new PathFigure
+            {
+                StartPoint = StartPoint,
+                IsClosed = false
+            };
+
+            var bezierSegment = new BezierSegment
+            {
+                Point1 = ControlPoint1,
+                Point2 = ControlPoint2,
+                Point3 = EndPoint
+            };
+
+            path.Segments = new PathSegments { bezierSegment };
+
+            var pathGeometry = new PathGeometry
+            {
+                Figures = new PathFigures { path }
+            };
+
+            _visiblePath.Data = pathGeometry;
+            _invisiblePath.Data = pathGeometry;
+        }
+    }
+
+
+    public static class ControlExtensions
+    {
+        public static T FindAncestorOfType<T>(this Control control) where T : Control
+        {
+            var parent = control.Parent;
+
+            while (parent != null)
+            {
+                if (parent is T typedParent)
+                {
+                    return typedParent;
+                }
+
+                parent = parent.Parent;
+            }
+
+            return null;
+        }
+    }
 }

@@ -23,7 +23,7 @@
   </Style>
   
   <!-- Nodes -->
-  <Style Selector="Editor|NodeGraphController Border.nodeBorder">
+  <Style Selector="Editor|NodeVisual Border.nodeBorder">
     <Setter Property="CornerRadius" Value="5"/>
   </Style>
 
