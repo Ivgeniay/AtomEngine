@@ -9,7 +9,8 @@
         Console,
         SceneRender,
         Game,
-        SystemGraph,
+        Systems,
         Chat,
+        Graph
     }
 }

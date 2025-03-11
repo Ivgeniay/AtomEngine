@@ -18,6 +18,7 @@
         <StyleInclude Source="/Styles/DirectoryExplorer.axaml"/>
         <StyleInclude Source="/Styles/NodeGraph.axaml"/>
         <StyleInclude Source="/Styles/Chat.axaml"/>
+        <StyleInclude Source="/Styles/Systems.axaml"/>
       
         <StyleInclude Source="/Styles/VisualElements/ObjectField.axaml"/>
         <StyleInclude Source="/Styles/VisualElements/SearchPopup.axaml"/>

@@ -22,7 +22,7 @@ namespace Editor
         private WorldController _worldController;
         private InspectorController _inspectorController;
         private ExplorerController _explorerController;
-        private NodeGraphController _nodeGraphController;
+        private SystemDependencyController _nodeGraphController;
 
         public MainWindowUIManager(MainWindow mainWindow)
         {
@@ -78,8 +78,8 @@ namespace Editor
                     _sceneViewController = (SceneViewController)controller;
                     _controls.Add(_sceneViewController);
                     break;
-                case MainControllers.SystemGraph:
-                    _nodeGraphController = (NodeGraphController)controller;
+                case MainControllers.Systems:
+                    _nodeGraphController = (SystemDependencyController)controller;
                     _controls.Add(_nodeGraphController);
                     break;
             }

@@ -1,4 +1,6 @@
 ﻿using AtomEngine.RenderEntity;
+using MathNet.Numerics.LinearAlgebra.Factorization;
+using MathNet.Numerics.LinearAlgebra;
 using System.Numerics;
 
 namespace AtomEngine
@@ -71,6 +73,7 @@ namespace AtomEngine
 
             return _indices;
         }
+
 
         public static BoundingBox ComputeBoundingBox(Vertex[] vertices)
         {
@@ -184,4 +187,5 @@ namespace AtomEngine
             return cubeDistance < sphere.Radius * sphere.Radius;
         }
     }
+
 }

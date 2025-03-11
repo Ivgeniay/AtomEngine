@@ -51,17 +51,23 @@ namespace Editor
                 Status.SetStatus($"Контроллер {type} не зарегистрирован");
                 return null;
             }
+            WindowConfiguration config = _config.Configurations.Where(e => e.Key == type).FirstOrDefault().Value;
+            if (config !=null && config.IsOpen)
+            {
+                if (_borderMap.TryGetValue(type, out DraggableWindow existWindow))
+                {
+                    existWindow.Focus();
+                    return existWindow;
+                }
+            }
 
             string windowName = type.ToString();
             double left_ = left;
             double top_ = top;
             double width_ = width;
             double height_ = height;
-            var kvp_conf = _config.Configurations.Where(e => e.Key == type).FirstOrDefault();
-            WindowConfiguration config = null;
-            if (kvp_conf.Value != null)
+            if (config != null)
             {
-                config = kvp_conf.Value;
                 left_ = config.Left;
                 top_ = config.Top;
                 width_ = config.Width;

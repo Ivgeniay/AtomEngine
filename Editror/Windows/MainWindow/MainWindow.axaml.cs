@@ -38,14 +38,15 @@ namespace Editor
             _sceneManager.SetMainWindow(this);
             _uIManager = new MainWindowUIManager(this);
 
-            var hierarhy = new HierarchyController();
-            var inspector = new InspectorController();
+            var chat = new ChatController();
             var worlds = new WorldController();
             var console = new ConsoleController();
             var explorer = new ExplorerController();
+            var hierarhy = new HierarchyController();
+            var inspector = new InspectorController();
             var sceneView = new SceneViewController();
-            var _nodeGraphController = new NodeGraphController();
-            var chat = new ChatController();
+            var systems = new SystemDependencyController();
+            var nodeGraphController = new NodeGraphController();
 
             _uIManager.RegisterController(MainControllers.Hierarchy, hierarhy);
             _uIManager.RegisterController(MainControllers.Inspector, inspector);
@@ -53,8 +54,9 @@ namespace Editor
             _uIManager.RegisterController(MainControllers.Console, console);
             _uIManager.RegisterController(MainControllers.Explorer, explorer);
             _uIManager.RegisterController(MainControllers.SceneRender, sceneView);
-            _uIManager.RegisterController(MainControllers.SystemGraph, _nodeGraphController);
             _uIManager.RegisterController(MainControllers.Chat, chat);
+            _uIManager.RegisterController(MainControllers.Systems, systems);
+            _uIManager.RegisterController(MainControllers.Graph, nodeGraphController);
 
             _uIManager.Initialize();
 
@@ -191,9 +193,9 @@ namespace Editor
                     new EditorToolbarButton()
                     {
                         Text = "Systems",
-                        Description = "",
+                        Description = "System manager",
                         Action = () => {
-                            DebLogger.Debug("Systems");
+                            _uIManager.OpenWindow(MainControllers.Systems);
                         }
                     },
                     new EditorToolbarButton()
@@ -230,20 +232,21 @@ namespace Editor
                     },
                     new EditorToolbarButton()
                     {
-                        Text = "System Graph",
-                        Description = "System manager",
-                        Action = () => {
-                            _uIManager.OpenWindow(MainControllers.SystemGraph);
-                        }
-                    },
-                    new EditorToolbarButton()
-                    {
                         Text = "Chat",
                         Description = "Ai chat",
                         Action = () => {
                             _uIManager.OpenWindow(MainControllers.Chat);
                         }
                     },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Graph",
+                        Description = "Test graph",
+                        Action = () =>
+                        {
+                            _uIManager.OpenWindow(MainControllers.Graph);
+                        }
+                    }
 
                 }
             };

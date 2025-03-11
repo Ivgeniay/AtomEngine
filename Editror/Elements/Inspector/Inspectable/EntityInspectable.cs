@@ -83,22 +83,22 @@ namespace Editor
                     }
                 };
 
-                var rootCanvas = MainWindow.MainCanvas_;
-                if (rootCanvas != null)
-                {
-                    var existingDialogs = rootCanvas.Children.OfType<ComponentSearchDialog>().ToList();
-                    foreach (var dlg in existingDialogs)
-                    {
-                        rootCanvas.Children.Remove(dlg);
-                    }
+                //var rootCanvas = MainWindow.MainCanvas_;
+                //if (rootCanvas != null)
+                //{
+                //    var existingDialogs = rootCanvas.Children.OfType<ComponentSearchDialog>().ToList();
+                //    foreach (var dlg in existingDialogs)
+                //    {
+                //        rootCanvas.Children.Remove(dlg);
+                //    }
 
-                    rootCanvas.Children.Add(searchDialog);
+                //    rootCanvas.Children.Add(searchDialog);
                     searchDialog.Show(addComponentButton);
-                }
-                else
-                {
-                    DebLogger.Error("Не удалось найти корневой Canvas для отображения диалога");
-                }
+                //}
+                //else
+                //{
+                //    DebLogger.Error("Не удалось найти корневой Canvas для отображения диалога");
+                //}
             });
 
             addComponentButton.Command = command;

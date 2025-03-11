@@ -447,21 +447,9 @@ namespace Editor
 
         private Matrix4x4 CreateModelMatrix(TransformComponent transform)
         {
-            Matrix4x4 model = Matrix4x4.CreateTranslation(transform.Position);
-
-            if (transform.Rotation != Vector3.Zero)
-            {
-                model *= Matrix4x4.CreateFromYawPitchRoll(
-                    transform.Rotation.Y * (MathF.PI / 180.0f),
-                    transform.Rotation.X * (MathF.PI / 180.0f),
-                    transform.Rotation.Z * (MathF.PI / 180.0f));
-            }
-
-            if (transform.Scale != Vector3.One)
-            {
-                model *= Matrix4x4.CreateScale(transform.Scale);
-            }
-
+            Matrix4x4 model = Matrix4x4.CreateFromQuaternion(transform.Rotation.ToQuaternion());
+            model *= Matrix4x4.CreateTranslation(transform.Position);
+            model *= Matrix4x4.CreateScale(transform.Scale);
             return model;
         }
 

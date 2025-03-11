@@ -10,6 +10,7 @@ using Avalonia.Media;
 using System.Linq;
 using Avalonia;
 using System;
+using AtomEngine;
 
 namespace Editor
 {
@@ -104,6 +105,23 @@ namespace Editor
         }
         public void Show(Button targetButton)
         {
+            var rootCanvas = MainWindow.MainCanvas_;
+            if (rootCanvas != null)
+            {
+                var existingDialogs = rootCanvas.Children.OfType<ComponentSearchDialog>().ToList();
+                foreach (var dlg in existingDialogs)
+                {
+                    rootCanvas.Children.Remove(dlg);
+                }
+
+                rootCanvas.Children.Add(this);
+            }
+            else
+            {
+                DebLogger.Error("Не удалось найти корневой Canvas для отображения диалога");
+                return;
+            }
+
             _targetButton = targetButton;
 
             UpdatePosition();
