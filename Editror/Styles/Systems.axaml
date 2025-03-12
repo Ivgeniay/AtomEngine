@@ -13,15 +13,23 @@
     <Setter Property="Margin" Value="10"/>
   </Style>
 
+  <Style Selector="ScrollViewer">
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+  </Style>
+
   <Style Selector="TextBlock.parameterTitle">
     <Setter Property="FontWeight" Value="Bold"/>
     <Setter Property="Margin" Value="0,0,0,10"/>
     <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="FontSize" Value="14"/>
   </Style>
 
   <Style Selector="TextBlock.parameterLabel">
     <Setter Property="Margin" Value="0,5,0,2"/>
     <Setter Property="Foreground" Value="#AAAAAA"/>
+    <Setter Property="FontSize" Value="12"/>
   </Style>
 
   <!-- Стили для кнопок категорий -->
@@ -30,21 +38,30 @@
     <Setter Property="Foreground" Value="#CCCCCC"/>
     <Setter Property="BorderBrush" Value="#555555"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="CornerRadius" Value="3"/>
     <Setter Property="Width" Value="120"/>
-    <Setter Property="Height" Value="30"/>
+    <Setter Property="Height" Value="32"/>
     <Setter Property="Margin" Value="5,0"/>
     <Setter Property="HorizontalContentAlignment" Value="Center"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+      </Transitions>
+    </Setter>
   </Style>
 
   <Style Selector="Button.categoryButton:pointerover">
     <Setter Property="Background" Value="#44444A"/>
     <Setter Property="Foreground" Value="#FFFFFF"/>
+    <Setter Property="BorderBrush" Value="#777777"/>
   </Style>
 
   <Style Selector="Button.categoryButton:pressed">
     <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="BorderBrush" Value="#555555"/>
   </Style>
 
   <Style Selector="Button.categoryButton.selected">
@@ -59,13 +76,15 @@
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="BorderBrush" Value="#444444"/>
     <Setter Property="Background" Value="#2D2D30"/>
-    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="CornerRadius" Value="4"/>
     <Setter Property="Width" Value="200"/>
-    <Setter Property="MinHeight" Value="60"/>
+    <Setter Property="MinHeight" Value="70"/>
+    <Setter Property="Margin" Value="0,0,0,5"/>
+    <Setter Property="BoxShadow" Value="0 1 3 #12121233"/>
     <Setter Property="Transitions">
       <Transitions>
-        <BrushTransition Property="Background" Duration="0:0:0.1"/>
-        <BrushTransition Property="BorderBrush" Duration="0:0:0.1"/>
+        <BrushTransition Property="Background" Duration="0:0:0.15"/>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
       </Transitions>
     </Setter>
   </Style>
@@ -73,13 +92,21 @@
   <Style Selector="Border.systemCard:pointerover">
     <Setter Property="Background" Value="#3E3E42"/>
     <Setter Property="BorderBrush" Value="#5E5E66"/>
+    <Setter Property="BoxShadow" Value="0 2 5 #12121255"/>
+  </Style>
+
+  <Style Selector="Border.systemCard.selected">
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+    <Setter Property="BorderThickness" Value="2"/>
+    <Setter Property="BoxShadow" Value="0 2 5 #007ACC40"/>
   </Style>
 
   <Style Selector="TextBlock.systemTitle">
-    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="TextWrapping" Value="Wrap"/>
     <Setter Property="MaxWidth" Value="160"/>
     <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="FontSize" Value="12"/>
   </Style>
 
   <!-- Стили для кнопок карточек системы -->
@@ -89,30 +116,44 @@
     <Setter Property="BorderBrush" Value="#444444"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="2"/>
-    <Setter Property="Width" Value="24"/>
-    <Setter Property="Height" Value="24"/>
+    <Setter Property="Width" Value="26"/>
+    <Setter Property="Height" Value="26"/>
     <Setter Property="Padding" Value="0"/>
     <Setter Property="HorizontalContentAlignment" Value="Center"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="Margin" Value="2"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.1"/>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.1"/>
+      </Transitions>
+    </Setter>
   </Style>
 
   <Style Selector="Button.systemCardButton:pointerover">
     <Setter Property="Background" Value="#44444A"/>
     <Setter Property="Foreground" Value="#FFFFFF"/>
+    <Setter Property="BorderBrush" Value="#666666"/>
   </Style>
 
   <Style Selector="Button.systemCardButton:pressed">
     <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
   </Style>
 
   <!-- Стили для контейнера систем -->
   <Style Selector="StackPanel.systemStack">
     <Setter Property="Orientation" Value="Vertical"/>
-    <Setter Property="Spacing" Value="5"/>
-    <Setter Property="Width" Value="200"/>
+    <Setter Property="Spacing" Value="8"/>
+    <Setter Property="Width" Value="210"/>
     <Setter Property="HorizontalAlignment" Value="Left"/>
     <Setter Property="VerticalAlignment" Value="Top"/>
     <Setter Property="Margin" Value="10"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <ThicknessTransition Property="Margin" Duration="0:0:0.2"/>
+      </Transitions>
+    </Setter>
   </Style>
 
   <!-- Стили для контекстного меню -->
@@ -120,12 +161,15 @@
     <Setter Property="Background" Value="#252526"/>
     <Setter Property="BorderBrush" Value="#3F3F46"/>
     <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="2"/>
+    <Setter Property="CornerRadius" Value="3"/>
   </Style>
 
   <Style Selector="MenuItem.systemMenuItem">
     <Setter Property="Background" Value="#252526"/>
     <Setter Property="Foreground" Value="#CCCCCC"/>
     <Setter Property="Padding" Value="8,5"/>
+    <Setter Property="FontSize" Value="12"/>
   </Style>
 
   <Style Selector="MenuItem.systemMenuItem:pointerover /template/ ContentPresenter">
@@ -136,5 +180,90 @@
   <Style Selector="MenuItem.systemMenuItem:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="#007ACC"/>
     <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <!-- Стили для NumericUpDown -->
+  <Style Selector="NumericUpDown">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Margin" Value="0,5,0,10"/>
+    <Setter Property="Height" Value="28"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+
+  <Style Selector="NumericUpDown:pointerover">
+    <Setter Property="BorderBrush" Value="#555555"/>
+  </Style>
+
+  <Style Selector="NumericUpDown:focus">
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+
+  <!-- Стиль для ListBox зависимостей -->
+  <Style Selector="ListBox">
+    <Setter Property="Background" Value="#252526"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="3"/>
+    <Setter Property="Padding" Value="2"/>
+    <Setter Property="MaxHeight" Value="200"/>
+    <Setter Property="Margin" Value="0,5,0,10"/>
+  </Style>
+
+  <Style Selector="ListBoxItem">
+    <Setter Property="Padding" Value="6,3"/>
+    <Setter Property="Margin" Value="1"/>
+    <Setter Property="CornerRadius" Value="2"/>
+  </Style>
+
+  <Style Selector="ListBoxItem:pointerover">
+    <Setter Property="Background" Value="#3E3E42"/>
+  </Style>
+
+  <Style Selector="ListBoxItem:selected">
+    <Setter Property="Background" Value="#007ACC"/>
+  </Style>
+
+  <!-- Стили для CheckBox -->
+  <Style Selector="CheckBox">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="Margin" Value="0,2"/>
+  </Style>
+
+  <Style Selector="CheckBox:pointerover /template/ Border#NormalRectangle">
+    <Setter Property="BorderBrush" Value="#666666"/>
+    <Setter Property="Background" Value="#3E3E42"/>
+  </Style>
+
+  <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+    <Setter Property="Background" Value="#007ACC"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+  </Style>
+
+  <!-- Стили для скроллбаров -->
+  <Style Selector="ScrollBar">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="#3E3E42"/>
+  </Style>
+
+  <Style Selector="ScrollBar:pointerover">
+    <Setter Property="Foreground" Value="#636363"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb:pointerover">
+    <Setter Property="Background" Value="#636363"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
   </Style>
 </Styles>

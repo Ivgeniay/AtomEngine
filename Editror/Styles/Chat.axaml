@@ -64,18 +64,7 @@
     <Setter Property="Padding" Value="0"/>
     <Setter Property="BorderThickness" Value="0"/>
   </Style>
-  <Style Selector="ListBoxItem">
-    <Setter Property="Padding" Value="8,5"/>
-    <Setter Property="Margin" Value="0,2"/>
-    <Setter Property="Background" Value="#2D2D30"/>
-    <Setter Property="CornerRadius" Value="4"/>
-  </Style>
-  <Style Selector="ListBoxItem:pointerover">
-    <Setter Property="Background" Value="#3E3E42"/>
-  </Style>
-  <Style Selector="ListBoxItem:selected">
-    <Setter Property="Background" Value="#0E639C"/>
-  </Style>
+  
   <!-- Название чата в списке -->
   <Style Selector="TextBlock.chatTitle">
     <Setter Property="FontWeight" Value="Medium"/>

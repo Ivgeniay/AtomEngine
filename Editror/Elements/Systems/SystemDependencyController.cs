@@ -3,14 +3,11 @@ using System.Collections.Generic;
 using Avalonia.Interactivity;
 using Avalonia.Controls;
 using Avalonia.Layout;
-using Avalonia.Media;
 using Avalonia.Input;
 using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
-using System.Threading.Tasks;
-using Microsoft.VisualBasic.FileIO;
 
 namespace Editor
 {
@@ -463,6 +460,8 @@ namespace Editor
                 Classes = { "parameterTitle" }
             };
 
+
+            //Oreder
             var executionOrderLabel = new TextBlock
             {
                 Text = "Execution Order:",
@@ -488,6 +487,7 @@ namespace Editor
                 }
             };
 
+            //Dependencies
             var dependenciesLabel = new TextBlock
             {
                 Text = "Dependencies:",
@@ -508,7 +508,7 @@ namespace Editor
 
             foreach (var system in availableSystems)
             {
-                
+
                 var item = new CheckBox
                 {
                     Content = system.SystemFullTypeName,
@@ -550,11 +550,62 @@ namespace Editor
                 dependenciesListBox.Items.Add(listBoxItem);
             }
 
+            //Worlds
+            var includeInWorldsLabel = new TextBlock
+            {
+                Text = "Include in Worlds:",
+                Margin = new Thickness(0, 5, 0, 2),
+                Classes = { "parameterLabel" }
+            };
+
+            var worldsPanel = new StackPanel
+            {
+                Margin = new Thickness(0, 0, 0, 10),
+                Spacing = 5
+            };
+
+            var worlds = _sceneManager.CurrentScene.Worlds;
+
+            foreach (var world in worlds)
+            {
+                var isChecked = _selectedSystem.IncludInWorld.Contains(world.WorldId);
+
+                var worldCheckBox = new CheckBox
+                {
+                    Content = world.WorldName,
+                    IsChecked = isChecked,
+                    Tag = world.WorldId,
+                    Classes = { "worldCheckBox" }
+                };
+
+                worldCheckBox.IsCheckedChanged += (s, e) =>
+                {
+                    if (s is CheckBox checkBox && checkBox.Tag is uint worldId)
+                    {
+                        bool isSelected = checkBox.IsChecked.HasValue && checkBox.IsChecked.Value;
+
+                        if (isSelected && !_selectedSystem.IncludInWorld.Contains(worldId))
+                        {
+                            _selectedSystem.IncludInWorld.Add(worldId);
+                        }
+                        else if (!isSelected && _selectedSystem.IncludInWorld.Contains(worldId))
+                        {
+                            _selectedSystem.IncludInWorld.Remove(worldId);
+                        }
+                    }
+                };
+
+                worldsPanel.Children.Add(worldCheckBox);
+            }
+
+
             _parametersPanel.Children.Add(titleBlock);
             _parametersPanel.Children.Add(executionOrderLabel);
             _parametersPanel.Children.Add(executionOrderInput);
             _parametersPanel.Children.Add(dependenciesLabel);
             _parametersPanel.Children.Add(dependenciesListBox);
+            _parametersPanel.Children.Add(includeInWorldsLabel);
+            _parametersPanel.Children.Add(worldsPanel);
         }
 
         private void RefreshSystemsView()

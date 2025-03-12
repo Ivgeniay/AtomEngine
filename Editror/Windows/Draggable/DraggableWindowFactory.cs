@@ -4,7 +4,7 @@ using Avalonia.Input;
 using System.Linq;
 using Avalonia;
 using System;
-using System.Threading.Tasks;
+using Avalonia.Interactivity;
 
 namespace Editor
 {
@@ -156,6 +156,19 @@ namespace Editor
             bool isDragging = false;
             Vector totalOffset = new Vector();
 
+            var topLevel = TopLevel.GetTopLevel(window);
+            if (topLevel != null)
+            {
+                topLevel.AddHandler(Border.PointerReleasedEvent, 
+                (s, e) =>
+                {
+                    isDragging = false;
+                    titleBar.Cursor = new Cursor(StandardCursorType.Arrow);
+                    e.Pointer.Capture(null);
+                }
+                , RoutingStrategies.Tunnel);
+            }
+
             titleBar.PointerPressed += (sender, e) =>
             {
                 if (e.GetCurrentPoint(null).Properties.IsLeftButtonPressed)
@@ -206,6 +219,7 @@ namespace Editor
             ResizeDirection resizeDirection = ResizeDirection.None;
             Size originalSize = new Size();
             Vector totalOffset = new Vector();
+
 
             window.PointerPressed += (sender, e) =>
             {

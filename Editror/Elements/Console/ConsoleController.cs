@@ -1,13 +1,13 @@
 using Avalonia.Controls.Primitives;
 using System.Collections.Generic;
+using Avalonia.Threading;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using System.Linq;
+using AtomEngine;
 using Avalonia;
 using System;
-using System.Linq;
-using Avalonia.Threading;
-using AtomEngine;
 
 namespace Editor
 {
@@ -20,7 +20,7 @@ namespace Editor
         private TextBox _commandInput;
         private Button _clearButton;
         private ComboBox _filterComboBox;
-        private const int MaxLogEntries = 1000;
+        private int MaxLogEntries = 100;
         private List<LogEntry> _logEntries = new List<LogEntry>();
         private bool _isOpen = false;
 
@@ -29,18 +29,9 @@ namespace Editor
         public Action<object> OnClose { get; set; }
 
         private List<ConsoleCommand> _commands = new List<ConsoleCommand>();
-        private class LogEntry
+        private class LogEntry : AtomEngine.DebLogger.LogEntry
         {
-            public string Message { get; set; }
-            public LogLevel Level { get; set; }
-            public DateTime Timestamp { get; set; }
-
-            public LogEntry(string message, LogLevel level)
-            {
-                Message = message;
-                Level = level;
-                Timestamp = DateTime.Now;
-            }
+            public LogEntry(string message, LogLevel level) : base(message, level) { }
 
             public IBrush GetColor()
             {
@@ -54,16 +45,6 @@ namespace Editor
                     _ => Brushes.White
                 };
             }
-
-            public string GetTimestampString()
-            {
-                return Timestamp.ToString("HH:mm:ss.fff");
-            }
-
-            public string GetLevelString()
-            {
-                return Level.ToString().ToUpper();
-            }
         }
 
         public ConsoleController()
@@ -71,7 +52,6 @@ namespace Editor
             ConsoleController.Instance = this;
             InitializeUI();
             InitializeDefaultCommands();
-            Log("Console initialized", LogLevel.Info);
         }
 
         public void RegisterConsoleCommand(ConsoleCommand command)
@@ -155,7 +135,6 @@ namespace Editor
             _mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             _mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // Панель инструментов
             var toolbarPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -319,7 +298,6 @@ namespace Editor
             var entry = new LogEntry(message, logLevel);
             _logEntries.Add(entry);
 
-            // Ограничиваем количество записей
             if (_logEntries.Count > MaxLogEntries)
             {
                 _logEntries.RemoveAt(0);
@@ -420,12 +398,21 @@ namespace Editor
         {
             _isOpen = true;
             DebLogger.AddLogger(this);
+
+            var logs = DebLogger.GetLogs();
+            foreach (var log in logs)
+            {
+                Log(log.Message, log.Level);
+            }
         }
 
         public void Close()
         {
             _isOpen = false;
             DebLogger.RemoveLogger(this);
+            _logEntries.Clear();
+            _logPanel.Children.Clear();
+
             OnClose?.Invoke(this);
         }
 
