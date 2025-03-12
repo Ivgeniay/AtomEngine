@@ -5,6 +5,7 @@ using Silk.NET.Maths;
 using AtomEngine;
 using OpenglLib;
 using Texture = OpenglLib.Texture;
+using Key = Silk.NET.Input.Key;
 
 namespace SmokeTesting
 {
@@ -15,10 +16,7 @@ namespace SmokeTesting
             ILogger logger = new DefaultLogger();
             DebLogger.AddLogger(logger);
             using App app = new App(options: new AppOptions() { Width = 800, Height = 600, Debug = true });
-            app.NativeWindow.Load += () => { OnLoad(app); }; 
-
-            TestComponent testComponent = new TestComponent();
-
+            app.NativeWindow.Load += () => { OnLoad(app); };
             app.Run();
         }
 
@@ -108,7 +106,7 @@ namespace SmokeTesting
 
             app.Input.Keyboards[0].KeyDown += (keyboard, key, num) =>
             {
-                if (key == Key.Space)
+                if (key == Silk.NET.Input.Key.Space)
                 {
                     shader.tex_SetTexture(texture2);
                     //isUpdate = !isUpdate;

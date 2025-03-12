@@ -9,14 +9,9 @@ using System;
 
 namespace Editor
 {
-    /// <summary>
-    /// Статический класс для работы с диалоговыми окнами открытия/сохранения файлов
-    /// </summary>
     public static class FileDialogService
     {
-        /// <summary>
-        /// Описание фильтра файлов
-        /// </summary>
+
         public class FileFilter
         {
             public string Name { get; set; }
@@ -28,10 +23,6 @@ namespace Editor
                 Extensions = extensions.ToList();
             }
         }
-
-        /// <summary>
-        /// Преобразует фильтры в формат для Avalonia
-        /// </summary>
         private static FilePickerFileType[] ConvertFilters(IEnumerable<FileFilter> filters)
         {
             return filters.Select(f => new FilePickerFileType(f.Name)
@@ -40,10 +31,6 @@ namespace Editor
                 MimeTypes = f.Extensions.Select(e => GetMimeType(e)).ToArray()
             }).ToArray();
         }
-
-        /// <summary>
-        /// Получает MIME-тип по расширению файла
-        /// </summary>
         private static string GetMimeType(string extension)
         {
             return extension.ToLower() switch
@@ -63,13 +50,6 @@ namespace Editor
             };
         }
 
-        /// <summary>
-        /// Открывает диалог выбора файла для загрузки
-        /// </summary>
-        /// <param name="window">Родительское окно</param>
-        /// <param name="title">Заголовок диалога</param>
-        /// <param name="filters">Фильтры файлов</param>
-        /// <returns>Путь к выбранному файлу или null</returns>
         public static async Task<string> OpenFileAsync(Window window, string title, params FileFilter[] filters)
         {
             try
@@ -99,15 +79,6 @@ namespace Editor
                 return null;
             }
         }
-
-        /// <summary>
-        /// Открывает диалог выбора файла для сохранения
-        /// </summary>
-        /// <param name="window">Родительское окно</param>
-        /// <param name="title">Заголовок диалога</param>
-        /// <param name="defaultFileName">Имя файла по умолчанию</param>
-        /// <param name="filters">Фильтры файлов</param>
-        /// <returns>Путь к выбранному файлу или null</returns>
         public static async Task<string> SaveFileAsync(Window window, string title, string defaultFileName, params FileFilter[] filters)
         {
             try
@@ -131,18 +102,11 @@ namespace Editor
 
                 return result.Path.LocalPath;
             }
-            catch (Exception ex)
+            catch (FileError ex)
             {
-                DebLogger.Error($"Ошибка при сохранении файла: {ex.Message}");
                 return null;
             }
         }
-
-        /// <summary>
-        /// Асинхронно читает содержимое текстового файла
-        /// </summary>
-        /// <param name="filePath">Путь к файлу</param>
-        /// <returns>Содержимое файла</returns>
         public static async Task<string> ReadTextFileAsync(string filePath)
         {
             try
@@ -161,13 +125,6 @@ namespace Editor
                 return null;
             }
         }
-
-        /// <summary>
-        /// Асинхронно записывает текст в файл
-        /// </summary>
-        /// <param name="filePath">Путь к файлу</param>
-        /// <param name="content">Содержимое для записи</param>
-        /// <returns>true в случае успеха, false в случае ошибки</returns>
         public static async Task<bool> WriteTextFileAsync(string filePath, string content)
         {
             try
@@ -193,6 +150,21 @@ namespace Editor
                 DebLogger.Error($"Ошибка при записи файла: {ex.Message}");
                 return false;
             }
+        }
+        public static async Task<string> ChooseFolderAsync(Window window, string v)
+        {
+            FolderPickerOpenOptions options = new FolderPickerOpenOptions()
+            {
+                Title = v,
+            };
+
+            var result = await window.StorageProvider.OpenFolderPickerAsync(options);
+            if (result == null || result.Count == 0)
+            {
+                return null;
+            }
+
+            return result[0].Path.LocalPath;
         }
     }
 }

@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
+using System;
 
 namespace Editor
 {
-    internal class SystemData
+    internal class SystemData : ICloneable
     {
         public string SystemFullTypeName { get; set; } = string.Empty;
         public int ExecutionOrder { get; set; } = -1;
@@ -20,6 +21,11 @@ namespace Editor
                 IncludInWorld = new List<uint>(IncludInWorld),
                 Category = Category
             };
+        }
+
+        object ICloneable.Clone()
+        {
+            return Clone();
         }
     }
 }

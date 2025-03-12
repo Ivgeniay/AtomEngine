@@ -33,6 +33,7 @@ namespace Editor
 
             MainCanvas_ = MainCanvas;
             ServiceHub.Get<DraggableWindowManagerService>().SetCanvas(MainCanvas);
+            ServiceHub.Get<BuildManager>().SetMainWindow(this);
             _sceneManager = ServiceHub.Get<SceneManager>();
             _sceneManager.SetMainWindow(this);
             _uIManager = new MainWindowUIManager(this);
@@ -257,10 +258,10 @@ namespace Editor
                 {
                     new EditorToolbarButton()
                     {
-                        Text = "Build Project",
+                        Text = "Build Project Scripts",
                         Description = "",
                         Action = async () => {
-                            DebLogger.Debug("Build Project");
+                            DebLogger.Debug("Build Project Scripts");
                             ProjectConfigurations pConf = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
                             await ServiceHub.Get<ScriptSyncSystem>().RebuildProject(pConf.BuildType);
                         }
@@ -273,12 +274,6 @@ namespace Editor
                             DebLogger.Debug("Generate Solution");
                             ServiceHub.Get<ScriptProjectGenerator>().GenerateProject();
                         }
-                    },
-                    new EditorToolbarButton()
-                    {
-                        Text = "Clean",
-                        Description = "",
-                        Action = () => { DebLogger.Debug("Clean"); }
                     },
                     new EditorToolbarButton()
                     {
@@ -296,6 +291,16 @@ namespace Editor
                         Action = () =>
                         {
                             ServiceHub.Get<ScriptSyncSystem>().OpenProjectInIDE();
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Build Project",
+                        Description = "IDE",
+                        Action = () =>
+                        {
+                            BuildConfig config = new BuildConfig();
+                            ServiceHub.Get<BuildManager>().BuildProject(config);
                         }
                     }
                 }

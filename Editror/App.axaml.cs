@@ -59,6 +59,7 @@ namespace Editor
                 // Менеджер загрузки и сохранения состояний ресурсов
                 ServiceHub.RegisterService<MaterialManager>();
                 ServiceHub.RegisterService<MeshManager>();
+                ServiceHub.RegisterService<BuildManager>();
                 
                 // Фабрики
                 ServiceHub.RegisterService<TextureFactory>();

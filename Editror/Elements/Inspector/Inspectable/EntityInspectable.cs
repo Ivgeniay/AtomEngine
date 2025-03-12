@@ -43,8 +43,6 @@ namespace Editor
 
             Command command = new Command(() =>
             {
-                DebLogger.Debug($"Add Component at {_entity}");
-
                 List<SearchPopupItem> popUpItems = new List<SearchPopupItem>();
                 ComponentService cs = ServiceHub.Get<ComponentService>();
 

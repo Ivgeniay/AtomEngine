@@ -25,7 +25,7 @@ namespace Editor
 
         private List<SystemData> _systems;
         private SystemData _selectedSystem;
-        private SystemCategory _currentCategory = SystemCategory.Normal;
+        private SystemCategory _currentCategory = SystemCategory.System;
 
         private SceneManager _sceneManager;
 
@@ -191,7 +191,7 @@ namespace Editor
         {
             _normalSystemsButton.Click += (s, e) =>
             {
-                _currentCategory = SystemCategory.Normal;
+                _currentCategory = SystemCategory.System;
                 RefreshSystemsView();
                 UpdateCategoryButtonsState();
             };
@@ -219,7 +219,7 @@ namespace Editor
 
             switch (_currentCategory)
             {
-                case SystemCategory.Normal:
+                case SystemCategory.System:
                     _normalSystemsButton.Classes.Add("selected");
                     break;
                 case SystemCategory.Render:
@@ -291,24 +291,42 @@ namespace Editor
             _systemsContainer.Children.Remove(targetButton);
         }
 
-        private List<SearchPopupItem> GetAvailableSystems()
+        private IEnumerable<Type> GetAvailableTypes()
         {
             IEnumerable<Type> systems;
 
             switch (_currentCategory)
             {
-                case SystemCategory.Normal:
-                    systems = ServiceHub.Get<AssemblyManager>().FindTypesByInterface<ISystem>();
+                case SystemCategory.System:
+                    systems = ServiceHub.Get<AssemblyManager>().FindTypesByInterface<ISystem>(false);
                     break;
                 case SystemCategory.Render:
-                    systems = ServiceHub.Get<AssemblyManager>().FindTypesByInterface<IRenderSystem>();
+                    systems = ServiceHub.Get<AssemblyManager>().FindTypesByInterface<IRenderSystem>(false);
                     break;
                 case SystemCategory.Physics:
-                    systems = ServiceHub.Get<AssemblyManager>().FindTypesByInterface<IPhysicSystem>();
+                    systems = ServiceHub.Get<AssemblyManager>().FindTypesByInterface<IPhysicSystem>(false);
                     break;
                 default:
                     systems = new List<Type>();
                     break;
+            }
+            return systems;
+        }
+        private List<SearchPopupItem> GetAvailableSystems()
+        {
+            IEnumerable<Type> systems = GetAvailableTypes();
+            List<Type> typeToRemove = new List<Type>();
+
+            if (_currentCategory == SystemCategory.System)
+            {
+                foreach (Type type in systems)
+                {
+                    var interfaces = type.GetInterfaces();
+                    if (interfaces != null && interfaces.Contains(typeof(IPhysicSystem)))
+                    {
+                        typeToRemove.Add(type);
+                    }
+                }
             }
 
             var addedSystemTypes = _systems
@@ -316,7 +334,9 @@ namespace Editor
                 .Select(s => s.SystemFullTypeName)
                 .ToList();
 
-            systems = systems.Where(t => !addedSystemTypes.Contains(t.FullName));
+            systems = systems
+                .Where(t => !typeToRemove.Contains(t))
+                .Where(t => !addedSystemTypes.Contains(t.FullName));
 
             return systems.Select(t => new SearchPopupItem(t.Name, t)).ToList();
         }
@@ -676,7 +696,7 @@ namespace Editor
 
         public void Open()
         {
-            _currentCategory = SystemCategory.Normal;
+            _currentCategory = SystemCategory.System;
 
             PointerMoved += OnPointerMoved;
             PointerPressed += OnPointerPressed;

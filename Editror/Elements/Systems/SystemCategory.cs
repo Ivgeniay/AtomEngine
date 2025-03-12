@@ -2,7 +2,7 @@
 {
     public enum SystemCategory
     {
-        Normal,
+        System,
         Render,
         Physics
     }

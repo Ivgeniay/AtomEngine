@@ -1,24 +1,32 @@
-﻿using Silk.NET.Windowing;
-using Silk.NET.OpenGL;
-using Silk.NET.Input;
-using Silk.NET.Maths;
+﻿using AtomEngine;
+using OpenglLib;
 using Silk.NET.Assimp;
-using AtomEngine;
+using Silk.NET.Maths;
+using Silk.NET.OpenGL;
+using Silk.NET.Windowing;
 
-namespace OpenglLib
+namespace WindowsBuild
 {
-    // TODO: GatherCollisionPairs в BVH сейчас обрабатывает все пары объектов, что неэффективно.
+    static class Program
+    {
+        private static void Main(string[] args)
+        {
+            var options = new AppOptions() { Width = 800, Height = 600, Debug = false };
+            using App app = new App(options);
+
+            app.Run();
+        }
+    }
+
     public class App : IDisposable
     {
         public event Action OnFixedUpdate;
         public GL? Gl => _gl;
         public Assimp? Assimp => _assimp;
         public IWindow? NativeWindow => _window;
-        public IInputContext? Input => _input;
 
 
         private IWindow? _window;
-        private IInputContext? _input;
         private AppOptions appOptions;
         private GL? _gl;
         private Assimp? _assimp;
@@ -28,7 +36,6 @@ namespace OpenglLib
         public App(AppOptions options)
         {
             appOptions = options;
-            GLSLTypeManager.Instance.LazyInitializer();
 
             var win_options = WindowOptions.Default;
             win_options.Size = new Vector2D<int>(options.Width, options.Height);
@@ -42,6 +49,7 @@ namespace OpenglLib
             }
 
             _window = Window.Create(win_options);
+            Input.Initialize(new SilkInputSystem(_window));
 
             _window.Load += OnLoad;
             _window.Update += OnUpdate;
@@ -53,11 +61,12 @@ namespace OpenglLib
         private void OnLoad()
         {
             _gl = GL.GetApi(_window);
+            _assimp = Assimp.GetApi();
+
+
             _gl.Enable(EnableCap.DepthTest);
             _gl.Enable(EnableCap.Blend);
             _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            _assimp = Assimp.GetApi();
-            _input = _window?.CreateInput(); 
         }
 
         private void OnUpdate(double deltaTime)
@@ -77,6 +86,7 @@ namespace OpenglLib
                 OnFixedUpdate?.Invoke();
                 _accumulatedTime -= Time.FIXED_TIME_STEP;
             }
+            
         }
 
         private void OnRender(double deltaTime)
@@ -87,7 +97,7 @@ namespace OpenglLib
 
         private void OnClose()
         {
-            
+
         }
 
         private void OnResize(Vector2D<int> newSize)
@@ -103,7 +113,6 @@ namespace OpenglLib
         public void Dispose()
         {
             _window?.Dispose();
-            //_input?.Dispose();
         }
     }
 }

@@ -9,7 +9,7 @@ namespace Editor
 {
     public class AssemblyManager : IService
     {
-        public Action OnUserScriptAsseblyRebuild;
+        public Action? OnUserScriptAsseblyRebuild;
 
         private Dictionary<TAssembly, Assembly> _assemblyDict = new Dictionary<TAssembly, Assembly>();
         private Dictionary<TAssembly, string> _assemblyMap = new Dictionary<TAssembly, string>
@@ -122,28 +122,59 @@ namespace Editor
 
         public Assembly GetAssembly(TAssembly assembly) => _assemblyDict[assembly];
 
-        public IEnumerable<Type> FindTypesByInterface<T>()
+        public IEnumerable<Type> FindTypesByInterface<T>(bool isAssignableFrom = true)
         {
-            var ts = _user_script_assembly.GetTypes()
-                    .Where(t => !t.IsAbstract && !t.IsInterface && typeof(T).IsAssignableFrom(t));
-            foreach (var type in ts)
+            IEnumerable<Type> ts;
+
+            foreach (var type in FindTypesInAssembly<T>(_user_script_assembly, isAssignableFrom))
+            {
                 yield return type;
+            }
 
             foreach (var assembly in _assemblies)
             {
-                if (assembly.FullName.StartsWith("System") || 
-                    assembly.FullName.StartsWith("Avalonia") ||
-                    assembly.FullName.StartsWith("Microsoft") ||
-                    assembly.FullName.Contains("Generator")
-                    )
+                if (IsSystemAssembly(assembly))
                     continue;
 
-                var types = assembly.GetTypes()
-                    .Where(t => !t.IsAbstract && !t.IsInterface && typeof(T).IsAssignableFrom(t));
-
-                foreach (var type in types)
+                foreach (var type in FindTypesInAssembly<T>(assembly, isAssignableFrom))
+                {
                     yield return type;
+                }
             }
+        }
+
+        private IEnumerable<Type> FindTypesInAssembly<T>(Assembly assembly, bool isAssignableFrom)
+        {
+            foreach (var type in assembly.GetTypes())
+            {
+                if (type.IsAbstract || type.IsInterface)
+                    continue;
+
+                if (isAssignableFrom)
+                {
+                    if (typeof(T).IsAssignableFrom(type))
+                    {
+                        yield return type;
+                    }
+                }
+                else
+                {
+                    var interfaces = type.GetInterfaces();
+                    if (interfaces.Contains(typeof(T)))
+                    {
+                        yield return type;
+                    }
+                }
+            }
+        }
+
+        private bool IsSystemAssembly(Assembly assembly)
+        {
+            string assemblyName = assembly.FullName;
+            return assemblyName.StartsWith("System") ||
+                   assemblyName.StartsWith("Avalonia") ||
+                   assemblyName.StartsWith("Microsoft") ||
+                   assemblyName.Contains("Generator");
         }
 
         internal void AddAssembly(Assembly assembly)

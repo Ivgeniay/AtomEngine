@@ -142,23 +142,6 @@
     <Setter Property="Padding" Value="6"/>
   </Style>
 
-  <!-- Стили для текстовых полей -->
-  <Style Selector="TextBox">
-    <Setter Property="Background" Value="#252526"/>
-    <Setter Property="Foreground" Value="#CCCCCC"/>
-    <Setter Property="BorderBrush" Value="#3F3F46"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="Padding" Value="8 4"/>
-    <Setter Property="CornerRadius" Value="2"/>
-  </Style>
-
-  <Style Selector="TextBox:focus">
-    <Setter Property="BorderBrush" Value="#007ACC"/>
-  </Style>
-
-  <Style Selector="TextBox:pointerover">
-    <Setter Property="BorderBrush" Value="#555555"/>
-  </Style>
 
   <!-- Комбо-боксы -->
   <Style Selector="ComboBox">
@@ -192,6 +175,23 @@
   <Style Selector="CheckBox">
     <Setter Property="Foreground" Value="#CCCCCC"/>
     <Setter Property="Margin" Value="0 4"/>
+  </Style>
+
+  <Style Selector="CheckBox:checked">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+  </Style>
+
+  <Style Selector="CheckBox:pressed">
+    <Setter Property="FontWeight" Value="Bold"/>
+  </Style>
+  
+  <Style Selector="CheckBox:unchecked">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="FontWeight" Value="Normal"/>
+  </Style>
+
+  <Style Selector="CheckBox:pointerover">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
   </Style>
 
   <!-- Кнопки диалогов -->
@@ -290,7 +290,6 @@
   </Style>
   
   <!-- TEXT BOX -->
-
   <Style Selector="TextBox">
     <Setter Property="Background" Value="#2D2D30"/>
     <Setter Property="Foreground" Value="#DCDCDC"/>
@@ -301,6 +300,10 @@
     <Setter Property="SelectionForegroundBrush" Value="#FFFFFF"/>
     <Setter Property="Padding" Value="5 3"/>
     <Setter Property="BorderBrush" Value="#3F3F46"/>
+  </Style>
+
+  <Style Selector="TextBox:pointerover">
+    <Setter Property="BorderBrush" Value="#555555"/>
   </Style>
 
   <Style Selector="TextBox:focus">
@@ -343,6 +346,13 @@
   </Style>
   <Style Selector="ListBoxItem:selected">
     <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+  
+  <!-- TEXT BLOCK -->
+  <Style Selector="TextBlock">
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
   </Style>
   
 </Styles>

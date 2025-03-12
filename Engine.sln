@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Editor", "Editror\Editor.cs
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ComponentGenerator", "ComponentGenerator\ComponentGenerator.csproj", "{08F386C3-E70A-43FD-809C-616F28AF922D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsBuild", "WindowsBuild\WindowsBuild.csproj", "{27F5FFD0-7565-4CCB-9451-E4B708107D46}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,6 +65,10 @@ Global
 		{08F386C3-E70A-43FD-809C-616F28AF922D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{08F386C3-E70A-43FD-809C-616F28AF922D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{08F386C3-E70A-43FD-809C-616F28AF922D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{27F5FFD0-7565-4CCB-9451-E4B708107D46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{27F5FFD0-7565-4CCB-9451-E4B708107D46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{27F5FFD0-7565-4CCB-9451-E4B708107D46}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{27F5FFD0-7565-4CCB-9451-E4B708107D46}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
