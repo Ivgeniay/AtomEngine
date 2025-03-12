@@ -134,7 +134,7 @@ namespace Editor
             _hierarchyController.EntityDeleted += (s, entity) =>
             {
                 Select.DeSelectAll();
-                _sceneManager.DeleteEntity(entity);
+                _sceneManager.RemoveEntity(entity);
                 CleanInspector();
             };
 

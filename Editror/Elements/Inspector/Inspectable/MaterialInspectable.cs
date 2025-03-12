@@ -112,6 +112,8 @@ namespace Editor
             };
         }
     
+        public void Update() { }
+
     }
 
 }

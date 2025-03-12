@@ -1,14 +1,17 @@
-﻿using System;
-using Avalonia.Controls;
-using Avalonia.Input;
+﻿using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Input;
 using Avalonia;
+using System;
 
 namespace Editor
 {
     internal class SystemCardControl : Border
     {
+        public event Action<SystemCardControl> OnContexMenuOpen;
+        public event Action<SystemCardControl> OnContexMenuClosed;
+
         public event EventHandler Selected;
         public event EventHandler Delete;
         public event EventHandler MoveUp;
@@ -16,6 +19,7 @@ namespace Editor
 
         private SystemData _system;
         private bool _isSelected;
+        private ContextMenu _contextMenu;
 
         public bool IsSelected
         {
@@ -42,7 +46,7 @@ namespace Editor
 
             var titleBlock = new TextBlock
             {
-                Text = system.SystemName,
+                Text = system.SystemFullTypeName,
                 TextWrapping = TextWrapping.Wrap,
                 MaxWidth = 160,
                 Classes = { "systemTitle" }
@@ -85,6 +89,8 @@ namespace Editor
 
             Child = grid;
 
+            _contextMenu = CreateContextMenu();
+
             this.PointerPressed += OnPointerPressed;
         }
 
@@ -93,15 +99,45 @@ namespace Editor
             if (_isSelected)
             {
                 this.Classes.Add("selected");
-                this.BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#007ACC"));
+                this.BorderBrush = new SolidColorBrush(Color.Parse("#007ACC"));
                 this.BorderThickness = new Thickness(2);
             }
             else
             {
                 this.Classes.Remove("selected");
-                this.BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#444444"));
+                this.BorderBrush = new SolidColorBrush(Color.Parse("#444444"));
                 this.BorderThickness = new Thickness(1);
             }
+        }
+
+        private ContextMenu CreateContextMenu()
+        {
+            var contextMenu = new ContextMenu
+            {
+                Classes = { "systemContextMenu" }
+            };
+
+            var deleteMenuItem = new MenuItem
+            {
+                Header = "Delete",
+                Classes = { "systemMenuItem" }
+            };
+
+            deleteMenuItem.Click += (s, args) => Delete?.Invoke(this, EventArgs.Empty);
+            contextMenu.Items.Add(deleteMenuItem);
+            return contextMenu;
+        }
+
+        private void OpenContexMenu()
+        {
+            _contextMenu.Open(this);
+            OnContexMenuOpen?.Invoke(this);
+        }
+
+        private void CloseContexMenu()
+        {
+            _contextMenu.Close();
+            OnContexMenuClosed.Invoke(this);
         }
 
         private void OnPointerPressed(object sender, PointerPressedEventArgs e)
@@ -109,25 +145,17 @@ namespace Editor
             if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             {
                 Selected?.Invoke(this, EventArgs.Empty);
+                CloseContexMenu();
             }
             else if (e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
             {
-                var contextMenu = new ContextMenu
-                {
-                    Classes = { "systemContextMenu" }
-                };
-
-                var deleteMenuItem = new MenuItem
-                {
-                    Header = "Delete",
-                    Classes = { "systemMenuItem" }
-                };
-
-                deleteMenuItem.Click += (s, args) => Delete?.Invoke(this, EventArgs.Empty);
-                contextMenu.Items.Add(deleteMenuItem);
-
-                contextMenu.Open(this);
+                _contextMenu.Open(this);
+                OpenContexMenu();
                 e.Handled = true;
+            }
+            else
+            {
+                CloseContexMenu();
             }
         }
     }

@@ -1,5 +1,4 @@
-﻿
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Editor.Utils.Generator;
 using Avalonia.Markup.Xaml;
 using Avalonia.Controls;

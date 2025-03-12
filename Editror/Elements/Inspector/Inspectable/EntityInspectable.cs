@@ -10,9 +10,18 @@ namespace Editor
 {
     public class EntityInspectable : IInspectable
     {
-        private readonly Entity _entity;
-        private readonly ComponentInspector _componentInspector;
-        private readonly IEnumerable<IComponent> _components;
+        private Entity _entity;
+        private uint _entityId;
+        private ComponentInspector _componentInspector;
+        private IEnumerable<IComponent> _components;
+        private SceneManager _sceneManager;
+
+        public EntityInspectable(uint entityId)
+        {
+            this._entityId = entityId;
+            _sceneManager = ServiceHub.Get<SceneManager>();
+            Update();
+        }
 
         public EntityInspectable(Entity entity, IEnumerable<IComponent> compoonents)
         {
@@ -83,22 +92,7 @@ namespace Editor
                     }
                 };
 
-                //var rootCanvas = MainWindow.MainCanvas_;
-                //if (rootCanvas != null)
-                //{
-                //    var existingDialogs = rootCanvas.Children.OfType<ComponentSearchDialog>().ToList();
-                //    foreach (var dlg in existingDialogs)
-                //    {
-                //        rootCanvas.Children.Remove(dlg);
-                //    }
-
-                //    rootCanvas.Children.Add(searchDialog);
-                    searchDialog.Show(addComponentButton);
-                //}
-                //else
-                //{
-                //    DebLogger.Error("Не удалось найти корневой Canvas для отображения диалога");
-                //}
+                searchDialog.Show(addComponentButton);
             });
 
             addComponentButton.Command = command;
@@ -124,6 +118,16 @@ namespace Editor
                     Context = context,
                 };
             }
+        }
+
+        public void Update()
+        {
+            _componentInspector = new ComponentInspector();
+
+            var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.Where(e => e.Id == _entityId).FirstOrDefault();
+            _entity = new Entity(entityData.Id, entityData.Version);
+            _components = entityData.Components.Values.ToList();
+            if (_components == null) _components = new List<IComponent>();
         }
     }
 }

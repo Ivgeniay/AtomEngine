@@ -9,6 +9,8 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
+using System.Threading.Tasks;
+using Microsoft.VisualBasic.FileIO;
 
 namespace Editor
 {
@@ -24,15 +26,31 @@ namespace Editor
         private Button _renderSystemsButton;
         private Button _physicsSystemsButton;
 
-        private List<SystemData> _systems = new List<SystemData>();
+        private List<SystemData> _systems;
         private SystemData _selectedSystem;
         private SystemCategory _currentCategory = SystemCategory.Normal;
+
+        private SceneManager _sceneManager;
+
+        private ContextMenu _contextMenu;
+        private bool _isCardContextMenuOpen = false;
+        private Point currentCursorPosition;
 
         private Dictionary<SystemData, SystemCardControl> _systemCards = new Dictionary<SystemData, SystemCardControl>();
         private Dictionary<int, StackPanel> _dependencyStacks = new Dictionary<int, StackPanel>();
 
         public SystemDependencyController()
         {
+            _sceneManager = ServiceHub.Get<SceneManager>();
+            _sceneManager.OnSceneInitialize += (e) =>
+            {
+                LoadSystems(e.Systems);
+            };
+            _sceneManager.OnSceneBeforeSave += () =>
+            {
+                if (_systems != null && _systems.Count > 0)
+                    _sceneManager.CurrentScene.Systems = _systems.Select(s => s.Clone()).ToList();
+            };
             InitializeUI();
             RegisterEvents();
         }
@@ -43,10 +61,7 @@ namespace Editor
             RefreshSystemsView();
         }
 
-        public List<SystemData> GetSystemsData()
-        {
-            return _systems.Select(s => s.Clone()).ToList();
-        }
+        public List<SystemData> GetSystemsData() => _systems.Select(s => s.Clone()).ToList();
 
         private void InitializeUI()
         {
@@ -135,6 +150,8 @@ namespace Editor
             Children.Add(_parametersPanel);
             Children.Add(_scrollViewer);
 
+            _contextMenu = CreateContextMenu();
+
             InitializeSystemsContainer();
         }
 
@@ -152,7 +169,25 @@ namespace Editor
             _systemsContainer.Children.Add(initialStack);
 
             _scrollViewer.PointerReleased += OnSystemsContainerPointerReleased;
-            //_systemsContainer.PointerReleased += OnSystemsContainerPointerReleased;
+        }
+
+        private ContextMenu CreateContextMenu()
+        {
+            var contextMenu = new ContextMenu
+            {
+                Classes = { "systemContextMenu" }
+            };
+
+            var addSystemMenuItem = new MenuItem
+            {
+                Header = "Add System",
+                Classes = { "systemMenuItem" }
+            };
+
+            addSystemMenuItem.Click += OnAddSystemClick;
+            contextMenu.Items.Add(addSystemMenuItem);
+
+            return contextMenu;
         }
 
         private void RegisterEvents()
@@ -198,39 +233,44 @@ namespace Editor
                     break;
             }
         }
-
-        private void OnSystemsContainerPointerReleased(object sender, PointerReleasedEventArgs e)
+        
+        private void OnSystemsContainerPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             if (e.InitialPressMouseButton == MouseButton.Right)
             {
-                var contextMenu = new ContextMenu
-                {
-                    Classes = { "systemContextMenu" }
-                };
-
-                var addSystemMenuItem = new MenuItem
-                {
-                    Header = "Add System",
-                    Classes = { "systemMenuItem" }
-                };
-
-                addSystemMenuItem.Click += OnAddSystemClick;
-                contextMenu.Items.Add(addSystemMenuItem);
-
-                contextMenu.Open(_systemsContainer);
+                OpenContextMenu();
                 e.Handled = true;
+            }
+            else
+            {
+                CloseContextMenu();
             }
         }
 
-        private void OnAddSystemClick(object sender, RoutedEventArgs e)
+        private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            CloseContextMenu();
+            _isCardContextMenuOpen = false;
+        }
+        
+        private void OnPointerMoved(object? sender, PointerEventArgs e)
+        {
+            currentCursorPosition = e.GetPosition(this);
+        }
+
+        private void OpenContextMenu()
+        {
+            if (!_isCardContextMenuOpen)
+                _contextMenu.Open(this);
+        }
+        private void CloseContextMenu()
+        {
+            _contextMenu?.Close();
+        }
+
+        private void OnAddSystemClick(object? sender, RoutedEventArgs e)
         {
             List<SearchPopupItem> availableSystems = GetAvailableSystems();
-
-            if (availableSystems.Count == 0)
-            {
-                Status.SetStatus("No available systems to add for this category");
-                return;
-            }
 
             var searchDialog = new ComponentSearchDialog(availableSystems);
 
@@ -249,6 +289,7 @@ namespace Editor
             targetButton.Arrange(new Rect(position, targetButton.DesiredSize));
 
             searchDialog.Show(targetButton);
+            searchDialog.SetPosition(currentCursorPosition);
 
             _systemsContainer.Children.Remove(targetButton);
         }
@@ -275,10 +316,10 @@ namespace Editor
 
             var addedSystemTypes = _systems
                 .Where(s => s.Category == _currentCategory)
-                .Select(s => s.SystemType)
+                .Select(s => s.SystemFullTypeName)
                 .ToList();
 
-            systems = systems.Where(t => !addedSystemTypes.Contains(t));
+            systems = systems.Where(t => !addedSystemTypes.Contains(t.FullName));
 
             return systems.Select(t => new SearchPopupItem(t.Name, t)).ToList();
         }
@@ -287,8 +328,7 @@ namespace Editor
         {
             var systemData = new SystemData
             {
-                SystemType = systemType,
-                SystemName = systemType.Name,
+                SystemFullTypeName = systemType.FullName,
                 Category = _currentCategory,
                 ExecutionOrder = -1
             };
@@ -297,7 +337,7 @@ namespace Editor
             AddSystemCard(systemData, 0);
 
             SelectSystem(systemData);
-            Status.SetStatus($"Added system: {systemData.SystemName}");
+            Status.SetStatus($"Added system: {systemData.SystemFullTypeName}");
         }
 
         private void AddSystemCard(SystemData system, int level)
@@ -313,8 +353,18 @@ namespace Editor
                 _dependencyStacks[level] = stack;
                 _systemsContainer.Children.Add(stack);
             }
-
+            
             var card = new SystemCardControl(system);
+
+            card.OnContexMenuOpen += (e) =>
+            {
+                _isCardContextMenuOpen = true;
+            };
+            card.OnContexMenuClosed += (e) =>
+            {
+                _isCardContextMenuOpen = false;
+            };
+
             card.Selected += (s, e) => SelectSystem(system);
             card.Delete += (s, e) => RemoveSystem(system);
             card.MoveUp += (s, e) => MoveSystemUp(system, level);
@@ -334,7 +384,7 @@ namespace Editor
             {
                 stack.Children.RemoveAt(index);
                 stack.Children.Insert(index - 1, card);
-                Status.SetStatus($"Moved system up: {system.SystemName}");
+                Status.SetStatus($"Moved system up: {system.SystemFullTypeName}");
             }
         }
 
@@ -348,7 +398,7 @@ namespace Editor
             {
                 stack.Children.RemoveAt(index);
                 stack.Children.Insert(index + 1, card);
-                Status.SetStatus($"Moved system down: {system.SystemName}");
+                Status.SetStatus($"Moved system down: {system.SystemFullTypeName}");
             }
         }
 
@@ -385,7 +435,7 @@ namespace Editor
                 UpdateParametersPanel();
             }
 
-            Status.SetStatus($"Removed system: {system.SystemName}");
+            Status.SetStatus($"Removed system: {system.SystemFullTypeName}");
         }
 
         private void UpdateParametersPanel()
@@ -408,7 +458,7 @@ namespace Editor
 
             var titleBlock = new TextBlock
             {
-                Text = _selectedSystem.SystemName,
+                Text = _selectedSystem.SystemFullTypeName,
                 Margin = new Thickness(0, 0, 0, 10),
                 Classes = { "parameterTitle" }
             };
@@ -458,27 +508,36 @@ namespace Editor
 
             foreach (var system in availableSystems)
             {
+                
                 var item = new CheckBox
                 {
-                    Content = system.SystemName,
-                    IsChecked = _selectedSystem.Dependencies.Contains(system)
+                    Content = system.SystemFullTypeName,
+                    IsChecked = _selectedSystem.Dependencies.Any(e => e.SystemFullTypeName == system.SystemFullTypeName),
                 };
 
-                item.Checked += (s, e) =>
+                item.IsCheckedChanged += (s, e) =>
                 {
-                    if (!_selectedSystem.Dependencies.Contains(system))
+                    if (e.Source is not CheckBox checkBox) return;
+
+                    bool value = checkBox.IsChecked.HasValue ? checkBox.IsChecked.Value : false;
+                    if (value)
                     {
+                        var deletedSystem = _selectedSystem.Dependencies.FirstOrDefault(e => e.SystemFullTypeName == system.SystemFullTypeName);
+                        if (deletedSystem != null)
+                        {
+                            _selectedSystem.Dependencies.Remove(deletedSystem);
+                        }
                         _selectedSystem.Dependencies.Add(system);
                         RefreshSystemsView();
                     }
-                };
-
-                item.Unchecked += (s, e) =>
-                {
-                    if (_selectedSystem.Dependencies.Contains(system))
+                    else
                     {
-                        _selectedSystem.Dependencies.Remove(system);
-                        RefreshSystemsView();
+                        var deletedSystem = _selectedSystem.Dependencies.FirstOrDefault(e => e.SystemFullTypeName == system.SystemFullTypeName);
+                        if (deletedSystem != null)
+                        {
+                            _selectedSystem.Dependencies.Remove(deletedSystem);
+                            RefreshSystemsView();
+                        }
                     }
                 };
 
@@ -558,7 +617,7 @@ namespace Editor
             foreach (var system in systems.Where(s => !processed.Contains(s)))
             {
                 result[system] = lastLevel;
-                DebLogger.Debug($"Cyclic dependency detected for system {system.SystemName}");
+                DebLogger.Debug($"Cyclic dependency detected for system {system.SystemFullTypeName}");
             }
 
             return result;
@@ -567,12 +626,19 @@ namespace Editor
         public void Open()
         {
             _currentCategory = SystemCategory.Normal;
+
+            PointerMoved += OnPointerMoved;
+            PointerPressed += OnPointerPressed;
+
             UpdateCategoryButtonsState();
             RefreshSystemsView();
         }
 
         public void Close()
         {
+            PointerMoved -= OnPointerMoved;
+            PointerPressed -= OnPointerPressed;
+
             OnClose?.Invoke(this);
         }
 

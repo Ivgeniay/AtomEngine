@@ -15,12 +15,8 @@ namespace Editor
             switch (source)
             {
                 case EntityHierarchyItem hierarchyItem:
-                    var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.Where(e => e.Id == hierarchyItem.Id && e.Version == hierarchyItem.Version).FirstOrDefault();
-                    var _entity = new Entity(entityData.Id, entityData.Version);
-                    var collection = entityData.Components.Values.ToList();
-                    if (collection == null) collection = new List<IComponent>();
-                    var inscted = new EntityInspectable(_entity, collection);
-                    return inscted;
+                    var inspected = new EntityInspectable(hierarchyItem.Id);
+                    return inspected;
 
                 case FileSelectionEvent eventSelectionEvent:
 

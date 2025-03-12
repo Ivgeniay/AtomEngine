@@ -22,7 +22,7 @@ namespace Editor
         private List<SearchPopupItem> _allItems = new List<SearchPopupItem>();
         private List<SearchPopupItem> _filteredItems = new List<SearchPopupItem>();
         private bool _showSearchBox;
-        private Button _targetButton;
+        private Control _targetControll;
         private Point _offset = new Point(0, 2);
 
 
@@ -40,6 +40,7 @@ namespace Editor
             {
                 AddItems(items);
             }
+
         }
 
         private void InitializeUI()
@@ -103,7 +104,7 @@ namespace Editor
             _filteredItems.Clear();
             _itemsContainer.Children.Clear();
         }
-        public void Show(Button targetButton)
+        private void ClearAllSearchPopUp()
         {
             var rootCanvas = MainWindow.MainCanvas_;
             if (rootCanvas != null)
@@ -113,20 +114,34 @@ namespace Editor
                 {
                     rootCanvas.Children.Remove(dlg);
                 }
-
-                rootCanvas.Children.Add(this);
             }
             else
             {
                 DebLogger.Error("Не удалось найти корневой Canvas для отображения диалога");
                 return;
             }
+        }
+        private void AddVisual()
+        {
+            var rootCanvas = MainWindow.MainCanvas_;
+            rootCanvas.Children.Add(this);
+        }
 
-            _targetButton = targetButton;
+        public void Show(Control targetButton)
+        {
+            AddVisual();
+
+            _targetControll = targetButton;
 
             UpdatePosition();
 
             IsVisible = true;
+
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel != null)
+            {
+                topLevel.AddHandler(PointerPressedEvent, GlobalPointerPressed, RoutingStrategies.Tunnel);
+            }
 
             Dispatcher.UIThread.Post(() =>
             {
@@ -136,12 +151,6 @@ namespace Editor
                     _searchBox.SelectAll();
                 }
             }, DispatcherPriority.Default);
-
-            var topLevel = TopLevel.GetTopLevel(this);
-            if (topLevel != null)
-            {
-                topLevel.AddHandler(PointerPressedEvent, GlobalPointerPressed, RoutingStrategies.Tunnel);
-            }
         }
         private void GlobalPointerPressed(object? sender, PointerPressedEventArgs e)
         {
@@ -153,11 +162,18 @@ namespace Editor
                 Close();
             }
         }
+        
+        public void SetPosition(Point point)
+        {
+            Canvas.SetLeft(this, point.X);
+            Canvas.SetTop(this, point.Y);
+        }
+        
         private void UpdatePosition()
         {
-            if (_targetButton == null) return;
+            if (_targetControll == null) return;
 
-            var targetPosition = _targetButton.TranslatePoint(new Point(0, _targetButton.Bounds.Height), this.GetVisualRoot() as Visual);
+            Point? targetPosition = _targetControll.TranslatePoint(new Point(0, _targetControll.Bounds.Height), this.GetVisualRoot() as Visual);
 
             if (targetPosition.HasValue)
             {
@@ -170,6 +186,8 @@ namespace Editor
         }
         public void Close()
         {
+            ClearAllSearchPopUp();
+
             IsVisible = false;
 
             var topLevel = TopLevel.GetTopLevel(this);

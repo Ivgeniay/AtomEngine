@@ -17,8 +17,6 @@ using System.Threading.Tasks;
 
 namespace Editor
 {
-
-
     internal class SceneViewController : ContentControl, IWindowed, IDisposableController
     {
         public Action<uint> OnEntitySelected;
@@ -199,8 +197,7 @@ namespace Editor
             this.Focus();
         }
 
-        public void Close()
-        { }
+        public void Close() { }
 
         public void Redraw()
         {
@@ -870,7 +867,7 @@ namespace Editor
             _isPreparingClose = true;
             _disposeTcs = new TaskCompletionSource<bool>();
 
-            await Task.WhenAny(_disposeTcs.Task, Task.Delay(500));
+            await Task.WhenAny(_disposeTcs.Task, Task.Delay(70));
 
             _isPreparingClose = false;
         }
@@ -892,6 +889,5 @@ namespace Editor
             Scale
         }
         
-
     }
 }

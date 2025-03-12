@@ -9,7 +9,8 @@ namespace Editor
 {
     internal class ProjectScene
     {
-        public List<WorldData> Worlds = new List<WorldData>(); 
+        public List<WorldData> Worlds = new List<WorldData>();
+        public List<SystemData> Systems = new List<SystemData>();
         public string ScenePath { get; set; } = string.Empty;
         private uint _entityIndexator = 0;
 
@@ -39,6 +40,7 @@ namespace Editor
                 _currentWorldData = value;
             }
         }
+        
         public ProjectScene(List<WorldData> worlds, WorldData currentWorldData)
         {
             Worlds = worlds;
@@ -92,12 +94,13 @@ namespace Editor
             MakeDirty();
             return entity.Id;
         }
-        internal void DeleteEntity(EntityHierarchyItem entity)
+        internal uint DeleteEntity(EntityHierarchyItem entity)
         {
             var world = CurrentWorldData;
             var editableEntity = world.Entities.Where(e => e.Id == entity.Id && e.Version == entity.Version).First();
             world.Entities.Remove(editableEntity);
             MakeDirty();
+            return entity.Id;
         }
 
         #endregion

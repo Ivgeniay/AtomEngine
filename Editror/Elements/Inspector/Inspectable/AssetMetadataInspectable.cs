@@ -9,12 +9,13 @@ namespace Editor
 {
     public class AssetMetadataInspectable : IInspectable
     {
-        protected readonly AssetMetadata _metadata;
-        protected readonly string _filePath;
+        protected AssetMetadata _metadata;
+        protected string _filePath;
 
         public AssetMetadataInspectable(AssetMetadata metaData)
         {
             _metadata = metaData;
+            Update();
         }
 
         public AssetMetadataInspectable(string filePath)
@@ -107,14 +108,14 @@ namespace Editor
             if (_filePath == null) ServiceHub.Get<MetadataManager>().SaveMetadata(_metadata);
             else ServiceHub.Get<MetadataManager>().SaveMetadata(_filePath, _metadata);
         }
+        public virtual void Update() { }
     }
 
     public class TextureMetadataInspectable : AssetMetadataInspectable
     {
         private TextureMetadata _metadata;
-        public TextureMetadataInspectable(string filePath) : base(filePath) {
-            _metadata = (TextureMetadata) ServiceHub.Get<MetadataManager>().GetMetadata(filePath);
-        }
+        public TextureMetadataInspectable(string filePath) : base(filePath) {  }
+
         internal TextureMetadataInspectable(TextureMetadata metadata) : base(metadata) {
             _metadata = metadata;
         }
@@ -374,15 +375,17 @@ namespace Editor
                 }
             };
         }
+        public override void Update()
+        {
+            if (!string.IsNullOrWhiteSpace(_filePath))
+                _metadata = (TextureMetadata)ServiceHub.Get<MetadataManager>().GetMetadata(_filePath);
+        }
     }
 
     public class ShaderSourceInspectable : AssetMetadataInspectable
     {
         private ShaderSourceMetadata _metadata;
-        public ShaderSourceInspectable(string filePath) : base(filePath)
-        {
-            _metadata = (ShaderSourceMetadata)ServiceHub.Get<MetadataManager>().GetMetadata(filePath);
-        }
+        public ShaderSourceInspectable(string filePath) : base(filePath) { }
         internal ShaderSourceInspectable(ShaderSourceMetadata metadata) : base(metadata)
         {
             _metadata = metadata;
@@ -427,15 +430,18 @@ namespace Editor
                 };
             }
         }
+
+        public override void Update()
+        {
+            if (!string.IsNullOrWhiteSpace(_filePath))
+                _metadata = (ShaderSourceMetadata)ServiceHub.Get<MetadataManager>().GetMetadata(_filePath);
+        }
     }
 
     public class ScriptInspectable : AssetMetadataInspectable
     {
         private ScriptMetadata _metadata;
-        public ScriptInspectable(string filePath) : base(filePath)
-        {
-            _metadata = (ScriptMetadata)ServiceHub.Get<MetadataManager>().GetMetadata(filePath);
-        }
+        public ScriptInspectable(string filePath) : base(filePath) { }
         internal ScriptInspectable(ScriptMetadata metadata) : base(metadata)
         {
             _metadata = metadata;
@@ -474,6 +480,12 @@ namespace Editor
                     IsReadOnly = true
                 };
             }
+        }
+
+        public override void Update()
+        {
+            if (!string.IsNullOrWhiteSpace(_filePath))
+                _metadata = (ScriptMetadata)ServiceHub.Get<MetadataManager>().GetMetadata(_filePath);
         }
     }
 }

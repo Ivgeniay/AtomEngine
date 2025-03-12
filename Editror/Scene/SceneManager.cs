@@ -70,18 +70,19 @@ namespace Editor
             OnEntityDuplicated?.Invoke(CurrentScene.CurrentWorldData.WorldId, hierarchyEntity.Id);
             OnSceneDirty?.Invoke(CurrentScene);
         }
+        internal void RemoveEntity(EntityHierarchyItem entity)
+        {
+            uint id = CurrentScene.DeleteEntity(entity);
+            OnEntityRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
+            OnSceneDirty?.Invoke(CurrentScene);
+        }
         internal void RenameEntity(EntityHierarchyItem entity)
         {
             uint id = CurrentScene.RenameEntity(entity);
             OnEntityRenamed?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
             OnSceneDirty?.Invoke(CurrentScene);
         }
-        internal void DeleteEntity(EntityHierarchyItem entity)
-        {
-            CurrentScene.DeleteEntity(entity);
-            OnEntityDeleted?.Invoke(CurrentScene.CurrentWorldData.WorldId, entity.Id);
-            OnSceneDirty?.Invoke(CurrentScene);
-        }
+
         internal void RenameWorld((string, string) worldNameLastCurrent)
         {
             CurrentScene.RenameWorld(worldNameLastCurrent);

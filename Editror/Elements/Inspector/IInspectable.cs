@@ -8,5 +8,6 @@ namespace Editor
         string Title { get; }
         IEnumerable<Control> GetCustomControls(Panel parent);
         IEnumerable<PropertyDescriptor> GetProperties();
+        void Update();
     }
 }

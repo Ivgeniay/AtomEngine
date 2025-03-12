@@ -24,10 +24,12 @@ namespace Editor
             _inspectorViewFactory = ServiceHub.Get<InspectorViewFactory>();
             _sceneManager = ServiceHub.Get<SceneManager>();
 
-            InitialializeUI();
+            _sceneManager.OnSceneDirty += (e) =>
+            {
+                Redraw();
+            };
 
-            //_sceneManager.OnSceneDirty += (e) => Redraw();
-            //_sceneManager.OnSceneInitialize += (e) => Redraw();
+            InitialializeUI();
         }
 
         private void InitialializeUI()
@@ -195,6 +197,7 @@ namespace Editor
 
         public void Redraw()
         {
+            _currentInspectable?.Update();
             RefreshView();
         }
     }
