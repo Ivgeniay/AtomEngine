@@ -25,7 +25,6 @@ namespace Editor
                     { TAssembly.CommonLib, "CommonLib"}
                 };
 
-        private Assembly _user_script_assembly;
         private bool _isInitialized = false;
 
         public Task InitializeAsync()
@@ -84,7 +83,7 @@ namespace Editor
 
         public override Type? FindType(string typeName)
         {
-            var tp = _user_script_assembly.GetTypes().FirstOrDefault(t => t.Name == typeName);
+            var tp = _assemblyDict[TAssembly.UserScript].GetTypes().FirstOrDefault(t => t.Name == typeName);
             if (tp != null) return tp;
 
             foreach (var assembly in _assemblies)
@@ -126,7 +125,7 @@ namespace Editor
         {
             IEnumerable<Type> ts;
 
-            foreach (var type in FindTypesInAssembly<T>(_user_script_assembly, isAssignableFrom))
+            foreach (var type in FindTypesInAssembly<T>(_assemblyDict[TAssembly.UserScript], isAssignableFrom))
             {
                 yield return type;
             }
@@ -159,12 +158,12 @@ namespace Editor
 
         internal void UpdateScriptAssembly(Assembly assembly)
         {
-            _user_script_assembly = assembly;
+            _assemblyDict[TAssembly.UserScript] = assembly;
             OnUserScriptAsseblyRebuild?.Invoke();
         }
         internal Assembly GetUserScriptAssembly()
         {
-            if (_user_script_assembly == null)
+            if (_assemblyDict[TAssembly.UserScript] == null)
             {
                 try
                 {
@@ -177,14 +176,14 @@ namespace Editor
                             .Get<ScriptProjectGenerator>()
                             .LoadCompiledAssembly(pConf.BuildType)
                         );
-                    return _user_script_assembly;
+                    return _assemblyDict[TAssembly.UserScript];
                 }
                 catch
                 {
                     throw;
                 }
             }
-            return _user_script_assembly;
+            return _assemblyDict[TAssembly.UserScript];
         }
     }
 
@@ -198,5 +197,6 @@ namespace Editor
         CommonLib,
         ComponentGenerator,
         NewtonsoftJson,
+        UserScript,
     }
 }

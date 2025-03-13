@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using System.Linq;
 using AtomEngine;
 using System;
+using OpenglLib;
 
 namespace Editor
 {
