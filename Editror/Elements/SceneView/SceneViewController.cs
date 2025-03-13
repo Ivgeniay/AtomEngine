@@ -26,7 +26,7 @@ namespace Editor
         public Action<uint> OnEntitySelected;
 
         private GLController _glController;
-        private ResourceManager _resourceManager;
+        private EditorRuntimeResourceManager _resourceManager;
         private DispatcherTimer _renderTimer;
         private Grid _mainGrid;
         private Border _toolbarBorder;
@@ -67,7 +67,7 @@ namespace Editor
                         root: _renderCanvas
                     );
 
-            _resourceManager = ServiceHub.Get<ResourceManager>();
+            _resourceManager = ServiceHub.Get<EditorRuntimeResourceManager>();
             _materialFactory = ServiceHub.Get<MaterialFactory>();
             _sceneManager = ServiceHub.Get<SceneManager>();
 

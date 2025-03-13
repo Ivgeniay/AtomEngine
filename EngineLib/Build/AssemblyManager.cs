@@ -20,14 +20,15 @@ namespace AtomEngine
             }
         }
 
-        public virtual Type? FindType(string typeName)
+        public virtual Type? FindType(string typeName, bool isFullName = false)
         {
             foreach (var assembly in _assemblies)
             {
                 try
                 {
-                    var type = assembly.GetTypes()
-                        .FirstOrDefault(t => t.Name == typeName);
+                    Type type = null;
+                    if (isFullName) type = assembly.GetTypes().FirstOrDefault(t => t.FullName == typeName);
+                    else type = assembly.GetTypes().FirstOrDefault((t => t.Name == typeName));
 
                     if (type != null)
                         return type;

@@ -67,7 +67,7 @@ namespace Editor
                 ServiceHub.RegisterService<MeshFactory>();
 
                 ServiceHub.RegisterService<InspectorViewFactory>();
-                ServiceHub.RegisterService<ResourceManager>();
+                ServiceHub.RegisterService<EditorRuntimeResourceManager>();
                 ServiceHub.RegisterService<ToolbarService>();
                 ServiceHub.RegisterService<DraggableWindowManagerService>();
                 ServiceHub.RegisterService<SceneManager>();

@@ -61,20 +61,6 @@ namespace OpenglLib
             }
         }
 
-        public unsafe Texture(GL gl, Span<byte> data, uint width, uint height)
-        {
-            _gl = gl;
-
-            _handle = _gl.GenTexture();
-            Bind();
-
-            fixed (void* d = &data[0])
-            {
-                _gl.TexImage2D(Target, 0, (int)InternalFormat.Rgba, width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, d);
-                SetParameters();
-            }
-        }
-
         private void LoadImage(string path)
         {
             bool useEmbeddedResources = !(path.Contains("\\") || path.Contains("/"));
@@ -135,21 +121,7 @@ namespace OpenglLib
 
             _image.Mutate(x => x.Resize(newWidth, newHeight));
         }
-
-        public void SetParameters(
-                Silk.NET.OpenGL.TextureWrapMode wrapS = Silk.NET.OpenGL.TextureWrapMode.ClampToEdge,
-                Silk.NET.OpenGL.TextureWrapMode wrapT = Silk.NET.OpenGL.TextureWrapMode.ClampToEdge,
-                TextureMinFilter minFilter = TextureMinFilter.LinearMipmapLinear,
-                TextureMagFilter magFilter = TextureMagFilter.Linear)
-        {
-            _gl.TexParameter(Target, TextureParameterName.TextureWrapS, (int)wrapS);
-            _gl.TexParameter(Target, TextureParameterName.TextureWrapT, (int)wrapT);
-            _gl.TexParameter(Target, TextureParameterName.TextureMinFilter, (int)minFilter);
-            _gl.TexParameter(Target, TextureParameterName.TextureMagFilter, (int)magFilter);
-            _gl.TexParameter(Target, TextureParameterName.TextureBaseLevel, 0);
-            _gl.TexParameter(Target, TextureParameterName.TextureMaxLevel, 8);
-            _gl.GenerateMipmap(Target);
-        }
+        
 
         public void ConfigureFromParameters(
             Silk.NET.OpenGL.TextureWrapMode wrapMode = Silk.NET.OpenGL.TextureWrapMode.Repeat,

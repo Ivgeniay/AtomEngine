@@ -9,7 +9,7 @@ using AtomEngine.RenderEntity;
 
 namespace Editor
 {
-    public class ResourceManager : IService, IDisposable
+    public class EditorRuntimeResourceManager : IService, IDisposable
     {
         private Dictionary<string, object> _resourceCache = new Dictionary<string, object>();
         private Dictionary<object, string> _objectToGuidCache = new Dictionary<object, string>(ReferenceEqualityComparer.Instance);

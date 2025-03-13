@@ -48,7 +48,10 @@ namespace Editor
 
             try
             {
-                var texture = new Texture(gl, texturePath, Silk.NET.Assimp.TextureType.Diffuse);
+                var texture = new Texture(
+                    gl, 
+                    texturePath,
+                    metadata == null ? Silk.NET.Assimp.TextureType.Diffuse : metadata.TextureType);
 
                 if (metadata != null)
                 {

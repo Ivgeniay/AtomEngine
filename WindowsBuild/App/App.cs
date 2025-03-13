@@ -9,6 +9,7 @@ namespace WindowsBuild
 {
     internal class App : IDisposable
     {
+        public event Action<GL> OnLoaded;
         public event Action OnFixedUpdate;
         public GL? Gl => _gl;
         public Assimp? Assimp => _assimp;
@@ -56,6 +57,8 @@ namespace WindowsBuild
             _gl.Enable(EnableCap.DepthTest);
             _gl.Enable(EnableCap.Blend);
             _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+            OnLoaded?.Invoke(_gl);
         }
 
         private void OnUpdate(double deltaTime)

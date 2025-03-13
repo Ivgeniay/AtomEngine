@@ -81,7 +81,7 @@ namespace Editor
             }
         }
 
-        public override Type? FindType(string typeName)
+        public override Type? FindType(string typeName, bool isFullName = false)
         {
             var tp = _assemblyDict[TAssembly.UserScript].GetTypes().FirstOrDefault(t => t.Name == typeName);
             if (tp != null) return tp;
@@ -90,10 +90,11 @@ namespace Editor
             {
                 try
                 {
-                    var type = assembly.GetTypes()
-                        .FirstOrDefault(t => t.Name == typeName);
+                    Type type = null;
+                    if (isFullName) type = assembly.GetTypes().FirstOrDefault(t => t.FullName == typeName);
+                    else type = assembly.GetTypes().FirstOrDefault((t => t.Name == typeName));
 
-                    if (type != null)
+                    if (type != null) 
                         return type;
                 }
                 catch (ReflectionTypeLoadException)

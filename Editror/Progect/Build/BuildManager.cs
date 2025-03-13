@@ -6,6 +6,9 @@ using System;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using System.Collections.Generic;
+using AtomEngine.RenderEntity;
+using System.Reflection;
+using OpenglLib;
 
 namespace Editor
 {
@@ -58,10 +61,11 @@ namespace Editor
                 }
 
                 string buildDir = Path.Combine(config.OutputPath, config.ProjectName);
-                Directory.CreateDirectory(buildDir);
                 _fileConfiguration = new(buildDir);
 
                 await ExportSceneData(_sceneManager.CurrentScene, buildDir);
+
+                await ExportResources(_sceneManager.CurrentScene, buildDir);
 
                 CopyEngineLibraries(buildDir, config.TargetPlatform);
 
@@ -81,14 +85,137 @@ namespace Editor
 
         private async Task ExportSceneData(ProjectScene scene, string buildDir)
         {
-            Status.SetStatus("Экспорт данных сцены...");
-            Directory.CreateDirectory(_fileConfiguration.ScenesPath);
+            Status.SetStatus("Export scene data...");
 
             string sceneData = SceneSerializer.SerializeScene(scene);
             string sceneName = Path.GetFileNameWithoutExtension(scene.ScenePath);
             string sceneFileName = $"{sceneName}.{_fileConfiguration.SceneExtension}";
             string scenesPath = Path.Combine(_fileConfiguration.ScenesPath, sceneFileName);
             await File.WriteAllTextAsync(scenesPath, sceneData);
+        }
+
+        private async Task ExportResources(ProjectScene scene, string buildDir)
+        {
+            Status.SetStatus($"Export resources...");
+
+            var metadataManager = ServiceHub.Get<MetadataManager>();
+            var materialManager = ServiceHub.Get<MaterialManager>();
+            var meshManager = ServiceHub.Get<MeshManager>();
+
+            HashSet<string> textureGuids = new HashSet<string>();
+            HashSet<string> meshGuids = new HashSet<string>();
+            HashSet<string> materialGuids = new HashSet<string>();
+
+            foreach (var world in scene.Worlds)
+            {
+                foreach (var entity in world.Entities)
+                {
+                    foreach (var componentPair in entity.Components)
+                    {
+                        Type componentType = componentPair.Value.GetType();
+
+                        if (Attribute.IsDefined(componentType, typeof(GLDependableAttribute)))
+                        {
+                            FieldInfo[] fields = componentType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+                            foreach (var field in fields)
+                            {
+                                if (field.Name.EndsWith("GUID") && field.FieldType == typeof(string))
+                                {
+                                    string guidValue = (string)field.GetValue(componentPair.Value);
+
+                                    if (string.IsNullOrEmpty(guidValue))
+                                        continue;
+
+                                    string baseFieldName = field.Name.Substring(0, field.Name.Length - 4);
+                                    FieldInfo baseField = componentType.GetField(baseFieldName, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+                                    if (baseField != null)
+                                    {
+                                        Type fieldType = baseField.FieldType;
+
+                                        if (typeof(Texture).IsAssignableFrom(fieldType))
+                                        {
+                                            textureGuids.Add(guidValue);
+                                        }
+                                        else if (typeof(MeshBase).IsAssignableFrom(fieldType))
+                                        {
+                                            meshGuids.Add(guidValue);
+                                        }
+                                        else if (typeof(ShaderBase).IsAssignableFrom(fieldType))
+                                        {
+                                            materialGuids.Add(guidValue);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Dictionary<string, string> resourceManifest = new Dictionary<string, string>();
+
+
+            foreach (var materialGuid in materialGuids)
+            {
+                string sourcePath = metadataManager.GetPathByGuid(materialGuid);
+                if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
+                    continue;
+
+                MaterialAsset material = materialManager.LoadMaterial(sourcePath);
+                if (material != null && material.TextureReferences != null)
+                {
+                    foreach (var textureGuid in material.TextureReferences.Values)
+                    {
+                        if (!string.IsNullOrEmpty(textureGuid))
+                            textureGuids.Add(textureGuid);
+                    }
+                }
+
+                string fileName = Path.GetFileName(sourcePath);
+                string destPath = Path.Combine(_fileConfiguration.MaterialsPath, fileName);
+
+                File.Copy(sourcePath, destPath, true);
+                resourceManifest[materialGuid] = Path.Combine(_fileConfiguration.Materials, fileName);
+            }
+
+            foreach (var textureGuid in textureGuids)
+            {
+                string sourcePath = metadataManager.GetPathByGuid(textureGuid);
+                if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
+                    continue;
+
+                string fileName = Path.GetFileName(sourcePath);
+                string destPath = Path.Combine(_fileConfiguration.TexturesPath, fileName);
+
+                string metaFilename = fileName + ".meta";
+                string sourceMetaPath = sourcePath + ".meta";
+                string destMetaPath = Path.Combine(_fileConfiguration.TexturesPath, metaFilename);
+
+                File.Copy(sourcePath, destPath, true);
+                File.Copy(sourceMetaPath, destMetaPath, true);
+                resourceManifest[textureGuid] = Path.Combine(_fileConfiguration.Textures, fileName);
+            }
+
+            foreach (var meshGuid in meshGuids)
+            {
+                string sourcePath = metadataManager.GetPathByGuid(meshGuid);
+                if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
+                    continue;
+
+                string fileName = Path.GetFileName(sourcePath);
+                string destPath = Path.Combine(_fileConfiguration.ModelsPath, fileName);
+
+                File.Copy(sourcePath, destPath, true);
+                resourceManifest[meshGuid] = Path.Combine(_fileConfiguration.Models, fileName);
+            }
+
+            string manifestPath = Path.Combine(_fileConfiguration.ResourcesPath, _fileConfiguration.ResourceManifest);
+            string manifestJson = JsonConvert.SerializeObject(resourceManifest, Formatting.Indented);
+            await File.WriteAllTextAsync(manifestPath, manifestJson);
+
+            Status.SetStatus($"Экспортировано ресурсов: {textureGuids.Count} текстур, {materialGuids.Count} материалов, {meshGuids.Count} мешей");
         }
 
         private void CopyEngineLibraries(string buildDir, BuildPlatform platform)
