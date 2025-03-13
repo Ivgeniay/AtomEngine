@@ -16,7 +16,7 @@ namespace Editor
     {
         private SceneManager _sceneManager;
         private Window _mainWindow;
-        private WindowBuildFileConfiguration _fileConfiguration;
+        private WindowBuildFileRouter _fileConfiguration;
         public Task InitializeAsync()
         {
             _sceneManager = ServiceHub.Get<SceneManager>();

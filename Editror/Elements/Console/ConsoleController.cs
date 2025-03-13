@@ -298,14 +298,18 @@ namespace Editor
             var entry = new LogEntry(message, logLevel);
             _logEntries.Add(entry);
 
-            if (_logEntries.Count > MaxLogEntries)
+
+            Dispatcher.UIThread.Invoke(new Action(() =>
             {
-                _logEntries.RemoveAt(0);
-                if (_logPanel.Children.Count > 0)
+                if (_logEntries.Count > MaxLogEntries)
                 {
-                    _logPanel.Children.RemoveAt(0);
+                    _logEntries.RemoveAt(0);
+                    if (_logPanel.Children.Count > 0)
+                    {
+                        _logPanel.Children.RemoveAt(0);
+                    }
                 }
-            }
+            }));
 
             AddLogEntryToPanel(entry);
             ScrollToEnd();

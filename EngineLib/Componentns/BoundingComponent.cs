@@ -5,27 +5,26 @@ namespace AtomEngine
 {
     public struct BoundingComponent : IComponent, IBoundingVolume
     {
-        private Entity _owner;
-        public Entity Owner => _owner;
+        public Entity Owner { get; set; }
 
         public Vector3 Min => BoundingVolume.Min;
         public Vector3 Max => BoundingVolume.Max;
 
         public IBoundingVolume BoundingVolume;
         public BoundingComponent(Entity owner, IBoundingVolume boundingVolume) {
-            _owner = owner;
+            Owner = owner;
             BoundingVolume = boundingVolume;
         }
 
         public BoundingComponent(Entity owner)
         {
-            _owner = owner;
+            Owner = owner;
         }
         public Vector3[] GetVertices() => BoundingVolume.GetVertices();
         public uint[] GetIndices() => BoundingVolume.GetIndices();
         public BoundingComponent(Entity owner, MeshBase meshBase) 
         {
-            _owner = owner;
+            Owner = owner;
             BoundingVolume = BoundingBox.ComputeBoundingBox(meshBase.Vertices_);
         }
 

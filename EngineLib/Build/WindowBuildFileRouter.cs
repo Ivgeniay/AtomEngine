@@ -1,6 +1,6 @@
 ﻿namespace AtomEngine
 {
-    public class WindowBuildFileConfiguration
+    public class WindowBuildFileRouter
     {
         public readonly string AssembliesFolderName = "Libs";
         public readonly string SceneExtension = "sc";
@@ -21,7 +21,7 @@
         public readonly string ModelsPath = string.Empty;
         public readonly string MaterialsPath = string.Empty;
 
-        public WindowBuildFileConfiguration(string appDomainDirectory = null)
+        public WindowBuildFileRouter(string appDomainDirectory = null)
         {
             BuildPath = appDomainDirectory == null ? AppDomain.CurrentDomain.BaseDirectory : appDomainDirectory;
             AssembliesPath = Path.Combine(BuildPath, AssembliesFolderName);

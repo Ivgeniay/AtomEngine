@@ -121,30 +121,27 @@ namespace SmokeTesting
     }
     public struct RotateComponent : IComponent
     {
+        public Entity Owner { get; set; }
         public RotateComponent(Entity owner)
         {
-            _owner = owner;
+            Owner = owner;
         }
-        public Entity Owner => _owner;
-        Entity _owner;
     }
     public struct BoudingMovedComponent : IComponent
     {
-        public Entity Owner => _owner;
-        Entity _owner;
+        public Entity Owner { get; set; }
         public Vector3 Direction;
         public BoudingMovedComponent(Entity owner)
         {
-            _owner = owner;
+            Owner = owner;
         }
     }
     public struct BoundingRenderComponent : IComponent
     {
-        private Entity _owner;
-        public Entity Owner => _owner;
+        public Entity Owner { get; set; }
         public BoundingRenderComponent(Entity entity, ShaderBase shader, Mesh mesh)
         {
-            _owner = entity;
+            Owner = entity;
             Shader = shader;
             Mesh = mesh;
         }

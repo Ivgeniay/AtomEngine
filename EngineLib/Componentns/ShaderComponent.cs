@@ -8,7 +8,7 @@ namespace AtomEngine
     [GLDependable]
     public partial struct ShaderComponent : IComponent
     {
-        public Entity Owner { get; }
+        public Entity Owner { get; set; }
 
         public readonly ShaderBase Shader;
         [JsonProperty]

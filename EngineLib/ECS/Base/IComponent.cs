@@ -2,6 +2,6 @@
 {
     public interface IComponent
     {
-        Entity Owner { get; }
+        Entity Owner { get; set; }
     }
 }

@@ -4,7 +4,7 @@ namespace AtomEngine
 {
     public struct BepuBodyComponent : IComponent
     {
-        public Entity Owner { get; }
+        public Entity Owner { get; set; }
         public BodyHandle? DynamicHandle; 
         public StaticHandle? StaticHandle;
         public BodyType BodyType;

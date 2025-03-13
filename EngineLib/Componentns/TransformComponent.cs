@@ -4,7 +4,7 @@ namespace AtomEngine
 {
     public struct TransformComponent : IComponent
     {
-        public Entity Owner { get; }
+        public Entity Owner { get; set; }
         public float TestField;
         public Vector3 _position;
         public Vector3 _rotation;

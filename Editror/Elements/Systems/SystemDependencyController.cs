@@ -46,8 +46,7 @@ namespace Editor
             };
             _sceneManager.OnSceneBeforeSave += () =>
             {
-                if (_systems != null && _systems.Count > 0)
-                    _sceneManager.CurrentScene.Systems = _systems.Select(s => s.Clone()).ToList();
+                _sceneManager.CurrentScene.Systems = _systems.Select(s => s.Clone()).ToList();
             };
             InitializeUI();
             RegisterEvents();

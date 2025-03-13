@@ -3,13 +3,12 @@
     public struct NameComponent : IComponent
     {
         public string Name { get; set; }
-        private Entity _entity { get; set; }
-        public Entity Owner => _entity;
+        public Entity Owner {  get; set; }
 
         public NameComponent(Entity owner, string name)
         {
             Name = name;
-            _entity = owner;
+            Owner = owner;
         }
     }
 }

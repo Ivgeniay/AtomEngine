@@ -5,7 +5,7 @@ namespace AtomEngine
 
     public struct CollisionComponent : IComponent
     {
-        public Entity Owner { get; }
+        public Entity Owner { get; set; }
         public Queue<CollisionEvent> Collisions;
 
         public CollisionComponent(Entity owner)

@@ -4,7 +4,7 @@ namespace AtomEngine
 {
     public struct ColliderComponent : IComponent
     {
-        public Entity Owner { get; }
+        public Entity Owner { get; set; }
         private ICollider _collider;
 
         public Vector3 LocalOffset { get; set; }

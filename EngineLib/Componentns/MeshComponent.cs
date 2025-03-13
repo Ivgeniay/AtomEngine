@@ -8,7 +8,7 @@ namespace AtomEngine
     [GLDependable]
     public partial struct MeshComponent : IComponent
     {
-        public Entity Owner { get; }
+        public Entity Owner { get; set; }
         public readonly MeshBase Mesh;
         [JsonProperty]
         private string MeshGUID;

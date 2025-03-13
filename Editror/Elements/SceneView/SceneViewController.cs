@@ -655,8 +655,8 @@ namespace Editor
         private void FreeChache()
         {
             _componentRenderCache.Clear();
-            _aabbManager.FreeCache();
-            BVHTree.Instance.FreeCache();
+            _aabbManager?.FreeCache();
+            BVHTree.Instance?.FreeCache();
         }
         
         private void SetDefaulFieldValue()
