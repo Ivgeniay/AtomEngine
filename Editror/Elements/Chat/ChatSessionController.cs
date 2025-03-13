@@ -141,9 +141,9 @@ namespace Editor
             this.Children.Add(_mainGrid);
         }
 
-        private void MessageInputBox_KeyDown(object sender, KeyEventArgs e)
+        private void MessageInputBox_KeyDown(object sender, Avalonia.Input.KeyEventArgs e)
         {
-            if (e.Key == Key.Enter && (e.KeyModifiers & KeyModifiers.Shift) != KeyModifiers.Shift)
+            if (e.Key == Avalonia.Input.Key.Enter && (e.KeyModifiers & KeyModifiers.Shift) != KeyModifiers.Shift)
             {
                 SendMessage();
                 e.Handled = true;

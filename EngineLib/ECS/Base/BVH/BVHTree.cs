@@ -224,12 +224,24 @@ namespace AtomEngine
         }
         private Matrix4x4 CreateModelMatrix(TransformComponent transform)
         {
-            Matrix4x4 model = Matrix4x4.CreateTranslation(transform.Position);
-            var rad = transform.Rotation.ToRadFromEuler();
-            model *= Matrix4x4.CreateFromYawPitchRoll(rad.X, rad.Y, rad.Z);
-            model *= Matrix4x4.CreateScale(transform.Scale);
+            Matrix4x4 result = Matrix4x4.Identity;
 
-            return model;
+            Matrix4x4 translate = Matrix4x4.CreateTranslation(transform.Position);
+            Matrix4x4 rotation = Matrix4x4.CreateFromQuaternion(transform.Rotation.ToQuaternion());
+            Matrix4x4 scale = Matrix4x4.CreateScale(transform.Scale);
+
+            result *= rotation;
+            result *= translate;
+            result *= scale;
+
+            return result;
+        }
+
+        public void FreeCache()
+        {
+            _entityBounds.Clear();
+            _entityMesh.Clear();
+            _root = null;
         }
 
         public void Dispose()

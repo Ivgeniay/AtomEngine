@@ -1,9 +1,6 @@
-﻿using System.Collections.Generic;
-using System;
-
-namespace Editor
+﻿namespace AtomEngine
 {
-    internal class SystemData : ICloneable
+    public class SystemData : ICloneable
     {
         public string SystemFullTypeName { get; set; } = string.Empty;
         public int ExecutionOrder { get; set; } = -1;

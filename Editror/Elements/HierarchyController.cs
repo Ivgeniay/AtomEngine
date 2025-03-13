@@ -11,6 +11,8 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
+using Key = Avalonia.Input.Key;
+using MouseButton = Avalonia.Input.MouseButton;
 
 namespace Editor
 {

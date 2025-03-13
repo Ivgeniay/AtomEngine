@@ -8,6 +8,7 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
+using MouseButton = Avalonia.Input.MouseButton;
 
 namespace Editor
 {

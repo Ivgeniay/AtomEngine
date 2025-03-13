@@ -173,8 +173,7 @@ namespace Editor
 
         private Matrix4x4 CreateModelMatrix(TransformComponent transform)
         {
-            // Правильный порядок: Scale -> Rotate -> Translate
-            // Но матрицы применяются справа налево при умножении
+            Matrix4x4 result = Matrix4x4.Identity;
             Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(transform.Position);
 
             Matrix4x4 rotationMatrix = Matrix4x4.Identity;
@@ -190,8 +189,17 @@ namespace Editor
 
             Matrix4x4 scaleMatrix = Matrix4x4.CreateScale(transform.Scale);
 
-            // Матрицы применяются справа налево: сначала скейл, потом поворот, потом перемещение
-            return scaleMatrix * rotationMatrix * translationMatrix;
+            result *= rotationMatrix;
+            result *= translationMatrix;
+            result *= scaleMatrix;
+
+            return result;
+            //return scaleMatrix * rotationMatrix * translationMatrix;
+        }
+
+        internal void FreeCache()
+        {
+            _aabbInfos.Clear();
         }
 
         public void Dispose()
@@ -199,5 +207,6 @@ namespace Editor
             _shader?.Dispose();
             _aabbInfos.Clear();
         }
+
     }
 }

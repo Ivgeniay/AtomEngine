@@ -14,6 +14,8 @@ using AtomEngine;
 using Avalonia;
 using System;
 using System.Threading.Tasks;
+using KeyEventArgs = Avalonia.Input.KeyEventArgs;
+using MouseButton = Avalonia.Input.MouseButton;
 
 namespace Editor
 {
@@ -651,6 +653,8 @@ namespace Editor
         private void FreeChache()
         {
             _componentRenderCache.Clear();
+            _aabbManager.FreeCache();
+            BVHTree.Instance.FreeCache();
         }
         
         private void SetDefaulFieldValue()

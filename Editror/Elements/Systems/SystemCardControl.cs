@@ -4,6 +4,7 @@ using Avalonia.Media;
 using Avalonia.Input;
 using Avalonia;
 using System;
+using AtomEngine;
 
 namespace Editor
 {

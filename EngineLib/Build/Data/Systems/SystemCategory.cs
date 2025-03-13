@@ -1,4 +1,4 @@
-﻿namespace Editor
+﻿namespace AtomEngine
 {
     public enum SystemCategory
     {

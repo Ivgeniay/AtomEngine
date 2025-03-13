@@ -3,7 +3,7 @@ namespace Editor
 {
     internal class BuildConfig
     {
-        public string ProjectName { get; set; } = "New Game";
+        public string ProjectName { get; set; } = "Game";
         public string OutputPath { get; set; } = string.Empty;
         public BuildPlatform TargetPlatform { get; set; } = BuildPlatform.Windows;
         public bool OptimizeResources { get; set; } = true;

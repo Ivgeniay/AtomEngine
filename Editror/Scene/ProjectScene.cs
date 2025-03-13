@@ -7,10 +7,8 @@ using System;
 
 namespace Editor
 {
-    internal class ProjectScene
+    internal class ProjectScene : ProjectSceneData
     {
-        public List<WorldData> Worlds = new List<WorldData>();
-        public List<SystemData> Systems = new List<SystemData>();
         public string ScenePath { get; set; } = string.Empty;
         private uint _entityIndexator = 0;
 

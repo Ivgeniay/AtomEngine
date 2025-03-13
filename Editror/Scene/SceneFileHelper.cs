@@ -1,19 +1,15 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using System.Numerics;
 using Newtonsoft.Json;
-using System.Linq;
 using AtomEngine;
 using System;
-using System.Numerics;
 
 namespace Editor
 {
     internal static class SceneFileHelper
     {
-        /// <summary>
-        /// Стандартные фильтры для файлов сцен
-        /// </summary>
         public static readonly FileDialogService.FileFilter[] SceneFileFilters = new[]
         {
             new FileDialogService.FileFilter("Scene Files", "scene"),
@@ -21,18 +17,13 @@ namespace Editor
             new FileDialogService.FileFilter("All Files", "*")
         };
 
-        /// <summary>
-        /// Открывает диалог и загружает файл сцены
-        /// </summary>
-        /// <param name="window">Родительское окно</param>
-        /// <returns>Загруженные данные сцены или null</returns>
         public static async Task<ProjectScene?> OpenSceneAsync(Window window)
         {
             try
             {
                 var filePath = await FileDialogService.OpenFileAsync(
                     window,
-                    "Open Scene File",
+                    "Open Scene",
                     SceneFileFilters);
 
                 if (string.IsNullOrEmpty(filePath))
@@ -40,7 +31,6 @@ namespace Editor
                     return null;
                 }
 
-                // Читаем содержимое файла
                 var fileContent = await FileDialogService.ReadTextFileAsync(filePath);
                 if (string.IsNullOrEmpty(fileContent))
                 {
@@ -48,7 +38,8 @@ namespace Editor
                     return null;
                 }
 
-                ProjectScene? sceneData = JsonConvert.DeserializeObject<ProjectScene>(fileContent, GlobalDeserializationSettings.Settings);
+                ProjectScene? sceneData = SceneSerializer.DeserializeScene(fileContent);
+                //ProjectScene? sceneData = JsonConvert.DeserializeObject<ProjectScene>(fileContent, GlobalDeserializationSettings.Settings);
 
                 if (sceneData != null)
                 {
@@ -63,13 +54,6 @@ namespace Editor
                 return null;
             }
         }
-
-        /// <summary>
-        /// Открывает диалог и сохраняет данные сцены в файл
-        /// </summary>
-        /// <param name="window">Родительское окно</param>
-        /// <param name="scene">Данные сцены для сохранения</param>
-        /// <returns>true если сохранение успешно, иначе false</returns>
         public static async Task<(bool, string)> SaveSceneAsync(Window window, ProjectScene scene, Action beforeSafe = null, Action afterSafe = null)
         {
             if (scene == null)
@@ -105,7 +89,8 @@ namespace Editor
                 };
 
                 beforeSafe?.Invoke();
-                string jsonContent = JsonConvert.SerializeObject(scene, jsonSettings);
+                //string jsonContent = JsonConvert.SerializeObject(scene, jsonSettings);
+                string jsonContent = SceneSerializer.SerializeScene(scene);
                 bool result = await FileDialogService.WriteTextFileAsync(filePath, jsonContent);
 
                 if (result)
@@ -125,12 +110,6 @@ namespace Editor
                 return (false, string.Empty);
             }
         }
-
-        /// <summary>
-        /// Открывает диалоговое окно для создания новой сцены
-        /// </summary>
-        /// <param name="window">Родительское окно</param>
-        /// <returns>Данные новой сцены или null</returns>
         public static WorldData CreateWorldData()
         {
             var newScene = new WorldData
