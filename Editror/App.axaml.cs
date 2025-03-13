@@ -43,7 +43,7 @@ namespace Editor
                 // Загрузка конфигураций
                 ServiceHub.RegisterService<Configuration>();
                 // Загрузка сборок
-                ServiceHub.RegisterService<AssemblyManager>();
+                ServiceHub.RegisterService<EditorAssemblyManager>();
                 // Сканирование файлов в Assets
                 ServiceHub.RegisterService<MetadataManager>();
                 // Вотчер событий в Assets

@@ -202,8 +202,9 @@ namespace Editor
                     PreserveReferencesHandling = PreserveReferencesHandling.Objects,
                     ReferenceLoopHandling = ReferenceLoopHandling.Serialize
                 };
-                OnSceneBeforeSave?.Invoke();
-                string jsonContent = JsonConvert.SerializeObject(CurrentScene, jsonSettings);
+                //OnSceneBeforeSave?.Invoke();
+                //string jsonContent = JsonConvert.SerializeObject(CurrentScene, jsonSettings);
+                string jsonContent = SceneSerializer.SerializeScene(CurrentScene);
                 bool result = await FileDialogService.WriteTextFileAsync(CurrentScene.ScenePath, jsonContent);
                 if (result)
                 {
@@ -231,6 +232,15 @@ namespace Editor
             }
         }
 
+        internal void CallBeforeSave()
+        {
+            OnSceneBeforeSave?.Invoke();
+        }
+
+        internal void CallAfterSafe()
+        {
+            OnSceneAfterSave?.Invoke();
+        }
     }
 
     internal class SceneEntityComponentProvider : IEntityComponentInfoProvider

@@ -20,8 +20,4 @@
     <ProjectReference Include="..\CommonLib\CommonLib.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Build\Serialize\" />
-  </ItemGroup>
-
 </Project>

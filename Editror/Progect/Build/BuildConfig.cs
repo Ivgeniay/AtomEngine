@@ -1,4 +1,5 @@
-﻿
+﻿using AtomEngine;
+
 namespace Editor
 {
     internal class BuildConfig

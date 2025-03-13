@@ -51,7 +51,7 @@ namespace Editor
                 var projectFilePath = Path.Combine(_scriptProjectPath, $"{projConfig}.csproj");
                 if (File.Exists(projectFilePath)) return true;
 
-                var assemblyManager = ServiceHub.Get<AssemblyManager>();
+                var assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
 
                 _coreAssembly = assemblyManager.GetAssembly(TAssembly.Core);
                 _renderAssembly = assemblyManager.GetAssembly(TAssembly.Render);

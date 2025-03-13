@@ -7,12 +7,12 @@ namespace Editor
 {
     internal class ComponentService : IService
     {
-        private AssemblyManager _assemblyManager;
+        private EditorAssemblyManager _assemblyManager;
         public List<Type> _componentTypes = new List<Type>();
 
         public Task InitializeAsync()
         {
-            _assemblyManager = ServiceHub.Get<AssemblyManager>();
+            _assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
             _assemblyManager.OnUserScriptAsseblyRebuild += RebuildUserScrAssembly;
             return Task.CompletedTask;
         }

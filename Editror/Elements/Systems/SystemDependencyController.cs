@@ -299,13 +299,13 @@ namespace Editor
             switch (_currentCategory)
             {
                 case SystemCategory.System:
-                    systems = ServiceHub.Get<AssemblyManager>().FindTypesByInterface<ISystem>(false);
+                    systems = ServiceHub.Get<EditorAssemblyManager>().FindTypesByInterface<ISystem>(false);
                     break;
                 case SystemCategory.Render:
-                    systems = ServiceHub.Get<AssemblyManager>().FindTypesByInterface<IRenderSystem>(false);
+                    systems = ServiceHub.Get<EditorAssemblyManager>().FindTypesByInterface<IRenderSystem>(false);
                     break;
                 case SystemCategory.Physics:
-                    systems = ServiceHub.Get<AssemblyManager>().FindTypesByInterface<IPhysicSystem>(false);
+                    systems = ServiceHub.Get<EditorAssemblyManager>().FindTypesByInterface<IPhysicSystem>(false);
                     break;
                 default:
                     systems = new List<Type>();

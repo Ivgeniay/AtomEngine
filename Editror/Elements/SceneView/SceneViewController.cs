@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using AtomEngine.RenderEntity;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using Avalonia.Controls;
 using System.Reflection;
@@ -13,7 +14,7 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
-using System.Threading.Tasks;
+
 using KeyEventArgs = Avalonia.Input.KeyEventArgs;
 using MouseButton = Avalonia.Input.MouseButton;
 

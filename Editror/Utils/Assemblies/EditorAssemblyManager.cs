@@ -4,10 +4,11 @@ using System.Reflection;
 using System.Linq;
 using System.IO;
 using System;
+using AtomEngine;
 
 namespace Editor
 {
-    public class AssemblyManager : IService
+    public class EditorAssemblyManager : AssemblyManager, IService
     {
         public Action? OnUserScriptAsseblyRebuild;
 
@@ -24,7 +25,6 @@ namespace Editor
                     { TAssembly.CommonLib, "CommonLib"}
                 };
 
-        private readonly HashSet<Assembly> _assemblies = new();
         private Assembly _user_script_assembly;
         private bool _isInitialized = false;
 
@@ -82,7 +82,7 @@ namespace Editor
             }
         }
 
-        public Type? FindType(string typeName)
+        public override Type? FindType(string typeName)
         {
             var tp = _user_script_assembly.GetTypes().FirstOrDefault(t => t.Name == typeName);
             if (tp != null) return tp;
@@ -122,7 +122,7 @@ namespace Editor
 
         public Assembly GetAssembly(TAssembly assembly) => _assemblyDict[assembly];
 
-        public IEnumerable<Type> FindTypesByInterface<T>(bool isAssignableFrom = true)
+        public override IEnumerable<Type> FindTypesByInterface<T>(bool isAssignableFrom = true)
         {
             IEnumerable<Type> ts;
 
@@ -143,31 +143,6 @@ namespace Editor
             }
         }
 
-        private IEnumerable<Type> FindTypesInAssembly<T>(Assembly assembly, bool isAssignableFrom)
-        {
-            foreach (var type in assembly.GetTypes())
-            {
-                if (type.IsAbstract || type.IsInterface)
-                    continue;
-
-                if (isAssignableFrom)
-                {
-                    if (typeof(T).IsAssignableFrom(type))
-                    {
-                        yield return type;
-                    }
-                }
-                else
-                {
-                    var interfaces = type.GetInterfaces();
-                    if (interfaces.Contains(typeof(T)))
-                    {
-                        yield return type;
-                    }
-                }
-            }
-        }
-
         private bool IsSystemAssembly(Assembly assembly)
         {
             string assemblyName = assembly.FullName;
@@ -177,7 +152,7 @@ namespace Editor
                    assemblyName.Contains("Generator");
         }
 
-        internal void AddAssembly(Assembly assembly)
+        public override void AddAssembly(Assembly assembly)
         {
             _assemblies.Add(assembly);
         }

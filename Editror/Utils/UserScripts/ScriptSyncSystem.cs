@@ -64,7 +64,7 @@ namespace Editor
                     var assembly = ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly();
                     if (assembly != null)
                     {
-                        ServiceHub.Get<AssemblyManager>().UpdateScriptAssembly(assembly);
+                        ServiceHub.Get<EditorAssemblyManager>().UpdateScriptAssembly(assembly);
                         DebLogger.Info("Проект скриптов успешно скомпилирован и загружен");
                     }
                     else
@@ -150,7 +150,7 @@ namespace Editor
                     }
 
                     // Обновляем ссылку на сборку в AssemblyManager
-                    ServiceHub.Get<AssemblyManager>().UpdateScriptAssembly(assembly);
+                    ServiceHub.Get<EditorAssemblyManager>().UpdateScriptAssembly(assembly);
 
                     DebLogger.Info("Проект скриптов успешно перекомпилирован и загружен");
                 });

@@ -88,8 +88,7 @@ namespace Editor
                     ReferenceLoopHandling = ReferenceLoopHandling.Serialize
                 };
 
-                beforeSafe?.Invoke();
-                //string jsonContent = JsonConvert.SerializeObject(scene, jsonSettings);
+                //beforeSafe?.Invoke();
                 string jsonContent = SceneSerializer.SerializeScene(scene);
                 bool result = await FileDialogService.WriteTextFileAsync(filePath, jsonContent);
 
@@ -99,7 +98,7 @@ namespace Editor
                     Status.SetStatus($"Scene saved {filePath}");
                     return (true, filePath);
                 }
-                afterSafe?.Invoke();
+                //afterSafe?.Invoke();
 
                 return (false, string.Empty);
             }

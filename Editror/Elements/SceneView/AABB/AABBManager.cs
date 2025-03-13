@@ -174,19 +174,9 @@ namespace Editor
         private Matrix4x4 CreateModelMatrix(TransformComponent transform)
         {
             Matrix4x4 result = Matrix4x4.Identity;
+
             Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(transform.Position);
-
-            Matrix4x4 rotationMatrix = Matrix4x4.Identity;
-            if (transform.Rotation != Vector3.Zero)
-            {
-                // Конвертируем градусы в радианы
-                float yawRad = transform.Rotation.Y * (MathF.PI / 180.0f);
-                float pitchRad = transform.Rotation.X * (MathF.PI / 180.0f);
-                float rollRad = transform.Rotation.Z * (MathF.PI / 180.0f);
-
-                rotationMatrix = Matrix4x4.CreateFromYawPitchRoll(yawRad, pitchRad, rollRad);
-            }
-
+            Matrix4x4 rotationMatrix = Matrix4x4.CreateFromQuaternion(transform.Rotation.ToQuaternion());
             Matrix4x4 scaleMatrix = Matrix4x4.CreateScale(transform.Scale);
 
             result *= rotationMatrix;
@@ -194,7 +184,6 @@ namespace Editor
             result *= scaleMatrix;
 
             return result;
-            //return scaleMatrix * rotationMatrix * translationMatrix;
         }
 
         internal void FreeCache()

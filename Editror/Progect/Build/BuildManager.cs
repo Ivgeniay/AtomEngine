@@ -13,7 +13,7 @@ namespace Editor
     {
         private SceneManager _sceneManager;
         private Window _mainWindow;
-
+        private WindowBuildFileConfiguration _fileConfiguration;
         public Task InitializeAsync()
         {
             _sceneManager = ServiceHub.Get<SceneManager>();
@@ -59,12 +59,13 @@ namespace Editor
 
                 string buildDir = Path.Combine(config.OutputPath, config.ProjectName);
                 Directory.CreateDirectory(buildDir);
+                _fileConfiguration = new(buildDir);
 
                 await ExportSceneData(_sceneManager.CurrentScene, buildDir);
 
                 CopyEngineLibraries(buildDir, config.TargetPlatform);
 
-                // 5. Создание исполняемого файла
+                return true;
                 await CreateExecutable(buildDir, config);
 
                 Status.SetStatus($"Сборка завершена: {buildDir}");
@@ -81,27 +82,13 @@ namespace Editor
         private async Task ExportSceneData(ProjectScene scene, string buildDir)
         {
             Status.SetStatus("Экспорт данных сцены...");
+            Directory.CreateDirectory(_fileConfiguration.ScenesPath);
 
-            string sceneDir = Path.Combine(buildDir, "Data", "Scenes");
-            Directory.CreateDirectory(sceneDir);
-
-            foreach (var world in scene.Worlds)
-            {
-                string worldFileName = $"{world.WorldName}.scene";
-                string worldPath = Path.Combine(sceneDir, worldFileName);
-
-                string worldData = JsonConvert.SerializeObject(world, new JsonSerializerSettings
-                {
-                    TypeNameHandling = TypeNameHandling.Auto,
-                    Formatting = Formatting.None
-                });
-
-                await File.WriteAllTextAsync(worldPath, worldData);
-            }
-
-            var worldsIndex = scene.Worlds.Select(w => new { Name = w.WorldName, Path = $"Scenes/{w.WorldName}.scene" }).ToList();
-            string indexData = JsonConvert.SerializeObject(worldsIndex);
-            await File.WriteAllTextAsync(Path.Combine(buildDir, "Data", "worlds.index"), indexData);
+            string sceneData = SceneSerializer.SerializeScene(scene);
+            string sceneName = Path.GetFileNameWithoutExtension(scene.ScenePath);
+            string sceneFileName = $"{sceneName}.{_fileConfiguration.SceneExtension}";
+            string scenesPath = Path.Combine(_fileConfiguration.ScenesPath, sceneFileName);
+            await File.WriteAllTextAsync(scenesPath, sceneData);
         }
 
         private void CopyEngineLibraries(string buildDir, BuildPlatform platform)
@@ -109,7 +96,7 @@ namespace Editor
             Status.SetStatus("Копирование библиотек движка...");
             List<string> assemblyPaths = new List<string>();
 
-            var assemblyManager = ServiceHub.Get<AssemblyManager>();
+            var assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
             var assamblyTypes = Enum.GetValues<TAssembly>();
             foreach(var assemblyType in assamblyTypes)
             {
@@ -117,7 +104,7 @@ namespace Editor
                 assemblyPaths.Add(assembly.Location);
             }
 
-            string targetLibsPath = Path.Combine(buildDir, "Engine");
+            string targetLibsPath = _fileConfiguration.AssembliesPath;
 
             Directory.CreateDirectory(targetLibsPath);
 

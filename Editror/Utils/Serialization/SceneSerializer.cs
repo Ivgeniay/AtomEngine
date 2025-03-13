@@ -99,9 +99,9 @@ namespace Editor
             return scene;
         }
 
-        public static string SerializeScene(ProjectScene scene)
+        public static string SerializeScene(ProjectScene projectScene)
         {
-            var editorScene = ConvertToEditorScene(scene);
+            var editorScene = ConvertToEditorScene(projectScene);
 
             var settings = new JsonSerializerSettings
             {
@@ -111,7 +111,11 @@ namespace Editor
                 ReferenceLoopHandling = ReferenceLoopHandling.Serialize
             };
 
-            return JsonConvert.SerializeObject(editorScene, settings);
+            var sceneService = ServiceHub.Get<SceneManager>();
+            sceneService.CallBeforeSave();
+            var result = JsonConvert.SerializeObject(editorScene, settings);
+            sceneService.CallAfterSafe();
+            return result;
         }
 
         public static ProjectScene DeserializeScene(string json)
