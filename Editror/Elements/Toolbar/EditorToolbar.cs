@@ -4,6 +4,14 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia;
 using System;
+using AtomEngine;
+using Avalonia.Media;
+using System.Drawing;
+using Avalonia.Controls.Shapes;
+using Color = Avalonia.Media.Color;
+using System.Diagnostics;
+
+//using Color = Avalonia.Media.Color;
 
 namespace Editor
 {
@@ -72,7 +80,77 @@ namespace Editor
                 var menuButton = CreateMenuButtonsFromCategory(category);
                 toolbarPanel.Children.Add(menuButton);
             }
+            AddStaticView();
         }
+
+        private void AddStaticView()
+        {
+            Color.TryParse("#CCCCCC", out Color color);
+            Button button = new Button()
+            {
+                Foreground = new SolidColorBrush(color),
+                Background = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)),
+            };
+
+            Viewbox viewbox = new Viewbox()
+            {
+                Width = 12,
+                Height = 12
+            };
+
+            Path path = new Path()
+            {
+                Data = Geometry.Parse("M0,0 L10,5 L0,10 Z"),
+                Fill = new SolidColorBrush(color),
+                Stretch = Stretch.Uniform
+            };
+
+            viewbox.Child = path;
+            button.Content = viewbox;
+
+            button.Click += async (s, e) =>
+            {
+                BuildManager buildManager = ServiceHub.Get<BuildManager>();
+                DirectoryExplorer directoryExplorer = ServiceHub.Get<DirectoryExplorer>();
+
+                BuildConfig config = new BuildConfig();
+                string cachepath = directoryExplorer.GetPath(DirectoryType.Cache);
+                config.OutputPath = System.IO.Path.Combine(cachepath, "temp_build");
+                if (System.IO.Directory.Exists(config.OutputPath))
+                {
+                    System.IO.Directory.Delete(config.OutputPath, true);
+                }
+                await buildManager.BuildProject(config);
+
+                string exeName = $"{config.ProjectName}.exe";
+                string exePath = System.IO.Path.Combine(config.OutputPath, config.ProjectName, exeName);
+
+                if (System.IO.File.Exists(exePath))
+                {
+                    try
+                    {
+                        Process process = new Process();
+                        process.StartInfo.FileName = exePath;
+                        process.StartInfo.WorkingDirectory = config.OutputPath;
+
+                        process.Start();
+
+                        // process.WaitForExit();
+                    }
+                    catch (Exception ex)
+                    {
+                        Status.SetStatus($"Ошибка при запуске: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    Status.SetStatus($"Файл {exeName} не найден в директории {config.OutputPath}");
+                }
+
+            };
+            toolbarPanel.Children.Add(button);
+        }
+
         public IEnumerable<EditorToolbarCategory> GetEditorData() => _categories;
         private Button CreateMenuButtonsFromCategory(EditorToolbarCategory category)
         {

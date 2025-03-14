@@ -1,7 +1,6 @@
 ﻿using AtomEngine;
 using Newtonsoft.Json;
 using System.IO;
-using System.Linq;
 using System;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -52,9 +51,12 @@ namespace Editor
 
                 if (string.IsNullOrEmpty(config.OutputPath))
                 {
-                    config.OutputPath = await FileDialogService.ChooseFolderAsync(
-                        _mainWindow,
-                        "Выберите папку для сборки проекта");
+                    if (string.IsNullOrWhiteSpace(config.OutputPath))
+                    {
+                        config.OutputPath = await FileDialogService.ChooseFolderAsync(
+                            _mainWindow,
+                            "Выберите папку для сборки проекта");
+                    }
 
                     if (string.IsNullOrEmpty(config.OutputPath))
                         return false;
@@ -69,7 +71,7 @@ namespace Editor
 
                 CopyEngineLibraries(buildDir, config.TargetPlatform);
 
-                return true;
+                //return true;
                 await CreateExecutable(buildDir, config);
 
                 Status.SetStatus($"Сборка завершена: {buildDir}");
@@ -247,19 +249,45 @@ namespace Editor
             Status.SetStatus("Создание исполняемого файла...");
 
             string exeName = $"{config.ProjectName}.exe";
-            string exePath = Path.Combine(buildDir, exeName);
+
+            string exeDirectory = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.ExePath);
+
+            var directories = Directory.GetDirectories(exeDirectory);
+            foreach (var directory in directories)
+            {
+                string dirName = Path.GetFileName(directory);
+                string targetDir = Path.Combine(buildDir, dirName);
+
+                Directory.CreateDirectory(targetDir);
+
+                foreach (string file in Directory.GetFiles(directory, "*", SearchOption.AllDirectories))
+                {
+                    string relativePath = file.Substring(directory.Length + 1);
+                    string targetFilePath = Path.Combine(targetDir, relativePath);
+                    Directory.CreateDirectory(Path.GetDirectoryName(targetFilePath));
+                    File.Copy(file, targetFilePath, true);
+                }
+            }
+
+            var files = Directory.GetFiles(exeDirectory);
+            foreach (var file in files)
+            {
+                string fileName = Path.GetFileName(file);
+                string targetPath;
+
+                if (Path.GetExtension(file).ToLower() == ".exe")
+                {
+                    targetPath = Path.Combine(buildDir, exeName);
+                }
+                else
+                {
+                    targetPath = Path.Combine(buildDir, fileName);
+                }
+
+                File.Copy(file, targetPath, true);
+            }
 
 
-            string templateExePath = Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory,
-                "Templates",
-                config.TargetPlatform.ToString(),
-                "GameTemplate.exe");
-
-            // Копируем шаблонный exe
-            File.Copy(templateExePath, exePath, true);
-
-            // Создаем конфигурационный файл для исполняемого файла
             var runtimeConfig = new
             {
                 ProjectName = config.ProjectName,
@@ -275,16 +303,10 @@ namespace Editor
 
         public async Task ShowBuildDialog()
         {
-            // Метод для отображения диалога настроек сборки
-            // Здесь можно реализовать UI для BuildConfig
-
             var config = new BuildConfig
             {
                 ProjectName = _sceneManager.CurrentScene.CurrentWorldData.WorldName
             };
-
-            // В реальном коде здесь будет открытие диалогового окна с настройками
-
             await BuildProject(config);
         }
     }

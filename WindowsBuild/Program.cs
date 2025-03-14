@@ -7,7 +7,9 @@ namespace WindowsBuild
     {
         private static void Main(string[] args)
         {
+#if DEBUG
             DefaultLogger logger = new DefaultLogger();
+#endif
 
             string rootPath = AppDomain.CurrentDomain.BaseDirectory;
             WindowBuildFileRouter router = new WindowBuildFileRouter(rootPath);
@@ -45,7 +47,9 @@ namespace WindowsBuild
             };
 
             app.Run();
+#if DEBUG
             logger.Dispose();
+#endif
         }
 
     }

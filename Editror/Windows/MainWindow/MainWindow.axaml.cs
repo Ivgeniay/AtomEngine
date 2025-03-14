@@ -28,7 +28,6 @@ namespace Editor
 #endif
 
             InitializeComponent();
-
             InitializeStatusBar();
 
             MainCanvas_ = MainCanvas;

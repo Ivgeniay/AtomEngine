@@ -24,6 +24,7 @@ namespace Editor
                 paths.Add(DirectoryType.Configurations, Path.Combine(paths[DirectoryType.Base], "Configurations"));
                 paths.Add(DirectoryType.CSharp_Assembly, Path.Combine(paths[DirectoryType.Base], "Project"));
                 paths.Add(DirectoryType.Cache, Path.Combine(paths[DirectoryType.Base], "Cache"));
+                paths.Add(DirectoryType.ExePath, Path.Combine(paths[DirectoryType.Base], "Execution"));
 
 
                 foreach (var path in paths.Values)

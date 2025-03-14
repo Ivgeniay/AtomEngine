@@ -8,5 +8,6 @@
         Configurations,
         CSharp_Assembly,
         Cache,
+        ExePath,
     }
 }

@@ -13,7 +13,6 @@ namespace Editor
 {
     public class ConsoleController : ContentControl, IWindowed, ILogger
     {
-        public static ConsoleController Instance;
         private Grid _mainGrid;
         private ScrollViewer _scrollViewer;
         private StackPanel _logPanel;
@@ -49,7 +48,6 @@ namespace Editor
 
         public ConsoleController()
         {
-            ConsoleController.Instance = this;
             InitializeUI();
             InitializeDefaultCommands();
         }
