@@ -71,7 +71,6 @@ namespace Editor
 
                 CopyEngineLibraries(buildDir, config.TargetPlatform);
 
-                //return true;
                 await CreateExecutable(buildDir, config);
 
                 Status.SetStatus($"Сборка завершена: {buildDir}");
@@ -251,6 +250,11 @@ namespace Editor
             string exeName = $"{config.ProjectName}.exe";
 
             string exeDirectory = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.ExePath);
+
+            if (Directory.GetFiles(exeDirectory, "*.exe").Length == 0)
+            {
+                throw new FileNotFoundError("Exe template not found");
+            }
 
             var directories = Directory.GetDirectories(exeDirectory);
             foreach (var directory in directories)

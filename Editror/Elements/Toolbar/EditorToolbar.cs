@@ -112,6 +112,26 @@ namespace Editor
             {
                 BuildManager buildManager = ServiceHub.Get<BuildManager>();
                 DirectoryExplorer directoryExplorer = ServiceHub.Get<DirectoryExplorer>();
+                ScriptProjectGenerator scriptProjectGenerator = ServiceHub.Get<ScriptProjectGenerator>();
+
+                var result = scriptProjectGenerator.BuildProject();
+                if (!result)
+                {
+                    DebLogger.Error("Building Error");
+                    return;
+                }
+
+                var assembly = ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly();
+                if (assembly != null)
+                {
+                    ServiceHub.Get<EditorAssemblyManager>().UpdateScriptAssembly(assembly);
+                    DebLogger.Info("Проект скриптов успешно скомпилирован и загружен");
+                }
+                else
+                {
+                    DebLogger.Error("Script Assembly error");
+                    return;
+                }
 
                 BuildConfig config = new BuildConfig();
                 string cachepath = directoryExplorer.GetPath(DirectoryType.Cache);
