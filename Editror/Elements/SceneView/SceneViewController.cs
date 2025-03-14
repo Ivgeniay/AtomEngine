@@ -34,6 +34,7 @@ namespace Editor
 
         private EditorCamera _camera;
         private AABBManager _aabbManager;
+        private CameraFrustumManager _cameraFrustumManager;
         private SceneEntityComponentProvider sceneEntityComponentProvider;
 
         private Dictionary<EntityData, RenderPairCache> _componentRenderCache = new Dictionary<EntityData, RenderPairCache>();
@@ -215,6 +216,7 @@ namespace Editor
                 _isGlInitialized = true;
                 InitializeGrid(gl);
                 InitializeAABBManager(gl);
+                InitializeCameraFrustumManager(gl);
                 UpdateEntitiesFromScene();
             }
             catch (Exception ex)
@@ -243,6 +245,18 @@ namespace Editor
             }
             catch (Exception ex)
             {
+            }
+        }
+
+        private void InitializeCameraFrustumManager(GL gl)
+        {
+            try
+            {
+                _cameraFrustumManager = new CameraFrustumManager(gl, sceneEntityComponentProvider);
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Failed to initialize camera frustum manager: {ex.Message}");
             }
         }
 
@@ -275,6 +289,7 @@ namespace Editor
                 RenderEntities(gl, view, projection);
 
                 _aabbManager?.Render(view, projection);
+                _cameraFrustumManager?.Render(view, projection);
 
                 if (_isPreparingClose)
                 {
@@ -498,18 +513,14 @@ namespace Editor
 
         private unsafe void RenderEntity(GL gl, ShaderBase shader, MeshBase mesh, Matrix4x4 model, Matrix4x4 view, Matrix4x4 projection)
         {
-            // Используем шейдер
             shader.Use();
 
-            // Устанавливаем MVP матрицы в шейдер, если шейдер поддерживает эти uniform-переменные
             try
             {
-                // Получаем местоположения uniform-переменных
                 var modelLoc = gl.GetUniformLocation(shader.Handle, "model");
                 var viewLoc = gl.GetUniformLocation(shader.Handle, "view");
                 var projLoc = gl.GetUniformLocation(shader.Handle, "projection");
 
-                // Устанавливаем uniform-переменные
                 if (modelLoc >= 0)
                     gl.UniformMatrix4(modelLoc, 1, false, GetMatrix4x4Values(model));
 
@@ -524,14 +535,11 @@ namespace Editor
                 DebLogger.Warn($"Не удалось установить MVP матрицы в шейдер: {ex.Message}");
             }
 
-            // Рендерим меш
             mesh.Draw(shader);
         }
 
         private unsafe float* GetMatrix4x4Values(Matrix4x4 matrix)
         {
-            // Преобразуем Matrix4x4 в массив float для OpenGL
-            // Примечание: OpenGL использует порядок столбцов, а не строк
             return (float*)&matrix;
         }
 
@@ -594,21 +602,14 @@ namespace Editor
 
             if (ray.Raycast(out var hit))
             {
-                // Находим соответствующий EntityData
                 var entity = _currentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == hit.EntityId);
                 if (entity != null)
                 {
                     OnEntitySelected?.Invoke(entity.Id);
-                    //// Создаем иерархический элемент и выбираем его
-                    //var hierarchyItem = new EntityHierarchyItem(entity.Id, entity.Version, entity.Name);
-                    //Select.SelectItem(hierarchyItem);
-                    //Status.SetStatus($"Выбран объект: {entity.Name}");
-
-                    //// Также можно вызвать обработчик события EntitySelected
-                    //ServiceHub.Get<InspectorDistributor>()?.GetInspectable(hierarchyItem);
                 }
             }
         }
+        
         private Vector3 CalculateRayDirection(float normalizedX, float normalizedY)
         {
             Vector4 clipCoords = new Vector4(normalizedX, normalizedY, -1.0f, 1.0f);
@@ -656,6 +657,7 @@ namespace Editor
         {
             _componentRenderCache.Clear();
             _aabbManager?.FreeCache();
+            _cameraFrustumManager?.FreeCache();
             BVHTree.Instance?.FreeCache();
         }
         
@@ -709,6 +711,7 @@ namespace Editor
                     _componentRenderCache.Remove(entityToRemove);
                     BVHTree.Instance.RemoveEntity(entityId);
                     _aabbManager.RemoveEntity(entityId);
+                    _cameraFrustumManager?.RemoveCamera(entityId);
                 }
             });
         }
@@ -732,6 +735,11 @@ namespace Editor
                 if (entity != null)
                 {
                     CacheEntityComponents(entity);
+
+                    if (component is CameraComponent || component is TransformComponent)
+                    {
+                        _cameraFrustumManager?.AddCamera(entityId);
+                    }
                 }
             });
         }
@@ -756,6 +764,11 @@ namespace Editor
                             BVHTree.Instance.RemoveEntity(entityId);
                             _aabbManager.RemoveEntity(entity.Id);
                         }
+                    }
+
+                    if (component is CameraComponent)
+                    {
+                        _cameraFrustumManager?.RemoveCamera(entityId);
                     }
                 }
             });
@@ -823,7 +836,13 @@ namespace Editor
                 BVHTree.Instance.AddEntity(entity.Id);
                 _aabbManager.AddEntity(entity.Id, mesh);
             }
+
+            if (entity.Components.ContainsKey(nameof(CameraComponent)) && entity.Components.ContainsKey(nameof(TransformComponent)))
+            {
+                _cameraFrustumManager?.AddCamera(entity.Id);
+            }
         }
+
         public void Dispose()
         {
             SetDefaulFieldValue();
@@ -841,13 +860,18 @@ namespace Editor
 
             if (_gridShader != null)
             {
-                //_gridShader.Dispose();
+                _gridShader.Dispose();
                 _gridShader = null;
             }
             if (_aabbManager != null)
             {
-                //_aabbManager.Dispose();
+                _aabbManager.Dispose();
                 _aabbManager = null;
+            }
+            if (_cameraFrustumManager != null)
+            {
+                _cameraFrustumManager.Dispose();
+                _cameraFrustumManager = null;
             }
             _isGlInitialized = false;
 

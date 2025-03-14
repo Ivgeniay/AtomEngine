@@ -255,7 +255,8 @@ namespace OpenglLib
         {
             try
             {
-                var normalizedModelPath = NormalizePath(modelPath);
+                //var normalizedModelPath = NormalizePath(modelPath);
+                var normalizedModelPath = modelPath;
                 var basePath = _customBasePath;
 
                 // Сначала пробуем найти файл по полному пути
