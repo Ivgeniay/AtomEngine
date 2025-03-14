@@ -213,6 +213,67 @@ namespace Editor
         {
             try
             {
+#if DEBUG
+                gl.DebugMessageCallback((source, type, id, severity, length, message, param) =>
+                {
+                    string errorMessage = System.Runtime.InteropServices.Marshal.PtrToStringAnsi(message, length);
+
+                    string sourceStr = source switch
+                    {
+                        GLEnum.DebugSourceApi => "API",
+                        GLEnum.DebugSourceWindowSystem => "Window System",
+                        GLEnum.DebugSourceShaderCompiler => "Shader Compiler",
+                        GLEnum.DebugSourceThirdParty => "Third Party",
+                        GLEnum.DebugSourceApplication => "Application",
+                        GLEnum.DebugSourceOther => "Other",
+                        _ => $"Unknown ({source})"
+                    };
+
+                    string typeStr = type switch
+                    {
+                        GLEnum.DebugTypeError => "Error",
+                        GLEnum.DebugTypeDeprecatedBehavior => "Deprecated Behavior",
+                        GLEnum.DebugTypeUndefinedBehavior => "Undefined Behavior",
+                        GLEnum.DebugTypePortability => "Portability",
+                        GLEnum.DebugTypePerformance => "Performance",
+                        GLEnum.DebugTypeMarker => "Marker",
+                        GLEnum.DebugTypePushGroup => "Push Group",
+                        GLEnum.DebugTypePopGroup => "Pop Group",
+                        GLEnum.DebugTypeOther => "Other",
+                        _ => $"Unknown ({type})"
+                    };
+
+                    string severityStr = severity switch
+                    {
+                        GLEnum.DebugSeverityHigh => "High",
+                        GLEnum.DebugSeverityMedium => "Medium",
+                        GLEnum.DebugSeverityLow => "Low",
+                        GLEnum.DebugSeverityNotification => "Notification",
+                        _ => $"Unknown ({severity})"
+                    };
+
+                    if (severity == GLEnum.DebugSeverityHigh)
+                    {
+                        DebLogger.Error($"OpenGL {severityStr} {typeStr} [{sourceStr}] (ID: {id}): {errorMessage}");
+                    }
+                    else if (severity == GLEnum.DebugSeverityMedium)
+                    {
+                        DebLogger.Warn($"OpenGL {severityStr} {typeStr} [{sourceStr}] (ID: {id}): {errorMessage}");
+                    }
+                    else if (severity == GLEnum.DebugSeverityLow)
+                    {
+                        DebLogger.Info($"OpenGL {severityStr} {typeStr} [{sourceStr}] (ID: {id}): {errorMessage}");
+                    }
+                    else
+                    {
+                        DebLogger.Debug($"OpenGL {severityStr} {typeStr} [{sourceStr}] (ID: {id}): {errorMessage}");
+                    }
+
+                }, IntPtr.Zero);
+
+                gl.Enable(EnableCap.DebugOutput);
+                gl.Enable(EnableCap.DebugOutputSynchronous);
+#endif
                 _isGlInitialized = true;
                 InitializeGrid(gl);
                 InitializeAABBManager(gl);

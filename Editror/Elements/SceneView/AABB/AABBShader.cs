@@ -180,7 +180,7 @@ namespace Editor
 
             _gl.BindVertexArray(_vao);
             _gl.PolygonMode(GLEnum.FrontAndBack, GLEnum.Line);
-            _gl.LineWidth(2.0f);
+            _gl.LineWidth(1.0f);
 
             _gl.DrawElements(PrimitiveType.Lines, (uint)_indexCount, DrawElementsType.UnsignedInt, (void*)0);
             _gl.PolygonMode(GLEnum.FrontAndBack, GLEnum.Fill);

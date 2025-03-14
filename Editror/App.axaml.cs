@@ -93,6 +93,17 @@ namespace Editor
                 await ServiceHub.Get<ScriptSyncSystem>().Compile();
                 await Task.Delay(100);
 
+                Dispatcher.UIThread.UnhandledException += (sender, args) =>
+                {
+                    DebLogger.Fatal($"Необработанное исключение в UI потоке: {args.Exception.Message}\n{args.Exception.StackTrace}");
+                };
+
+                AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+                {
+                    var exception = (Exception)args.ExceptionObject;
+                    DebLogger.Fatal($"Необработанное исключение AppDomain: {exception.Message}\n{exception.StackTrace}");
+                };
+
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     mainWindow = new MainWindow();
@@ -100,6 +111,7 @@ namespace Editor
                     mainWindow.Show();
                     loadingWindow.Close();
                 });
+
             }
             catch (Exception ex)
             {
