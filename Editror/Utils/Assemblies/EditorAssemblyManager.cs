@@ -186,6 +186,7 @@ namespace Editor
             }
             return _assemblyDict[TAssembly.UserScript];
         }
+
     }
 
     public enum TAssembly

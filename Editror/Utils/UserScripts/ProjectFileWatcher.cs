@@ -10,7 +10,7 @@ namespace Editor
     /// </summary>
     public class ProjectFileWatcher : IService, IDisposable
     { 
-        private FileSystemWatcher _watcher;
+        private System.IO.FileSystemWatcher _watcher;
         private string _projectPath;
         private readonly object _lockObject = new object();
         private bool _isInitialized = false;
@@ -28,7 +28,7 @@ namespace Editor
             {
                 _projectPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.CSharp_Assembly);
 
-                _watcher = new FileSystemWatcher(_projectPath)
+                _watcher = new System.IO.FileSystemWatcher(_projectPath)
                 {
                     NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.DirectoryName,
                     IncludeSubdirectories = true,

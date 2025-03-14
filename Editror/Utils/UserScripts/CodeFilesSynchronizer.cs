@@ -37,7 +37,7 @@ namespace Editor
         private string _assetsPath;
         private bool _isInitialized = false;
         private bool _isSynchronizing = false;
-        AssetFileSystem _assetFileSystem;
+        FileSystemWatcher _assetFileSystem;
         private readonly object _lockObject = new object();
 
         // Хранит пары полных путей файлов, которые сейчас синхронизируются, чтобы избежать рекурсивных вызовов
@@ -58,7 +58,7 @@ namespace Editor
 
                 SynchronizeDirectories();
 
-                _assetFileSystem = ServiceHub.Get<AssetFileSystem>();
+                _assetFileSystem = ServiceHub.Get<FileSystemWatcher>();
                 _assetFileSystem.AssetCreated += OnAssetCreated;
                 _assetFileSystem.AssetChanged += OnAssetChanged;
                 _assetFileSystem.AssetDeleted += OnAssetDeleted;

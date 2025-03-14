@@ -7,14 +7,11 @@ using System;
 
 namespace Editor
 {
-    /// <summary>
-    /// Класс для управления файловой системой ресурсов
-    /// </summary>
-    public class AssetFileSystem : IDisposable, IService
+    public class FileSystemWatcher : IDisposable, IService
     {
         private string _assetsPath;
         private MetadataManager _metadataManager;
-        private FileSystemWatcher _fileWatcher;
+        private System.IO.FileSystemWatcher _fileWatcher;
 
         private readonly List<string> _ignorePatterns = new()
         {
@@ -45,9 +42,6 @@ namespace Editor
 
         private bool _isInitialized = false;
 
-        /// <summary>
-        /// Инициализирует файловую систему ресурсов
-        /// </summary>
         public Task InitializeAsync()
         {
             if (_isInitialized) return Task.CompletedTask;
@@ -62,10 +56,7 @@ namespace Editor
                     Directory.CreateDirectory(_assetsPath);
                 }
 
-                // Инициализируем менеджер метаданных
                 _metadataManager.InitializeAsync();
-
-                // Запускаем наблюдение за файловой системой
                 StartFileWatcher();
 
                 DebLogger.Info("Файловая система ресурсов инициализирована");
@@ -73,12 +64,9 @@ namespace Editor
             });
         }
 
-        /// <summary>
-        /// Запускает наблюдение за файловой системой
-        /// </summary>
         private void StartFileWatcher()
         {
-            _fileWatcher = new FileSystemWatcher(_assetsPath)
+            _fileWatcher = new System.IO.FileSystemWatcher(_assetsPath)
             {
                 IncludeSubdirectories = true,
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName |
@@ -116,9 +104,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Проверяет, должен ли файл быть проигнорирован
-        /// </summary>
         private bool ShouldIgnore(string path)
         {
             if (string.IsNullOrEmpty(path))
@@ -138,9 +123,6 @@ namespace Editor
             DebLogger.Error(e);
         }
 
-        /// <summary>
-        /// Обработчик события создания файла
-        /// </summary>
         private void OnFileCreated(object sender, FileSystemEventArgs e)
         {
             if (ShouldIgnore(e.FullPath))
@@ -211,9 +193,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик события удаления файла
-        /// </summary>
         private void OnFileDeleted(object sender, FileSystemEventArgs e)
         {
             if (ShouldIgnore(e.FullPath))
@@ -238,9 +217,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик события переименования файла
-        /// </summary>
         private void OnFileRenamed(object sender, RenamedEventArgs e)
         {
             if (ShouldIgnore(e.OldFullPath) || ShouldIgnore(e.FullPath))
@@ -303,9 +279,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик события изменения файла
-        /// </summary>
         private void OnFileChanged(object sender, FileSystemEventArgs e)
         {
             if (ShouldIgnore(e.FullPath))
@@ -391,257 +364,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Копирует файл ресурса с сохранением метаданных
-        /// </summary>
-        internal bool CopyAsset(string sourcePath, string destinationPath)
-        {
-            try
-            {
-                if (!File.Exists(sourcePath))
-                {
-                    DebLogger.Error($"Исходный файл не существует: {sourcePath}");
-                    return false;
-                }
-
-                var sourceMetadata = _metadataManager.GetMetadata(sourcePath);
-                File.Copy(sourcePath, destinationPath, true);
-
-                var newMetadata = new AssetMetadata
-                {
-                    Guid = Guid.NewGuid().ToString(),
-                    AssetType = sourceMetadata.AssetType,
-                    LastModified = DateTime.UtcNow,
-                    Version = 1,
-                    ContentHash = _metadataManager.CalculateFileHash(destinationPath),
-                    ImportSettings = new Dictionary<string, object>(sourceMetadata.ImportSettings),
-                    Tags = new List<string>(sourceMetadata.Tags)
-                };
-
-                _metadataManager.SaveMetadata(destinationPath, newMetadata);
-                DebLogger.Info($"Скопирован ресурс: {sourcePath} -> {destinationPath}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Ошибка при копировании ресурса: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Перемещает файл ресурса с сохранением метаданных
-        /// </summary>
-        internal bool MoveAsset(string sourcePath, string destinationPath)
-        {
-            try
-            {
-                if (!File.Exists(sourcePath))
-                {
-                    DebLogger.Error($"Исходный файл не существует: {sourcePath}");
-                    return false;
-                }
-
-                // Копируем метафайл
-                string sourceMetaPath = sourcePath + ".meta";
-                string destMetaPath = destinationPath + ".meta";
-
-                if (File.Exists(sourceMetaPath))
-                {
-                    File.Copy(sourceMetaPath, destMetaPath, true);
-                    File.Delete(sourceMetaPath);
-                }
-
-                // Перемещаем файл
-                File.Move(sourcePath, destinationPath, true);
-
-                // Обновляем метаданные в кэше
-                _metadataManager.HandleFileRenamed(sourcePath, destinationPath);
-
-                DebLogger.Info($"Перемещен ресурс: {sourcePath} -> {destinationPath}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Ошибка при перемещении ресурса: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Импортирует файл извне в директорию ресурсов
-        /// </summary>
-        internal string ImportAsset(string externalFilePath, string relativePath = null)
-        {
-            try
-            {
-                if (!File.Exists(externalFilePath))
-                {
-                    DebLogger.Error($"Файл для импорта не существует: {externalFilePath}");
-                    return null;
-                }
-
-                // Определяем путь назначения
-                string fileName = Path.GetFileName(externalFilePath);
-                string destinationDir = _assetsPath;
-
-                if (!string.IsNullOrEmpty(relativePath))
-                {
-                    destinationDir = Path.Combine(_assetsPath, relativePath);
-                    if (!Directory.Exists(destinationDir))
-                    {
-                        Directory.CreateDirectory(destinationDir);
-                    }
-                }
-
-                string destinationPath = Path.Combine(destinationDir, fileName);
-
-                // Копируем файл
-                File.Copy(externalFilePath, destinationPath, true);
-
-                // Создаем метаданные
-                var metadata = _metadataManager.CreateMetadata(destinationPath);
-                _metadataManager.SaveMetadata(destinationPath, metadata);
-
-                DebLogger.Info($"Импортирован ресурс: {externalFilePath} -> {destinationPath}");
-                return destinationPath;
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Ошибка при импорте ресурса: {ex.Message}");
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Экспортирует ресурс во внешнюю директорию
-        /// </summary>
-        internal bool ExportAsset(string assetPath, string exportPath)
-        {
-            try
-            {
-                if (!File.Exists(assetPath))
-                {
-                    DebLogger.Error($"Ресурс для экспорта не существует: {assetPath}");
-                    return false;
-                }
-
-                File.Copy(assetPath, exportPath, true);
-
-                DebLogger.Info($"Экспортирован ресурс: {assetPath} -> {exportPath}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Ошибка при экспорте ресурса: {ex.Message}");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Получает относительный путь ресурса от корневой директории ресурсов
-        /// </summary>
-        internal string GetRelativePath(string fullPath)
-        {
-            if (string.IsNullOrEmpty(fullPath) || !fullPath.StartsWith(_assetsPath))
-                return null;
-
-            return fullPath.Substring(_assetsPath.Length).TrimStart(Path.DirectorySeparatorChar);
-        }
-
-        /// <summary>
-        /// Получает полный путь ресурса по относительному пути
-        /// </summary>
-        internal string GetFullPath(string relativePath)
-        {
-            if (string.IsNullOrEmpty(relativePath))
-                return null;
-
-            return Path.Combine(_assetsPath, relativePath);
-        }
-
-        /// <summary>
-        /// Определяет тип ресурса по его расширению
-        /// </summary>
-        internal MetadataType GetAssetTypeByExtension(string extension)
-        {
-            if (string.IsNullOrEmpty(extension))
-                return MetadataType.Unknown;
-
-            if (!extension.StartsWith("."))
-                extension = "." + extension;
-
-            return _metadataManager.GetTypeByExtension(extension);
-        }
-
-        /// <summary>
-        /// Получает список всех ресурсов указанного типа
-        /// </summary>
-        internal List<string> GetAssetsByType(MetadataType assetType)
-        {
-            return _metadataManager.FindAssetsByType(assetType);
-        }
-
-        /// <summary>
-        /// Получает список всех ресурсов с указанным тегом
-        /// </summary>
-        internal List<string> GetAssetsByTag(string tag)
-        {
-            return _metadataManager.FindAssetsByTag(tag);
-        }
-
-        /// <summary>
-        /// Проверяет, является ли путь путем к ресурсу (находится в директории ресурсов)
-        /// </summary>
-        internal bool IsAssetPath(string path)
-        {
-            if (string.IsNullOrEmpty(path))
-                return false;
-
-            return path.StartsWith(_assetsPath);
-        }
-
-        /// <summary>
-        /// Получает путь к ресурсу по его GUID
-        /// </summary>
-        internal string GetAssetPathByGuid(string guid)
-        {
-            return _metadataManager.GetPathByGuid(guid);
-        }
-
-        /// <summary>
-        /// Получает GUID ресурса по его пути
-        /// </summary>
-        internal string GetAssetGuid(string assetPath)
-        {
-            var metadata = _metadataManager.GetMetadata(assetPath);
-            return metadata?.Guid;
-        }
-
-        /// <summary>
-        /// Добавляет тег к ресурсу
-        /// </summary>
-        internal void AddAssetTag(string assetPath, string tag)
-        {
-            _metadataManager.AddTag(assetPath, tag);
-        }
-
-        /// <summary>
-        /// Удаляет тег у ресурса
-        /// </summary>
-        internal void RemoveAssetTag(string assetPath, string tag)
-        {
-            _metadataManager.RemoveTag(assetPath, tag);
-        }
-
-        /// <summary>
-        /// Обновляет настройки импорта ресурса
-        /// </summary>
-        internal void UpdateAssetImportSettings(string assetPath, Dictionary<string, object> settings)
-        {
-            _metadataManager.UpdateImportSettings(assetPath, settings);
-        }
-
         public void Dispose()
         {
             if (_fileWatcher != null)
@@ -659,16 +381,25 @@ namespace Editor
         }
     }
 
-    public class FileEventCommand
+    public class CsCompileWatcher : IService
     {
-        public string FileExtension { get; set; } = string.Empty;
-        public FileEventType Type = FileEventType.FileCreate;
-        public Command<FileEvent> Command { get; set; }
-    }
+        private FileSystemWatcher watcher;
+        private ScriptSyncSystem scriptSyncSystem;
+        public Task InitializeAsync()
+        {
+            scriptSyncSystem = ServiceHub.Get<ScriptSyncSystem>();
+            watcher = ServiceHub.Get<FileSystemWatcher>();
+            watcher.AssetChanged += FileCreatedHandler;
+            return Task.CompletedTask;
+        }
 
-    public enum FileEventType
-    {
-        FileChanged,
-        FileCreate
+        private async void FileCreatedHandler(FileChangedEvent @event)
+        {
+            if (@event.FileExtension == ".cs")
+            {
+                ProjectConfigurations pConf = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                await scriptSyncSystem.RebuildProject(pConf.BuildType);
+            }
+        }
     }
 }

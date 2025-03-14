@@ -74,18 +74,19 @@ namespace Editor
             }
         }
 
-        public bool BuildProject(BuildType buildType = BuildType.Debug)
+        public async Task<bool> BuildProject(BuildType buildType = BuildType.Debug)
         {
             try
             {
                 var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
                 string builtype = buildType.ToString();
+
                 Process process = new Process
                 {
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "dotnet",
-                        Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype}",
+                        Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental /p:DebugType=none /p:DebugSymbols=false",
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
@@ -96,9 +97,9 @@ namespace Editor
                 };
 
                 process.Start();
-                string output = process.StandardOutput.ReadToEnd();
+                string output = await process.StandardOutput.ReadToEndAsync();
                 DebLogger.Debug(output);
-                string error = process.StandardError.ReadToEnd();
+                string error = await process.StandardError.ReadToEndAsync();
                 if (!string.IsNullOrEmpty(error)) 
                     DebLogger.Error(error);
                 process.WaitForExit();
@@ -183,10 +184,12 @@ namespace Editor
             DebLogger.Debug($"Проект создан с доступом к {scriptCount} скриптам в папке Assets");
         }
 
+        int cacheCounter = 0;
         public Assembly LoadCompiledAssembly(BuildType buildType = BuildType.Debug)
         {
             var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
             string assemblyPath = string.Empty;
+
             if (_outputPath.EndsWith("bin"))
             {
                 assemblyPath = Path.Combine(_outputPath, buildType.ToString(), $"{projConfig.AssemblyName}.dll");
@@ -198,19 +201,73 @@ namespace Editor
 
             if (!File.Exists(assemblyPath))
             {
-                Console.WriteLine($"Не найдена скомпилированная сборка по пути: {assemblyPath}");
+                DebLogger.Error($"Не найдена скомпилированная сборка по пути: {assemblyPath}");
                 return null;
             }
+
             try
             {
-                return Assembly.LoadFrom(assemblyPath);
+                string cacheDir = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Cache);
+                string assemblyCahe = Path.Combine(cacheDir, "AsseblyCache" );
+                if (!Directory.Exists(assemblyCahe))
+                {
+                    Directory.CreateDirectory(assemblyCahe);
+                }
+                else
+                {
+                    if (cacheCounter == 0)
+                    {
+                        Directory.Delete(assemblyCahe, true);
+                        Directory.CreateDirectory(assemblyCahe);
+                    }
+                }
+                string cachedAssemblyPath = Path.Combine(assemblyCahe, $"{projConfig.AssemblyName}_{buildType}_{cacheCounter++}.dll");
+
+                File.Copy(assemblyPath, cachedAssemblyPath, true);
+
+                string pdbPath = Path.ChangeExtension(assemblyPath, ".pdb");
+                if (File.Exists(pdbPath))
+                {
+                    string cachedPdbPath = Path.ChangeExtension(cachedAssemblyPath, ".pdb");
+                    File.Copy(pdbPath, cachedPdbPath, true);
+                }
+
+                return Assembly.LoadFrom(cachedAssemblyPath);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ошибка при загрузке сборки: {ex.Message}");
+                DebLogger.Error($"Ошибка при загрузке сборки: {ex.Message}");
                 return null;
             }
         }
+        //public Assembly LoadCompiledAssembly(BuildType buildType = BuildType.Debug)
+        //{
+        //    var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+        //    string assemblyPath = string.Empty;
+        //    if (_outputPath.EndsWith("bin"))
+        //    {
+        //        assemblyPath = Path.Combine(_outputPath, buildType.ToString(), $"{projConfig.AssemblyName}.dll");
+        //    }
+        //    else
+        //    {
+        //        assemblyPath = Path.Combine(_outputPath, $"{projConfig.AssemblyName}.dll");
+        //    }
+
+        //    if (!File.Exists(assemblyPath))
+        //    {
+        //        Console.WriteLine($"Не найдена скомпилированная сборка по пути: {assemblyPath}");
+        //        return null;
+        //    }
+        //    try
+        //    {
+        //        return Assembly.LoadFrom(assemblyPath);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine($"Ошибка при загрузке сборки: {ex.Message}");
+        //        return null;
+        //    }
+        //}
 
         /// <summary>
         /// Открывает проект в IDE

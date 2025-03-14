@@ -257,7 +257,7 @@ namespace Editor
                 {
                     new EditorToolbarButton()
                     {
-                        Text = "Build Project Scripts",
+                        Text = "Compile Scripts",
                         Description = "",
                         Action = async () => {
                             DebLogger.Debug("Build Project Scripts");
@@ -294,12 +294,12 @@ namespace Editor
                     },
                     new EditorToolbarButton()
                     {
-                        Text = "Build Project",
-                        Description = "IDE",
-                        Action = () =>
+                        Text = "Build Product",
+                        Description = "Build product",
+                        Action = async () =>
                         {
                             BuildConfig config = new BuildConfig();
-                            ServiceHub.Get<BuildManager>().BuildProject(config);
+                            await ServiceHub.Get<BuildManager>().BuildProject(config);
                         }
                     }
                 }
@@ -361,7 +361,7 @@ namespace Editor
             _sceneManager.HandleNewScene().GetAwaiter().GetResult();
             _uIManager.OpenCachedWindows();
 
-            ServiceHub.Get<AssetFileSystem>().RegisterCommand(new FileEventCommand()
+            ServiceHub.Get<FileSystemWatcher>().RegisterCommand(new FileEventCommand()
             {
                 FileExtension = ".glsl",
                 Type = FileEventType.FileChanged,

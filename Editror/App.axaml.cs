@@ -47,11 +47,12 @@ namespace Editor
                 // Сканирование файлов в Assets
                 ServiceHub.RegisterService<MetadataManager>();
                 // Вотчер событий в Assets
-                ServiceHub.RegisterService<AssetFileSystem>();
+                ServiceHub.RegisterService<FileSystemWatcher>();
                 // Вотчер событий отношений проекта пользовательских скриптов и папки Assets
                 ServiceHub.RegisterService<ScriptProjectGenerator>();
                 // Вотчер событий в папке с проектом пользовательских скриптов
                 ServiceHub.RegisterService<ProjectFileWatcher>();
+                ServiceHub.RegisterService<CsCompileWatcher>();
 
                 ServiceHub.RegisterService<ScriptSyncSystem>();
                 // Сервис синхронизации состояния между папками пользовательских скриптов и папкой Assets

@@ -114,7 +114,7 @@ namespace Editor
                 DirectoryExplorer directoryExplorer = ServiceHub.Get<DirectoryExplorer>();
                 ScriptProjectGenerator scriptProjectGenerator = ServiceHub.Get<ScriptProjectGenerator>();
 
-                var result = scriptProjectGenerator.BuildProject();
+                var result = await scriptProjectGenerator.BuildProject();
                 if (!result)
                 {
                     DebLogger.Error("Building Error");

@@ -3,8 +3,6 @@ using System.Numerics;
 
 namespace AtomEngine
 {
-    //// TODO: Реализовать мультизависимость систем 
-    
     public partial class World : IWorld, IDisposable
     {
         // ENTITY
@@ -180,10 +178,10 @@ namespace AtomEngine
                 _archetypePool.AddEntityToArchetype(entity.Id, components, componentTypes);
             }
 
-            if (typeof(T) == typeof(BoundingComponent))
-            {
-                BvhPool.RemoveEntity(entity);
-            }
+            //if (typeof(T) == typeof(BoundingComponent))
+            //{
+            //    BvhPool.RemoveEntity(entity);
+            //}
 
             InvalidateQueries();
         }
@@ -285,7 +283,7 @@ namespace AtomEngine
         
         public void Update(double deltaTime)
         {
-            BvhPool.UpdateDirtyNodes();
+            //BvhPool.UpdateDirtyNodes();
 
             if (initialize_systems.Count > 0)
             {

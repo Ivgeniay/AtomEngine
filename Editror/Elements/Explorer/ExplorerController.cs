@@ -43,7 +43,7 @@ namespace Editor
         private ContextMenu _explorerContextMenu;
         private ContextMenu _fileContextMenu;
 
-        private AssetFileSystem fileSystem;
+        private FileSystemWatcher fileSystem;
         private SceneManager _sceneManager;
 
         private bool _isOpen = false;
@@ -1379,7 +1379,7 @@ namespace Editor
 
         public void Open()
         {
-            if (fileSystem == null) fileSystem = ServiceHub.Get<AssetFileSystem>();
+            if (fileSystem == null) fileSystem = ServiceHub.Get<FileSystemWatcher>();
             fileSystem.AssetChanged += Redraw;
             fileSystem.AssetCreated += Redraw;
             fileSystem.AssetDeleted += Redraw;
@@ -1390,7 +1390,7 @@ namespace Editor
 
         public void Close()
         {
-            if (fileSystem == null) fileSystem = ServiceHub.Get<AssetFileSystem>();
+            if (fileSystem == null) fileSystem = ServiceHub.Get<FileSystemWatcher>();
             fileSystem.AssetChanged -= Redraw;
             fileSystem.AssetCreated -= Redraw;
             fileSystem.AssetDeleted -= Redraw;

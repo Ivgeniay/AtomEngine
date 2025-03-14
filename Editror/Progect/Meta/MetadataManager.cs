@@ -27,9 +27,7 @@ namespace Editor
         public const string META_EXTENSION = ".meta";
 
 
-        /// <summary>
-        /// Инициализирует соответствия расширений типам ресурсов
-        /// </summary>
+
         private void InitializeExtensionMappings()
         {
             _extensionToTypeMap[".png"] = MetadataType.Texture;
@@ -67,9 +65,6 @@ namespace Editor
             _extensionToTypeMap[".txt"] = MetadataType.Text;
         }
 
-        /// <summary>
-        /// Инициализирует менеджер метаданных и сканирует директорию ресурсов
-        /// </summary>
         public Task InitializeAsync()
         {
             if (_isInitialized)
@@ -100,9 +95,6 @@ namespace Editor
             });
         }
 
-        /// <summary>
-        /// Сканирует директорию ресурсов и загружает все метафайлы
-        /// </summary>
         private void ScanAssetsDirectory()
         {
             if (!Directory.Exists(_assetsPath))
@@ -163,15 +155,8 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Создает новые метаданные для указанного файла
-        /// </summary>
         public AssetMetadata CreateMetadata(string filePath)
         {
-            if (filePath.EndsWith(".cs"))
-            {
-
-            }
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
             MetadataType assetType = _extensionToTypeMap.TryGetValue(extension, out var type) ? type : MetadataType.Unknown;
 
@@ -221,9 +206,6 @@ namespace Editor
             return metadata;
         }
 
-        /// <summary>
-        /// Сохраняет метаданные в файл
-        /// </summary>
         public void SaveMetadata(string filePath, AssetMetadata metadata)
         {
             if (filePath == null)
@@ -241,6 +223,7 @@ namespace Editor
             //_metadataCache[filePath] = metadata;
             File.WriteAllText(metaFilePath, metaJson);
         }
+        
         public void SaveMetadata(AssetMetadata metadata)
         {
             SaveMetadata(_guidToPathMap[metadata.Guid], metadata);
@@ -311,9 +294,7 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обрабатывает событие изменения файла
-        /// </summary>
+
         public void HandleFileChanged(string filePath)
         {
             if (filePath.EndsWith(META_EXTENSION))
@@ -362,9 +343,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Рассчитывает хеш содержимого файла
-        /// </summary>
         internal string CalculateFileHash(string filePath)
         {
             using (var md5 = MD5.Create())
@@ -375,9 +353,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обрабатывает событие создания нового файла
-        /// </summary>
         internal void HandleFileCreated(string filePath)
         {
             if (filePath.EndsWith(META_EXTENSION))
@@ -391,9 +366,6 @@ namespace Editor
             DebLogger.Info($"Создан новый метафайл для {filePath}");
         }
 
-        /// <summary>
-        /// Обрабатывает событие удаления файла
-        /// </summary>
         internal void HandleFileDeleted(string filePath)
         {
             if (filePath.EndsWith(META_EXTENSION))
@@ -468,9 +440,6 @@ namespace Editor
             DebLogger.Info($"Удален метафайл для {filePath}");
         }
 
-        /// <summary>
-        /// Обрабатывает событие переименования/перемещения файла
-        /// </summary>
         internal void HandleFileRenamed(string oldPath, string newPath)
         {
             if (oldPath.EndsWith(META_EXTENSION) || newPath.EndsWith(META_EXTENSION))
@@ -494,19 +463,12 @@ namespace Editor
             DebLogger.Info($"Перемещен метафайл из {oldPath} в {newPath}");
         }
 
-        /// <summary>
-        /// Получает метаданные для указанного пути к файлу
-        /// </summary>
         public AssetMetadata GetMetadataByGuid(string guid) => _metadataCache.Where(e => e.Value.Guid == guid).FirstOrDefault().Value;
         public AssetMetadata GetMetadata(string filePath)
         {
-            if (!_isInitialized)
-                InitializeAsync();
-
             if (_metadataCache.TryGetValue(filePath, out var metadata))
                 return metadata;
 
-            // Если файл не в кеше, попробуем загрузить его метаданные
             string metaFilePath = filePath + META_EXTENSION;
             if (File.Exists(metaFilePath))
             {
@@ -524,7 +486,6 @@ namespace Editor
                 }
             }
 
-            // Если метафайл не существует или поврежден, создаем новый
             metadata = CreateMetadata(filePath);
             SaveMetadata(filePath, metadata);
             _metadataCache[filePath] = metadata;
@@ -533,23 +494,14 @@ namespace Editor
             return metadata;
         }
 
-        /// <summary>
-        /// Получает путь к файлу по его GUID
-        /// </summary>
         public string GetPathByGuid(string guid)
         {
-            if (!_isInitialized)
-                InitializeAsync();
-
             if (_guidToPathMap.TryGetValue(guid, out var path))
                 return path;
 
             return null;
         }
 
-        /// <summary>
-        /// Добавляет зависимость для указанного ресурса
-        /// </summary>
         public void AddDependency(string filePath, string dependencyGuid)
         {
             var metadata = GetMetadata(filePath);
@@ -563,9 +515,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Удаляет зависимость для указанного ресурса
-        /// </summary>
         public void RemoveDependency(string filePath, string dependencyGuid)
         {
             var metadata = GetMetadata(filePath);
@@ -579,9 +528,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Добавляет тег для указанного ресурса
-        /// </summary>
         public void AddTag(string filePath, string tag)
         {
             var metadata = GetMetadata(filePath);
@@ -595,9 +541,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Удаляет тег для указанного ресурса
-        /// </summary>
         public void RemoveTag(string filePath, string tag)
         {
             var metadata = GetMetadata(filePath);
@@ -611,9 +554,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обновляет настройки импорта для указанного ресурса
-        /// </summary>
         public void UpdateImportSettings(string filePath, Dictionary<string, object> settings)
         {
             var metadata = GetMetadata(filePath);
@@ -637,16 +577,8 @@ namespace Editor
             }
         }
 
-        
-
-        /// <summary>
-        /// Находит все ресурсы, зависящие от указанного ресурса
-        /// </summary>
         public List<string> FindDependentAssets(string guid)
         {
-            if (!_isInitialized)
-                InitializeAsync();
-
             var dependentAssets = new List<string>();
 
             foreach (var entry in _metadataCache)
@@ -660,34 +592,21 @@ namespace Editor
             return dependentAssets;
         }
 
-        /// <summary>
-        /// Находит все ресурсы указанного типа
-        /// </summary>
         public List<string> FindAssetsByType(MetadataType assetType)
         {
-            if (!_isInitialized)
-                InitializeAsync();
-
             return _metadataCache
                 .Where(kv => kv.Value.AssetType.Equals(assetType))
                 .Select(kv => kv.Key)
                 .ToList();
         }
-
-        /// <summary>
-        /// Находит все ресурсы с указанным тегом
-        /// </summary>
+        
         public List<string> FindAssetsByTag(string tag)
         {
-            if (!_isInitialized)
-                InitializeAsync();
-
             return _metadataCache
                 .Where(kv => kv.Value.Tags.Contains(tag))
                 .Select(kv => kv.Key)
                 .ToList();
         }
-
 
         internal MetadataType GetTypeByExtension(string extension)
         {

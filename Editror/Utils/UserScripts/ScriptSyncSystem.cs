@@ -57,8 +57,8 @@ namespace Editor
 
         internal Task Compile()
         {
-            return Task.Run(() => {
-                bool success = ServiceHub.Get<ScriptProjectGenerator>().BuildProject();
+            return Task.Run(async () => {
+                bool success = await ServiceHub.Get<ScriptProjectGenerator>().BuildProject();
                 if (success)
                 {
                     var assembly = ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly();
@@ -122,9 +122,7 @@ namespace Editor
             {
                 DebLogger.Info("Перегенерация проекта скриптов...");
 
-                // Выполняем в отдельном потоке, чтобы не блокировать UI
-                await Task.Run(() => {
-                    // Обновляем файл проекта
+                await Task.Run(async () => {
                     success = ServiceHub.Get<ScriptProjectGenerator>().GenerateProject();
                     if (!success)
                     {
@@ -132,15 +130,13 @@ namespace Editor
                         return;
                     }
 
-                    // Компилируем проект
-                    success = ServiceHub.Get<ScriptProjectGenerator>().BuildProject(buildType);
+                    success = await ServiceHub.Get<ScriptProjectGenerator>().BuildProject(buildType);
                     if (!success)
                     {
                         DebLogger.Error("Не удалось скомпилировать проект скриптов");
                         return;
                     }
 
-                    // Загружаем скомпилированную сборку
                     var assembly = ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly(buildType);
                     if (assembly == null)
                     {
@@ -149,7 +145,6 @@ namespace Editor
                         return;
                     }
 
-                    // Обновляем ссылку на сборку в AssemblyManager
                     ServiceHub.Get<EditorAssemblyManager>().UpdateScriptAssembly(assembly);
 
                     DebLogger.Info("Проект скриптов успешно перекомпилирован и загружен");

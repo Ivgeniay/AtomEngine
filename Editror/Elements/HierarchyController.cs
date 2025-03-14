@@ -90,6 +90,10 @@ namespace Editor
             _entitiesList.ItemsSource = _entities;
             _entitiesList.AutoScrollToSelectedItem = true;
             _entitiesList.SelectionMode = SelectionMode.Multiple;
+            _entitiesList.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
+            _entitiesList.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
+            _entitiesList.MaxHeight = 10000;
+            _entitiesList.Margin = new Thickness(0);
 
             ScrollViewer.SetHorizontalScrollBarVisibility(_entitiesList, ScrollBarVisibility.Disabled);
             ScrollViewer.SetVerticalScrollBarVisibility(_entitiesList, ScrollBarVisibility.Auto);
