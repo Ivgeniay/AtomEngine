@@ -5,10 +5,10 @@ namespace AtomEngine
     public struct CameraComponent : IComponent
     {
         public Entity Owner { get; set; }
-        public float FieldOfView { get; set; }
-        public float AspectRatio { get; set; }
-        public float NearPlane { get; set; }
-        public float FarPlane { get; set; }
+        public float FieldOfView;
+        public float AspectRatio;
+        public float NearPlane;
+        public float FarPlane;
 
         public Matrix4x4 ViewMatrix { get; set; } = Matrix4x4.Identity;
         public Vector3 CameraUp = Vector3.UnitY; 

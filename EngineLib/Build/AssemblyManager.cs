@@ -4,6 +4,12 @@ namespace AtomEngine
 {
     public class AssemblyManager
     {
+        public static AssemblyManager Instance { get; private set; }
+
+        public AssemblyManager() { 
+            Instance = this;
+        }
+
         protected readonly HashSet<Assembly> _assemblies = new();
 
         public virtual void ScanDirectory(string path)

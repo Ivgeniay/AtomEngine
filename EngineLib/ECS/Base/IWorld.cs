@@ -5,6 +5,8 @@ namespace AtomEngine
     public interface IWorld
     {
         public void Update(double deltaTime);
+        public void Render(double deltaTime);
+        public void FixedUpdate();
 
         public ref T GetComponent<T>(Entity entity) where T : struct, IComponent;
         public bool HasComponent<T>(Entity entity) where T : struct, IComponent;

@@ -1,4 +1,5 @@
-﻿using AtomEngine.RenderEntity;
+﻿using AtomEngine;
+using AtomEngine.RenderEntity;
 using Silk.NET.OpenGL;
 
 namespace WindowsBuild
@@ -29,7 +30,7 @@ namespace WindowsBuild
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Ошибка при установке свойства {propertyName}: {ex.Message}");
+                    DebLogger.Debug($"Ошибка при установке свойства {propertyName}: {ex.Message}");
                 }
             }
         }
@@ -67,7 +68,7 @@ namespace WindowsBuild
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Ошибка при установке текстуры {samplerName}: {ex.Message}");
+                    DebLogger.Debug($"Ошибка при установке текстуры {samplerName}: {ex.Message}");
                 }
             }
         }

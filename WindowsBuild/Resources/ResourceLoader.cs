@@ -11,18 +11,18 @@ namespace WindowsBuild
 {
     public static class ResourceLoader
     {
-        public static void LoadResources(GL gl, Assimp assimp, WindowBuildFileRouter configuration, AssemblyManager assemblyManager, RuntimeResourceManager resourceManager)
+        public static void LoadResources(GL gl, Assimp assimp, WindowBuildFileRouter router, AssemblyManager assemblyManager, RuntimeResourceManager resourceManager)
         {
             if (gl == null)
             {
-                Console.WriteLine("GL контекст не инициализирован!");
+                DebLogger.Debug("GL контекст не инициализирован!");
                 return;
             }
 
-            string manifestPath = Path.Combine(configuration.ResourcesPath, "resources.manifest");
+            string manifestPath = Path.Combine(router.ResourcesPath, "resources.manifest");
             if (!File.Exists(manifestPath))
             {
-                Console.WriteLine($"Манифест ресурсов не найден: {manifestPath}");
+                DebLogger.Debug($"Манифест ресурсов не найден: {manifestPath}");
                 return;
             }
 
@@ -33,7 +33,7 @@ namespace WindowsBuild
 
                 if (resourceManifest == null || resourceManifest.Count == 0)
                 {
-                    Console.WriteLine("Манифест ресурсов пуст или поврежден");
+                    DebLogger.Debug("Манифест ресурсов пуст или поврежден");
                     return;
                 }
 
@@ -45,11 +45,11 @@ namespace WindowsBuild
                 {
                     string relativePath = entry.Value;
 
-                    if (relativePath.StartsWith(configuration.Textures))
+                    if (relativePath.StartsWith(router.Textures))
                         textureEntries.Add(entry.Key, relativePath);
-                    else if (relativePath.StartsWith(configuration.Models))
+                    else if (relativePath.StartsWith(router.Models))
                         modelEntries.Add(entry.Key, relativePath);
-                    else if (relativePath.StartsWith(configuration.Materials))
+                    else if (relativePath.StartsWith(router.Materials))
                         materialEntries.Add(entry.Key, relativePath);
                 }
 
@@ -57,11 +57,11 @@ namespace WindowsBuild
                 {
                     string guid = entry.Key;
                     string relativePath = entry.Value;
-                    string fullPath = Path.Combine(configuration.ResourcesPath, relativePath);
+                    string fullPath = Path.Combine(router.ResourcesPath, relativePath);
 
                     if (!File.Exists(fullPath))
                     {
-                        Console.WriteLine($"Файл ресурса не найден: {fullPath}");
+                        DebLogger.Debug($"Файл ресурса не найден: {fullPath}");
                         continue;
                     }
 
@@ -78,7 +78,7 @@ namespace WindowsBuild
                         }
                         catch (Exception metaEx)
                         {
-                            Console.WriteLine($"Ошибка при чтении метаданных текстуры: {metaEx.Message}");
+                            DebLogger.Debug($"Ошибка при чтении метаданных текстуры: {metaEx.Message}");
                         }
                     }
 
@@ -129,17 +129,17 @@ namespace WindowsBuild
                     }
 
                     resourceManager.RegisterTexture(guid, texture);
-                    Console.WriteLine($"Загружена текстура: {relativePath}");
+                    DebLogger.Debug($"Загружена текстура: {relativePath}");
                 }
                 foreach (var entry in modelEntries)
                 {
                     string guid = entry.Key;
                     string relativePath = entry.Value;
-                    string fullPath = Path.Combine(configuration.ResourcesPath, relativePath);
+                    string fullPath = Path.Combine(router.ResourcesPath, relativePath);
 
                     if (!File.Exists(fullPath))
                     {
-                        Console.WriteLine($"Файл ресурса не найден: {fullPath}");
+                        DebLogger.Debug($"Файл ресурса не найден: {fullPath}");
                         continue;
                     }
                     try
@@ -152,28 +152,28 @@ namespace WindowsBuild
                             {
                                 var mesh = model.Meshes[0];
                                 resourceManager.RegisterMesh(guid, mesh);
-                                Console.WriteLine($"Загружен меш: {relativePath}");
+                                DebLogger.Debug($"Загружен меш: {relativePath}");
                             }
                         }
                         else
                         {
-                            Console.WriteLine($"Ошибка загрузки меша {relativePath}:");
+                            DebLogger.Debug($"Ошибка загрузки меша {relativePath}:");
                         }
                     }
                     catch (Exception meshEx)
                     {
-                        Console.WriteLine($"Ошибка при загрузке меша {relativePath}: {meshEx.Message}");
+                        DebLogger.Debug($"Ошибка при загрузке меша {relativePath}: {meshEx.Message}");
                     }
                 }
                 foreach (var entry in materialEntries)
                 {
                     string guid = entry.Key;
                     string relativePath = entry.Value;
-                    string fullPath = Path.Combine(configuration.ResourcesPath, relativePath);
+                    string fullPath = Path.Combine(router.ResourcesPath, relativePath);
 
                     if (!File.Exists(fullPath))
                     {
-                        Console.WriteLine($"Файл ресурса не найден: {fullPath}");
+                        DebLogger.Debug($"Файл ресурса не найден: {fullPath}");
                         continue;
                     }
                     try
@@ -222,31 +222,31 @@ namespace WindowsBuild
                                         }
 
                                         resourceManager.RegisterMaterial(guid, shader);
-                                        Console.WriteLine($"Загружен материал: {relativePath}");
+                                        DebLogger.Debug($"Загружен материал: {relativePath}");
                                     }
                                 }
                                 catch (Exception shaderEx)
                                 {
-                                    Console.WriteLine($"Ошибка при создании шейдера для материала {relativePath}: {shaderEx.Message}");
+                                    DebLogger.Debug($"Ошибка при создании шейдера для материала {relativePath}: {shaderEx.Message}");
                                 }
                             }
                             else
                             {
-                                Console.WriteLine($"Тип шейдера не найден или не является потомком ShaderBase: {materialConfig.ShaderRepresentationTypeName}");
+                                DebLogger.Debug($"Тип шейдера не найден или не является потомком ShaderBase: {materialConfig.ShaderRepresentationTypeName}");
                             }
                         }
                     }
                     catch (Exception materialEx)
                     {
-                        Console.WriteLine($"Ошибка при загрузке материала {relativePath}: {materialEx.Message}");
+                        DebLogger.Debug($"Ошибка при загрузке материала {relativePath}: {materialEx.Message}");
                     }
                 }
 
-                Console.WriteLine($"Загружено ресурсов: {resourceManager.TextureCount} текстур, {resourceManager.MeshCount} мешей, {resourceManager.MaterialCount} материалов");
+                DebLogger.Debug($"Загружено ресурсов: {resourceManager.TextureCount} текстур, {resourceManager.MeshCount} мешей, {resourceManager.MaterialCount} материалов");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ошибка при загрузке ресурсов: {ex.Message}");
+                DebLogger.Debug($"Ошибка при загрузке ресурсов: {ex.Message}");
             }
         }
 

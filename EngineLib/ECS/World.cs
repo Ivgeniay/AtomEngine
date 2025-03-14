@@ -218,6 +218,14 @@ namespace AtomEngine
         #endregion
 
         #region Systems
+        public void AddSystem(ICommonSystem system)
+        {
+            if (system == null) throw new NullValueError(nameof(system));
+
+            if (system is PhysicsSystem physicsSystem) AddSystem(physicsSystem);
+            else if(system is IRenderSystem render) AddSystem(render);
+            else if (system is ISystem sys) AddSystem(sys);
+        }
         public void AddSystem(IRenderSystem system)
         {
             lock (_renderSystemsLock)

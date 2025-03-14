@@ -9,6 +9,8 @@ namespace WindowsBuild
 {
     internal class App : IDisposable
     {
+        public event Action<double> OnUpdated; 
+        public event Action<double> OnRendered; 
         public event Action<GL> OnLoaded;
         public event Action OnFixedUpdate;
         public GL? Gl => _gl;
@@ -78,12 +80,16 @@ namespace WindowsBuild
                 OnFixedUpdate?.Invoke();
                 _accumulatedTime -= Time.FIXED_TIME_STEP;
             }
+
+            OnUpdated?.Invoke(deltaTime);
         }
 
         private void OnRender(double deltaTime)
         {
             _gl?.ClearColor(appOptions.BackgroundColor.Item1, appOptions.BackgroundColor.Item2, appOptions.BackgroundColor.Item3, appOptions.BackgroundColor.Item4);
             _gl?.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
+
+            OnRendered?.Invoke(deltaTime);
         }
 
         private void OnClose()
