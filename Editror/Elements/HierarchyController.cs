@@ -25,6 +25,7 @@ namespace Editor
         private ContextMenu _entityContextMenu;
         private ProjectScene _currentScene;
         private ListBox _entitiesList;
+        private Canvas _indicatorCanvas;
         private bool isOpen = false;
         
         public event EventHandler<String> EntityCreated;
@@ -95,43 +96,43 @@ namespace Editor
             _entitiesList.MaxHeight = 10000;
             _entitiesList.Margin = new Thickness(0);
 
+            _entitiesList.SelectionChanged += SelectCallback;
+
+            _entitiesList.AddHandler(InputElement.PointerPressedEvent, OnEntityPointerPressed, RoutingStrategies.Tunnel);
+            _entitiesList.AddHandler(InputElement.PointerMovedEvent, OnEntityPointerMoved, RoutingStrategies.Tunnel);
+            _entitiesList.AddHandler(InputElement.PointerReleasedEvent, OnEntityPointerReleased, RoutingStrategies.Tunnel);
+
+
             ScrollViewer.SetHorizontalScrollBarVisibility(_entitiesList, ScrollBarVisibility.Disabled);
             ScrollViewer.SetVerticalScrollBarVisibility(_entitiesList, ScrollBarVisibility.Auto);
 
-            _entitiesList.AddHandler(InputElement.PointerReleasedEvent, (s, e) =>
-            {
-                var visual = e.Source as Visual;
-                if (visual != null)
-                {
-                    if (visual.DataContext is EntityHierarchyItem item)
-                    {
-                        if (item != null && e.GetCurrentPoint(null).Properties.PointerUpdateKind == PointerUpdateKind.RightButtonReleased)
-                        {
-                            var listItems = _entitiesList.ItemsSource.Cast<EntityHierarchyItem>().ToList();
-                            var index = listItems.FindIndex(e => e.Name == item.Name);
-
-                            if (index != -1)
-                            {
-                                _entitiesList.Selection.Clear();
-                                _entitiesList.Selection.Select(index);
-                                _entityContextMenu.Open(this);
-                                e.Handled = true;
-                            }
-                            else
-                            {
-                                _entityContextMenu.Close();
-                            }
-                        }
-                    }
-                }
-            }, RoutingStrategies.Tunnel);
 
             _entitiesList.ItemTemplate = CreateEntityItemTemplate();
 
             Grid.SetRow(_entitiesList, 1);
 
+            _dropIndicator = new Border
+            {
+                Height = 2,
+                Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Colors.DodgerBlue),
+                IsVisible = false,
+                ZIndex = 1000
+            };
+
+            _indicatorCanvas = new Canvas
+            {
+                Background = null,  
+                ZIndex = 100        
+            };
+            Grid.SetRow(_indicatorCanvas, 1);
+            _indicatorCanvas.Children.Add(_dropIndicator);
+
             Children.Add(header);
             Children.Add(_entitiesList);
+            Children.Add(_indicatorCanvas);
+
+            _entitiesList.ZIndex = 2;
+            _indicatorCanvas.ZIndex = 3;
 
             PointerReleased += OnHierarchyPointerPressed;
         }
@@ -369,7 +370,6 @@ namespace Editor
 
         private void StartRenaming(EntityHierarchyItem entity)
         {
-            // Создаем текстовое поле для редактирования
             var textBox = new TextBox
             {
                 Text = entity.Name,
@@ -379,7 +379,6 @@ namespace Editor
                 Classes = { "renameTextBox" }
             };
 
-            // Создаем Popup для отображения поля ввода
             var popup = new Popup
             {
                 Child = textBox,
@@ -387,12 +386,10 @@ namespace Editor
                 IsOpen = true
             };
 
-            // Добавляем Popup в визуальное дерево
             this.Children.Add(popup);
 
             textBox.Focus();
 
-            // Обработчик завершения редактирования
             textBox.KeyDown += (s, e) => {
                 if (e.Key == Key.Enter)
                 {
@@ -421,7 +418,6 @@ namespace Editor
                 }
             };
 
-            // Закрываем при потере фокуса
             textBox.LostFocus += (s, e) => {
                 popup.IsOpen = false;
                 this.Children.Remove(popup);
@@ -468,54 +464,18 @@ namespace Editor
             isOpen = true;
             Redraw();
 
-            _entitiesList.SelectionChanged += SelectionItemList;
-            _entitiesList.PointerReleased += OnItemListPointerReleased;
-            _entitiesList.SelectionChanged += SelectCallback;
             _entitiesList.DoubleTapped += OnEntitiesListDoubleTapped;
         }
         public void Close()
         {
             isOpen = false;
 
-            _entitiesList.SelectionChanged -= SelectionItemList;
-            _entitiesList.SelectionChanged -= SelectCallback;
             _entitiesList.DoubleTapped -= OnEntitiesListDoubleTapped;
 
             OnClose?.Invoke(this);
         }
         
         private EntityHierarchyItem _selectedFile = EntityHierarchyItem.Null;
-        private void SelectionItemList(object? sender, SelectionChangedEventArgs e)
-        {
-            if (_entitiesList.SelectedItem is EntityHierarchyItem selectedEntity)
-            {
-                _selectedFile = selectedEntity;
-            }
-        }
-        private void OnItemListPointerReleased(object? sender, PointerReleasedEventArgs e)
-        {
-            if (_selectedFile == EntityHierarchyItem.Null) return;
-
-            var point = e.GetPosition(_entitiesList);
-
-            if (e.InitialPressMouseButton == MouseButton.Left)
-            {
-                var visual = e.Source as Visual;
-                if (visual != null)
-                {
-                    if (visual.DataContext is EntityHierarchyItem clickedItem)
-                    {
-                        if (clickedItem != null && clickedItem == _selectedFile)
-                        {
-                            _selectedFile = EntityHierarchyItem.Null;
-                            EntitySelected?.Invoke(this, clickedItem);
-                        }
-                    }
-
-                }
-            }
-        }
-
         private void SelectCallback(object? sender, SelectionChangedEventArgs t)
         {
             foreach (var entity in t.RemovedItems)
@@ -560,6 +520,214 @@ namespace Editor
         }
         #endregion
 
+        #region DragNDrop
+
+        private EntityHierarchyItem? _draggedItem;
+        private int _draggedIndex = -1;
+        private bool _isDragging = false;
+        private int _dropTargetIndex = -1;
+        private Border _dropIndicator;
+
+        private void OnEntityPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (e.GetCurrentPoint(null).Properties.IsLeftButtonPressed)
+            {
+                var point = e.GetPosition(_entitiesList);
+                var visual = e.Source as Visual;
+
+                if (visual?.DataContext is EntityHierarchyItem item)
+                {
+                    var listItems = _entitiesList.ItemsSource.Cast<EntityHierarchyItem>().ToList();
+                    _draggedIndex = listItems.FindIndex(entity => entity.Id == item.Id);
+
+                    if (_draggedIndex != -1)
+                    {
+                        _draggedItem = item;
+                        _isDragging = false;
+                        _selectedFile = item;
+                        EntitySelected?.Invoke(this, item);
+                    }
+                }
+            }
+        }
+
+        private void OnEntityPointerMoved(object? sender, PointerEventArgs e)
+        {
+            if (_draggedIndex != -1 && e.GetCurrentPoint(null).Properties.IsLeftButtonPressed)
+            {
+                if (!_isDragging)
+                {
+                    _isDragging = true;
+                    this.Cursor = new Cursor(StandardCursorType.DragMove);
+                }
+
+                var point = e.GetPosition(_entitiesList);
+                var scrollViewer = _entitiesList.FindDescendantOfType<ScrollViewer>();
+
+                if (scrollViewer != null)
+                {
+                    if (point.Y < 20 && scrollViewer.Offset.Y > 0)
+                    {
+                        scrollViewer.Offset = new Vector(scrollViewer.Offset.X, Math.Max(0, scrollViewer.Offset.Y - 5));
+                    }
+                    else if (point.Y > _entitiesList.Bounds.Height - 20 && scrollViewer.Offset.Y < scrollViewer.Extent.Height - scrollViewer.Viewport.Height)
+                    {
+                        scrollViewer.Offset = new Vector(scrollViewer.Offset.X, Math.Min(scrollViewer.Extent.Height - scrollViewer.Viewport.Height, scrollViewer.Offset.Y + 5));
+                    }
+                }
+
+                CalculateDropPosition(point);
+
+                e.Handled = true;
+            }
+        }
+
+        private void CalculateDropPosition(Point point)
+        {
+            if (_entitiesList.ItemsSource == null) return;
+
+            var listItems = _entitiesList.ItemsSource.Cast<EntityHierarchyItem>().ToList();
+            var newDropTargetIndex = -1;
+
+            for (int i = 0; i < listItems.Count; i++)
+            {
+                var container = _entitiesList.ContainerFromIndex(i) as Control;
+                if (container != null)
+                {
+                    var containerBounds = container.Bounds;
+                    var containerTopInList = container.TranslatePoint(new Point(0, 0), _entitiesList)?.Y ?? 0;
+
+                    if (point.Y >= containerTopInList && point.Y < containerTopInList + containerBounds.Height)
+                    {
+                        if (point.Y < containerTopInList + (containerBounds.Height / 2))
+                        {
+                            newDropTargetIndex = i;
+                        }
+                        else
+                        {
+                            newDropTargetIndex = i + 1;
+                        }
+                        break;
+                    }
+                }
+            }
+            if (newDropTargetIndex == -1 && listItems.Count > 0)
+            {
+                var lastContainer = _entitiesList.ContainerFromIndex(listItems.Count - 1) as Control;
+                if (lastContainer != null)
+                {
+                    var lastContainerBottom = lastContainer.TranslatePoint(new Point(0, lastContainer.Bounds.Height), _entitiesList)?.Y ?? 0;
+                    if (point.Y >= lastContainerBottom)
+                    {
+                        newDropTargetIndex = listItems.Count;
+                    }
+                }
+            }
+            if (newDropTargetIndex == _draggedIndex || newDropTargetIndex == _draggedIndex + 1)
+            {
+                _dropIndicator.IsVisible = false;
+                _dropTargetIndex = -1;
+                return;
+            }
+
+            _dropTargetIndex = newDropTargetIndex;
+
+            if (_dropTargetIndex >= 0)
+            {
+                _dropIndicator.IsVisible = true;
+
+                double indicatorY;
+                if (_dropTargetIndex >= listItems.Count)
+                {
+                    var lastContainer = _entitiesList.ContainerFromIndex(listItems.Count - 1) as Control;
+                    if (lastContainer != null)
+                    {
+                        var lastContainerBottom = lastContainer.TranslatePoint(new Point(0, lastContainer.Bounds.Height), _entitiesList)?.Y ?? 0;
+                        indicatorY = lastContainerBottom;
+                    }
+                    else
+                    {
+                        _dropIndicator.IsVisible = false;
+                        return;
+                    }
+                }
+                else
+                {
+                    var container = _entitiesList.ContainerFromIndex(_dropTargetIndex) as Control;
+                    if (container != null)
+                    {
+                        indicatorY = container.TranslatePoint(new Point(0, 0), _entitiesList)?.Y ?? 0;
+                    }
+                    else
+                    {
+                        _dropIndicator.IsVisible = false;
+                        return;
+                    }
+                }
+
+                var listBoxPoint = _entitiesList.TranslatePoint(new Point(0, indicatorY), _indicatorCanvas) ?? new Point(0, 0);
+
+                _dropIndicator.Width = _entitiesList.Bounds.Width;
+                Canvas.SetTop(_dropIndicator, listBoxPoint.Y - _dropIndicator.Height / 2);
+                Canvas.SetLeft(_dropIndicator, 0); 
+            }
+            else
+            {
+                _dropIndicator.IsVisible = false;
+            }
+        }
+
+        private void OnEntityPointerReleased(object? sender, PointerReleasedEventArgs e)
+        {
+            if (_isDragging && _draggedItem != null && _dropTargetIndex != -1 && _dropTargetIndex != _draggedIndex && _dropTargetIndex != _draggedIndex + 1)
+            {
+                ReorderEntity(_draggedItem.Value, _dropTargetIndex);
+                _selectedFile = _draggedItem.Value;
+            }
+            else if (_draggedItem != null && !_isDragging)
+            {
+                var visual = e.Source as Visual;
+                if (visual != null)
+                {
+                    if (visual.DataContext is EntityHierarchyItem clickedItem)
+                    {
+                        if (clickedItem != null && clickedItem == _selectedFile)
+                        {
+                            _selectedFile = EntityHierarchyItem.Null;
+                            EntitySelected?.Invoke(this, clickedItem);
+                        }
+                    }
+                }
+            }
+
+            _draggedItem = null;
+            _draggedIndex = -1;
+            _isDragging = false;
+            _dropTargetIndex = -1;
+            _dropIndicator.IsVisible = false;
+            this.Cursor = Cursor.Default;
+        }
+
+        private void ReorderEntity(EntityHierarchyItem item, int newIndex)
+        {
+            int currentIndex = _entities.IndexOf(item);
+
+            if (currentIndex < 0) return;
+
+            if (newIndex > currentIndex)
+            {
+                newIndex--;
+            }
+
+            _entities.RemoveAt(currentIndex);
+            _entities.Insert(newIndex, item);
+
+            _entitiesList.SelectedItem = item;
+
+            // Уведомляем о перемещении
+            //EntityReordered?.Invoke(this, new EntityReorderEventArgs(item, currentIndex, newIndex));
+        }
+        #endregion
 
     }
 
