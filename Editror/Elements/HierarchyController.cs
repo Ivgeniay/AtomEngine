@@ -13,6 +13,8 @@ using Avalonia;
 using System;
 using Key = Avalonia.Input.Key;
 using MouseButton = Avalonia.Input.MouseButton;
+using System.Collections.Generic;
+using Avalonia.VisualTree;
 
 namespace Editor
 {
@@ -98,6 +100,7 @@ namespace Editor
 
             _entitiesList.SelectionChanged += SelectCallback;
 
+            _entitiesList.AddHandler(InputElement.PointerReleasedEvent, OnEntityListItemPointerReleased, RoutingStrategies.Tunnel);
             _entitiesList.AddHandler(InputElement.PointerPressedEvent, OnEntityPointerPressed, RoutingStrategies.Tunnel);
             _entitiesList.AddHandler(InputElement.PointerMovedEvent, OnEntityPointerMoved, RoutingStrategies.Tunnel);
             _entitiesList.AddHandler(InputElement.PointerReleasedEvent, OnEntityPointerReleased, RoutingStrategies.Tunnel);
@@ -282,17 +285,58 @@ namespace Editor
                 {
                     Classes = { "entityCell" }
                 };
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Auto) });
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+
+                var indent = new Border
+                {
+                    Width = entity.Level * 20,
+                    Background = null
+                };
+                Grid.SetColumn(indent, 0);
+
+                var expandButton = new ToggleButton
+                {
+                    Classes = { "expandButton" },
+                    IsChecked = entity.IsExpanded,
+                    Content = entity.IsExpanded ? "▼" : "►",
+                    Width = 10,  
+                    Height = 10, 
+                    IsVisible = entity.Children.Count > 0
+                };
+
+                expandButton.Click += (s, e) => {
+                    if (s is ToggleButton button && button.DataContext is EntityHierarchyItem item)
+                    {
+                        var updatedItem = item;
+                        updatedItem.IsExpanded = !item.IsExpanded;
+                        button.Content = updatedItem.IsExpanded ? "▼" : "►";
+
+                        int index = FindIndex(_entities, e => e.Id == item.Id);
+                        if (index >= 0)
+                        {
+                            _entities[index] = updatedItem;
+                            UpdateChildrenVisibility(updatedItem.Id, updatedItem.IsExpanded);
+                        }
+
+                        e.Handled = true;
+                    }
+                };
+                Grid.SetColumn(expandButton, 1);
 
                 var iconAndNameContainer = new StackPanel
                 {
-                    Classes = { "entityCell" }
+                    Classes = { "entityCell" },
+                    Orientation = Avalonia.Layout.Orientation.Horizontal
                 };
+
                 var entityIcon = new TextBlock
                 {
                     Text = "⬚",
                     Classes = { "entityIcon" },
                 };
+
                 var entityName = new TextBlock
                 {
                     Classes = { "entityName" }
@@ -301,11 +345,199 @@ namespace Editor
 
                 iconAndNameContainer.Children.Add(entityIcon);
                 iconAndNameContainer.Children.Add(entityName);
+                Grid.SetColumn(iconAndNameContainer, 2);
 
+                grid.Children.Add(indent);
+                grid.Children.Add(expandButton);
                 grid.Children.Add(iconAndNameContainer);
 
                 return grid;
             });
+        }
+
+        public event EventHandler<EntityReorderEventArgs> EntityReordered;
+
+        private void RefreshHierarchyVisibility()
+        {
+            var entitiesToProcess = _entities.ToList();
+
+            var updates = new List<(int index, EntityHierarchyItem entity)>();
+
+            foreach (var entity in entitiesToProcess)
+            {
+                bool isVisible = true;
+                if (entity.ParentId != null)
+                {
+                    var parent = entitiesToProcess.FirstOrDefault(e => e.Id == entity.ParentId);
+                    uint? currentParentId = entity.ParentId;
+                    while (currentParentId != null)
+                    {
+                        var currentParent = entitiesToProcess.FirstOrDefault(e => e.Id == currentParentId);
+                        if (currentParent != EntityHierarchyItem.Null && !currentParent.IsExpanded)
+                        {
+                            isVisible = false;
+                            break;
+                        }
+                        currentParentId = currentParent.ParentId;
+                    }
+                }
+
+                var updatedEntity = entity;
+                updatedEntity.IsVisible = isVisible;
+
+                bool hasChildren = entitiesToProcess.Any(e => e.ParentId == entity.Id);
+                if (updatedEntity.Children.Count > 0 != hasChildren)
+                {
+                    var childrenIds = entitiesToProcess
+                        .Where(e => e.ParentId == entity.Id)
+                        .Select(e => e.Id)
+                        .ToList();
+                    updatedEntity.Children = childrenIds;
+                }
+
+                int index = FindIndex(_entities, e => e.Id == entity.Id);
+                if (index >= 0)
+                {
+                    updates.Add((index, updatedEntity));
+                }
+            }
+
+            foreach (var (index, updatedEntity) in updates)
+            {
+                if (index < _entities.Count)
+                {
+                    _entities[index] = updatedEntity;
+                }
+            }
+
+            var visibleEntities = _entities.Where(e => e.IsVisible).ToList();
+            _entitiesList.ItemsSource = null;
+            _entitiesList.ItemsSource = visibleEntities;
+        }
+
+        public void SetParent(uint childId, uint? parentId)
+        {
+            int childIndex = FindIndex(_entities, e => e.Id == childId);
+            if (childIndex < 0) return;
+
+            var child = _entities[childIndex];
+
+            if (child.ParentId == parentId) return;
+            _entities.RemoveAt(childIndex);
+
+            if (child.ParentId != null)
+            {
+                int oldParentIndex = FindIndex(_entities, e => e.Id == child.ParentId);
+                if (oldParentIndex >= 0)
+                {
+                    var oldParent = _entities[oldParentIndex];
+                    oldParent.Children.Remove(childId);
+                    _entities[oldParentIndex] = oldParent;
+                }
+            }
+
+            int newLevel = 0;
+            int targetIndex = -1;
+
+            if (parentId != null)
+            {
+                int parentIndex = FindIndex(_entities, e => e.Id == parentId);
+                if (parentIndex >= 0)
+                {
+                    var parent = _entities[parentIndex];
+
+                    if (!IsValidParent(childId, parentId))
+                    {
+                        _entities.Insert(childIndex, child);
+                        return;
+                    }
+
+                    parent.Children.Add(childId);
+                    _entities[parentIndex] = parent;
+                    newLevel = parent.Level + 1;
+
+                    targetIndex = parentIndex + 1;
+
+                    var lastChildIndex = FindLastDescendantIndex(parentId.Value);
+                    if (lastChildIndex > parentIndex)
+                    {
+                        targetIndex = lastChildIndex + 1;
+                    }
+                }
+            }
+
+            child.ParentId = parentId;
+            child.Level = newLevel;
+
+            if (targetIndex >= 0 && targetIndex <= _entities.Count)
+            {
+                _entities.Insert(targetIndex, child);
+            }
+            else
+            {
+                _entities.Add(child);
+            }
+
+            UpdateChildrenLevels(childId, newLevel);
+            RefreshHierarchyVisibility();
+        }
+
+        private int FindLastDescendantIndex(uint entityId)
+        {
+            int lastIndex = FindIndex(_entities, e => e.Id == entityId);
+
+            foreach (var entity in _entities)
+            {
+                if (entity.ParentId == entityId)
+                {
+                    int descendantLastIndex = FindLastDescendantIndex(entity.Id);
+                    if (descendantLastIndex > lastIndex)
+                    {
+                        lastIndex = descendantLastIndex;
+                    }
+                }
+            }
+
+            return lastIndex;
+        }
+
+        private bool IsValidParent(uint childId, uint? parentId)
+        {
+            if (parentId == null) return true;
+            if (childId == parentId) return false;
+
+            uint? currentParent = parentId;
+            while (currentParent != null)
+            {
+                if (currentParent == childId) return false;
+
+                int parentIndex = FindIndex(_entities, e => e.Id == currentParent);
+                if (parentIndex < 0) break;
+
+                currentParent = _entities[parentIndex].ParentId;
+            }
+
+            return true;
+        }
+
+        private void UpdateChildrenLevels(uint parentId, int parentLevel)
+        {
+            var entities = _entities.ToList();
+            for (int i = 0; i < entities.Count; i++)
+            {
+                var entity = entities[i];
+                if (entity.ParentId == parentId)
+                {
+                    var updatedEntity = entity;
+                    updatedEntity.Level = parentLevel + 1;
+                    int entityIndex = FindIndex(_entities, e => e.Id == entity.Id);
+                    if (entityIndex >= 0)
+                    {
+                        _entities[entityIndex] = updatedEntity;
+                        UpdateChildrenLevels(updatedEntity.Id, updatedEntity.Level);
+                    }
+                }
+            }
         }
 
         private void OnHierarchyPointerPressed(object? sender, PointerReleasedEventArgs e)
@@ -452,10 +684,15 @@ namespace Editor
             ClearEntities();
             if (isOpen && _currentScene != null)
             {
-                for (int i = 0; i < _currentScene.CurrentWorldData.Entities.Count(); i++)
+                Dictionary<uint, EntityHierarchyItem> entityMap = new Dictionary<uint, EntityHierarchyItem>();
+
+                foreach (var entityData in _currentScene.CurrentWorldData.Entities)
                 {
-                    CreateHierarchyEntity(_currentScene.CurrentWorldData.Entities[i], false);
+                    var hierarchyItem = CreateHierarchyEntity(entityData, false);
+                    entityMap[entityData.Id] = hierarchyItem;
                 }
+
+                RefreshHierarchyVisibility();
             }
         }
 
@@ -489,6 +726,33 @@ namespace Editor
                     Select.SelectItem(selectedEntity.Id);
             }
         }
+
+        private void OnEntityListItemPointerReleased(object? sender, PointerReleasedEventArgs e)
+        {
+            var point = e.GetCurrentPoint(null);
+
+            if (point.Properties.IsRightButtonPressed || point.Properties.PointerUpdateKind == PointerUpdateKind.RightButtonReleased)
+            {
+                var element = e.Source as Visual;
+                if (element != null)
+                {
+                    while (element != null && !(element.DataContext is EntityHierarchyItem))
+                    {
+                        element = element.GetVisualParent();
+                    }
+
+                    if (element != null && element.DataContext is EntityHierarchyItem entityItem)
+                    {
+                        _entitiesList.SelectedItem = entityItem;
+                        EntitySelected?.Invoke(this, entityItem);
+
+                        _entityContextMenu.Open(this);
+                        e.Handled = true;
+                    }
+                }
+            }
+        }
+
 
         #region Commands
         private void CreateNewEntity() => CreateNewEntity(GetUniqueName("New Entity"));
@@ -588,6 +852,8 @@ namespace Editor
 
             var listItems = _entitiesList.ItemsSource.Cast<EntityHierarchyItem>().ToList();
             var newDropTargetIndex = -1;
+            uint? newParentId = null;
+            bool asChild = false;
 
             for (int i = 0; i < listItems.Count; i++)
             {
@@ -599,13 +865,26 @@ namespace Editor
 
                     if (point.Y >= containerTopInList && point.Y < containerTopInList + containerBounds.Height)
                     {
-                        if (point.Y < containerTopInList + (containerBounds.Height / 2))
+                        var horizontalPos = point.X;
+                        var itemIndent = listItems[i].Level * 20 + 40; // индентация + ширина кнопки расширения
+
+                        if (horizontalPos > itemIndent + 20 && horizontalPos < itemIndent + 60)
+                        {
+                            newParentId = listItems[i].Id;
+                            asChild = true;
+                            newDropTargetIndex = i;
+                        }
+                        else if (point.Y < containerTopInList + (containerBounds.Height / 2))
                         {
                             newDropTargetIndex = i;
+                            newParentId = listItems[i].ParentId;
+                            asChild = false;
                         }
                         else
                         {
                             newDropTargetIndex = i + 1;
+                            newParentId = listItems[i].ParentId;
+                            asChild = false;
                         }
                         break;
                     }
@@ -620,30 +899,70 @@ namespace Editor
                     if (point.Y >= lastContainerBottom)
                     {
                         newDropTargetIndex = listItems.Count;
+                        newParentId = null;
+                        asChild = false;
                     }
                 }
             }
-            if (newDropTargetIndex == _draggedIndex || newDropTargetIndex == _draggedIndex + 1)
+
+            // Проверка, не пытаемся ли мы перетащить элемент на своё собственное место
+            if (newDropTargetIndex == _draggedIndex || (newDropTargetIndex == _draggedIndex + 1 && newParentId == _draggedItem?.ParentId))
             {
                 _dropIndicator.IsVisible = false;
                 _dropTargetIndex = -1;
+                _targetParentId = null;
+                _asChild = false;
+                return;
+            }
+
+            // Проверка, не пытаемся ли мы сделать циклическую ссылку
+            if (_draggedItem != null && newParentId != null && (_draggedItem.Value.Id == newParentId || IsChildOf(_draggedItem.Value.Id, newParentId.Value)))
+            {
+                _dropIndicator.IsVisible = false;
+                _dropTargetIndex = -1;
+                _targetParentId = null;
+                _asChild = false;
                 return;
             }
 
             _dropTargetIndex = newDropTargetIndex;
+            _targetParentId = newParentId;
+            _asChild = asChild;
 
             if (_dropTargetIndex >= 0)
             {
                 _dropIndicator.IsVisible = true;
 
                 double indicatorY;
-                if (_dropTargetIndex >= listItems.Count)
+                double indicatorX = 0;
+                double indicatorWidth;
+
+                if (_asChild)
+                {
+                    var container = _entitiesList.ContainerFromIndex(_dropTargetIndex) as Control;
+                    if (container != null)
+                    {
+                        var containerBounds = container.Bounds;
+                        indicatorY = container.TranslatePoint(new Point(0, containerBounds.Height), _entitiesList)?.Y ?? 0;
+                        var targetItem = listItems[_dropTargetIndex];
+                        indicatorX = targetItem.Level * 10 + 20;
+                        indicatorWidth = _entitiesList.Bounds.Width - indicatorX;
+                    }
+                    else
+                    {
+                        _dropIndicator.IsVisible = false;
+                        return;
+                    }
+                }
+
+                else if (_dropTargetIndex >= listItems.Count)
                 {
                     var lastContainer = _entitiesList.ContainerFromIndex(listItems.Count - 1) as Control;
                     if (lastContainer != null)
                     {
                         var lastContainerBottom = lastContainer.TranslatePoint(new Point(0, lastContainer.Bounds.Height), _entitiesList)?.Y ?? 0;
                         indicatorY = lastContainerBottom;
+                        indicatorWidth = _entitiesList.Bounds.Width;
                     }
                     else
                     {
@@ -657,6 +976,24 @@ namespace Editor
                     if (container != null)
                     {
                         indicatorY = container.TranslatePoint(new Point(0, 0), _entitiesList)?.Y ?? 0;
+
+                        if (newParentId != null)
+                        {
+                            var parentItem = _entities.FirstOrDefault(e => e.Id == newParentId);
+                            if (parentItem != EntityHierarchyItem.Null)
+                            {
+                                indicatorX = parentItem.Level * 20 + 40;
+                                indicatorWidth = _entitiesList.Bounds.Width - indicatorX;
+                            }
+                            else
+                            {
+                                indicatorWidth = _entitiesList.Bounds.Width;
+                            }
+                        }
+                        else
+                        {
+                            indicatorWidth = _entitiesList.Bounds.Width;
+                        }
                     }
                     else
                     {
@@ -665,11 +1002,11 @@ namespace Editor
                     }
                 }
 
-                var listBoxPoint = _entitiesList.TranslatePoint(new Point(0, indicatorY), _indicatorCanvas) ?? new Point(0, 0);
+                var listBoxPoint = _entitiesList.TranslatePoint(new Point(indicatorX, indicatorY), _indicatorCanvas) ?? new Point(0, 0);
 
-                _dropIndicator.Width = _entitiesList.Bounds.Width;
+                _dropIndicator.Width = indicatorWidth;
                 Canvas.SetTop(_dropIndicator, listBoxPoint.Y - _dropIndicator.Height / 2);
-                Canvas.SetLeft(_dropIndicator, 0); 
+                Canvas.SetLeft(_dropIndicator, listBoxPoint.X);
             }
             else
             {
@@ -677,11 +1014,37 @@ namespace Editor
             }
         }
 
+        private bool IsChildOf(uint parentId, uint childId)
+        {
+            foreach (var entity in _entities)
+            {
+                if (entity.Id == childId && entity.ParentId == parentId)
+                {
+                    return true;
+                }
+                else if (entity.Id == childId && entity.ParentId != null)
+                {
+                    return IsChildOf(parentId, entity.ParentId.Value);
+                }
+            }
+            return false;
+        }
+
+        private uint? _targetParentId;
+        private bool _asChild;
+
         private void OnEntityPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
-            if (_isDragging && _draggedItem != null && _dropTargetIndex != -1 && _dropTargetIndex != _draggedIndex && _dropTargetIndex != _draggedIndex + 1)
+            if (_isDragging && _draggedItem != null && _dropTargetIndex != -1)
             {
-                ReorderEntity(_draggedItem.Value, _dropTargetIndex);
+                if (_asChild && _targetParentId != null)
+                {
+                    SetParent(_draggedItem.Value.Id, _targetParentId);
+                }
+                else if (_dropTargetIndex != _draggedIndex && (_dropTargetIndex != _draggedIndex + 1 || _draggedItem.Value.ParentId != _targetParentId))
+                {
+                    ReorderEntity(_draggedItem.Value, _dropTargetIndex, _targetParentId);
+                }
                 _selectedFile = _draggedItem.Value;
             }
             else if (_draggedItem != null && !_isDragging)
@@ -704,31 +1067,114 @@ namespace Editor
             _draggedIndex = -1;
             _isDragging = false;
             _dropTargetIndex = -1;
+            _targetParentId = null;
+            _asChild = false;
             _dropIndicator.IsVisible = false;
             this.Cursor = Cursor.Default;
         }
 
-        private void ReorderEntity(EntityHierarchyItem item, int newIndex)
+        private void UpdateChildrenVisibility(uint parentId, bool isVisible)
         {
-            int currentIndex = _entities.IndexOf(item);
+            var entities = _entities.ToList();
+            var entitiesToUpdate = new List<(int index, EntityHierarchyItem entity)>();
 
+            foreach (var entity in entities)
+            {
+                if (entity.ParentId == parentId)
+                {
+                    var updatedEntity = entity;
+                    updatedEntity.IsVisible = isVisible;
+
+                    int index = FindIndex(_entities, e => e.Id == entity.Id);
+                    if (index >= 0)
+                    {
+                        entitiesToUpdate.Add((index, updatedEntity));
+                    }
+
+                    if (entity.Children.Count > 0)
+                    {
+                        UpdateChildrenVisibility(entity.Id, isVisible && entity.IsExpanded);
+                    }
+                }
+            }
+
+            foreach (var (index, updatedEntity) in entitiesToUpdate)
+            {
+                if (index < _entities.Count)
+                {
+                    _entities[index] = updatedEntity;
+                }
+            }
+
+            RefreshList();
+        }
+
+        private void RefreshList()
+        {
+            var visibleEntities = _entities.Where(e => e.IsVisible).ToList();
+            _entitiesList.ItemsSource = null;
+            _entitiesList.ItemsSource = visibleEntities;
+        }
+
+        private void ReorderEntity(EntityHierarchyItem item, int newIndex, uint? newParentId = null)
+        {
+            int currentIndex = FindIndex(_entities, e => e.Id == item.Id && e.Version == item.Version);
             if (currentIndex < 0) return;
+
+            // Если меняем родителя, используем метод SetParent
+            if (item.ParentId != newParentId)
+            {
+                SetParent(item.Id, newParentId);
+                return;
+            }
+
+            _entities.RemoveAt(currentIndex);
 
             if (newIndex > currentIndex)
             {
                 newIndex--;
             }
 
-            _entities.RemoveAt(currentIndex);
-            _entities.Insert(newIndex, item);
+            if (newIndex >= 0 && newIndex <= _entities.Count)
+            {
+                _entities.Insert(newIndex, item);
+            }
+            else
+            {
+                _entities.Add(item);
+            }
 
             _entitiesList.SelectedItem = item;
-
-            // Уведомляем о перемещении
-            //EntityReordered?.Invoke(this, new EntityReorderEventArgs(item, currentIndex, newIndex));
+            EntityReordered?.Invoke(this, new EntityReorderEventArgs(item, currentIndex, newIndex, newParentId));
+            RefreshHierarchyVisibility();
         }
         #endregion
 
+        private int FindIndex(ObservableCollection<EntityHierarchyItem> collection, Func<EntityHierarchyItem, bool> predicate)
+        {
+            for (int i = 0; i < collection.Count; i++)
+            {
+                if (predicate(collection[i]))
+                    return i;
+            }
+            return -1;
+        }
+    }
+
+    public class EntityReorderEventArgs : EventArgs
+    {
+        public EntityHierarchyItem Entity { get; }
+        public int OldIndex { get; }
+        public int NewIndex { get; }
+        public uint? NewParentId { get; }
+
+        public EntityReorderEventArgs(EntityHierarchyItem entity, int oldIndex, int newIndex, uint? newParentId = null)
+        {
+            Entity = entity;
+            OldIndex = oldIndex;
+            NewIndex = newIndex;
+            NewParentId = newParentId;
+        }
     }
 
     public struct EntityHierarchyItem : INotifyPropertyChanged, IEquatable<EntityHierarchyItem>
@@ -743,12 +1189,20 @@ namespace Editor
             _entity = new Entity(id, Version);
             Name = name;
             isNull = false;
+            ParentId = null;
+            Children = new List<uint>();
+            IsExpanded = true;
+            Level = 0;
         }
         public EntityHierarchyItem(Entity entity, string name)
         {
             Name = name;
             _entity = entity;
             isNull = false;
+            ParentId = null;
+            Children = new List<uint>();
+            IsExpanded = true;
+            Level = 0;
         }
 
         public uint Id => _entity.Id;
@@ -767,6 +1221,60 @@ namespace Editor
                 }
             }
         }
+
+        private uint? _parentId;
+        public uint? ParentId
+        {
+            get => _parentId;
+            set
+            {
+                if (_parentId != value)
+                {
+                    _parentId = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ParentId)));
+                }
+            }
+        }
+
+        private List<uint> _children;
+        public List<uint> Children
+        {
+            get => _children;
+            set
+            {
+                _children = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Children)));
+            }
+        }
+
+        private bool _isExpanded;
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set
+            {
+                if (_isExpanded != value)
+                {
+                    _isExpanded = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsExpanded)));
+                }
+            }
+        }
+
+        private int _level;
+        public int Level
+        {
+            get => _level;
+            set
+            {
+                if (_level != value)
+                {
+                    _level = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Level)));
+                }
+            }
+        }
+
         public bool IsActive { get; set; } = true;
         public bool IsVisible { get; set; } = true;
 
@@ -787,9 +1295,8 @@ namespace Editor
             return false;
         }
 
-
         public override string ToString() =>
-            $"{_entity} Name:{Name} IsActive:{IsActive} IsVisible:{IsVisible}";
+            $"{_entity} Name:{Name} IsActive:{IsActive} IsVisible:{IsVisible} Level:{Level}";
 
         public bool Equals(EntityHierarchyItem other) => Id == other.Id && Version == other.Version && isNull == other.isNull;
         public static EntityHierarchyItem Null => new EntityHierarchyItem() { isNull = true };
@@ -803,4 +1310,76 @@ namespace Editor
         public static bool operator !=(EntityHierarchyItem left, EntityHierarchyItem right)
             => !(left == right);
     }
+    //public struct EntityHierarchyItem : INotifyPropertyChanged, IEquatable<EntityHierarchyItem>
+    //{
+    //    private bool isNull = true;
+    //    private Entity _entity;
+
+    //    public event PropertyChangedEventHandler? PropertyChanged;
+
+    //    public EntityHierarchyItem(uint id, uint version, string name)
+    //    {
+    //        _entity = new Entity(id, Version);
+    //        Name = name;
+    //        isNull = false;
+    //    }
+    //    public EntityHierarchyItem(Entity entity, string name)
+    //    {
+    //        Name = name;
+    //        _entity = entity;
+    //        isNull = false;
+    //    }
+
+    //    public uint Id => _entity.Id;
+    //    public uint Version => _entity.Version;
+    //    public Entity EntityReference => _entity;
+    //    private string _name;
+    //    public string Name
+    //    {
+    //        get => _name;
+    //        set
+    //        {
+    //            if (_name != value)
+    //            {
+    //                _name = value;
+    //                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Name)));
+    //            }
+    //        }
+    //    }
+    //    public bool IsActive { get; set; } = true;
+    //    public bool IsVisible { get; set; } = true;
+
+    //    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    //    {
+    //        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    //    }
+
+    //    public override int GetHashCode() => Id.GetHashCode();
+
+    //    public override bool Equals(object obj)
+    //    {
+    //        if (obj is null) return false;
+    //        if (obj is EntityHierarchyItem other)
+    //        {
+    //            return Id == other.Id && Version == other.Version;
+    //        }
+    //        return false;
+    //    }
+
+
+    //    public override string ToString() =>
+    //        $"{_entity} Name:{Name} IsActive:{IsActive} IsVisible:{IsVisible}";
+
+    //    public bool Equals(EntityHierarchyItem other) => Id == other.Id && Version == other.Version && isNull == other.isNull;
+    //    public static EntityHierarchyItem Null => new EntityHierarchyItem() { isNull = true };
+    //    public static bool operator ==(EntityHierarchyItem left, EntityHierarchyItem right)
+    //    {
+    //        if (ReferenceEquals(left, null))
+    //            return ReferenceEquals(right, null);
+    //        return left.Equals(right);
+    //    }
+
+    //    public static bool operator !=(EntityHierarchyItem left, EntityHierarchyItem right)
+    //        => !(left == right);
+    //}
 }
