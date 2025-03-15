@@ -130,11 +130,20 @@ namespace Editor
                                 {
                                     Position = new Vector3(0, 0, -5),
                                     Scale = new Vector3(1, 1, 1),
+                                    Rotation = new Vector3(180, 0, 0)
                                 }
                             },
                             {
                                 nameof(CameraComponent),
                                 new CameraComponent()
+                                {
+                                    FieldOfView = 45,
+                                    AspectRatio = 1.777f,
+                                    NearPlane = 0.1f,
+                                    FarPlane = 45,
+                                    CameraUp = new Vector3(0, 1, 0),
+                                    CameraFront = new Vector3(0, 0, 1)
+                                }
                             }
                         }
                     },

@@ -1,5 +1,7 @@
 ﻿using Avalonia.Controls;
+using EngineLib;
 using System;
+using System.Linq;
 
 namespace Editor
 {
@@ -18,34 +20,58 @@ namespace Editor
             {
                 if (field.Value != value)
                 {
-                    descriptor.OnValueChanged?.Invoke(field.Value);
+                    Validation(field);
                 }
             };
-
+            Validation(field, true);
 
             return field;
+        }
 
-            //var grid = CreateBaseLayout();
+        private void Validation(IntegerField field, bool isFirstValidation = false)
+        {
+            bool isCalledYet = false;
 
-            //var numericUpDown = new NumericUpDown
-            //{
-            //    Value = Convert.ToInt32(descriptor.Value),
-            //    IsEnabled = !descriptor.IsReadOnly,
-            //    Classes = { "vectorEditor" },
-            //};
+            if (descriptor.Context is EntityInspectorContext context)
+            {
+                Type type = context.Component.GetType();
+                var _field = type.GetField(descriptor.Name);
+                if (_field != null)
+                {
+                    var attributes = _field.GetCustomAttributes(false);
+                    if (attributes != null && attributes.Count() > 0)
+                    {
+                        var attribute = attributes.FirstOrDefault(e => e.GetType() == typeof(MaxAttribute));
+                        if (attribute != null)
+                        {
+                            var maxAttribute = (MaxAttribute)attribute;
+                            if (field.Value > maxAttribute.MaxValue)
+                            {
+                                field.Value = (int)maxAttribute.MaxValue;
+                                descriptor.OnValueChanged?.Invoke(field.Value);
+                                isCalledYet = true;
+                            }
+                        }
 
-            //numericUpDown.ValueChanged += (s, e) =>
-            //{
-            //    if (numericUpDown.Value != null)
-            //    {
-            //        descriptor.OnValueChanged?.Invoke(numericUpDown.Value);
-            //    }
-            //};
+                        attribute = attributes.FirstOrDefault(e => e.GetType() == typeof(MinAttribute));
+                        if (attribute != null)
+                        {
+                            var minAttribute = (MinAttribute)attribute;
+                            if (field.Value < minAttribute.MinValue)
+                            {
+                                field.Value = (int)minAttribute.MinValue;
+                                descriptor.OnValueChanged?.Invoke(field.Value);
+                                isCalledYet = true;
+                            }
+                        }
+                    }
+                }
+            }
 
-            //Grid.SetColumn(numericUpDown, 1);
-            //grid.Children.Add(numericUpDown);
-
-            //return grid;
+            if (!isFirstValidation && !isCalledYet)
+            {
+                descriptor.OnValueChanged?.Invoke(field.Value);
+            }
         }
     }
 }

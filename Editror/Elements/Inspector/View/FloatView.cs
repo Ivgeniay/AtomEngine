@@ -1,6 +1,8 @@
 ﻿using AtomEngine;
 using Avalonia.Controls;
+using EngineLib;
 using System;
+using System.Linq;
 
 namespace Editor
 {
@@ -14,18 +16,65 @@ namespace Editor
 
             FloatField field = new FloatField();
             field.Label = descriptor.Name;
+
             field.Value = value;
 
             field.ValueChanged += (sender, e) =>
             {
                 if (field.Value != null)
                 {
-                    DebLogger.Debug($"KEK: {e}");
-                    descriptor.OnValueChanged?.Invoke((float)field.Value);
+                    Validation(field);
                 }
             };
+            Validation(field, true);
 
             return field;
+        }
+
+        private void Validation(FloatField field, bool isFirstValidation = false)
+        {
+            bool isCalledYet = false;
+
+            if (descriptor.Context is EntityInspectorContext context)
+            {
+                Type type = context.Component.GetType();
+                var _field = type.GetField(descriptor.Name);
+                if (_field != null)
+                {
+                    var attributes = _field.GetCustomAttributes(false);
+                    if (attributes != null && attributes.Count() > 0)
+                    {
+                        object attribute = attributes.FirstOrDefault(e => e.GetType() == typeof(MinAttribute));
+                        if (attribute != null)
+                        {
+                            var minAttribute = (MinAttribute)attribute;
+                            if (field.Value < minAttribute.MinValue)
+                            {
+                                field.Value = (float)minAttribute.MinValue;
+                                descriptor.OnValueChanged?.Invoke(field.Value);
+                                isCalledYet = true;
+                            }
+                        }
+
+                        attribute = attributes.FirstOrDefault(e => e.GetType() == typeof(MaxAttribute));
+                        if (attribute != null && !isCalledYet)
+                        {
+                            var maxAttribute = (MaxAttribute)attribute;
+                            if (field.Value > maxAttribute.MaxValue)
+                            {
+                                field.Value = (float)maxAttribute.MaxValue;
+                                descriptor.OnValueChanged?.Invoke(field.Value);
+                                isCalledYet = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!isFirstValidation && !isCalledYet)
+            {
+                descriptor.OnValueChanged?.Invoke(field.Value);
+            }
         }
     }
 }

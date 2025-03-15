@@ -1,13 +1,18 @@
-﻿using System.Numerics; 
+﻿using EngineLib;
+using System.Numerics; 
 
 namespace AtomEngine
 {
     public struct CameraComponent : IComponent
     {
         public Entity Owner { get; set; }
+        [Min(0.1)]
         public float FieldOfView;
+        [Min(0.1)]
         public float AspectRatio;
+        [Min(0.001)]
         public float NearPlane;
+        [Min(0.01)]
         public float FarPlane;
 
         public Matrix4x4 ViewMatrix { get; set; } = Matrix4x4.Identity;

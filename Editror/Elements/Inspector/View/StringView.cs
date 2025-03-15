@@ -1,5 +1,8 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Input;
+using EngineLib;
+using System;
+using System.Linq;
 
 namespace Editor
 {
@@ -17,7 +20,8 @@ namespace Editor
             {
                 if (e.Key == Key.Enter)
                 {
-                    descriptor.OnValueChanged?.Invoke(field.Text);
+                    Validation(field);
+                    //descriptor.OnValueChanged?.Invoke(field.Text);
                     field.Focus();
                 }
             };
@@ -26,7 +30,42 @@ namespace Editor
                 descriptor.OnValueChanged?.Invoke(field.Text);
             };
 
+            Validation(field, true);
+
             return field;
         }
+
+        private void Validation(StringField field, bool isFirstValidation = false)
+        {
+            bool isCalledYet = false;
+
+            if (descriptor.Context is EntityInspectorContext context)
+            {
+                Type type = context.Component.GetType();
+                var _field = type.GetField(descriptor.Name);
+                var attributes = _field.GetCustomAttributes(false);
+                if (attributes != null && attributes.Count() > 0)
+                {
+                    var attribute = attributes.FirstOrDefault(e => e.GetType() == typeof(MaxLengthAttribute));
+                    if (attribute != null)
+                    {
+                        MaxLengthAttribute maxLengthAttribute = attribute as MaxLengthAttribute;
+                        if (field.Text.Length > maxLengthAttribute.MaxLength)
+                        {
+                            field.Text = field.Text.Substring(0, maxLengthAttribute.MaxLength);
+                            descriptor.OnValueChanged?.Invoke(field.Text);
+                            isCalledYet = true;
+                        }
+                    }
+                }
+            }
+
+            if (!isCalledYet && !isFirstValidation)
+            {
+                descriptor.OnValueChanged?.Invoke(field.Text);
+            }
+        }
     }
+
+
 }

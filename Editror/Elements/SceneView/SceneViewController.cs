@@ -186,6 +186,9 @@ namespace Editor
 
                 _renderCanvas.Children.Add(_glController);
             }
+
+            //Select.OnSelectChange += CameraFrustrumAddCamera();
+
             _materialFactory.SetSceneViewController(this);
 
             _sceneManager.OnSceneBeforeSave += PrepareToSave;
@@ -201,6 +204,21 @@ namespace Editor
             _isOpen = true;
             this.Focus();
         }
+
+        //private Action<uint, SelectType> CameraFrustrumAddCamera()
+        //{
+        //    return (e, t) =>
+        //    {
+        //        if (t == SelectType.Selected)
+        //        {
+        //            if (sceneEntityComponentProvider.HasComponent<CameraComponent>(e) &&
+        //                sceneEntityComponentProvider.HasComponent<TransformComponent>(e))
+        //            {
+        //                _cameraFrustumManager.AddCamera(e);
+        //            }
+        //        }
+        //    };
+        //}
 
         public void Close() { }
 

@@ -143,6 +143,7 @@ namespace Editor
                 IInspectable inspectable = ServiceHub.Get<InspectorDistributor>().GetInspectable(entity);
                 if (inspectable != null) _inspectorController.Inspect(inspectable);
                 else _inspectorController.CleanInspected();
+                Select.SelectItem(entity.Id);
             };
         }
         private void InitializeWorld()

@@ -3,35 +3,39 @@ using System;
 
 namespace Editor
 {
+    public enum SelectType { Selected, Deselect };
     public static class Select
     {
-        public static event Action<EntityHierarchyItem> OnSelect;
-        public static event Action<EntityHierarchyItem> OnDeSelect;
+        public static event Action<uint> OnSelect;
+        public static event Action<uint> OnDeSelect;
+        public static event Action<uint, SelectType> OnSelectChange;
 
-        private static List<EntityHierarchyItem> _selected = new List<EntityHierarchyItem>();
-        public static IEnumerable<EntityHierarchyItem> Selected { get { return _selected; } }
+        private static List<uint> _selected = new List<uint>();
+        public static IEnumerable<uint> Selected { get { return _selected; } }
 
-        internal static void SelectItem(EntityHierarchyItem selected)
+        internal static void SelectItem(uint selected)
         {
             if (!_selected.Contains(selected))
             {
                 _selected.Add(selected);
                 OnSelect?.Invoke(selected);
+                OnSelectChange?.Invoke(selected, SelectType.Selected);
             }
         }
 
-        internal static void DeSelect(EntityHierarchyItem entity)
+        internal static void DeSelect(uint entity)
         {
             if (_selected.Contains(entity))
             {
                 _selected.Remove(entity);
                 OnDeSelect?.Invoke(entity);
+                OnSelectChange?.Invoke((uint)entity, SelectType.Deselect);
             }
         }
     
         internal static void DeSelectAll()
         {
-            List<EntityHierarchyItem> temp = new();
+            List<uint> temp = new();
 
             foreach (var item in _selected) 
                 temp.Add(item);

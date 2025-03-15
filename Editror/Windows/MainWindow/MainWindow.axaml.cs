@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using AtomEngine;
 using Avalonia;
 using System;
+using System.Linq;
 
 namespace Editor
 {
@@ -372,6 +373,20 @@ namespace Editor
                     else DebLogger.Error(result);
                 })
             });
+
+            //Select.OnSelectChange += (e, t) =>
+            //{
+            //    var selected = Select.Selected;
+            //    string r = string.Empty;
+            //    if (selected != null)
+            //    {
+            //        foreach (var item in selected)
+            //        {
+            //            r += $" {item}";
+            //        }
+            //    }
+            //    DebLogger.Debug($"Selected {selected.Count()}: {r}");
+            //};
         }
 
         private void InitializeComponent()

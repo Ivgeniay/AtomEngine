@@ -16,11 +16,12 @@ namespace Editor
         public Action? OnSceneBeforeSave;
         public Action? OnSceneAfterSave;
         public Action? OnScenUnload;
-        
+
         public Action<uint, uint, IComponent>? OnComponentAdded;
         public Action<uint, uint, IComponent>? OnComponentRemoved;
         public Action<uint, uint, IComponent>? OnComponentChange;
 
+        public Action<uint, uint, EntityChange>? OnEntityChange;
         public Action<uint, uint>? OnEntityCreated;
         public Action<uint, uint>? OnEntityDeleted;
         public Action<uint, uint>? OnEntityDuplicated;
@@ -45,17 +46,20 @@ namespace Editor
             var instance = CurrentScene.AddComponent(entityId, typeComponent);
             OnComponentAdded?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
             OnSceneDirty?.Invoke(CurrentScene);
+            OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentAdded);
         }
         internal void RemoveComponent(uint entityId, Type typeComponent)
         {
             var instance = CurrentScene.RemoveComponent(entityId, typeComponent);
             OnComponentRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
             OnSceneDirty?.Invoke(CurrentScene);
+            OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentRemoved);
         }
         internal void ComponentChange(uint entityId, IComponent component)
         {
             OnComponentChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, component);
             OnSceneDirty?.Invoke(CurrentScene);
+            OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentValueChange);
         }
 
         internal void AddEntity(string entityName)
@@ -278,4 +282,6 @@ namespace Editor
             return false;
         }
     }
+
+    public enum EntityChange { ComponentAdded, ComponentRemoved, ComponentValueChange } 
 }

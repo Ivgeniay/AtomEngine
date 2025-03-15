@@ -24,9 +24,10 @@ namespace Editor
             _inspectorViewFactory = ServiceHub.Get<InspectorViewFactory>();
             _sceneManager = ServiceHub.Get<SceneManager>();
 
-            _sceneManager.OnSceneDirty += (e) =>
+            _sceneManager.OnEntityChange += (worldId, entityId, type) =>
             {
-                Redraw();
+                if (type == EntityChange.ComponentAdded || type == EntityChange.ComponentRemoved)
+                    Redraw();
             };
 
             InitialializeUI();

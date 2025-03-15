@@ -523,12 +523,12 @@ namespace Editor
             foreach (var entity in t.RemovedItems)
             {
                 if (entity is EntityHierarchyItem selectedEntity)
-                    Select.DeSelect(selectedEntity);
+                    Select.DeSelect(selectedEntity.Id);
             }
             foreach (var entity in t.AddedItems)
             {
                 if (entity is EntityHierarchyItem selectedEntity)
-                    Select.SelectItem(selectedEntity);
+                    Select.SelectItem(selectedEntity.Id);
             }
         }
 

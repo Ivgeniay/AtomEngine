@@ -10,7 +10,6 @@ namespace Editor
 {
     public class EntityInspectable : IInspectable
     {
-        private Entity _entity;
         private uint _entityId;
         private ComponentInspector _componentInspector;
         private IEnumerable<IComponent> _components;
@@ -27,13 +26,16 @@ namespace Editor
         {
             _componentInspector = new ComponentInspector();
             _components = compoonents;
-            _entity = entity;
+            _entityId = entity.Id;
         }
 
-        public string Title => $"Entity ID:{_entity.Id}";
+        public string Title => $"Entity ID:{_entityId}";
 
         public IEnumerable<Control> GetCustomControls(Panel parent)
         {
+            if (_entityId == uint.MaxValue) 
+                yield break;
+
             var panel = new StackPanel { Orientation = Orientation.Vertical };
             var addComponentButton = new Button
             {
@@ -78,7 +80,7 @@ namespace Editor
                 searchDialog.ItemSelected += (selectedValue) =>
                 {
                     DebLogger.Debug($"Выбран элемент: {selectedValue}");
-                    ServiceHub.Get<SceneManager>().AddComponent(_entity.Id, (Type)selectedValue);
+                    ServiceHub.Get<SceneManager>().AddComponent(_entityId, (Type)selectedValue);
                 };
 
                 searchDialog.Closed += (s, e) =>
@@ -105,7 +107,7 @@ namespace Editor
             {
                 var context = new EntityInspectorContext()
                 {
-                    EntityId = _entity.Id,
+                    EntityId = _entityId,
                     Component = component,
                 };
                 yield return new PropertyDescriptor
@@ -123,9 +125,17 @@ namespace Editor
             _componentInspector = new ComponentInspector();
 
             var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.Where(e => e.Id == _entityId).FirstOrDefault();
-            _entity = new Entity(entityData.Id, entityData.Version);
-            _components = entityData.Components.Values.ToList();
-            if (_components == null) _components = new List<IComponent>();
+            if (entityData != null)
+            {
+                _entityId = entityData.Id;
+                _components = entityData.Components.Values.ToList();
+                if (_components == null) _components = new List<IComponent>();
+            }
+            else
+            {
+                _entityId = uint.MaxValue;
+                _components = new List<IComponent>();
+            }
         }
     }
 }
