@@ -79,7 +79,6 @@ namespace Editor
 
                 searchDialog.ItemSelected += (selectedValue) =>
                 {
-                    DebLogger.Debug($"Выбран элемент: {selectedValue}");
                     ServiceHub.Get<SceneManager>().AddComponent(_entityId, (Type)selectedValue);
                 };
 

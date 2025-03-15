@@ -4,13 +4,13 @@ using Newtonsoft.Json;
 using System.Linq;
 using AtomEngine;
 using System;
+using EngineLib;
 
 namespace Editor
 {
     internal class ProjectScene : ProjectSceneData
     {
         public string ScenePath { get; set; } = string.Empty;
-        private uint _entityIndexator = 0;
 
         [JsonIgnore] private WorldData _currentWorldData { get; set; }
 
@@ -53,15 +53,11 @@ namespace Editor
             set { CurrentWorldData.WorldName = value; MakeDirty(); } 
         }
 
-        internal void Initialize()
-        {
-            _entityIndexator = CurrentWorldData.Entities.Max(e => e.Id);
-        }
-
         #region Entity
         internal uint AddEntity(string entityName)
         {
-            Entity entity = new Entity(++_entityIndexator, 0);
+            var index = GetAvailableId(CurrentWorldData.Entities);
+            Entity entity = new Entity(index, 0);
             EntityData newEntityData = new EntityData()
             {
                 Name = entityName,
@@ -72,17 +68,20 @@ namespace Editor
             MakeDirty();
             return entity.Id;
         }
-        internal void AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
+        internal uint AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
         {
-            Entity entity = new Entity(_entityIndexator++, 0);
+            var index = GetAvailableId(CurrentWorldData.Entities);
+            var ivaliableName = hierarchyEntity.Name + " (Duplicate)";
+            Entity entity = new Entity(index, 0);
             EntityData newEntityData = new EntityData()
             {
-                Name = hierarchyEntity.Name,
-                Id = entity.Id,
-                Version = entity.Version,
+                Name = ivaliableName,
+                Id = index,
+                Version = 0,
             };
             CurrentWorldData.Entities.Add(newEntityData);
             MakeDirty();
+            return index;
         }
         internal uint RenameEntity(EntityHierarchyItem entity)
         {
@@ -147,6 +146,47 @@ namespace Editor
         public void MakeDirty() => IsDirty = true;
         public void MakeUndirty() => Worlds.ForEach(e => e.IsDirty = false);
 
+       
+        internal object AddComponent(uint entityId, Type typeComponent)
+        {
+            var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
+            var instanceComponent = Activator.CreateInstance(typeComponent);
+
+            var fields = typeComponent.GetFields();
+            foreach (var field in fields)
+            {
+                var fieldType = field.FieldType;
+                if (fieldType == typeof(int) ||
+                    fieldType == typeof(long) ||
+                    fieldType == typeof(float) ||
+                    fieldType == typeof(Single) ||
+                    fieldType == typeof(double)) { } else { continue; }
+
+                var attributes = field.GetCustomAttributes(false);
+                var minAtributes_ = attributes.FirstOrDefault(e => e.GetType() == typeof(MinAttribute));
+                if (minAtributes_ != null && minAtributes_ is MinAttribute minValue)
+                {
+                    var value = Convert.ChangeType(minValue.MinValue, fieldType);
+                    field.SetValue(instanceComponent, value);
+                }
+            }
+
+            IComponent interfacesDomponent = (IComponent)instanceComponent;
+            entityData.Components.Add(typeComponent.Name, interfacesDomponent);
+            MakeDirty();
+            return instanceComponent;
+        }
+
+        internal object RemoveComponent(uint entityId, Type typeComponent)
+        {
+            var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
+            var component = entityData.Components.FirstOrDefault(e => e.Key == typeComponent.Name).Value;
+            entityData.Components.Remove(typeComponent.Name);
+            MakeDirty();
+            return component;
+        }
+
+
         private uint GetAvailableId(List<EntityData> entities)
         {
             var sortedEntities = entities.OrderBy(e => e.Id).ToList();
@@ -164,23 +204,19 @@ namespace Editor
             return expectedId;
         }
 
-        internal object AddComponent(uint entityId, Type typeComponent)
+        private string GetUniqueName(string baseName)
         {
-            var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
-            var instanceComponent = Activator.CreateInstance(typeComponent);
-            IComponent interfacesDomponent = (IComponent)instanceComponent;
-            entityData.Components.Add(typeComponent.Name, interfacesDomponent);
-            MakeDirty();
-            return instanceComponent;
+            string name = baseName;
+            int counter = 1;
+
+            while (CurrentWorldData.Entities.Any(e => e.Name == name))
+            {
+                name = $"{baseName} ({counter})";
+                counter++;
+            }
+
+            return name;
         }
 
-        internal object RemoveComponent(uint entityId, Type typeComponent)
-        {
-            var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
-            var component = entityData.Components.FirstOrDefault(e => e.Key == typeComponent.Name).Value;
-            entityData.Components.Remove(typeComponent.Name);
-            MakeDirty();
-            return component;
-        }
     }
 }

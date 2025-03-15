@@ -55,9 +55,9 @@ namespace Editor
                     CreateHierarchyEntity(entityData, false);
                 }
             };
-            _sceneManager.OnEntityDuplicated += (worldId, entityId) =>
+            _sceneManager.OnEntityDuplicated += (worldId, entityIdFrom, entityIdTo) =>
             {
-                var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+                var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityIdTo);
                 if (entityData != null)
                 {
                     CreateHierarchyEntity(entityData, false);
@@ -364,7 +364,6 @@ namespace Editor
                 name = $"{baseName} ({counter})";
                 counter++;
             }
-
             return name;
         }
 
@@ -431,7 +430,6 @@ namespace Editor
 
         private void DuplicateEntity(EntityHierarchyItem entity)
         {
-            entity.Name = GetUniqueName(entity.Name);
             EntityDuplicated?.Invoke(this, entity);
         }
 

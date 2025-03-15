@@ -24,7 +24,7 @@ namespace Editor
         public Action<uint, uint, EntityChange>? OnEntityChange;
         public Action<uint, uint>? OnEntityCreated;
         public Action<uint, uint>? OnEntityDeleted;
-        public Action<uint, uint>? OnEntityDuplicated;
+        public Action<uint, uint, uint>? OnEntityDuplicated;
         public Action<uint, uint>? OnEntityRemoved;
         public Action<uint, uint>? OnEntityRenamed;
 
@@ -70,8 +70,8 @@ namespace Editor
         }
         internal void AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
         {
-            CurrentScene.AddDuplicateEntity(hierarchyEntity);
-            OnEntityDuplicated?.Invoke(CurrentScene.CurrentWorldData.WorldId, hierarchyEntity.Id);
+            uint id = CurrentScene.AddDuplicateEntity(hierarchyEntity);
+            OnEntityDuplicated?.Invoke(CurrentScene.CurrentWorldData.WorldId, hierarchyEntity.Id, id);
             OnSceneDirty?.Invoke(CurrentScene);
         }
         internal void RemoveEntity(EntityHierarchyItem entity)
@@ -146,7 +146,6 @@ namespace Editor
             OnScenUnload?.Invoke();
             WorldData standartWorldData = SceneFileHelper.CreateWorldData();
             CurrentScene = new ProjectScene(new List<WorldData>() { standartWorldData }, standartWorldData);
-            CurrentScene.Initialize();
             OnSceneInitialize?.Invoke(CurrentScene);
         }
         internal async Task HandleOpenScene()
@@ -182,7 +181,6 @@ namespace Editor
             {
                 OnScenUnload?.Invoke();
                 CurrentScene = loadedScene;
-                CurrentScene.Initialize();
                 OnSceneInitialize?.Invoke(CurrentScene);
                 Status.SetStatus($"Opened scene: {CurrentScene.WorldName}");
             }

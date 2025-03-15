@@ -117,10 +117,10 @@ namespace Editor
                 CleanInspector();
             };
 
-            _hierarchyController.EntityDuplicated += (s, entityName) =>
+            _hierarchyController.EntityDuplicated += (s, entity) =>
             {
                 Select.DeSelectAll();
-                _sceneManager.AddDuplicateEntity(entityName);
+                _sceneManager.AddDuplicateEntity(entity);
                 CleanInspector();
             };
 

@@ -2,8 +2,6 @@
 using Avalonia.OpenGL;
 using Avalonia;
 using System;
-using System.IO;
-using System.Reflection;
 
 namespace Editor
 {
