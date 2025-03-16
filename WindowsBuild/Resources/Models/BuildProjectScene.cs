@@ -49,7 +49,7 @@ namespace WindowsBuild
                 string componentName = reader.Value.ToString();
                 Type componentType = null;
 
-                componentType = AssemblyManager.Instance.FindType(componentName);
+                componentType = AssemblyManager.Instance.FindType(componentName, true);
 
                 if (componentType == null)
                     componentType = Type.GetType($"UserScripts.{componentName}");

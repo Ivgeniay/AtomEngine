@@ -62,8 +62,12 @@ namespace Editor
                     }
                     if (isContinue) continue;
 
+                    var attributes = componentType.GetCustomAttributes(false);
+                    var hideInSearch = attributes.Any(e => e.GetType() == typeof(HideInspectorSearchAttribute));
+                    if (hideInSearch) continue;
+
                     TooltipCategoryComponentAttribute tCategoryAtribute =
-                        componentType.GetCustomAttributes(false)
+                        attributes
                             .OfType<TooltipCategoryComponentAttribute>()
                             .FirstOrDefault();
 
@@ -104,6 +108,12 @@ namespace Editor
         {
             foreach (var component in _components)
             {
+                bool isHideToInspector = component
+                    .GetType()
+                    .GetCustomAttributes(false)
+                    .Any(e => e.GetType() == typeof(HideToInspectorAttribute));
+                if (isHideToInspector) continue;
+
                 var context = new EntityInspectorContext()
                 {
                     EntityId = _entityId,

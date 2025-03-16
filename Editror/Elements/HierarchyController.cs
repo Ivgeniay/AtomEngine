@@ -37,6 +37,8 @@ namespace Editor
         public event EventHandler<EntityHierarchyItem> EntityDeleted;
 
         private SceneManager _sceneManager;
+        private EntityHierarchyItem _selectedFile = EntityHierarchyItem.Null;
+
 
 
         public HierarchyController()
@@ -55,7 +57,7 @@ namespace Editor
                 var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
                 if (entityData != null)
                 {
-                    CreateHierarchyEntity(entityData, false);
+                    CreateHierarchyEntity(entityData);
                 }
             };
             _sceneManager.OnEntityDuplicated += (worldId, entityIdFrom, entityIdTo) =>
@@ -63,7 +65,7 @@ namespace Editor
                 var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityIdTo);
                 if (entityData != null)
                 {
-                    CreateHierarchyEntity(entityData, false);
+                    CreateHierarchyEntity(entityData);
                 }
             };
             _sceneManager.OnWorldSelected += (worldId, worldName) =>
@@ -423,7 +425,16 @@ namespace Editor
             var child = _entities[childIndex];
 
             if (child.ParentId == parentId) return;
+
+            var descendants = GatherDescendants(childId);
+
             _entities.RemoveAt(childIndex);
+            foreach (var descendant in descendants)
+            {
+                int index = FindIndex(_entities, e => e.Id == descendant.Id);
+                if (index >= 0)
+                    _entities.RemoveAt(index);
+            }
 
             if (child.ParentId != null)
             {
@@ -449,6 +460,11 @@ namespace Editor
                     if (!IsValidParent(childId, parentId))
                     {
                         _entities.Insert(childIndex, child);
+                        foreach (var descendant in descendants)
+                        {
+                            int insertIndex = childIndex + 1;
+                            _entities.Insert(insertIndex, descendant);
+                        }
                         return;
                     }
 
@@ -466,20 +482,69 @@ namespace Editor
                 }
             }
 
-            child.ParentId = parentId;
-            child.Level = newLevel;
+            var updatedChild = child;
+            updatedChild.ParentId = parentId;
+            updatedChild.Level = newLevel;
 
             if (targetIndex >= 0 && targetIndex <= _entities.Count)
             {
-                _entities.Insert(targetIndex, child);
+                _entities.Insert(targetIndex, updatedChild);
+                targetIndex++;
             }
             else
             {
-                _entities.Add(child);
+                _entities.Add(updatedChild);
+                targetIndex = _entities.Count;
+            }
+
+            int levelDelta = newLevel - (child.Level - 1);
+
+            var updatedDescendants = new List<EntityHierarchyItem>();
+            foreach (var descendant in descendants)
+            {
+                var updatedDescendant = descendant;
+                updatedDescendant.Level += levelDelta;
+                updatedDescendants.Add(updatedDescendant);
+            }
+
+            foreach (var updatedDescendant in updatedDescendants)
+            {
+                _entities.Insert(targetIndex++, updatedDescendant);
             }
 
             UpdateChildrenLevels(childId, newLevel);
             RefreshHierarchyVisibility();
+        }
+
+        private List<EntityHierarchyItem> GatherDescendants(uint entityId)
+        {
+            var result = new List<EntityHierarchyItem>();
+            var queue = new Queue<uint>();
+            queue.Enqueue(entityId);
+
+            while (queue.Count > 0)
+            {
+                var currentId = queue.Dequeue();
+
+                if (currentId != entityId)
+                {
+                    var entity = _entities.FirstOrDefault(e => e.Id == currentId);
+                    if (entity != EntityHierarchyItem.Null)
+                        result.Add(entity);
+                }
+
+                var directChildren = _entities
+                    .Where(e => e.ParentId == currentId)
+                    .OrderBy(e => FindIndex(_entities, x => x.Id == e.Id))
+                    .ToList();
+
+                foreach (var child in directChildren)
+                {
+                    queue.Enqueue(child.Id);
+                }
+            }
+
+            return result;
         }
 
         private int FindLastDescendantIndex(uint entityId)
@@ -578,12 +643,15 @@ namespace Editor
             }
         }
 
-        public EntityHierarchyItem CreateHierarchyEntity(EntityData entityData, bool withAvoking = true)
+        public EntityHierarchyItem CreateHierarchyEntity(EntityData entityData)
         {
             var entityItem = new EntityHierarchyItem(entityData.Id, entityData.Version, entityData.Name);
 
             _entities.Add(entityItem);
             _entitiesList.SelectedItem = entityItem;
+             
+            RefreshHierarchyVisibility();
+
             return entityItem;
         }
 
@@ -688,7 +756,7 @@ namespace Editor
 
                 foreach (var entityData in _currentScene.CurrentWorldData.Entities)
                 {
-                    var hierarchyItem = CreateHierarchyEntity(entityData, false);
+                    var hierarchyItem = CreateHierarchyEntity(entityData);
                     entityMap[entityData.Id] = hierarchyItem;
                 }
 
@@ -712,7 +780,6 @@ namespace Editor
             OnClose?.Invoke(this);
         }
         
-        private EntityHierarchyItem _selectedFile = EntityHierarchyItem.Null;
         private void SelectCallback(object? sender, SelectionChangedEventArgs t)
         {
             foreach (var entity in t.RemovedItems)
@@ -791,6 +858,8 @@ namespace Editor
         private bool _isDragging = false;
         private int _dropTargetIndex = -1;
         private Border _dropIndicator;
+        private uint? _targetParentId;
+        private bool _asChild;
 
         private void OnEntityPointerPressed(object? sender, PointerPressedEventArgs e)
         {
@@ -866,30 +935,74 @@ namespace Editor
                     if (point.Y >= containerTopInList && point.Y < containerTopInList + containerBounds.Height)
                     {
                         var horizontalPos = point.X;
-                        var itemIndent = listItems[i].Level * 20 + 40; // индентация + ширина кнопки расширения
+                        var currentItem = listItems[i];
+                        var itemIndent = currentItem.Level * 10 + 20; // Уменьшенный отступ, как мы его настроили ранее
 
-                        if (horizontalPos > itemIndent + 20 && horizontalPos < itemIndent + 60)
+                        // Определяем, хочет ли пользователь вставить элемент как дочерний
+                        if (horizontalPos > itemIndent + 10 && horizontalPos < itemIndent + 30)
                         {
-                            newParentId = listItems[i].Id;
+                            newParentId = currentItem.Id;
                             asChild = true;
                             newDropTargetIndex = i;
                         }
-                        else if (point.Y < containerTopInList + (containerBounds.Height / 2))
-                        {
-                            newDropTargetIndex = i;
-                            newParentId = listItems[i].ParentId;
-                            asChild = false;
-                        }
                         else
                         {
-                            newDropTargetIndex = i + 1;
-                            newParentId = listItems[i].ParentId;
-                            asChild = false;
+                            // Определяем подходящего родителя исходя из горизонтальной позиции
+                            int targetLevel = (int)(horizontalPos / 10);
+
+                            // Ограничиваем targetLevel, чтобы он не мог быть больше чем level текущего элемента
+                            targetLevel = Math.Min(targetLevel, currentItem.Level);
+
+                            // Если мы хотим вставить на том же уровне или выше, ищем подходящего родителя
+                            if (targetLevel <= currentItem.Level)
+                            {
+                                // Находим ближайшего предка с нужным уровнем
+                                uint? ancestorId = currentItem.ParentId;
+                                int currentLevel = currentItem.Level - 1;
+
+                                // Ищем родителя нужного уровня
+                                while (ancestorId != null && currentLevel > targetLevel)
+                                {
+                                    var ancestor = listItems.FirstOrDefault(a => a.Id == ancestorId);
+                                    if (ancestor != null && ancestor != EntityHierarchyItem.Null)
+                                    {
+                                        ancestorId = ancestor.ParentId;
+                                        currentLevel--;
+                                    }
+                                    else
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                newParentId = ancestorId;
+                            }
+
+                            // Определяем, вставлять до или после текущего элемента
+                            if (point.Y < containerTopInList + (containerBounds.Height / 2))
+                            {
+                                newDropTargetIndex = i;
+                            }
+                            else
+                            {
+                                newDropTargetIndex = i + 1;
+
+                                // Если текущий элемент имеет потомков и развернут, нужно перейти через всех потомков
+                                if (currentItem.IsExpanded && currentItem.Children.Count > 0)
+                                {
+                                    var lastDescendantIndex = FindLastVisibleDescendantIndex(currentItem.Id, listItems);
+                                    if (lastDescendantIndex > i)
+                                    {
+                                        newDropTargetIndex = lastDescendantIndex + 1;
+                                    }
+                                }
+                            }
                         }
                         break;
                     }
                 }
             }
+
             if (newDropTargetIndex == -1 && listItems.Count > 0)
             {
                 var lastContainer = _entitiesList.ContainerFromIndex(listItems.Count - 1) as Control;
@@ -905,7 +1018,6 @@ namespace Editor
                 }
             }
 
-            // Проверка, не пытаемся ли мы перетащить элемент на своё собственное место
             if (newDropTargetIndex == _draggedIndex || (newDropTargetIndex == _draggedIndex + 1 && newParentId == _draggedItem?.ParentId))
             {
                 _dropIndicator.IsVisible = false;
@@ -915,7 +1027,6 @@ namespace Editor
                 return;
             }
 
-            // Проверка, не пытаемся ли мы сделать циклическую ссылку
             if (_draggedItem != null && newParentId != null && (_draggedItem.Value.Id == newParentId || IsChildOf(_draggedItem.Value.Id, newParentId.Value)))
             {
                 _dropIndicator.IsVisible = false;
@@ -1030,9 +1141,6 @@ namespace Editor
             return false;
         }
 
-        private uint? _targetParentId;
-        private bool _asChild;
-
         private void OnEntityPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             if (_isDragging && _draggedItem != null && _dropTargetIndex != -1)
@@ -1121,18 +1229,27 @@ namespace Editor
             int currentIndex = FindIndex(_entities, e => e.Id == item.Id && e.Version == item.Version);
             if (currentIndex < 0) return;
 
-            // Если меняем родителя, используем метод SetParent
+            var descendants = GatherDescendants(item.Id);
             if (item.ParentId != newParentId)
             {
                 SetParent(item.Id, newParentId);
                 return;
             }
+            var itemsToRemove = new List<uint> { item.Id };
+            itemsToRemove.AddRange(descendants.Select(d => d.Id));
 
-            _entities.RemoveAt(currentIndex);
-
-            if (newIndex > currentIndex)
+            var removedItems = new List<EntityHierarchyItem>();
+            foreach (var id in itemsToRemove)
             {
-                newIndex--;
+                int index = FindIndex(_entities, e => e.Id == id);
+                if (index >= 0)
+                {
+                    removedItems.Add(_entities[index]);
+                    _entities.RemoveAt(index);
+
+                    if (index < newIndex)
+                        newIndex--;
+                }
             }
 
             if (newIndex >= 0 && newIndex <= _entities.Count)
@@ -1142,6 +1259,16 @@ namespace Editor
             else
             {
                 _entities.Add(item);
+                newIndex = _entities.Count - 1;
+            }
+
+            newIndex++;
+            foreach (var descendant in descendants)
+            {
+                if (newIndex < _entities.Count)
+                    _entities.Insert(newIndex++, descendant);
+                else
+                    _entities.Add(descendant);
             }
 
             _entitiesList.SelectedItem = item;
@@ -1149,7 +1276,36 @@ namespace Editor
             RefreshHierarchyVisibility();
         }
         #endregion
+        private int FindLastVisibleDescendantIndex(uint entityId, List<EntityHierarchyItem> visibleItems)
+        {
+            int lastIndex = visibleItems.FindIndex(e => e.Id == entityId);
 
+            var directChildren = visibleItems
+                .Where(e => e.ParentId == entityId)
+                .ToList();
+
+            foreach (var child in directChildren)
+            {
+                if (child.IsExpanded && child.Children.Count > 0)
+                {
+                    int descendantIndex = FindLastVisibleDescendantIndex(child.Id, visibleItems);
+                    if (descendantIndex > lastIndex)
+                    {
+                        lastIndex = descendantIndex;
+                    }
+                }
+                else
+                {
+                    int childIndex = visibleItems.FindIndex(e => e.Id == child.Id);
+                    if (childIndex > lastIndex)
+                    {
+                        lastIndex = childIndex;
+                    }
+                }
+            }
+
+            return lastIndex;
+        }
         private int FindIndex(ObservableCollection<EntityHierarchyItem> collection, Func<EntityHierarchyItem, bool> predicate)
         {
             for (int i = 0; i < collection.Count; i++)
@@ -1278,11 +1434,6 @@ namespace Editor
         public bool IsActive { get; set; } = true;
         public bool IsVisible { get; set; } = true;
 
-        private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
         public override int GetHashCode() => Id.GetHashCode();
 
         public override bool Equals(object obj)
@@ -1310,76 +1461,5 @@ namespace Editor
         public static bool operator !=(EntityHierarchyItem left, EntityHierarchyItem right)
             => !(left == right);
     }
-    //public struct EntityHierarchyItem : INotifyPropertyChanged, IEquatable<EntityHierarchyItem>
-    //{
-    //    private bool isNull = true;
-    //    private Entity _entity;
-
-    //    public event PropertyChangedEventHandler? PropertyChanged;
-
-    //    public EntityHierarchyItem(uint id, uint version, string name)
-    //    {
-    //        _entity = new Entity(id, Version);
-    //        Name = name;
-    //        isNull = false;
-    //    }
-    //    public EntityHierarchyItem(Entity entity, string name)
-    //    {
-    //        Name = name;
-    //        _entity = entity;
-    //        isNull = false;
-    //    }
-
-    //    public uint Id => _entity.Id;
-    //    public uint Version => _entity.Version;
-    //    public Entity EntityReference => _entity;
-    //    private string _name;
-    //    public string Name
-    //    {
-    //        get => _name;
-    //        set
-    //        {
-    //            if (_name != value)
-    //            {
-    //                _name = value;
-    //                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Name)));
-    //            }
-    //        }
-    //    }
-    //    public bool IsActive { get; set; } = true;
-    //    public bool IsVisible { get; set; } = true;
-
-    //    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-    //    {
-    //        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    //    }
-
-    //    public override int GetHashCode() => Id.GetHashCode();
-
-    //    public override bool Equals(object obj)
-    //    {
-    //        if (obj is null) return false;
-    //        if (obj is EntityHierarchyItem other)
-    //        {
-    //            return Id == other.Id && Version == other.Version;
-    //        }
-    //        return false;
-    //    }
-
-
-    //    public override string ToString() =>
-    //        $"{_entity} Name:{Name} IsActive:{IsActive} IsVisible:{IsVisible}";
-
-    //    public bool Equals(EntityHierarchyItem other) => Id == other.Id && Version == other.Version && isNull == other.isNull;
-    //    public static EntityHierarchyItem Null => new EntityHierarchyItem() { isNull = true };
-    //    public static bool operator ==(EntityHierarchyItem left, EntityHierarchyItem right)
-    //    {
-    //        if (ReferenceEquals(left, null))
-    //            return ReferenceEquals(right, null);
-    //        return left.Equals(right);
-    //    }
-
-    //    public static bool operator !=(EntityHierarchyItem left, EntityHierarchyItem right)
-    //        => !(left == right);
-    //}
+    
 }

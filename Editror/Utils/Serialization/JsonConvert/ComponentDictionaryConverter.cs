@@ -45,7 +45,7 @@ namespace Editor
 
                 if (propertyName != null)
                 {
-                    var componentType = assemblyManager.FindType(propertyName);
+                    var componentType = assemblyManager.FindType(propertyName, true);
                     if (componentType != null && typeof(IComponent).IsAssignableFrom(componentType))
                     {
                         var component = (IComponent?)serializer.Deserialize(reader, componentType);

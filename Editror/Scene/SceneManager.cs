@@ -219,10 +219,7 @@ namespace Editor
         {
             var result = await SceneFileHelper.SaveSceneAsync(
                 _mainWindow, 
-                CurrentScene, 
-                beforeSafe: () => OnSceneBeforeSave?.Invoke(),
-                afterSafe: () => OnSceneAfterSave?.Invoke()
-                );
+                CurrentScene);
             if (result.Item1)
             {
                 CurrentScene.MakeUndirty();

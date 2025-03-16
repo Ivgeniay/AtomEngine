@@ -54,7 +54,7 @@ namespace Editor
                 return null;
             }
         }
-        public static async Task<(bool, string)> SaveSceneAsync(Window window, ProjectScene scene, Action beforeSafe = null, Action afterSafe = null)
+        public static async Task<(bool, string)> SaveSceneAsync(Window window, ProjectScene scene)
         {
             if (scene == null)
             {
@@ -88,7 +88,6 @@ namespace Editor
                     ReferenceLoopHandling = ReferenceLoopHandling.Serialize
                 };
 
-                //beforeSafe?.Invoke();
                 string jsonContent = SceneSerializer.SerializeScene(scene);
                 bool result = await FileDialogService.WriteTextFileAsync(filePath, jsonContent);
 
@@ -98,7 +97,6 @@ namespace Editor
                     Status.SetStatus($"Scene saved {filePath}");
                     return (true, filePath);
                 }
-                //afterSafe?.Invoke();
 
                 return (false, string.Empty);
             }
@@ -125,7 +123,7 @@ namespace Editor
                         Components = new Dictionary<string, IComponent>
                         {
                             {
-                                nameof(TransformComponent),
+                                typeof(TransformComponent).FullName,
                                 new TransformComponent
                                 {
                                     Position = new Vector3(0, 0, -5),
@@ -134,7 +132,7 @@ namespace Editor
                                 }
                             },
                             {
-                                nameof(CameraComponent),
+                                typeof(CameraComponent).FullName,
                                 new CameraComponent()
                                 {
                                     FieldOfView = 45,
@@ -155,7 +153,7 @@ namespace Editor
                         Components = new Dictionary<string, IComponent>
                         {
                             {
-                                nameof(TransformComponent),
+                                typeof(TransformComponent).FullName,
                                 new TransformComponent
                                 {
                                     Position = Vector3.UnitX,
@@ -173,18 +171,18 @@ namespace Editor
                         Components = new Dictionary<string, IComponent>
                         {
                             {
-                                nameof(TransformComponent),
+                                typeof(TransformComponent).FullName,
                                 new TransformComponent()
                                 {
                                     Scale = new Vector3(1, 1, 1),
                                 }
                             },
                             {
-                                nameof(ColliderComponent),
+                                typeof(ColliderComponent).FullName,
                                 new ColliderComponent()
                             },
                             {
-                                nameof(MeshComponent),
+                                typeof(MeshComponent).FullName,
                                 new MeshComponent()
                             }
                         }

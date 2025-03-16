@@ -98,12 +98,11 @@
     <Setter Property="Foreground" Value="#FFFFFF"/>
   </Style>
 
-  <!-- Заголовки компонентов -->
+  <!-- Заголовки компонентов (Перенесен)-->
   <Style Selector="TextBlock.componentHeader">
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="FontWeight" Value="Medium"/>
     <Setter Property="Foreground" Value="#B4B4B4"/>
-    <Setter Property="Background" Value="#404040"/>
     <Setter Property="Padding" Value="4,6"/>
     <Setter Property="Margin" Value="0,4"/>
   </Style>

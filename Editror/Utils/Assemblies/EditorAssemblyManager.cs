@@ -83,14 +83,15 @@ namespace Editor
 
         public override Type? FindType(string typeName, bool isFullName = false)
         {
-            var tp = _assemblyDict[TAssembly.UserScript].GetTypes().FirstOrDefault(t => t.Name == typeName);
-            if (tp != null) return tp;
+            Type type = null;
+            if (isFullName) type = _assemblyDict[TAssembly.UserScript].GetTypes().FirstOrDefault(t => t.FullName == typeName);
+            else type = _assemblyDict[TAssembly.UserScript].GetTypes().FirstOrDefault(t => t.Name == typeName);
+            if (type != null) return type;
 
             foreach (var assembly in _assemblies)
             {
                 try
                 {
-                    Type type = null;
                     if (isFullName) type = assembly.GetTypes().FirstOrDefault(t => t.FullName == typeName);
                     else type = assembly.GetTypes().FirstOrDefault((t => t.Name == typeName));
 

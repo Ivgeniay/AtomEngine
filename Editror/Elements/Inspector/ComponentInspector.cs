@@ -26,6 +26,12 @@ namespace Editor
                 {
                     if (m is FieldInfo field)
                     {
+                        if (field.IsPrivate)
+                        {
+                            bool isShowInInspector = field.GetCustomAttributes(false).Any(e => e.GetType() == typeof(ShowInInspectorAttribute));
+                            if (!isShowInInspector) return false;
+                        }
+
                         if (!_isGlDependableMap[component] & GLDependableTypes.IsDependableType(field.FieldType))
                         {
                             return false;

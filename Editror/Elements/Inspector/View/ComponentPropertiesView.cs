@@ -4,6 +4,9 @@ using Avalonia;
 using AtomEngine;
 using System;
 using Silk.NET.OpenAL;
+using System.Linq;
+using EngineLib;
+using Avalonia.Media;
 
 namespace Editor
 {
@@ -17,34 +20,74 @@ namespace Editor
         public override Control GetView()
         {
             SceneManager sceneManager = ServiceHub.Get<SceneManager>();
-            var panel = new StackPanel { Margin = new Thickness(0, 5, 0, 5) };
+            var panel = new StackPanel { 
+                Margin = new Thickness(0, 5, 0, 5),
+            };
+            var border = new Border
+            {
+                BorderBrush = Brushes.Black,
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 2),
+                Child = panel
+            };
+            EntityInspectorContext context = (EntityInspectorContext)descriptor.Context;
+            bool isHideCrossButton = context
+                .Component
+                .GetType()
+                .GetCustomAttributes(false)
+                .Any(e => e.GetType() == typeof(HideCloseAttribute));
 
-            var header = new StackPanel();
-            header.Orientation = Avalonia.Layout.Orientation.Horizontal;
-            header.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
-            header.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
+            var header = new Grid
+            {
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition(GridLength.Auto),
+                    new ColumnDefinition(GridLength.Star),
+                    new ColumnDefinition(GridLength.Auto)
+                }
+            };
+            var headerBorder = new Border
+            {
+                Padding = new Thickness(10, 0, 0, 0),
+                Background = new SolidColorBrush(Color.Parse("#404040")),
+                CornerRadius = new CornerRadius(3),
+                Child = header
+            };
 
-            header.Children.Add(new TextBlock
+            var textBlock = new TextBlock
             {
                 Text = descriptor.Name,
-                Classes = { "componentHeader" }
-            });
-            header.Children.Add(new Button
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+            Grid.SetColumn(textBlock, 0);
+
+            header.Children.Add(textBlock);
+
+            if (!isHideCrossButton)
             {
-                Content = "X",
-                Width = 32,
-                Height = 32,
-                VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                Classes = { "closeButton" },
-                Command = new Command(() =>
+                var button = new Button
                 {
-                    EntityInspectorContext context = (EntityInspectorContext) descriptor.Context;
-                    sceneManager.RemoveComponent(context.EntityId, context.Component.GetType());
-                }),
-            });
-            
-            panel.Children.Add(header);
+                    Content = "x",
+                    Width = 32,
+                    Height = 32,
+                    VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                    HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                    Classes = { "closeButton" },
+                    Command = new Command(() =>
+                    {
+                        sceneManager.RemoveComponent(context.EntityId, context.Component.GetType());
+                    })
+                };
+                Grid.SetColumn(button, 2);
+
+                header.Children.Add(button);
+            }
+
+
+            panel.Children.Add(headerBorder);
 
             var properties = (List<PropertyDescriptor>)descriptor.Value;
             foreach (var property in properties)
@@ -56,13 +99,13 @@ namespace Editor
                 {
                     if (descriptor.Context != null)
                     {
-                        var context = (EntityInspectorContext) descriptor.Context;
                         sceneManager.ComponentChange(context.EntityId, context.Component);
                     }
                 };
             }
 
-            return panel;
+            //return panel;
+            return border;
         }
     }
 }

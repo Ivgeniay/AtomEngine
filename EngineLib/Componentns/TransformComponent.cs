@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using EngineLib;
+using System.Numerics;
 
 namespace AtomEngine
 {
@@ -11,7 +12,6 @@ namespace AtomEngine
         public Vector3 Position { get => _position; set { _position = value;  IsDirtyPos = true; } }
         public Vector3 Rotation { get => _rotation; set { _rotation = value;  IsDirtyRot = true; } }
         public Vector3 Scale { get => _scale; set { _scale = value;  IsDirtyScale = true; } }
-        
 
         private bool IsDirtyPos = false;
         private bool IsDirtyRot = false;
