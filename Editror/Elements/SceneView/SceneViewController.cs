@@ -35,7 +35,6 @@ namespace Editor
         private EditorCamera _camera;
         private AABBManager _aabbManager;
         private CameraFrustumManager _cameraFrustumManager;
-        private SceneEntityComponentProvider sceneEntityComponentProvider;
 
         private Dictionary<EntityData, RenderPairCache> _componentRenderCache = new Dictionary<EntityData, RenderPairCache>();
 
@@ -75,8 +74,7 @@ namespace Editor
             _sceneManager.OnSceneInitialize += SetScene;
             _sceneManager.OnScenUnload += UnloadScene;
 
-            sceneEntityComponentProvider = new SceneEntityComponentProvider(_sceneManager);
-            BVHTree.Instance.Initialize(sceneEntityComponentProvider);
+            BVHTree.Instance.Initialize(SceneManager.EntityCompProvider);
         }
 
         private void InitializeUI()
@@ -320,7 +318,7 @@ namespace Editor
         {
             try
             {
-                _aabbManager = new AABBManager(gl, sceneEntityComponentProvider);
+                _aabbManager = new AABBManager(gl, SceneManager.EntityCompProvider);
             }
             catch (Exception ex)
             {
@@ -331,7 +329,7 @@ namespace Editor
         {
             try
             {
-                _cameraFrustumManager = new CameraFrustumManager(gl, sceneEntityComponentProvider);
+                _cameraFrustumManager = new CameraFrustumManager(gl, SceneManager.EntityCompProvider);
             }
             catch (Exception ex)
             {

@@ -48,11 +48,6 @@ namespace Editor
             _entities = new ObservableCollection<EntityHierarchyItem>();
             InitializeUI();
 
-            EntityReordered += (s, e) =>
-            {
-                DebLogger.Debug(e);
-            };
-
             _entityContextMenu = CreateEntityComtexMenu();
             _backgroundContextMenu = CreateBGContextMenus();
 
@@ -364,174 +359,7 @@ namespace Editor
             });
         }
 
-        private void RefreshHierarchyVisibility()
-        {
-            var entitiesToProcess = _entities.ToList();
-
-            var updates = new List<(int index, EntityHierarchyItem entity)>();
-
-            foreach (var entity in entitiesToProcess)
-            {
-                bool isVisible = true;
-                if (entity.ParentId != null)
-                {
-                    var parent = entitiesToProcess.FirstOrDefault(e => e.Id == entity.ParentId);
-                    uint? currentParentId = entity.ParentId;
-                    while (currentParentId != null)
-                    {
-                        var currentParent = entitiesToProcess.FirstOrDefault(e => e.Id == currentParentId);
-                        if (currentParent != EntityHierarchyItem.Null && !currentParent.IsExpanded)
-                        {
-                            isVisible = false;
-                            break;
-                        }
-                        currentParentId = currentParent.ParentId;
-                    }
-                }
-
-                var updatedEntity = entity;
-                updatedEntity.IsVisible = isVisible;
-
-                bool hasChildren = entitiesToProcess.Any(e => e.ParentId == entity.Id);
-                if (updatedEntity.Children.Count > 0 != hasChildren)
-                {
-                    var childrenIds = entitiesToProcess
-                        .Where(e => e.ParentId == entity.Id)
-                        .Select(e => e.Id)
-                        .ToList();
-                    updatedEntity.Children = childrenIds;
-                }
-
-                int index = FindIndex(_entities, e => e.Id == entity.Id);
-                if (index >= 0)
-                {
-                    updates.Add((index, updatedEntity));
-                }
-            }
-
-            foreach (var (index, updatedEntity) in updates)
-            {
-                if (index < _entities.Count)
-                {
-                    _entities[index] = updatedEntity;
-                }
-            }
-
-            var visibleEntities = _entities.Where(e => e.IsVisible).ToList();
-            _entitiesList.ItemsSource = null;
-            _entitiesList.ItemsSource = visibleEntities;
-        }
-
-        public void SetParent(uint childId, uint? parentId)
-        {
-            int childIndex = FindIndex(_entities, e => e.Id == childId);
-            if (childIndex < 0) return;
-
-            var child = _entities[childIndex];
-
-            if (child.ParentId == parentId) return;
-
-            int oldIndex = childIndex;
-            uint? oldParentId = child.ParentId;
-
-            var descendants = GatherDescendants(childId);
-
-            _entities.RemoveAt(childIndex);
-            foreach (var descendant in descendants)
-            {
-                int index = FindIndex(_entities, e => e.Id == descendant.Id);
-                if (index >= 0)
-                    _entities.RemoveAt(index);
-            }
-
-            if (child.ParentId != null)
-            {
-                int oldParentIndex = FindIndex(_entities, e => e.Id == child.ParentId);
-                if (oldParentIndex >= 0)
-                {
-                    var oldParent = _entities[oldParentIndex];
-                    oldParent.Children.Remove(childId);
-                    _entities[oldParentIndex] = oldParent;
-                }
-            }
-
-            int newLevel = 0;
-            int targetIndex = -1;
-
-            if (parentId != null)
-            {
-                int parentIndex = FindIndex(_entities, e => e.Id == parentId);
-                if (parentIndex >= 0)
-                {
-                    var parent = _entities[parentIndex];
-
-                    if (!IsValidParent(childId, parentId))
-                    {
-                        _entities.Insert(childIndex, child);
-                        foreach (var descendant in descendants)
-                        {
-                            int insertIndex = childIndex + 1;
-                            _entities.Insert(insertIndex, descendant);
-                        }
-                        return;
-                    }
-
-                    parent.Children.Add(childId);
-                    _entities[parentIndex] = parent;
-                    newLevel = parent.Level + 1;
-
-                    targetIndex = parentIndex + 1;
-                    var lastChildIndex = FindLastDescendantIndex(parentId.Value);
-                    if (lastChildIndex > parentIndex)
-                    {
-                        targetIndex = lastChildIndex + 1;
-                    }
-                }
-            }
-
-            var updatedChild = child;
-            updatedChild.ParentId = parentId;
-            updatedChild.Level = newLevel;
-
-            if (targetIndex >= 0 && targetIndex <= _entities.Count)
-            {
-                _entities.Insert(targetIndex, updatedChild);
-            }
-            else
-            {
-                _entities.Add(updatedChild);
-                targetIndex = _entities.Count - 1;
-            }
-
-            int newIndex = targetIndex;
-
-            targetIndex++;
-            int levelDelta = newLevel - (child.Level - 1);
-
-            var updatedDescendants = new List<EntityHierarchyItem>();
-            foreach (var descendant in descendants)
-            {
-                var updatedDescendant = descendant;
-                updatedDescendant.Level += levelDelta;
-                updatedDescendants.Add(updatedDescendant);
-            }
-
-            foreach (var updatedDescendant in updatedDescendants)
-            {
-                if (targetIndex < _entities.Count)
-                    _entities.Insert(targetIndex++, updatedDescendant);
-                else
-                    _entities.Add(updatedDescendant);
-            }
-
-            _entitiesList.SelectedItem = updatedChild;
-
-            EntityReordered?.Invoke(this, new EntityReorderEventArgs(updatedChild, oldIndex, newIndex, parentId, oldParentId));
-
-            UpdateChildrenLevels(childId, newLevel);
-            RefreshHierarchyVisibility();
-        }
-
+        
         private List<EntityHierarchyItem> GatherDescendants(uint entityId)
         {
             var result = new List<EntityHierarchyItem>();
@@ -1233,6 +1061,205 @@ namespace Editor
             RefreshList();
         }
 
+        private void RefreshHierarchyVisibility()
+        {
+            var entitiesToProcess = _entities.ToList();
+
+            var updates = new List<(int index, EntityHierarchyItem entity)>();
+
+            foreach (var entity in entitiesToProcess)
+            {
+                bool isVisible = true;
+                if (entity.ParentId != null)
+                {
+                    var parent = entitiesToProcess.FirstOrDefault(e => e.Id == entity.ParentId);
+                    uint? currentParentId = entity.ParentId;
+                    while (currentParentId != null)
+                    {
+                        var currentParent = entitiesToProcess.FirstOrDefault(e => e.Id == currentParentId);
+                        if (currentParent != EntityHierarchyItem.Null && !currentParent.IsExpanded)
+                        {
+                            isVisible = false;
+                            break;
+                        }
+                        currentParentId = currentParent.ParentId;
+                    }
+                }
+
+                var updatedEntity = entity;
+                updatedEntity.IsVisible = isVisible;
+
+                bool hasChildren = entitiesToProcess.Any(e => e.ParentId == entity.Id);
+                if (updatedEntity.Children.Count > 0 != hasChildren)
+                {
+                    var childrenIds = entitiesToProcess
+                        .Where(e => e.ParentId == entity.Id)
+                        .Select(e => e.Id)
+                        .ToList();
+                    updatedEntity.Children = childrenIds;
+                }
+
+                int index = FindIndex(_entities, e => e.Id == entity.Id);
+                if (index >= 0)
+                {
+                    updates.Add((index, updatedEntity));
+                }
+            }
+
+            foreach (var (index, updatedEntity) in updates)
+            {
+                if (index < _entities.Count)
+                {
+                    _entities[index] = updatedEntity;
+                }
+            }
+
+            var visibleEntities = _entities.Where(e => e.IsVisible).ToList();
+            _entitiesList.ItemsSource = null;
+            _entitiesList.ItemsSource = visibleEntities;
+        }
+
+        public void SetParent(uint childId, uint? parentId)
+        {
+            int childIndex = FindIndex(_entities, e => e.Id == childId);
+            if (childIndex < 0) return;
+
+            var child = _entities[childIndex];
+
+            if (child.ParentId == parentId) return;
+
+            int oldIndex = childIndex;
+            uint? oldParentId = child.ParentId;
+
+            int oldLocalIndex = 0;
+            if (oldParentId != null)
+            {
+                var siblings = _entities.Where(e => e.ParentId == oldParentId).ToList();
+                oldLocalIndex = siblings.FindIndex(e => e.Id == childId);
+            }
+            else
+            {
+                var rootItems = _entities.Where(e => e.ParentId == null).ToList();
+                oldLocalIndex = rootItems.FindIndex(e => e.Id == childId);
+            }
+
+            var descendants = GatherDescendants(childId);
+
+            _entities.RemoveAt(childIndex);
+            foreach (var descendant in descendants)
+            {
+                int index = FindIndex(_entities, e => e.Id == descendant.Id);
+                if (index >= 0)
+                    _entities.RemoveAt(index);
+            }
+
+            if (child.ParentId != null)
+            {
+                int oldParentIndex = FindIndex(_entities, e => e.Id == child.ParentId);
+                if (oldParentIndex >= 0)
+                {
+                    var oldParent = _entities[oldParentIndex];
+                    oldParent.Children.Remove(childId);
+                    _entities[oldParentIndex] = oldParent;
+                }
+            }
+
+            int newLevel = 0;
+            int targetIndex = -1;
+
+            if (parentId != null)
+            {
+                int parentIndex = FindIndex(_entities, e => e.Id == parentId);
+                if (parentIndex >= 0)
+                {
+                    var parent = _entities[parentIndex];
+
+                    if (!IsValidParent(childId, parentId))
+                    {
+                        _entities.Insert(childIndex, child);
+                        foreach (var descendant in descendants)
+                        {
+                            int insertIndex = childIndex + 1;
+                            _entities.Insert(insertIndex, descendant);
+                        }
+                        return;
+                    }
+
+                    parent.Children.Add(childId);
+                    _entities[parentIndex] = parent;
+                    newLevel = parent.Level + 1;
+
+                    targetIndex = parentIndex + 1;
+                    var lastChildIndex = FindLastDescendantIndex(parentId.Value);
+                    if (lastChildIndex > parentIndex)
+                    {
+                        targetIndex = lastChildIndex + 1;
+                    }
+                }
+            }
+
+            var updatedChild = child;
+            updatedChild.ParentId = parentId;
+            updatedChild.Level = newLevel;
+
+            if (targetIndex >= 0 && targetIndex <= _entities.Count)
+            {
+                _entities.Insert(targetIndex, updatedChild);
+            }
+            else
+            {
+                _entities.Add(updatedChild);
+                targetIndex = _entities.Count - 1;
+            }
+
+            int newIndex = targetIndex;
+
+            targetIndex++;
+            int levelDelta = newLevel - (child.Level - 1);
+
+            var updatedDescendants = new List<EntityHierarchyItem>();
+            foreach (var descendant in descendants)
+            {
+                var updatedDescendant = descendant;
+                updatedDescendant.Level += levelDelta;
+                updatedDescendants.Add(updatedDescendant);
+            }
+
+            foreach (var updatedDescendant in updatedDescendants)
+            {
+                if (targetIndex < _entities.Count)
+                    _entities.Insert(targetIndex++, updatedDescendant);
+                else
+                    _entities.Add(updatedDescendant);
+            }
+
+            int newLocalIndex = 0;
+            if (parentId != null)
+            {
+                var siblings = _entities.Where(e => e.ParentId == parentId).ToList();
+                newLocalIndex = siblings.FindIndex(e => e.Id == childId);
+            }
+            else
+            {
+                var rootItems = _entities.Where(e => e.ParentId == null).ToList();
+                newLocalIndex = rootItems.FindIndex(e => e.Id == childId);
+            }
+
+            _entitiesList.SelectedItem = updatedChild;
+
+            EntityReordered?.Invoke(this, new EntityReorderEventArgs(
+                    updatedChild,
+                    oldIndex,
+                    newIndex,
+                    oldLocalIndex,
+                    newLocalIndex,
+                    parentId,
+                    oldParentId));
+
+            UpdateChildrenLevels(childId, newLevel);
+            RefreshHierarchyVisibility();
+        }
+
         private void RefreshList()
         {
             var visibleEntities = _entities.Where(e => e.IsVisible).ToList();
@@ -1245,12 +1272,25 @@ namespace Editor
             int currentIndex = FindIndex(_entities, e => e.Id == item.Id && e.Version == item.Version);
             if (currentIndex < 0) return;
 
+            int oldLocalIndex = 0;
+            if (item.ParentId != null)
+            {
+                var siblings = _entities.Where(e => e.ParentId == item.ParentId).ToList();
+                oldLocalIndex = siblings.FindIndex(e => e.Id == item.Id);
+            }
+            else
+            {
+                var rootItems = _entities.Where(e => e.ParentId == null).ToList();
+                oldLocalIndex = rootItems.FindIndex(e => e.Id == item.Id);
+            }
+
             var descendants = GatherDescendants(item.Id);
             if (item.ParentId != newParentId)
             {
                 SetParent(item.Id, newParentId);
                 return;
             }
+
             var itemsToRemove = new List<uint> { item.Id };
             itemsToRemove.AddRange(descendants.Select(d => d.Id));
 
@@ -1287,8 +1327,27 @@ namespace Editor
                     _entities.Add(descendant);
             }
 
+            int newLocalIndex = 0;
+            if (item.ParentId != null)
+            {
+                var siblings = _entities.Where(e => e.ParentId == item.ParentId).ToList();
+                newLocalIndex = siblings.FindIndex(e => e.Id == item.Id);
+            }
+            else
+            {
+                var rootItems = _entities.Where(e => e.ParentId == null).ToList();
+                newLocalIndex = rootItems.FindIndex(e => e.Id == item.Id);
+            }
+
             _entitiesList.SelectedItem = item;
-            EntityReordered?.Invoke(this, new EntityReorderEventArgs(item, currentIndex, newIndex, newParentId));
+            EntityReordered?.Invoke(this, new EntityReorderEventArgs(
+                        item,
+                        currentIndex,
+                        newIndex,
+                        oldLocalIndex,
+                        newLocalIndex,
+                        item.ParentId,
+                        item.ParentId));
             RefreshHierarchyVisibility();
         }
         #endregion
@@ -1336,16 +1395,27 @@ namespace Editor
     public class EntityReorderEventArgs : EventArgs
     {
         public EntityHierarchyItem Entity { get; }
-        public int OldIndex { get; }
-        public int NewIndex { get; }
+        public int OldIndex { get; }           
+        public int NewIndex { get; }           
+        public int OldLocalIndex { get; }      
+        public int NewLocalIndex { get; }      
         public uint? NewParentId { get; }
         public uint? OldParentId { get; }
 
-        public EntityReorderEventArgs(EntityHierarchyItem entity, int oldIndex, int newIndex, uint? newParentId = null, uint? oldParentId = null)
+        public EntityReorderEventArgs(
+            EntityHierarchyItem entity,
+            int oldIndex,
+            int newIndex,
+            int oldLocalIndex,
+            int newLocalIndex,
+            uint? newParentId = null,
+            uint? oldParentId = null)
         {
             Entity = entity;
             OldIndex = oldIndex;
             NewIndex = newIndex;
+            OldLocalIndex = oldLocalIndex;
+            NewLocalIndex = newLocalIndex;
             NewParentId = newParentId;
             OldParentId = oldParentId;
         }

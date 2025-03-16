@@ -145,6 +145,8 @@ namespace Editor
                 else _inspectorController.CleanInspected();
                 Select.SelectItem(entity.Id);
             };
+
+            _hierarchyController.EntityReordered += _sceneManager.EntityReordered;
         }
         private void InitializeWorld()
         {

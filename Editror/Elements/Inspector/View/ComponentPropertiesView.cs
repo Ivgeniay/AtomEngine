@@ -54,6 +54,7 @@ namespace Editor
                 Padding = new Thickness(10, 0, 0, 0),
                 Background = new SolidColorBrush(Color.Parse("#404040")),
                 CornerRadius = new CornerRadius(3),
+                Height = 32,
                 Child = header
             };
 

@@ -9,6 +9,8 @@ namespace AtomEngine
         [ReadOnly]
         public uint Level;
         [ReadOnly]
+        public uint LocalIndex;
+        [ReadOnly]
         public uint Parent;
         [ReadOnly]
         public List<uint> Children;

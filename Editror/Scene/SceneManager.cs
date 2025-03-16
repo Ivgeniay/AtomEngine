@@ -4,13 +4,13 @@ using Avalonia.Controls;
 using Newtonsoft.Json;
 using AtomEngine;
 using System;
-using System.Linq;
-using System.Runtime.CompilerServices;
 
 namespace Editor
 {
     internal class SceneManager : IService
     {
+        public static SceneEntityComponentProvider EntityCompProvider { get; private set; }
+            
         public Action<ProjectScene>? OnSceneInitialize;
         public Action<ProjectScene>? OnSceneDirty;
         public Action? OnSceneBeforeSave;
@@ -36,6 +36,7 @@ namespace Editor
         internal ProjectScene CurrentScene { get => _currentScene; private set => _currentScene = value; }
         private ProjectScene _currentScene;
         private Window _mainWindow; 
+        public SceneManager() => EntityCompProvider = new SceneEntityComponentProvider(this);
 
         public void SetMainWindow(Window window) { 
             _mainWindow = window; 
@@ -240,43 +241,9 @@ namespace Editor
         {
             OnSceneAfterSave?.Invoke();
         }
+
+        internal void EntityReordered(object? sender, EntityReorderEventArgs e) => HierarchyComponentRouter.EntityReordered(sender, e, this);
+
+
     }
-
-    internal class SceneEntityComponentProvider : IEntityComponentInfoProvider
-    {
-        private SceneManager _sceneManager;
-
-        public SceneEntityComponentProvider(SceneManager sceneManager)
-        {
-            _sceneManager = sceneManager;
-        }
-
-        public unsafe ref T GetComponent<T>(uint entityId) where T : struct, IComponent
-        {
-            Type type = typeof(T);
-            var component = _sceneManager
-                    .CurrentScene
-                    .CurrentWorldData
-                    .Entities
-                    .First(e => e.Id == entityId)
-                    .Components
-                    .FirstOrDefault(e => e.Value.GetType() == type).Value;
-            return ref Unsafe.Unbox<T>(component);
-        }
-        public bool HasComponent<T>(uint entityId) where T : struct, IComponent
-        {
-            Type type = typeof(T);
-            var entityData = _sceneManager
-                    .CurrentScene
-                    .CurrentWorldData
-                    .Entities
-                    .FirstOrDefault(e => e.Id == entityId);
-            if (entityData != null)
-                return entityData.Components.Any(e => e.Value.GetType() == type);
-
-            return false;
-        }
-    }
-
-    public enum EntityChange { ComponentAdded, ComponentRemoved, ComponentValueChange } 
 }
