@@ -46,7 +46,6 @@ namespace Editor
                     }
                     return false;
                 });
-            //.Where(m => m is PropertyInfo || m is FieldInfo);
             _componentMap[component] = members;
             _contexMap[component] = context;
 
@@ -94,6 +93,9 @@ namespace Editor
 
         private bool IsReadOnly(MemberInfo member)
         {
+            var isReadOnlyAttribute = member.GetCustomAttribute<ReadOnlyAttribute>() != null;
+            if (isReadOnlyAttribute) return true;
+
             return member switch
             {
                 PropertyInfo prop => !prop.CanWrite,

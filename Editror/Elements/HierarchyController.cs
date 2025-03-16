@@ -15,6 +15,7 @@ using Key = Avalonia.Input.Key;
 using MouseButton = Avalonia.Input.MouseButton;
 using System.Collections.Generic;
 using Avalonia.VisualTree;
+using Newtonsoft.Json;
 
 namespace Editor
 {
@@ -35,6 +36,7 @@ namespace Editor
         public event EventHandler<EntityHierarchyItem> EntityDuplicated;
         public event EventHandler<EntityHierarchyItem> EntityRenamed;
         public event EventHandler<EntityHierarchyItem> EntityDeleted;
+        public event EventHandler<EntityReorderEventArgs> EntityReordered;
 
         private SceneManager _sceneManager;
         private EntityHierarchyItem _selectedFile = EntityHierarchyItem.Null;
@@ -45,6 +47,11 @@ namespace Editor
         {
             _entities = new ObservableCollection<EntityHierarchyItem>();
             InitializeUI();
+
+            EntityReordered += (s, e) =>
+            {
+                DebLogger.Debug(e);
+            };
 
             _entityContextMenu = CreateEntityComtexMenu();
             _backgroundContextMenu = CreateBGContextMenus();
@@ -357,8 +364,6 @@ namespace Editor
             });
         }
 
-        public event EventHandler<EntityReorderEventArgs> EntityReordered;
-
         private void RefreshHierarchyVisibility()
         {
             var entitiesToProcess = _entities.ToList();
@@ -426,6 +431,9 @@ namespace Editor
 
             if (child.ParentId == parentId) return;
 
+            int oldIndex = childIndex;
+            uint? oldParentId = child.ParentId;
+
             var descendants = GatherDescendants(childId);
 
             _entities.RemoveAt(childIndex);
@@ -473,7 +481,6 @@ namespace Editor
                     newLevel = parent.Level + 1;
 
                     targetIndex = parentIndex + 1;
-
                     var lastChildIndex = FindLastDescendantIndex(parentId.Value);
                     if (lastChildIndex > parentIndex)
                     {
@@ -489,14 +496,16 @@ namespace Editor
             if (targetIndex >= 0 && targetIndex <= _entities.Count)
             {
                 _entities.Insert(targetIndex, updatedChild);
-                targetIndex++;
             }
             else
             {
                 _entities.Add(updatedChild);
-                targetIndex = _entities.Count;
+                targetIndex = _entities.Count - 1;
             }
 
+            int newIndex = targetIndex;
+
+            targetIndex++;
             int levelDelta = newLevel - (child.Level - 1);
 
             var updatedDescendants = new List<EntityHierarchyItem>();
@@ -509,8 +518,15 @@ namespace Editor
 
             foreach (var updatedDescendant in updatedDescendants)
             {
-                _entities.Insert(targetIndex++, updatedDescendant);
+                if (targetIndex < _entities.Count)
+                    _entities.Insert(targetIndex++, updatedDescendant);
+                else
+                    _entities.Add(updatedDescendant);
             }
+
+            _entitiesList.SelectedItem = updatedChild;
+
+            EntityReordered?.Invoke(this, new EntityReorderEventArgs(updatedChild, oldIndex, newIndex, parentId, oldParentId));
 
             UpdateChildrenLevels(childId, newLevel);
             RefreshHierarchyVisibility();
@@ -1323,14 +1339,18 @@ namespace Editor
         public int OldIndex { get; }
         public int NewIndex { get; }
         public uint? NewParentId { get; }
+        public uint? OldParentId { get; }
 
-        public EntityReorderEventArgs(EntityHierarchyItem entity, int oldIndex, int newIndex, uint? newParentId = null)
+        public EntityReorderEventArgs(EntityHierarchyItem entity, int oldIndex, int newIndex, uint? newParentId = null, uint? oldParentId = null)
         {
             Entity = entity;
             OldIndex = oldIndex;
             NewIndex = newIndex;
             NewParentId = newParentId;
+            OldParentId = oldParentId;
         }
+
+        public override string ToString() => JsonConvert.SerializeObject(this);
     }
 
     public struct EntityHierarchyItem : INotifyPropertyChanged, IEquatable<EntityHierarchyItem>

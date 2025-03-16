@@ -14,6 +14,8 @@ namespace Editor
             string text = descriptor.Value as string;
 
             StringField field = new StringField();
+
+            field.IsReadOnly = descriptor.IsReadOnly;
             field.Label = descriptor.Name;
             field.Text = text;
             field.KeyDown += (s, e) =>

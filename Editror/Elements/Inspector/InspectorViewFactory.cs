@@ -18,6 +18,7 @@ namespace Editor
             return Task.Run(() =>
             {
                 AddOrUpdateViewMappingFabric(typeof(System.Int32), (descriptor) => new IntegerView(descriptor));
+                AddOrUpdateViewMappingFabric(typeof(System.UInt32), (descriptor) => new UIntegerView(descriptor));
                 AddOrUpdateViewMappingFabric(typeof(System.Single), (descriptor) => new FloatView(descriptor));
                 AddOrUpdateViewMappingFabric(typeof(System.String), (descriptor) => new StringView(descriptor));
                 AddOrUpdateViewMappingFabric(typeof(System.Boolean), (descriptor) => new BooleanView(descriptor));

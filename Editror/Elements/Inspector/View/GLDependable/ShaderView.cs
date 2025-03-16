@@ -31,6 +31,7 @@ namespace Editor
             {
                 objectField.ObjectPath = string.Empty;
             }
+            objectField.IsEnabled = !descriptor.IsReadOnly;
 
             SceneManager sceneManager = ServiceHub.Get<SceneManager>();
             objectField.ObjectChanged += (sender, e) =>

@@ -17,7 +17,7 @@ namespace Editor
                 Classes = { "propertyEditor" },
                 IsEnabled = !descriptor.IsReadOnly,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             };
 
             Type enumType = descriptor.Type;
@@ -36,6 +36,7 @@ namespace Editor
                     descriptor.OnValueChanged?.Invoke(comboBox.SelectedItem);
                 }
             };
+            comboBox.IsEnabled = !descriptor.IsReadOnly;
 
             Grid.SetColumn(comboBox, 1);
             grid.Children.Add(comboBox);

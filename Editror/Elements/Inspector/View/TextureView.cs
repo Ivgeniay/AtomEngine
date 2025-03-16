@@ -19,6 +19,8 @@ namespace Editor
             }
 
             ImageField imageField = new ImageField();
+
+            imageField.IsReadOnly = descriptor.IsReadOnly;
             imageField.Label = descriptor.Name;
             imageField.AllowedExtensions = new string[] { ".png", ".jpg", ".jpeg" };
             imageField.SetImage(path);

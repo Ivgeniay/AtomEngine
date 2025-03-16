@@ -23,6 +23,7 @@ namespace Editor
                     descriptor.OnValueChanged?.Invoke(checkBox.IsChecked.Value);
                 }
             };
+            checkBox.IsEnabled = !descriptor.IsReadOnly;
 
             Grid.SetColumn(checkBox, 1);
             grid.Children.Add(checkBox);

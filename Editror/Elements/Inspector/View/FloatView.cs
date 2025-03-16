@@ -15,6 +15,8 @@ namespace Editor
             float value = (float)descriptor.Value;
 
             FloatField field = new FloatField();
+
+            field.IsReadOnly = descriptor.IsReadOnly;
             field.Label = descriptor.Name;
 
             field.Value = value;

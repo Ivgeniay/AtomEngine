@@ -193,6 +193,7 @@ namespace Editor
             if (type == typeof(int)) return "Integer";
             if (type == typeof(float)) return "Float";
             if (type == typeof(string)) return "String";
+            if (type == typeof(uint)) return "UInteger";
             return type.Name;
         }
     }

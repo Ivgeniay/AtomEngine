@@ -12,6 +12,7 @@ namespace Editor.Elements.Inspector.View
             var vector = (Vector3)descriptor.Value;
             Vector3FloatField field = new Vector3FloatField();
 
+            field.IsReadOnly = descriptor.IsReadOnly;
             field.Label = descriptor.Name;
             field.Value = vector;
             field.ValueChanged += (s, e) =>
@@ -30,6 +31,7 @@ namespace Editor.Elements.Inspector.View
             var vector = (Vector3D<float>)descriptor.Value;
             Vector3FloatSilkField field = new Vector3FloatSilkField();
 
+            field.IsReadOnly = descriptor.IsReadOnly;
             field.Label = descriptor.Name;
             field.Value = vector;
             field.ValueChanged += (s, e) =>
