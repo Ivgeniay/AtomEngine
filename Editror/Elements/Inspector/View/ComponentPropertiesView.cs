@@ -19,6 +19,8 @@ namespace Editor
 
         public override Control GetView()
         {
+            int contentHieght = 32;
+
             SceneManager sceneManager = ServiceHub.Get<SceneManager>();
             var panel = new StackPanel { 
                 Margin = new Thickness(0, 5, 0, 5),
@@ -54,7 +56,7 @@ namespace Editor
                 Padding = new Thickness(10, 0, 0, 0),
                 Background = new SolidColorBrush(Color.Parse("#404040")),
                 CornerRadius = new CornerRadius(3),
-                Height = 32,
+                Height = contentHieght,
                 Child = header
             };
 
@@ -72,8 +74,8 @@ namespace Editor
                 var button = new Button
                 {
                     Content = "x",
-                    Width = 32,
-                    Height = 32,
+                    Width = contentHieght,
+                    Height = contentHieght,
                     VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center,
                     HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                     Classes = { "closeButton" },

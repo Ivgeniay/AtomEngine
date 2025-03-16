@@ -359,7 +359,6 @@ namespace Editor
             });
         }
 
-        
         private List<EntityHierarchyItem> GatherDescendants(uint entityId)
         {
             var result = new List<EntityHierarchyItem>();
@@ -498,7 +497,7 @@ namespace Editor
 
             return entityItem;
         }
-
+        
         private string GetUniqueName(string baseName)
         {
             string name = baseName;
@@ -768,81 +767,106 @@ namespace Editor
             uint? newParentId = null;
             bool asChild = false;
 
-            for (int i = 0; i < listItems.Count; i++)
+            bool draggingToRoot = point.X < 20;
+
+            if (draggingToRoot)
             {
-                var container = _entitiesList.ContainerFromIndex(i) as Control;
-                if (container != null)
+                newParentId = null; 
+                asChild = false;
+
+                
+                for (int i = 0; i < listItems.Count; i++)
                 {
-                    var containerBounds = container.Bounds;
-                    var containerTopInList = container.TranslatePoint(new Point(0, 0), _entitiesList)?.Y ?? 0;
-
-                    if (point.Y >= containerTopInList && point.Y < containerTopInList + containerBounds.Height)
+                    var container = _entitiesList.ContainerFromIndex(i) as Control;
+                    if (container != null)
                     {
-                        var horizontalPos = point.X;
-                        var currentItem = listItems[i];
-                        var itemIndent = currentItem.Level * 10 + 20; // Уменьшенный отступ, как мы его настроили ранее
+                        var containerTopInList = container.TranslatePoint(new Point(0, 0), _entitiesList)?.Y ?? 0;
+                        var containerBounds = container.Bounds;
 
-                        // Определяем, хочет ли пользователь вставить элемент как дочерний
-                        if (horizontalPos > itemIndent + 10 && horizontalPos < itemIndent + 30)
+                        if (point.Y < containerTopInList + (containerBounds.Height / 2))
                         {
-                            newParentId = currentItem.Id;
-                            asChild = true;
                             newDropTargetIndex = i;
+                            break;
                         }
-                        else
+                        else if (i == listItems.Count - 1 &&
+                            point.Y >= containerTopInList + (containerBounds.Height / 2))
                         {
-                            // Определяем подходящего родителя исходя из горизонтальной позиции
-                            int targetLevel = (int)(horizontalPos / 10);
+                            newDropTargetIndex = i + 1;
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < listItems.Count; i++)
+                {
+                    var container = _entitiesList.ContainerFromIndex(i) as Control;
+                    if (container != null)
+                    {
+                        var containerBounds = container.Bounds;
+                        var containerTopInList = container.TranslatePoint(new Point(0, 0), _entitiesList)?.Y ?? 0;
 
-                            // Ограничиваем targetLevel, чтобы он не мог быть больше чем level текущего элемента
-                            targetLevel = Math.Min(targetLevel, currentItem.Level);
+                        if (point.Y >= containerTopInList && point.Y < containerTopInList + containerBounds.Height)
+                        {
+                            var horizontalPos = point.X;
+                            var currentItem = listItems[i];
+                            var itemIndent = currentItem.Level * 10 + 20; 
 
-                            // Если мы хотим вставить на том же уровне или выше, ищем подходящего родителя
-                            if (targetLevel <= currentItem.Level)
+                            
+                            if (horizontalPos > itemIndent + 10 && horizontalPos < itemIndent + 30)
                             {
-                                // Находим ближайшего предка с нужным уровнем
-                                uint? ancestorId = currentItem.ParentId;
-                                int currentLevel = currentItem.Level - 1;
-
-                                // Ищем родителя нужного уровня
-                                while (ancestorId != null && currentLevel > targetLevel)
-                                {
-                                    var ancestor = listItems.FirstOrDefault(a => a.Id == ancestorId);
-                                    if (ancestor != null && ancestor != EntityHierarchyItem.Null)
-                                    {
-                                        ancestorId = ancestor.ParentId;
-                                        currentLevel--;
-                                    }
-                                    else
-                                    {
-                                        break;
-                                    }
-                                }
-
-                                newParentId = ancestorId;
-                            }
-
-                            // Определяем, вставлять до или после текущего элемента
-                            if (point.Y < containerTopInList + (containerBounds.Height / 2))
-                            {
+                                newParentId = currentItem.Id;
+                                asChild = true;
                                 newDropTargetIndex = i;
                             }
                             else
                             {
-                                newDropTargetIndex = i + 1;
+                                int targetLevel = (int)(horizontalPos / 10);
+                                targetLevel = Math.Min(targetLevel, currentItem.Level);
 
-                                // Если текущий элемент имеет потомков и развернут, нужно перейти через всех потомков
-                                if (currentItem.IsExpanded && currentItem.Children.Count > 0)
+                                if (targetLevel <= currentItem.Level)
                                 {
-                                    var lastDescendantIndex = FindLastVisibleDescendantIndex(currentItem.Id, listItems);
-                                    if (lastDescendantIndex > i)
+                                    uint? ancestorId = currentItem.ParentId;
+                                    int currentLevel = currentItem.Level - 1;
+
+                                    while (ancestorId != null && currentLevel > targetLevel)
                                     {
-                                        newDropTargetIndex = lastDescendantIndex + 1;
+                                        var ancestor = listItems.FirstOrDefault(a => a.Id == ancestorId);
+                                        if (ancestor != null && ancestor != EntityHierarchyItem.Null)
+                                        {
+                                            ancestorId = ancestor.ParentId;
+                                            currentLevel--;
+                                        }
+                                        else
+                                        {
+                                            break;
+                                        }
+                                    }
+
+                                    newParentId = ancestorId;
+                                }
+
+                                if (point.Y < containerTopInList + (containerBounds.Height / 2))
+                                {
+                                    newDropTargetIndex = i;
+                                }
+                                else
+                                {
+                                    newDropTargetIndex = i + 1;
+
+                                                                        if (currentItem.IsExpanded && currentItem.Children.Count > 0)
+                                    {
+                                        var lastDescendantIndex = FindLastVisibleDescendantIndex(currentItem.Id, listItems);
+                                        if (lastDescendantIndex > i)
+                                        {
+                                            newDropTargetIndex = lastDescendantIndex + 1;
+                                        }
                                     }
                                 }
                             }
+                            break;
                         }
-                        break;
                     }
                 }
             }
@@ -1130,32 +1154,16 @@ namespace Editor
 
             int oldIndex = childIndex;
             uint? oldParentId = child.ParentId;
+            int oldLocalIndex = CalculateLocalIndex(child);
 
-            int oldLocalIndex = 0;
+            var tree = BuildTreeFromEntity(childId);
+            if (tree == null) return;
+
+            RemoveEntityTree(childId);
+
             if (oldParentId != null)
             {
-                var siblings = _entities.Where(e => e.ParentId == oldParentId).ToList();
-                oldLocalIndex = siblings.FindIndex(e => e.Id == childId);
-            }
-            else
-            {
-                var rootItems = _entities.Where(e => e.ParentId == null).ToList();
-                oldLocalIndex = rootItems.FindIndex(e => e.Id == childId);
-            }
-
-            var descendants = GatherDescendants(childId);
-
-            _entities.RemoveAt(childIndex);
-            foreach (var descendant in descendants)
-            {
-                int index = FindIndex(_entities, e => e.Id == descendant.Id);
-                if (index >= 0)
-                    _entities.RemoveAt(index);
-            }
-
-            if (child.ParentId != null)
-            {
-                int oldParentIndex = FindIndex(_entities, e => e.Id == child.ParentId);
+                int oldParentIndex = FindIndex(_entities, e => e.Id == oldParentId);
                 if (oldParentIndex >= 0)
                 {
                     var oldParent = _entities[oldParentIndex];
@@ -1164,10 +1172,19 @@ namespace Editor
                 }
             }
 
-            int newLevel = 0;
+            tree.Root.ParentId = parentId;
+            tree.Root.Level = parentId == null ? 0 : tree.Root.Level;
+
             int targetIndex = -1;
 
-            if (parentId != null)
+            if (parentId == null)
+            {
+                tree.Root.ParentId = null;
+                tree.Root.Level = 0; 
+
+                targetIndex = oldIndex;
+            }
+            else 
             {
                 int parentIndex = FindIndex(_entities, e => e.Id == parentId);
                 if (parentIndex >= 0)
@@ -1176,88 +1193,38 @@ namespace Editor
 
                     if (!IsValidParent(childId, parentId))
                     {
-                        _entities.Insert(childIndex, child);
-                        foreach (var descendant in descendants)
-                        {
-                            int insertIndex = childIndex + 1;
-                            _entities.Insert(insertIndex, descendant);
-                        }
+                        AddEntityTree(tree, oldIndex);
                         return;
                     }
 
+                    tree.Root.Level = parent.Level + 1;
+
                     parent.Children.Add(childId);
                     _entities[parentIndex] = parent;
-                    newLevel = parent.Level + 1;
 
-                    targetIndex = parentIndex + 1;
-                    var lastChildIndex = FindLastDescendantIndex(parentId.Value);
-                    if (lastChildIndex > parentIndex)
-                    {
-                        targetIndex = lastChildIndex + 1;
-                    }
+                    int lastChildIndex = FindLastDescendantIndex(parentId.Value);
+                    targetIndex = lastChildIndex + 1;
                 }
             }
 
-            var updatedChild = child;
-            updatedChild.ParentId = parentId;
-            updatedChild.Level = newLevel;
+            AddEntityTree(tree, targetIndex);
 
-            if (targetIndex >= 0 && targetIndex <= _entities.Count)
-            {
-                _entities.Insert(targetIndex, updatedChild);
-            }
-            else
-            {
-                _entities.Add(updatedChild);
-                targetIndex = _entities.Count - 1;
-            }
+            int newIndex = FindIndex(_entities, e => e.Id == childId);
+            if (newIndex < 0) return;
 
-            int newIndex = targetIndex;
-
-            targetIndex++;
-            int levelDelta = newLevel - (child.Level - 1);
-
-            var updatedDescendants = new List<EntityHierarchyItem>();
-            foreach (var descendant in descendants)
-            {
-                var updatedDescendant = descendant;
-                updatedDescendant.Level += levelDelta;
-                updatedDescendants.Add(updatedDescendant);
-            }
-
-            foreach (var updatedDescendant in updatedDescendants)
-            {
-                if (targetIndex < _entities.Count)
-                    _entities.Insert(targetIndex++, updatedDescendant);
-                else
-                    _entities.Add(updatedDescendant);
-            }
-
-            int newLocalIndex = 0;
-            if (parentId != null)
-            {
-                var siblings = _entities.Where(e => e.ParentId == parentId).ToList();
-                newLocalIndex = siblings.FindIndex(e => e.Id == childId);
-            }
-            else
-            {
-                var rootItems = _entities.Where(e => e.ParentId == null).ToList();
-                newLocalIndex = rootItems.FindIndex(e => e.Id == childId);
-            }
-
-            _entitiesList.SelectedItem = updatedChild;
+            var updatedChild = _entities[newIndex];
+            int newLocalIndex = CalculateLocalIndex(updatedChild);
 
             EntityReordered?.Invoke(this, new EntityReorderEventArgs(
-                    updatedChild,
-                    oldIndex,
-                    newIndex,
-                    oldLocalIndex,
-                    newLocalIndex,
-                    parentId,
-                    oldParentId));
+                updatedChild,
+                oldIndex,
+                newIndex,
+                oldLocalIndex,
+                newLocalIndex,
+                updatedChild.ParentId,
+                oldParentId));
 
-            UpdateChildrenLevels(childId, newLevel);
-            RefreshHierarchyVisibility();
+                        RefreshHierarchyVisibility();
         }
 
         private void RefreshList()
@@ -1267,90 +1234,186 @@ namespace Editor
             _entitiesList.ItemsSource = visibleEntities;
         }
 
+
         private void ReorderEntity(EntityHierarchyItem item, int newIndex, uint? newParentId = null)
         {
-            int currentIndex = FindIndex(_entities, e => e.Id == item.Id && e.Version == item.Version);
-            if (currentIndex < 0) return;
+            int oldIndex = FindIndex(_entities, e => e.Id == item.Id && e.Version == item.Version);
+            if (oldIndex < 0) return;
 
-            int oldLocalIndex = 0;
+            uint? oldParentId = item.ParentId;
+            int oldLocalIndex = CalculateLocalIndex(item);
+
+            if (oldParentId != null && newParentId == null)
+            {
+                var updatedRoot = item;
+                updatedRoot.ParentId = null;
+                updatedRoot.Level = 0;
+
+                _entities[oldIndex] = updatedRoot;
+            }
+
+            var tree = BuildTreeFromEntity(item.Id);
+            if (tree == null) return;
+
+            RemoveEntityTree(item.Id);
+
+            if (newParentId != null && oldParentId != newParentId)
+            {
+                int parentIndex = FindIndex(_entities, e => e.Id == newParentId);
+                if (parentIndex >= 0)
+                {
+                    var parent = _entities[parentIndex];
+                    if (!IsValidParent(item.Id, newParentId))
+                    {
+                        AddEntityTree(tree, oldIndex);
+                        return;
+                    }
+                    tree.Root.ParentId = newParentId;
+                    tree.Root.Level = parent.Level + 1;
+
+                    int lastChildIndex = FindLastDescendantIndex(newParentId.Value);
+                    if (lastChildIndex < parentIndex) lastChildIndex = parentIndex;
+
+                    AddEntityTree(tree, lastChildIndex + 1);
+
+                    var updatedParent = _entities[parentIndex];
+                    updatedParent.Children.Add(item.Id);
+                    _entities[parentIndex] = updatedParent;
+                }
+            }
+            else
+            {
+                if (newParentId == null)
+                {
+                    tree.Root.ParentId = null;
+                    tree.Root.Level = 0;
+                }
+                AddEntityTree(tree, newIndex);
+            }
+
+            int newEntityIndex = FindIndex(_entities, e => e.Id == item.Id);
+            if (newEntityIndex < 0) return;
+
+            var updatedItem = _entities[newEntityIndex];
+            int newLocalIndex = CalculateLocalIndex(updatedItem);
+
+            var eventArgs = new EntityReorderEventArgs(
+                updatedItem,
+                oldIndex,
+                newEntityIndex,
+                oldLocalIndex,
+                newLocalIndex,
+                updatedItem.ParentId,
+                oldParentId);
+
+            EntityReordered?.Invoke(this, eventArgs);
+            RefreshHierarchyVisibility();
+        }
+
+        private int CalculateLocalIndex(EntityHierarchyItem item)
+        {
             if (item.ParentId != null)
             {
                 var siblings = _entities.Where(e => e.ParentId == item.ParentId).ToList();
-                oldLocalIndex = siblings.FindIndex(e => e.Id == item.Id);
+                return siblings.FindIndex(e => e.Id == item.Id);
             }
             else
             {
                 var rootItems = _entities.Where(e => e.ParentId == null).ToList();
-                oldLocalIndex = rootItems.FindIndex(e => e.Id == item.Id);
+                return rootItems.FindIndex(e => e.Id == item.Id);
             }
+        }
 
-            var descendants = GatherDescendants(item.Id);
-            if (item.ParentId != newParentId)
+        #endregion
+
+        #region Tree
+        public EntityHierarchyItemTree CreateHierarchyEntityTree(EntityData entityData, bool withAvoking = true)
+        {
+            var entityItem = new EntityHierarchyItem(entityData.Id, entityData.Version, entityData.Name);
+            var tree = new EntityHierarchyItemTree(entityItem);
+            AddEntityTree(tree);
+
+            if (withAvoking)
+                EntitySelected?.Invoke(this, entityItem);
+
+            return tree;
+        }
+
+        public EntityHierarchyItemTree BuildTreeFromEntity(uint entityId)
+        {
+            int index = FindIndex(_entities, e => e.Id == entityId);
+            if (index < 0) return null;
+
+            var entity = _entities[index];
+            var tree = new EntityHierarchyItemTree(entity);
+
+            
+            var childrenIds = entity.Children.ToList();
+
+            foreach (var childId in childrenIds)
             {
-                SetParent(item.Id, newParentId);
-                return;
-            }
-
-            var itemsToRemove = new List<uint> { item.Id };
-            itemsToRemove.AddRange(descendants.Select(d => d.Id));
-
-            var removedItems = new List<EntityHierarchyItem>();
-            foreach (var id in itemsToRemove)
-            {
-                int index = FindIndex(_entities, e => e.Id == id);
-                if (index >= 0)
+                var childTree = BuildTreeFromEntity(childId);
+                if (childTree != null)
                 {
-                    removedItems.Add(_entities[index]);
-                    _entities.RemoveAt(index);
-
-                    if (index < newIndex)
-                        newIndex--;
+                    tree.AddChild(childTree);
                 }
             }
 
-            if (newIndex >= 0 && newIndex <= _entities.Count)
+            return tree;
+        }
+
+        public void RemoveEntityTree(uint rootId)
+        {
+            var descendants = GatherDescendants(rootId);
+            var allIds = new List<uint> { rootId };
+            allIds.AddRange(descendants.Select(d => d.Id));
+
+            for (int i = allIds.Count - 1; i >= 0; i--)
             {
-                _entities.Insert(newIndex, item);
-            }
-            else
-            {
-                _entities.Add(item);
-                newIndex = _entities.Count - 1;
+                int index = FindIndex(_entities, e => e.Id == allIds[i]);
+                if (index >= 0)
+                {
+                    _entities.RemoveAt(index);
+                }
             }
 
-            newIndex++;
-            foreach (var descendant in descendants)
-            {
-                if (newIndex < _entities.Count)
-                    _entities.Insert(newIndex++, descendant);
-                else
-                    _entities.Add(descendant);
-            }
-
-            int newLocalIndex = 0;
-            if (item.ParentId != null)
-            {
-                var siblings = _entities.Where(e => e.ParentId == item.ParentId).ToList();
-                newLocalIndex = siblings.FindIndex(e => e.Id == item.Id);
-            }
-            else
-            {
-                var rootItems = _entities.Where(e => e.ParentId == null).ToList();
-                newLocalIndex = rootItems.FindIndex(e => e.Id == item.Id);
-            }
-
-            _entitiesList.SelectedItem = item;
-            EntityReordered?.Invoke(this, new EntityReorderEventArgs(
-                        item,
-                        currentIndex,
-                        newIndex,
-                        oldLocalIndex,
-                        newLocalIndex,
-                        item.ParentId,
-                        item.ParentId));
             RefreshHierarchyVisibility();
         }
+
+        public void AddEntityTree(EntityHierarchyItemTree tree, int targetIndex = -1)
+        {
+            var items = tree.FlattenTree();
+
+            var root = tree.Root;
+            if (root.ParentId == null)
+            {
+                root.Level = 0;
+            }
+
+            if (targetIndex >= 0 && targetIndex <= _entities.Count)
+            {
+                for (int i = 0; i < items.Count; i++)
+                {
+                    _entities.Insert(targetIndex + i, items[i]);
+                }
+            }
+            else
+            {
+                foreach (var item in items)
+                {
+                    _entities.Add(item);
+                }
+            }
+
+            _entitiesList.SelectedItem = tree.Root;
+
+            RefreshHierarchyVisibility();
+        }
+
+
         #endregion
+
+
         private int FindLastVisibleDescendantIndex(uint entityId, List<EntityHierarchyItem> visibleItems)
         {
             int lastIndex = visibleItems.FindIndex(e => e.Id == entityId);
@@ -1551,5 +1614,47 @@ namespace Editor
         public static bool operator !=(EntityHierarchyItem left, EntityHierarchyItem right)
             => !(left == right);
     }
-    
+
+    public class EntityHierarchyItemTree
+    {
+        public EntityHierarchyItem Root;
+        public List<EntityHierarchyItemTree> Children { get; set; }
+
+        public EntityHierarchyItemTree(EntityHierarchyItem root)
+        {
+            Root = root;
+            Children = new List<EntityHierarchyItemTree>();
+        }
+
+        public void AddChild(EntityHierarchyItemTree child)
+        {
+            Children.Add(child);
+
+            var childItem = child.Root;
+            childItem.ParentId = Root.Id;
+            childItem.Level = Root.Level + 1;
+
+            Root.Children.Add(childItem.Id);
+        }
+
+        public List<EntityHierarchyItem> FlattenTree()
+        {
+            var result = new List<EntityHierarchyItem>();
+            result.Add(Root);
+
+            foreach (var child in Children)
+            {
+                var childRoot = child.Root;
+                childRoot.ParentId = Root.Id;
+                childRoot.Level = Root.Level + 1;
+
+                child.Root = childRoot;
+
+                result.AddRange(child.FlattenTree());
+            }
+
+            return result;
+        }
+    }
+
 }
