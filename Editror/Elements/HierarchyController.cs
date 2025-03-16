@@ -586,34 +586,30 @@ namespace Editor
         public void UpdateHyerarchy(ProjectScene currentScene)
         {
             _currentScene = currentScene;
-            Redraw();
+            if (isOpen)
+            {
+                BuildHierarchyFromComponents();
+            }
         }
 
         public void Dispose() { }
+        
         public void Redraw()
         {
-            ClearEntities();
             if (isOpen && _currentScene != null)
             {
-                Dictionary<uint, EntityHierarchyItem> entityMap = new Dictionary<uint, EntityHierarchyItem>();
-
-                foreach (var entityData in _currentScene.CurrentWorldData.Entities)
-                {
-                    var hierarchyItem = CreateHierarchyEntity(entityData);
-                    entityMap[entityData.Id] = hierarchyItem;
-                }
-
-                RefreshHierarchyVisibility();
+                BuildHierarchyFromComponents();
             }
         }
 
         public void Open()
         {
             isOpen = true;
-            Redraw();
+            BuildHierarchyFromComponents();
 
             _entitiesList.DoubleTapped += OnEntitiesListDoubleTapped;
         }
+
         public void Close()
         {
             isOpen = false;
@@ -622,7 +618,151 @@ namespace Editor
 
             OnClose?.Invoke(this);
         }
-        
+
+        private void BuildHierarchyFromComponents()
+        {
+            if (_currentScene == null || _currentScene.CurrentWorldData == null)
+                return;
+
+            ClearEntities();
+
+            var allEntities = _currentScene.CurrentWorldData.Entities.ToList();
+            Dictionary<uint, EntityHierarchyItem> idToItem = new Dictionary<uint, EntityHierarchyItem>();
+
+            foreach (var entityData in allEntities)
+            {
+                var hierarchyItem = new EntityHierarchyItem(entityData.Id, entityData.Version, entityData.Name);
+                hierarchyItem.Children = new List<uint>();
+
+                if (SceneManager.EntityCompProvider.HasComponent<HierarchyComponent>(entityData.Id))
+                {
+                    ref var hierarchyComp = ref SceneManager.EntityCompProvider.GetComponent<HierarchyComponent>(entityData.Id);
+
+                    if (hierarchyComp.Parent != uint.MaxValue)
+                    {
+                        hierarchyItem.ParentId = hierarchyComp.Parent;
+                    }
+                    hierarchyItem.Level = (int)hierarchyComp.Level;
+                    if (hierarchyComp.Children != null && hierarchyComp.Children.Count > 0)
+                    {
+                        hierarchyItem.Children = hierarchyComp.Children.ToList();
+                    }
+                }
+                idToItem[entityData.Id] = hierarchyItem;
+            }
+
+            List<EntityHierarchyItem> flattenedHierarchy = new List<EntityHierarchyItem>();
+            var rootEntities = idToItem.Values
+                .Where(item => item.ParentId == null || item.ParentId == uint.MaxValue)
+                .OrderBy<EntityHierarchyItem, uint>(item =>
+                {
+                    if (SceneManager.EntityCompProvider.HasComponent<HierarchyComponent>(item.Id))
+                    {
+                        ref var comp = ref SceneManager.EntityCompProvider.GetComponent<HierarchyComponent>(item.Id);
+                        return comp.LocalIndex;
+                    }
+                    return 0;
+                })
+                .ToList();
+
+            foreach (var rootEntity in rootEntities)
+            {
+                flattenedHierarchy.Add(rootEntity);
+                AddChildrenRecursively(rootEntity.Id, idToItem, flattenedHierarchy);
+            }
+
+            foreach (var item in flattenedHierarchy)
+            {
+                _entities.Add(item);
+            }
+
+            RefreshHierarchyVisibility();
+        }
+
+        private void AddChildrenRecursively(uint parentId, Dictionary<uint, EntityHierarchyItem> idToItem, List<EntityHierarchyItem> result)
+        {
+            if (!idToItem.TryGetValue(parentId, out var parentItem))
+                return;
+
+            if (parentItem.Children == null || parentItem.Children.Count == 0)
+                return;
+
+            var sortedChildren = parentItem.Children
+                .Where(childId => idToItem.ContainsKey(childId))
+                .Select(childId =>
+                {
+                    uint localIndex = 0;
+                    if (SceneManager.EntityCompProvider.HasComponent<HierarchyComponent>(childId))
+                    {
+                        ref var comp = ref SceneManager.EntityCompProvider.GetComponent<HierarchyComponent>(childId);
+                        localIndex = comp.LocalIndex;
+                    }
+                    return (childId, localIndex);
+                })
+                .OrderBy(x => x.localIndex)
+                .Select(x => x.childId)
+                .ToList();
+
+            foreach (var childId in sortedChildren)
+            {
+                if (idToItem.TryGetValue(childId, out var childItem))
+                {
+                    childItem.ParentId = parentId;
+                    childItem.Level = parentItem.Level + 1;
+                    result.Add(childItem);
+                    AddChildrenRecursively(childId, idToItem, result);
+                }
+            }
+        }
+
+        private void CalculateHierarchyDepth(EntityHierarchyItem item, Dictionary<uint, EntityHierarchyItem> idToItem, Dictionary<uint, List<uint>> parentToChildren)
+        {
+            if (parentToChildren.TryGetValue(item.Id, out var children))
+            {
+                foreach (var childId in children)
+                {
+                    if (idToItem.TryGetValue(childId, out var childItem))
+                    {
+                        childItem.Level = item.Level + 1;
+                        CalculateHierarchyDepth(childItem, idToItem, parentToChildren);
+                    }
+                }
+            }
+        }
+
+        private void AddChildrenInOrder(uint parentId, Dictionary<uint, EntityHierarchyItem> idToItem, Dictionary<uint, List<uint>> parentToChildren)
+        {
+            if (parentToChildren.TryGetValue(parentId, out var children))
+            {
+                var sortedChildren = new List<uint>(children);
+
+                // Сортируем детей по локальному индексу, если доступно
+                var childrenWithLocalIndex = new List<(uint id, uint localIndex)>();
+                foreach (var childId in sortedChildren)
+                {
+                    uint localIndex = 0;
+                    if (SceneManager.EntityCompProvider.HasComponent<HierarchyComponent>(childId))
+                    {
+                        ref var hierarchyComp = ref SceneManager.EntityCompProvider.GetComponent<HierarchyComponent>(childId);
+                        localIndex = hierarchyComp.LocalIndex;
+                    }
+                    childrenWithLocalIndex.Add((childId, localIndex));
+                }
+
+                // Сортируем по локальному индексу
+                sortedChildren = childrenWithLocalIndex.OrderBy(x => x.localIndex).Select(x => x.id).ToList();
+
+                foreach (var childId in sortedChildren)
+                {
+                    if (idToItem.TryGetValue(childId, out var childItem))
+                    {
+                        _entities.Add(childItem);
+                        AddChildrenInOrder(childId, idToItem, parentToChildren);
+                    }
+                }
+            }
+        }
+
         private void SelectCallback(object? sender, SelectionChangedEventArgs t)
         {
             foreach (var entity in t.RemovedItems)
