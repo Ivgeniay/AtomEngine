@@ -12,6 +12,27 @@
     <Exec Command="$(ILMergeConsolePath) bin\Release\net9.0-windows \WindowsBuild.exe bin\Release\net9.0-windows\Newtonsoft.Json.dll  bin\Release\net9.0-windows\BepuPhysics.dll  bin\Release\net9.0-windows\BepuUtilities.dll  bin\Release\net9.0-windows\CommonLib.dll   bin\Release\net9.0-windows\EngineLib.dll  bin\Release\net9.0-windows\MathNet.Numerics.dll   bin\Release\net9.0-windows\Silk.NET.Assimp.dll    bin\Release\net9.0-windows\Silk.NET.Core.dll   bin\Release\net9.0-windows\Silk.NET.GLFW.dll   bin\Release\net9.0-windows\Silk.NET.Input.Common.dll  bin\Release\net9.0-windows\Silk.NET.Input.Extensions.dll   bin\Release\net9.0-windows\Silk.NET.Input.Glfw.dll    bin\Release\net9.0-windows\Silk.NET.Maths.dll   bin\Release\net9.0-windows\Silk.NET.OpenAL.dll   bin\Release\net9.0-windows\Silk.NET.OpenGL.dll   bin\Release\net9.0-windows\Silk.NET.OpenGLES.dll  bin\Release\net9.0-windows\Silk.NET.OpenGLES.Extensions.EXT.dll   bin\Release\net9.0-windows\Silk.NET.Vulkan.dll   bin\Release\net9.0-windows\Silk.NET.Vulkan.Extensions.KHR.dll    bin\Release\net9.0-windows\Silk.NET.Windowing.Common.dll   bin\Release\net9.0-windows\Silk.NET.Windowing.Glfw.dll    bin\Release\net9.0-windows\SixLabors.ImageSharp.dll    bin\Release\net9.0-windows\StbImageSharp.dll    bin\Release\net9.0-windows\WindowsBuild.dll    bin\Release\net9.0-windows\OpenglLib.dll /out:myapp.exe" />
   </Target>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <PropertyGroup>
+      <DebugDestination>..\Editor\bin\Debug\net9.0\Execution</DebugDestination>
+      <ReleaseDestination>..\Editor\bin\Release\net9.0\Execution</ReleaseDestination>
+    </PropertyGroup>
+
+    <MakeDir Directories="$(DebugDestination);$(ReleaseDestination)" />
+
+    <ItemGroup>
+      <OutputFiles Include="$(OutputPath)\**\*.*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(OutputFiles)"
+          DestinationFolder="$(DebugDestination)"
+          Condition="'$(Configuration)' == 'Debug'" />
+
+    <Copy SourceFiles="@(OutputFiles)"
+          DestinationFolder="$(ReleaseDestination)"
+          Condition="'$(Configuration)' == 'Release'" />
+  </Target>
+
 
   <ItemGroup>
     <ProjectReference Include="..\CommonLib\CommonLib.csproj" />

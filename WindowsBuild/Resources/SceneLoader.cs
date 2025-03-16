@@ -196,7 +196,7 @@ namespace WindowsBuild
                     string componentTypeName = kvp.Key;
                     IComponent componentData = kvp.Value;
 
-                    Type? componentType = AssemblyManager.Instance.FindType(componentTypeName);
+                    Type? componentType = AssemblyManager.Instance.FindType(componentTypeName, true);
                     if (componentType == null)
                     {
                         DebLogger.Error($"Не удалось найти тип компонента: {componentTypeName}");

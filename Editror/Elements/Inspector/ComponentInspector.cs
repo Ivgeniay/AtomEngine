@@ -28,6 +28,8 @@ namespace Editor
                     {
                         if (field.IsPrivate)
                         {
+                            if (field.Name.EndsWith("GUID")) return true;
+
                             bool isShowInInspector = field.GetCustomAttributes(false).Any(e => e.GetType() == typeof(ShowInInspectorAttribute));
                             if (!isShowInInspector) return false;
                         }
@@ -128,7 +130,9 @@ namespace Editor
         {
             if (value is GLValueRedirection redirection)
             {
-                var guidMember = _componentMap[component].FirstOrDefault(m => m.Name == member.Name + "GUID");
+                //ShaderGUID
+                string findingFiled = member.Name + "GUID";
+                var guidMember = _componentMap[component].FirstOrDefault(m => m.Name == findingFiled);
                 if (guidMember != null)
                 {
                     var val = GetValue(component, guidMember);
@@ -136,6 +140,10 @@ namespace Editor
                     SetValue(component, guidMember, redirection.Value);
                     val = GetValue(component, guidMember);
                     DebLogger.Debug($"{guidMember.Name} After: {val}");
+                }
+                else
+                {
+                    DebLogger.Error("No GUID field");
                 }
                 return;
             }

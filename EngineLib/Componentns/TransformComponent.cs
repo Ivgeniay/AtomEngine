@@ -3,11 +3,10 @@ using System.Numerics;
 
 namespace AtomEngine
 {
-    [ReadOnlyAttribute()]
+    //[ReadOnlyAttribute()]
     public struct TransformComponent : IComponent
     {
         public Entity Owner { get; set; }
-        [ReadOnly]
         public Vector3 _position;
         public Vector3 _rotation;
         public Vector3 _scale;

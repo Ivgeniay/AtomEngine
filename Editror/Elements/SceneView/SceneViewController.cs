@@ -529,7 +529,7 @@ namespace Editor
         {
             transform = new TransformComponent();
 
-            if (entity.Components.TryGetValue(nameof(TransformComponent), out var transformComponent))
+            if (entity.Components.TryGetValue(typeof(TransformComponent).FullName, out var transformComponent))
             {
                 transform = (TransformComponent)transformComponent;
                 return true;

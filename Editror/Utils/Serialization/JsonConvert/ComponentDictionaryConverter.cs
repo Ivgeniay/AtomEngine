@@ -46,6 +46,10 @@ namespace Editor
                 if (propertyName != null)
                 {
                     var componentType = assemblyManager.FindType(propertyName, true);
+                    //if (propertyName == "UserScripts.TestShaderComponent")
+                    //{
+                    //    var fields = componentType.GetFields(System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    //}
                     if (componentType != null && typeof(IComponent).IsAssignableFrom(componentType))
                     {
                         var component = (IComponent?)serializer.Deserialize(reader, componentType);

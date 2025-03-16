@@ -205,8 +205,8 @@ namespace Editor
                     PreserveReferencesHandling = PreserveReferencesHandling.Objects,
                     ReferenceLoopHandling = ReferenceLoopHandling.Serialize
                 };
-                //OnSceneBeforeSave?.Invoke();
-                //string jsonContent = JsonConvert.SerializeObject(CurrentScene, jsonSettings);
+                 
+                 
                 string jsonContent = SceneSerializer.SerializeScene(CurrentScene);
                 bool result = await FileDialogService.WriteTextFileAsync(CurrentScene.ScenePath, jsonContent);
                 if (result)

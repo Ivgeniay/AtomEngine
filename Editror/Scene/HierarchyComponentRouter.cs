@@ -107,8 +107,6 @@ namespace Editor
                     UpdateChildrenLevels(e.Entity.Id, levelDifference);
                 }
             }
-
-            DebLogger.Debug(e);
         }
 
         private static void UpdateChildrenLevels(uint entityId, int levelDifference)

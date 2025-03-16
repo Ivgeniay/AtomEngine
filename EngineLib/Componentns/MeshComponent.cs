@@ -9,7 +9,7 @@ namespace AtomEngine
     public partial struct MeshComponent : IComponent
     {
         public Entity Owner { get; set; }
-        public readonly MeshBase Mesh;
+        public MeshBase Mesh;
         [JsonProperty]
         private string MeshGUID;
 
