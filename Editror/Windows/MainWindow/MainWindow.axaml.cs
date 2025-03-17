@@ -6,6 +6,7 @@ using AtomEngine;
 using Avalonia;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Editor
 {
@@ -34,6 +35,7 @@ namespace Editor
 
             MainCanvas_ = MainCanvas;
             ServiceHub.Get<DraggableWindowManagerService>().SetCanvas(MainCanvas);
+            ServiceHub.Get<LoadingManager>().SetCanvas(MainCanvas);
             ServiceHub.Get<BuildManager>().SetMainWindow(this);
             _sceneManager = ServiceHub.Get<SceneManager>();
             _sceneManager.SetMainWindow(this);

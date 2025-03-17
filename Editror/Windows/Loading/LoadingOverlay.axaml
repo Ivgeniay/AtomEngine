@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="Editor.LoadingOverlay">
+  <Canvas Background="#80000000" IsHitTestVisible="True">
+    <Border Name="DialogBorder"
+            Classes="dialog"
+            Width="300" 
+            Height="150"
+            Background="#383838"
+            BorderBrush="#4D4D4D"
+            BorderThickness="1"
+            CornerRadius="4"
+            BoxShadow="0 0 12 1 #15151580">
+      <Grid Margin="16">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="DialogueHeader"
+                   Classes="dialogHeader" 
+                   Text=""
+                   Foreground="#FFFFFF"
+                   FontSize="16"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,16"
+                   Grid.Row="0" />
+
+        <StackPanel Grid.Row="1" 
+                    VerticalAlignment="Center"
+                    Spacing="12">
+          <ProgressBar x:Name="ProgressBar" 
+                      Height="4" 
+                      Foreground="#007ACC"
+                      Background="#3E3E42"
+                      IsIndeterminate="True"
+                      Minimum="0"
+                      Maximum="100" />
+          
+          <TextBlock x:Name="StatusText" 
+                     Classes="dialogText"
+                     Text=""
+                     Foreground="#CCCCCC"
+                     TextWrapping="Wrap" 
+                     TextAlignment="Center"
+                     HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <Button x:Name="CancelButton"
+                Classes="dialogButton"
+                Content="Отмена"
+                Background="#3E3E42"
+                Foreground="#CCCCCC"
+                BorderBrush="#555555"
+                BorderThickness="1"
+                Padding="16,8"
+                CornerRadius="2"
+                MinWidth="80"
+                HorizontalAlignment="Right"
+                HorizontalContentAlignment="Center"
+                Grid.Row="2"
+                Margin="0,16,0,0"
+                Click="CancelButton_Click" />
+      </Grid>
+    </Border>
+  </Canvas>
+</UserControl>

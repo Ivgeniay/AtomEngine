@@ -75,6 +75,7 @@ namespace Editor
                 ServiceHub.RegisterService<InspectorDistributor>();
                 ServiceHub.RegisterService<ComponentService>();
                 ServiceHub.RegisterService<EventHub>();
+                ServiceHub.RegisterService<LoadingManager>();
 
                 int delay = 1000;
 
