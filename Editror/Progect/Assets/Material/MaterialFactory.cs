@@ -15,11 +15,13 @@ namespace Editor
         private Dictionary<string, ShaderBase> _shaderInstanceCache = new Dictionary<string, ShaderBase>();
         private Dictionary<ShaderBase, GL> _glShaderMap = new Dictionary<ShaderBase, GL>();
         private TextureFactory _textureFactory;
+        private EditorAssemblyManager _assemblyManager;
         SceneViewController sceneViewController;
 
         public Task InitializeAsync()
         {
             _textureFactory = ServiceHub.Get<TextureFactory>();
+            _assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
             return Task.CompletedTask;
         }
 
@@ -105,7 +107,6 @@ namespace Editor
         {
             try
             {
-                // Найти тип по полному имени
                 Type representationType = FindShaderRepresentationType(typeName);
                 if (representationType == null)
                 {
@@ -113,22 +114,18 @@ namespace Editor
                     return null;
                 }
 
-                // Проверка, что тип является подклассом ShaderBase
                 if (!typeof(ShaderBase).IsAssignableFrom(representationType))
                 {
                     DebLogger.Error($"Тип {typeName} не является допустимым шейдерным представлением (должен наследовать от Mat)");
                     return null;
                 }
 
-                // Создание экземпляра используя конструктор, принимающий параметр GL
                 var constructor = representationType.GetConstructor(new[] { typeof(GL) });
                 if (constructor == null)
                 {
                     DebLogger.Error($"Тип шейдерного представления {typeName} не имеет конструктора, принимающего параметр GL");
                     return null;
                 }
-
-                // Создание и возврат экземпляра
                 return (ShaderBase)constructor.Invoke(new object[] { gl });
             }
             catch (Exception ex)
@@ -140,36 +137,17 @@ namespace Editor
 
         private Type FindShaderRepresentationType(string typeName)
         {
-            Type type = Type.GetType(typeName);
+            Type type = _assemblyManager.FindTypeInUserAssembly(typeName, true);
             if (type != null)
             {
                 return type;
             }
 
-            // Если не найден, ищем в загруженных сборках
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            type = _assemblyManager.FindType(typeName, true);
+            if (type != null)
             {
-                type = assembly.GetType(typeName);
-                if (type != null)
-                {
-                    return type;
-                }
+                return type;
             }
-
-            // Если все еще не найден, пробуем искать типы, заканчивающиеся простым именем
-            string simpleTypeName = typeName.Contains(".") ? typeName.Substring(typeName.LastIndexOf(".") + 1) : typeName;
-
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                foreach (var t in assembly.GetTypes())
-                {
-                    if (t.Name == simpleTypeName && typeof(ShaderBase).IsAssignableFrom(t))
-                    {
-                        return t;
-                    }
-                }
-            }
-
             return null;
         }
 
