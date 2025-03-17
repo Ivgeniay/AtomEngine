@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Editor
 {
-    internal class ComponentService : IService
+    internal class ComponentService : IService, ICacheble
     {
         private EditorAssemblyManager _assemblyManager;
         public List<Type> _componentTypes = new List<Type>();
@@ -13,7 +13,6 @@ namespace Editor
         public Task InitializeAsync()
         {
             _assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
-            _assemblyManager.OnUserScriptAsseblyRebuild += RebuildUserScrAssembly;
             return Task.CompletedTask;
         }
 
@@ -26,9 +25,17 @@ namespace Editor
             }
         }
 
-        private void RebuildUserScrAssembly()
+        internal void RebuildUserScrAssembly()
         {
             _componentTypes = _assemblyManager.FindTypesByInterface<AtomEngine.IComponent>().ToList();
         }
+
+        public void FreeCache()
+        {
+            _componentTypes.Clear();
+            _componentTypes = null;
+            _componentTypes = new List<Type>();
+        }
+
     }
 }

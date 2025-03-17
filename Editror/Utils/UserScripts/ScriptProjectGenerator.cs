@@ -102,8 +102,8 @@ namespace Editor
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "dotnet",
-                        //Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental /p:DebugType=none /p:DebugSymbols=false",
-                        Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental",
+                        Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental /p:DebugType=none /p:DebugSymbols=false",
+                        //Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental",
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
@@ -218,13 +218,22 @@ namespace Editor
                 string assemblyCachePath = Path.Combine(cacheDir, "AssemblyCache");
                 EnsureCacheDirectory(assemblyCachePath);
 
+                var eventHub = ServiceHub.Get<EventHub>();
+                var unloadEvent = new AssemblyUnloadEvent();
+
                 string contextKey = $"{projConfig.AssemblyName}_{buildType}";
+                if (_loadContexts.TryGetValue(contextKey, out var prevContext))
+                {
+                    unloadEvent.Assembly = prevContext.Assemblies.FirstOrDefault();
+                }
+                DebLogger.Debug("Отправка события выгрузки сборки");
+                eventHub.SendEvent(unloadEvent);
 
                 string cachedAssemblyFileName = $"{projConfig.AssemblyName}_{buildType}_{DateTime.Now.Ticks}.dll";
                 string cachedAssemblyPath = Path.Combine(assemblyCachePath, cachedAssemblyFileName);
 
                 CopyAssemblyFiles(assemblyPath, cachedAssemblyPath);
-
+                
                 if (_loadContexts.TryGetValue(contextKey, out var previousContext))
                 {
                     try
@@ -236,7 +245,7 @@ namespace Editor
                         }
 
                         previousContext.Unload();
-                        DebLogger.Debug($"Предыдущий контекст сборки {contextKey} выгружен");
+                        DebLogger.Warn($"Предыдущий контекст сборки {contextKey} выгружен");
                     }
                     catch (Exception ex)
                     {
@@ -245,10 +254,20 @@ namespace Editor
 
                     _loadContexts.Remove(contextKey);
                 }
-
+                
                 var loadContext = new ScriptAssemblyLoadContext(contextKey);
                 _loadContexts[contextKey] = loadContext;
+
+
                 var assembly = loadContext.LoadFromAssemblyPath(cachedAssemblyPath);
+                var uploadEvent = new AssemblyUploadEvent
+                {
+                    Assembly = assembly
+                };
+                DebLogger.Debug("Отправка события загрузки сборки");
+                ServiceHub.Get<EditorAssemblyManager>().UpdateScriptAssembly(assembly);
+                eventHub.SendEvent(uploadEvent);
+
                 CleanupOldAssemblies(assemblyCachePath, MaxAssembliesToKeep);
 
                 DebLogger.Debug($"Загружена сборка: {cachedAssemblyPath}");
@@ -325,7 +344,6 @@ namespace Editor
                     try
                     {
                         File.Delete(file);
-
                         string pdbPath = Path.ChangeExtension(file, ".pdb");
                         if (File.Exists(pdbPath))
                         {

@@ -1,15 +1,12 @@
-﻿using AtomEngine;
-using Silk.NET.OpenGL;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
+using Silk.NET.OpenGL;
+using AtomEngine;
+using System;
 
 namespace Editor
 {
-    internal class CameraFrustumManager : IDisposable
+    internal class CameraFrustumManager : IDisposable, ICacheble
     {
         private readonly Dictionary<uint, Vector4> _cameraFrustums = new Dictionary<uint, Vector4>();
         private readonly IEntityComponentInfoProvider _componentProvider;

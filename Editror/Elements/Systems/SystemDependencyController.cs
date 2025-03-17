@@ -9,10 +9,11 @@ using AtomEngine;
 using Avalonia;
 using System;
 using MouseButton = Avalonia.Input.MouseButton;
+using Avalonia.Threading;
 
 namespace Editor
 {
-    internal class SystemDependencyController : Grid, IWindowed
+    internal class SystemDependencyController : Grid, IWindowed, ICacheble
     {
         public Action<object> OnClose { get; set; }
 
@@ -720,6 +721,23 @@ namespace Editor
         public void Redraw()
         {
             RefreshSystemsView();
+        }
+
+        public void FreeCache()
+        {
+            Dispatcher.UIThread.Invoke(new Action(() =>
+            {
+                _systemCards.Clear();
+
+                foreach (var stack in _dependencyStacks.Values)
+                {
+                    stack.Children.Clear();
+                }
+
+                _systems.Clear();
+                _systems = null;
+                _systems = new List<SystemData>();
+            }));
         }
     }
 

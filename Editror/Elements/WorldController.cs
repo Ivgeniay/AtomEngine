@@ -8,10 +8,11 @@ using Avalonia.Input;
 using System.Linq;
 using Avalonia;
 using System;
+using Avalonia.Threading;
 
 namespace Editor
 {
-    internal class WorldController : Grid, IWindowed
+    internal class WorldController : Grid, IWindowed, ICacheble
     {
         public Action<object> OnClose { get; set; }
 
@@ -314,10 +315,8 @@ namespace Editor
             _worlds.Clear();
         }
 
-        private ProjectScene _currentScene;
         internal void UpdateWorlds(ProjectScene currentScene)
         {
-            _currentScene = currentScene;
             Redraw();
         }
 
@@ -335,10 +334,18 @@ namespace Editor
         public void Redraw()
         {
             ClearWorlds();
-            if (_isOpen && _currentScene != null)
+            if (_isOpen && _sceneManager.CurrentScene != null)
             {
-                CreateWorldsFromScene(_currentScene, withInvoking: false);
+                CreateWorldsFromScene(_sceneManager.CurrentScene, withInvoking: false);
             }
+        }
+
+        public void FreeCache()
+        {
+            Dispatcher.UIThread.Invoke(new Action(() =>
+            {
+                ClearWorlds();
+            }));
         }
     }
 }

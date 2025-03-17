@@ -21,7 +21,7 @@ using OpenglLib;
 
 namespace Editor
 {
-    internal class SceneViewController : ContentControl, IWindowed, IDisposableController
+    internal class SceneViewController : ContentControl, IWindowed, IDisposableController, ICacheble
     {
         public Action<uint> OnEntitySelected;
 
@@ -41,7 +41,6 @@ namespace Editor
         private ConcurrentQueue<OpenGLCommand> _glCommands = new ConcurrentQueue<OpenGLCommand>();
 
         private SceneManager _sceneManager;
-        private ProjectScene _currentScene;
         private MaterialFactory _materialFactory;
 
         private GridShader _gridShader;
@@ -151,9 +150,6 @@ namespace Editor
 
         private void SetScene(ProjectScene scene)
         {
-            _currentScene = scene;
-            if (!_isOpen) return;
-
             EnqueueGLCommand((gl) =>
             {
                 UpdateEntitiesFromScene();
@@ -162,12 +158,11 @@ namespace Editor
         
         public void UnloadScene()
         {
-            _currentScene = null;
             if (!_isOpen) return;
 
             EnqueueGLCommand((gl) =>
             {
-                FreeChache();
+                FreeCache();
             });
         }
 
@@ -628,10 +623,10 @@ namespace Editor
 
         private void UpdateEntitiesFromScene()
         {
-            FreeChache();
+            FreeCache();
             if (!_isOpen || !_isGlInitialized) return;
 
-            if (_currentScene == null)
+            if (_sceneManager.CurrentScene == null)
                 return;
 
             InitializeComponentCache();
@@ -674,7 +669,7 @@ namespace Editor
 
         private void PickObject(Point point)
         {
-            if (!_isOpen || !_isGlInitialized || _currentScene == null)
+            if (!_isOpen || !_isGlInitialized || _sceneManager.CurrentScene == null)
                 return;
 
             float x = (float)(point.X / _renderCanvas.Bounds.Width) * 2 - 1;
@@ -685,7 +680,7 @@ namespace Editor
 
             if (ray.Raycast(out var hit))
             {
-                var entity = _currentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == hit.EntityId);
+                var entity = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == hit.EntityId);
                 if (entity != null)
                 {
                     OnEntitySelected?.Invoke(entity.Id);
@@ -733,17 +728,15 @@ namespace Editor
         private void PrepareToSave()
         {
             SetDefaulFieldValue();
-            FreeChache();
+            FreeCache();
         }
-        
-        private void FreeChache()
+        public void FreeCache()
         {
             _componentRenderCache.Clear();
             _aabbManager?.FreeCache();
             _cameraFrustumManager?.FreeCache();
             BVHTree.Instance?.FreeCache();
         }
-        
         private void SetDefaulFieldValue()
         {
             foreach(var kvp in _componentRenderCache)
@@ -759,12 +752,12 @@ namespace Editor
         {
             if (!_isOpen || !_isGlInitialized) return;
 
-            if (_currentScene == null || _currentScene.CurrentWorldData == null)
+            if (_sceneManager.CurrentScene == null || _sceneManager.CurrentScene.CurrentWorldData == null)
                 return;
 
             
-            FreeChache();
-            foreach (var entity in _currentScene.CurrentWorldData.Entities)
+            FreeCache();
+            foreach (var entity in _sceneManager.CurrentScene.CurrentWorldData.Entities)
             {
                 CacheEntityComponents(entity);
             }
@@ -775,7 +768,7 @@ namespace Editor
 
             EnqueueGLCommand((gl) =>
             {
-                EntityData entity = _currentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+                EntityData entity = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
                 if (entity == null)
                     return;
 
@@ -812,7 +805,7 @@ namespace Editor
                 }
                 else
                 {
-                    entity = _currentScene?.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+                    entity = _sceneManager.CurrentScene?.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
                 }
 
                 if (entity != null)
@@ -876,7 +869,7 @@ namespace Editor
                 }
                 else
                 {
-                    entity = _currentScene?.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+                    entity = _sceneManager.CurrentScene?.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
                     if (entity != null)
                     {
                         CacheEntityComponents(entity);
@@ -929,7 +922,7 @@ namespace Editor
         public void Dispose()
         {
             SetDefaulFieldValue();
-            FreeChache();
+            FreeCache();
             _materialFactory.SetSceneViewController(null);
 
             if (_glController != null)

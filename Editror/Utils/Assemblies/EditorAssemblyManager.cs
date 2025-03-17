@@ -10,8 +10,6 @@ namespace Editor
 {
     public class EditorAssemblyManager : AssemblyManager, IService
     {
-        public Action? OnUserScriptAsseblyRebuild;
-
         private Dictionary<TAssembly, Assembly> _assemblyDict = new Dictionary<TAssembly, Assembly>();
         private Dictionary<TAssembly, string> _assemblyMap = new Dictionary<TAssembly, string>
                 {
@@ -80,7 +78,6 @@ namespace Editor
                 { }
             }
         }
-
 
         public Type? FindTypeInUserAssembly(string typeName, bool isFullName = false)
         {
@@ -169,7 +166,6 @@ namespace Editor
         internal void UpdateScriptAssembly(Assembly assembly)
         {
             _assemblyDict[TAssembly.UserScript] = assembly;
-            OnUserScriptAsseblyRebuild?.Invoke();
         }
         internal Assembly GetUserScriptAssembly()
         {
@@ -196,5 +192,9 @@ namespace Editor
             return _assemblyDict[TAssembly.UserScript];
         }
 
+        internal void FreeCache()
+        {
+            _assemblyDict[TAssembly.UserScript] = null;
+        }
     }
 }

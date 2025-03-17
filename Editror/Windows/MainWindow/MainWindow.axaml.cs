@@ -16,6 +16,7 @@ namespace Editor
         public static Canvas MainCanvas_ { get; private set; }
         private MainWindowUIManager _uIManager;
         private SceneManager _sceneManager;
+        ReloaderAssemblyData _reloader;
 
         private EditorToolbar _toolbar;
         private EditorStatusBar _statusBar;
@@ -361,6 +362,13 @@ namespace Editor
 
             _sceneManager.HandleNewScene().GetAwaiter().GetResult();
             _uIManager.OpenCachedWindows();
+
+            _reloader = new ReloaderAssemblyData();
+            _reloader.RegisterCacheble(inspector);
+            _reloader.RegisterCacheble(hierarhy);
+            _reloader.RegisterCacheble(worlds);
+            //_reloader.RegisterCacheble(sceneView);
+            _reloader.RegisterCacheble(systems);
 
             ServiceHub.Get<FileSystemWatcher>().RegisterCommand(new FileEventCommand()
             {

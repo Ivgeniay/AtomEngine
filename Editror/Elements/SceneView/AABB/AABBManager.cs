@@ -7,7 +7,7 @@ using System;
 
 namespace Editor
 {
-    internal class AABBManager : IDisposable
+    internal class AABBManager : IDisposable, ICacheble
     {
         private readonly Dictionary<uint, AABBInfo> _aabbInfos = new Dictionary<uint, AABBInfo>();
         private readonly IEntityComponentInfoProvider _componentProvider;
@@ -186,7 +186,7 @@ namespace Editor
             return result;
         }
 
-        internal void FreeCache()
+        public void FreeCache()
         {
             _aabbInfos.Clear();
         }

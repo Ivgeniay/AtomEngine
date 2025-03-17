@@ -4,10 +4,11 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia;
 using System;
+using Avalonia.Threading;
 
 namespace Editor
 {
-    internal class InspectorController : Grid, IWindowed
+    internal class InspectorController : Grid, IWindowed, ICacheble
     {
         private StackPanel _container;
         private ScrollViewer _scrollViewer;
@@ -200,6 +201,15 @@ namespace Editor
         {
             _currentInspectable?.Update();
             RefreshView();
+        }
+
+        public void FreeCache()
+        {
+            Dispatcher.UIThread.Invoke(new Action(() =>
+            {
+                Clean();
+                _currentInspectable = null;
+            }));
         }
     }
 }

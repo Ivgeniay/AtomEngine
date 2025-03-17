@@ -151,7 +151,6 @@ namespace Editor
         {
             var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
             var instanceComponent = Activator.CreateInstance(typeComponent);
-            //var instanceComponent = UserAssemblyObjectFactory.CreateInstance(typeComponent);
 
             var fields = typeComponent.GetFields();
             foreach (var field in fields)

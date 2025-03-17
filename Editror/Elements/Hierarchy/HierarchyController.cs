@@ -4,10 +4,11 @@ using Avalonia.Input;
 using System.Linq;
 using AtomEngine;
 using System;
+using Avalonia.Threading;
 
 namespace Editor
 {
-    internal class HierarchyController : Grid, IWindowed
+    internal class HierarchyController : Grid, IWindowed, ICacheble
     {
         public Action<object> OnClose { get; set; }
 
@@ -213,6 +214,14 @@ namespace Editor
         public void OnEntityDuplicated(EntityHierarchyItem entity)
         {
             EntityDuplicated?.Invoke(this, entity);
+        }
+
+        public void FreeCache()
+        {
+            Dispatcher.UIThread.Invoke(new Action(() =>
+            {
+                _currentScene = null;
+            }));
         }
     }
 

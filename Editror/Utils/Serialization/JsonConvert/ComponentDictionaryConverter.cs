@@ -2,6 +2,8 @@
 using Newtonsoft.Json;
 using AtomEngine;
 using System;
+using Newtonsoft.Json.Linq;
+using System.Xml;
 
 namespace Editor
 {
@@ -41,6 +43,7 @@ namespace Editor
                 }
 
                 var propertyName = reader.Value?.ToString();
+                var readerState = CaptureReaderState(reader);
                 reader.Read();
 
                 if (propertyName != null)
@@ -52,10 +55,31 @@ namespace Editor
                     //}
                     if (componentType != null && typeof(IComponent).IsAssignableFrom(componentType))
                     {
-                        var component = (IComponent?)serializer.Deserialize(reader, componentType);
-                        if (component != null)
+                        try
                         {
-                            result[propertyName] = component;
+                            var component = (IComponent?)serializer.Deserialize(reader, componentType);
+                            if (component != null)
+                            {
+                                result[propertyName] = component;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            DebLogger.Warn($"Ошибка при десериализации компонента {propertyName}. Будет создан новый экземпляр. Ошибка: {ex.Message}");
+
+                            ResetAndSkipObject(reader, readerState);
+
+                            try
+                            {
+                                var newComponent = (IComponent)Activator.CreateInstance(componentType);
+                                result[propertyName] = newComponent;
+
+                                DebLogger.Info($"Создан новый экземпляр компонента {propertyName} с дефолтными значениями");
+                            }
+                            catch (Exception createEx)
+                            {
+                                DebLogger.Error($"Не удалось создать экземпляр компонента {propertyName}: {createEx.Message}");
+                            }
                         }
                     }
                     else
@@ -69,6 +93,41 @@ namespace Editor
             }
 
             return result;
+        }
+
+        private class ReaderState
+        {
+            public int Depth { get; set; }
+            public JsonToken TokenType { get; set; }
+            public string Path { get; set; }
+            public object Value { get; set; }
+        }
+
+        private ReaderState CaptureReaderState(JsonReader reader)
+        {
+            return new ReaderState
+            {
+                Depth = reader.Depth,
+                TokenType = reader.TokenType,
+                Path = reader.Path,
+                Value = reader.Value
+            };
+        }
+
+        private void ResetAndSkipObject(JsonReader reader, ReaderState state)
+        {
+            var jsonObject = JObject.Parse($"{{\"{state.Value}\": {reader.ReadAsString()}}}");
+            foreach (var prop in jsonObject.Properties())
+            {
+            }
+        }
+
+        private void SkipObject(JsonReader reader)
+        {
+            int depth = reader.Depth;
+            while (reader.Read() && reader.Depth > depth)
+            {
+            }
         }
     }
 }

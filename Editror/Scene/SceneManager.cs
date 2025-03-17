@@ -4,10 +4,11 @@ using Avalonia.Controls;
 using Newtonsoft.Json;
 using AtomEngine;
 using System;
+using Avalonia.Threading;
 
 namespace Editor
 {
-    internal class SceneManager : IService
+    internal class SceneManager : IService, ICacheble
     {
         public static SceneEntityComponentProvider EntityCompProvider { get; private set; }
             
@@ -35,8 +36,12 @@ namespace Editor
 
         internal ProjectScene CurrentScene { get => _currentScene; private set => _currentScene = value; }
         private ProjectScene _currentScene;
-        private Window _mainWindow; 
-        public SceneManager() => EntityCompProvider = new SceneEntityComponentProvider(this);
+        private Window _mainWindow;
+        public SceneManager()
+        {
+            EntityCompProvider = new SceneEntityComponentProvider(this);
+            EventHub eventHub = ServiceHub.Get<EventHub>();
+        }
 
         public void SetMainWindow(Window window) { 
             _mainWindow = window; 
@@ -236,14 +241,45 @@ namespace Editor
         {
             OnSceneBeforeSave?.Invoke();
         }
-
         internal void CallAfterSafe()
         {
             OnSceneAfterSave?.Invoke();
         }
-
         internal void EntityReordered(object? sender, EntityReorderEventArgs e) => HierarchyComponentRouter.EntityReordered(sender, e, this);
 
+        public void FreeCache()
+        {
+            Dispatcher.UIThread.Invoke(new Action(() =>
+            {
+                OnScenUnload?.Invoke();
+                if (_currentScene == null) return;
 
+                for (int i = 0; i < _currentScene.Worlds.Count; i++)
+                {
+                    for (int j = 0; j < _currentScene.Worlds[i].Entities.Count; j++)
+                    {
+                        _currentScene.Worlds[i].Entities[j].Components.Clear();
+                        _currentScene.Worlds[i].Entities[j].Components = null;
+                        _currentScene.Worlds[i].Entities[j] = null;
+                    }
+                    _currentScene.Worlds[i] = null;
+                }
+                _currentScene = null;
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }));
+        }
+
+        public void SetNewScene(ProjectScene scene)
+        {
+            if (scene == null)
+            {
+                return;
+            }
+
+            CurrentScene = scene;
+            OnSceneInitialize?.Invoke(CurrentScene);
+        }
     }
 }
