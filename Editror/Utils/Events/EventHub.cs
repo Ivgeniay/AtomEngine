@@ -1,9 +1,9 @@
-﻿using AtomEngine;
-using System.Collections.Generic;
-using System;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Reflection;
 using Avalonia.Threading;
+using System.Reflection;
+using AtomEngine;
+using System;
 
 namespace Editor
 {
@@ -29,7 +29,7 @@ namespace Editor
             var type = typeof(T);
             if (_subscribers.TryGetValue(type, out var list))
             {
-                foreach (var subscriber in list.ToArray())
+                foreach (var subscriber in list)
                 {
                     try
                     {
@@ -37,19 +37,23 @@ namespace Editor
                     }
                     catch (Exception ex)
                     {
-                        DebLogger.Error($"Ошибка при отправке события {type.Name}: {ex.Message}");
-                        if (ex.Message == "Call from invalid thread")
+                        try
                         {
-                            DebLogger.Error($"Попытка перенаправить действие в поток UI");
-                            Dispatcher.UIThread.Invoke(new Action(() =>
+                            if (ex.Message == "Call from invalid thread")
                             {
-                                ((Action<T>)subscriber)(evt);
-                            }));
+                                Dispatcher.UIThread.Invoke(new Action(() =>
+                                {
+                                    ((Action<T>)subscriber)(evt);
+                                }));
+                            }
+                        }
+                        catch
+                        {
+                            DebLogger.Error($"(EventHub) Event error: {type.Name} message: {ex.Message}");
                         }
                     }
                     catch
                     {
-                        DebLogger.Error($"Ошибка при отправке события {type.Name}");
                     }
                 }
             }

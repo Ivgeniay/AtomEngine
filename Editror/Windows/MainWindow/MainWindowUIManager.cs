@@ -29,6 +29,7 @@ namespace Editor
             _mainWindow = mainWindow;
             _sceneManager = ServiceHub.Get<SceneManager>();
             _windowService = ServiceHub.Get<DraggableWindowManagerService>();
+
             RegisterControllersHandlers();
         }
 
@@ -264,7 +265,12 @@ namespace Editor
             };
 
         }
-        public void OpenWindow(MainControllers mainControllers) => _windowService.OpenWindow(mainControllers);
+        public void OpenWindow(MainControllers mainControllers)
+        {
+
+            _windowService.OpenWindow(mainControllers);
+        }
+
         public T GetControl<T>() where T : Control, IWindowed
         {
             var type = typeof(T);

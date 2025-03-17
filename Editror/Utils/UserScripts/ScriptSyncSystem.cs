@@ -58,10 +58,9 @@ namespace Editor
 
             try
             {
-                DebLogger.Info("Перегенерация проекта скриптов...");
-
                 await loadingManager.RunWithLoading(async (progress) =>
                 {
+                    await Task.Delay(100);
                     progress.Report((0, "Генерация проекта скриптов..."));
                     await Task.Delay(100);
 
@@ -106,7 +105,6 @@ namespace Editor
                     progress.Report((100, "Проект успешно скомпилирован"));
                     await Task.Delay(500);
 
-                    DebLogger.Info("Проект скриптов успешно перекомпилирован и загружен");
                 }, "Подготовка к компиляции...");
             }
             catch (Exception ex)

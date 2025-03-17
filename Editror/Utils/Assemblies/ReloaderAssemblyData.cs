@@ -29,9 +29,11 @@ namespace Editor
             {
                 DebLogger.Info($"Начинаем выгрузку сборки: {assembly.Assembly.FullName}");
                 ServiceHub.Get<EditorAssemblyManager>().FreeCache();
+                ServiceHub.Get<DraggableWindowManagerService>().Unload();
                 _sceneCache = SceneSerializer.SerializeScene(_sceneManager.CurrentScene);
                 _sceneManager.FreeCache();
                 _componentService.FreeCache();
+                ServiceHub.Get<EditorRuntimeResourceManager>().Dispose();
 
                 foreach (var cacheble in cachebles)
                 {
@@ -56,6 +58,7 @@ namespace Editor
             ProjectScene scene = SceneSerializer.DeserializeScene(_sceneCache);
             _sceneManager.SetNewScene(scene);
             _componentService.RebuildUserScrAssembly();
+            ServiceHub.Get<DraggableWindowManagerService>().Upload();
             _sceneCache = string.Empty;
         }
 

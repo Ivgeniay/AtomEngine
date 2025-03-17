@@ -42,6 +42,7 @@ namespace Editor
 
         private SceneManager _sceneManager;
         private MaterialFactory _materialFactory;
+        private EventHub _eventHub;
 
         private GridShader _gridShader;
         private TransformMode _currentTransformMode = TransformMode.Translate;
@@ -69,6 +70,7 @@ namespace Editor
             _resourceManager = ServiceHub.Get<EditorRuntimeResourceManager>();
             _materialFactory = ServiceHub.Get<MaterialFactory>();
             _sceneManager = ServiceHub.Get<SceneManager>();
+            _eventHub = ServiceHub.Get<EventHub>();
 
             _sceneManager.OnSceneInitialize += SetScene;
             _sceneManager.OnScenUnload += UnloadScene;

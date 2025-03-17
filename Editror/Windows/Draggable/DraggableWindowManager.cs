@@ -118,6 +118,7 @@ namespace Editor
             _borderMap[type] = window;
             return window;
         }
+
         public DraggableWindow CreateWindow(string title, Control content = null, double left = 10, double top = 10, double width = 200, double height = 150)
         {
             return _windowFactory.CreateWindow(title, content, left, top, width, height);
@@ -128,8 +129,10 @@ namespace Editor
             ServiceHub.Get<Configuration>().SafeConfiguration(ConfigurationSource.WindowManagerConfigs, _config);
         }
 
-        internal void OpenStartedWindow()
+        internal IEnumerable<MainControllers> OpenStartedWindow()
         {
+            List<MainControllers> mainControllers = new List<MainControllers>();
+
             foreach (var type in _controllers)
             {
                 var pair = _config.Configurations.FirstOrDefault(e => e.Key == type.Key);
@@ -137,8 +140,11 @@ namespace Editor
                 {
                     var conf = pair.Value;
                     OpenWindow(type.Key, conf.Left, conf.Top, conf.Width, conf.Height);
+                    mainControllers.Add(pair.Key);
                 }
             }
+
+            return mainControllers;
         }
     }
 }

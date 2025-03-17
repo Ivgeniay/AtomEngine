@@ -1,13 +1,21 @@
-﻿using Avalonia.Controls;
+﻿using System.Threading.Tasks;
+using Avalonia.Threading;
+using Avalonia.Controls;
+using System.Linq;
 using System;
-using System.Threading.Tasks;
 
 namespace Editor
 {
     internal class DraggableWindowManagerService : IService, IDisposable
     {
         private DraggableWindowManager _dManager;
-        public Task InitializeAsync() => Task.CompletedTask;
+        private bool _scenViewIsOpen = false;
+
+        public Task InitializeAsync()
+        {
+            return Task.CompletedTask;
+        }
+
         public void SetCanvas(Canvas canvas) => _dManager = new DraggableWindowManager(canvas);
 
         public void RegisterController(MainControllers name, Control controller) =>
@@ -19,10 +27,16 @@ namespace Editor
 
         public void CloseWindow(MainControllers type)
         {
+            if (type == MainControllers.SceneRender) _scenViewIsOpen = false;
             _dManager.CloseWindow(type);
         }
-        public DraggableWindow OpenWindow(MainControllers type, double left = 10, double top = 10, double width = 250, double height = 400) =>
-            _dManager.OpenWindow(type, left, top, width, height);
+
+        public DraggableWindow OpenWindow(MainControllers type, double left = 10, double top = 10, double width = 250, double height = 400)
+        {
+            if (type == MainControllers.SceneRender) _scenViewIsOpen = true;
+            return _dManager.OpenWindow(type, left, top, width, height);
+        }
+
         public DraggableWindow CreateWindow(string title, Control content = null, double left = 10, double top = 10, double width = 200, double height = 150) =>
             _dManager.CreateWindow(title, content, left, top, width, height);
 
@@ -33,7 +47,30 @@ namespace Editor
 
         internal void OpenStartedWindow()
         {
-            _dManager.OpenStartedWindow();
+            var opened = _dManager.OpenStartedWindow();
+            if (opened.Any(e => e == MainControllers.SceneRender)) _scenViewIsOpen = true;
+        }
+
+        public void Upload()
+        {
+            Dispatcher.UIThread.Invoke(new Action(() =>
+            {
+                if (_scenViewIsOpen)
+                {
+                    OpenWindow(MainControllers.SceneRender);
+                }
+            }));
+        }
+
+        public void Unload()
+        {
+            Dispatcher.UIThread.Invoke(new Action(() =>
+            {
+                if (_scenViewIsOpen)
+                {
+                    _dManager.CloseWindow(MainControllers.SceneRender);
+                }
+            }));
         }
     }
 }
