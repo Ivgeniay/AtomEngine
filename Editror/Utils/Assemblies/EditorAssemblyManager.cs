@@ -81,11 +81,19 @@ namespace Editor
             }
         }
 
-        public override Type? FindType(string typeName, bool isFullName = false)
+
+        public Type? FindTypeInUserAssembly(string typeName, bool isFullName = false)
         {
             Type type = null;
             if (isFullName) type = _assemblyDict[TAssembly.UserScript].GetTypes().FirstOrDefault(t => t.FullName == typeName);
             else type = _assemblyDict[TAssembly.UserScript].GetTypes().FirstOrDefault(t => t.Name == typeName);
+
+            return type;
+        }
+
+        public override Type? FindType(string typeName, bool isFullName = false)
+        {
+            Type type = FindTypeInUserAssembly(typeName, isFullName);
             if (type != null) return type;
 
             foreach (var assembly in _assemblies)
@@ -188,18 +196,5 @@ namespace Editor
             return _assemblyDict[TAssembly.UserScript];
         }
 
-    }
-
-    public enum TAssembly
-    {
-        Core,
-        Render,
-        SilkMath,
-        SilkOpenGL,
-        SilkNetCore,
-        CommonLib,
-        ComponentGenerator,
-        NewtonsoftJson,
-        UserScript,
     }
 }

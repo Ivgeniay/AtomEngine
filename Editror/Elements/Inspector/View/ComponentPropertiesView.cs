@@ -1,12 +1,11 @@
-﻿using Avalonia.Controls;
-using System.Collections.Generic;
-using Avalonia;
-using AtomEngine;
-using System;
-using Silk.NET.OpenAL;
+﻿using System.Collections.Generic;
+using Avalonia.Controls;
+using Avalonia.Media;
 using System.Linq;
 using EngineLib;
-using Avalonia.Media;
+using Avalonia;
+using System;
+using AtomEngine;
 
 namespace Editor
 {
@@ -81,6 +80,7 @@ namespace Editor
                     Classes = { "closeButton" },
                     Command = new Command(() =>
                     {
+                        if (ExceptionalCases(context)) return;
                         sceneManager.RemoveComponent(context.EntityId, context.Component.GetType());
                     })
                 };
@@ -109,6 +109,21 @@ namespace Editor
 
             //return panel;
             return border;
+        }
+
+        private bool ExceptionalCases(EntityInspectorContext context)
+        {
+            if (context.Component.GetType() == typeof(TransformComponent))
+            {
+                var hasHierarhyComponent = SceneManager.EntityCompProvider.HasComponent<HierarchyComponent>(context.EntityId);
+                if (hasHierarhyComponent)
+                {
+                    DebLogger.Warn("You cannot delete a TransformComponent while there is a HierarchyComponent on the entity.\nThis ensures that the model matrices are calculated correctly.");
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

@@ -151,6 +151,7 @@ namespace Editor
         {
             var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
             var instanceComponent = Activator.CreateInstance(typeComponent);
+            //var instanceComponent = UserAssemblyObjectFactory.CreateInstance(typeComponent);
 
             var fields = typeComponent.GetFields();
             foreach (var field in fields)
@@ -171,8 +172,18 @@ namespace Editor
                 }
             }
 
-            IComponent interfacesDomponent = (IComponent)instanceComponent;
-            entityData.Components.Add(typeComponent.FullName, interfacesDomponent);
+            if (typeComponent == typeof(HierarchyComponent))
+            {
+                if (!entityData.Components.TryGetValue(typeof(TransformComponent).FullName, out var component)) { 
+                    var transform = Activator.CreateInstance(typeof(TransformComponent));
+                    entityData.Components.Add(typeof(TransformComponent).FullName, (TransformComponent)transform);
+
+                }
+
+            }
+
+            IComponent interfacesComponent = (IComponent)instanceComponent;
+            entityData.Components.Add(typeComponent.FullName, interfacesComponent);
             MakeDirty();
             return instanceComponent;
         }

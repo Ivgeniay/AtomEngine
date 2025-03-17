@@ -6,6 +6,9 @@ using AtomEngine;
 using System;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Runtime.Loader;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Editor
 {
@@ -25,7 +28,20 @@ namespace Editor
         private bool _isInitialized = false;
         private string RootNamespace = "UserScripts";
 
+        private Dictionary<string, ScriptAssemblyLoadContext> _loadContexts = new Dictionary<string, ScriptAssemblyLoadContext>();
+        private int cacheCounter = 0;
+        private const int MaxAssembliesToKeep = 10;
 
+        private class ScriptAssemblyLoadContext : AssemblyLoadContext
+        {
+            public ScriptAssemblyLoadContext(string name) : base(name, isCollectible: true)
+            {}
+
+            protected override Assembly Load(AssemblyName assemblyName)
+            {
+                return null;
+            }
+        }
 
 
         public Task InitializeAsync()
@@ -86,7 +102,8 @@ namespace Editor
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "dotnet",
-                        Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental /p:DebugType=none /p:DebugSymbols=false",
+                        //Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental /p:DebugType=none /p:DebugSymbols=false",
+                        Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental",
                         UseShellExecute = false,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
@@ -184,94 +201,155 @@ namespace Editor
             DebLogger.Debug($"Проект создан с доступом к {scriptCount} скриптам в папке Assets");
         }
 
-        int cacheCounter = 0;
         public Assembly LoadCompiledAssembly(BuildType buildType = BuildType.Debug)
         {
-            var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
-            string assemblyPath = string.Empty;
-
-            if (_outputPath.EndsWith("bin"))
-            {
-                assemblyPath = Path.Combine(_outputPath, buildType.ToString(), $"{projConfig.AssemblyName}.dll");
-            }
-            else
-            {
-                assemblyPath = Path.Combine(_outputPath, $"{projConfig.AssemblyName}.dll");
-            }
-
-            if (!File.Exists(assemblyPath))
-            {
-                DebLogger.Error($"Не найдена скомпилированная сборка по пути: {assemblyPath}");
-                return null;
-            }
-
             try
             {
+                var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+
+                string assemblyPath = GetAssemblyPath(buildType, projConfig);
+                if (!File.Exists(assemblyPath))
+                {
+                    DebLogger.Error($"Не найдена скомпилированная сборка по пути: {assemblyPath}");
+                    return null;
+                }
+
                 string cacheDir = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Cache);
-                string assemblyCahe = Path.Combine(cacheDir, "AsseblyCache" );
-                if (!Directory.Exists(assemblyCahe))
+                string assemblyCachePath = Path.Combine(cacheDir, "AssemblyCache");
+                EnsureCacheDirectory(assemblyCachePath);
+
+                string contextKey = $"{projConfig.AssemblyName}_{buildType}";
+
+                string cachedAssemblyFileName = $"{projConfig.AssemblyName}_{buildType}_{DateTime.Now.Ticks}.dll";
+                string cachedAssemblyPath = Path.Combine(assemblyCachePath, cachedAssemblyFileName);
+
+                CopyAssemblyFiles(assemblyPath, cachedAssemblyPath);
+
+                if (_loadContexts.TryGetValue(contextKey, out var previousContext))
                 {
-                    Directory.CreateDirectory(assemblyCahe);
-                }
-                else
-                {
-                    if (cacheCounter == 0)
+                    try
                     {
-                        Directory.Delete(assemblyCahe, true);
-                        Directory.CreateDirectory(assemblyCahe);
+                        for (int i = 0; i < 3; i++)
+                        {
+                            GC.Collect();
+                            GC.WaitForPendingFinalizers();
+                        }
+
+                        previousContext.Unload();
+                        DebLogger.Debug($"Предыдущий контекст сборки {contextKey} выгружен");
                     }
-                }
-                string cachedAssemblyPath = Path.Combine(assemblyCahe, $"{projConfig.AssemblyName}_{buildType}_{cacheCounter++}.dll");
+                    catch (Exception ex)
+                    {
+                        DebLogger.Error($"Ошибка при выгрузке контекста: {ex.Message}");
+                    }
 
-                File.Copy(assemblyPath, cachedAssemblyPath, true);
-
-                string pdbPath = Path.ChangeExtension(assemblyPath, ".pdb");
-                if (File.Exists(pdbPath))
-                {
-                    string cachedPdbPath = Path.ChangeExtension(cachedAssemblyPath, ".pdb");
-                    File.Copy(pdbPath, cachedPdbPath, true);
+                    _loadContexts.Remove(contextKey);
                 }
 
-                return Assembly.LoadFrom(cachedAssemblyPath);
+                var loadContext = new ScriptAssemblyLoadContext(contextKey);
+                _loadContexts[contextKey] = loadContext;
+                var assembly = loadContext.LoadFromAssemblyPath(cachedAssemblyPath);
+                CleanupOldAssemblies(assemblyCachePath, MaxAssembliesToKeep);
+
+                DebLogger.Debug($"Загружена сборка: {cachedAssemblyPath}");
+                return assembly;
             }
             catch (Exception ex)
             {
                 DebLogger.Error($"Ошибка при загрузке сборки: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    DebLogger.Error($"Внутреннее исключение: {ex.InnerException.Message}");
+                }
                 return null;
             }
         }
-        //public Assembly LoadCompiledAssembly(BuildType buildType = BuildType.Debug)
-        //{
-        //    var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
-        //    string assemblyPath = string.Empty;
-        //    if (_outputPath.EndsWith("bin"))
-        //    {
-        //        assemblyPath = Path.Combine(_outputPath, buildType.ToString(), $"{projConfig.AssemblyName}.dll");
-        //    }
-        //    else
-        //    {
-        //        assemblyPath = Path.Combine(_outputPath, $"{projConfig.AssemblyName}.dll");
-        //    }
 
-        //    if (!File.Exists(assemblyPath))
-        //    {
-        //        Console.WriteLine($"Не найдена скомпилированная сборка по пути: {assemblyPath}");
-        //        return null;
-        //    }
-        //    try
-        //    {
-        //        return Assembly.LoadFrom(assemblyPath);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine($"Ошибка при загрузке сборки: {ex.Message}");
-        //        return null;
-        //    }
-        //}
+        private string GetAssemblyPath(BuildType buildType, ProjectConfigurations projConfig)
+        {
+            if (_outputPath.EndsWith("bin"))
+            {
+                return Path.Combine(_outputPath, buildType.ToString(), $"{projConfig.AssemblyName}.dll");
+            }
+            return Path.Combine(_outputPath, $"{projConfig.AssemblyName}.dll");
+        }
 
-        /// <summary>
-        /// Открывает проект в IDE
-        /// </summary>
+        private void EnsureCacheDirectory(string cachePath)
+        {
+            if (!Directory.Exists(cachePath))
+            {
+                Directory.CreateDirectory(cachePath);
+            }
+            else if (cacheCounter == 0)
+            {
+                try
+                {
+                    var di = new DirectoryInfo(cachePath);
+                    foreach (var file in di.GetFiles())
+                    {
+                        try { file.Delete(); } catch { }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebLogger.Debug($"Не удалось очистить кэш: {ex.Message}");
+                }
+            }
+
+            cacheCounter++;
+        }
+
+        private void CopyAssemblyFiles(string sourceAssemblyPath, string destinationAssemblyPath)
+        {
+            File.Copy(sourceAssemblyPath, destinationAssemblyPath, true);
+
+            string sourcePdbPath = Path.ChangeExtension(sourceAssemblyPath, ".pdb");
+            if (File.Exists(sourcePdbPath))
+            {
+                string destPdbPath = Path.ChangeExtension(destinationAssemblyPath, ".pdb");
+                File.Copy(sourcePdbPath, destPdbPath, true);
+            }
+        }
+
+        private void CleanupOldAssemblies(string cacheDir, int maxToKeep)
+        {
+            try
+            {
+                var assemblyFiles = Directory.GetFiles(cacheDir, "*.dll")
+                    .OrderByDescending(f => new FileInfo(f).CreationTime)
+                    .Skip(maxToKeep)
+                    .ToList();
+
+                foreach (var file in assemblyFiles)
+                {
+                    try
+                    {
+                        File.Delete(file);
+
+                        string pdbPath = Path.ChangeExtension(file, ".pdb");
+                        if (File.Exists(pdbPath))
+                        {
+                            File.Delete(pdbPath);
+                        }
+
+                        DebLogger.Debug($"Удален устаревший файл: {Path.GetFileName(file)}");
+                    }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Debug($"Не удалось удалить {Path.GetFileName(file)}: {ex.Message}");
+                    }
+                }
+                if (assemblyFiles.Count > 0)
+                {
+                    DebLogger.Debug($"Очищено {assemblyFiles.Count} устаревших файлов сборок");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Debug($"Ошибка при очистке старых файлов: {ex.Message}");
+            }
+        }
+
         public void OpenProjectInIDE()
         {
             var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
@@ -299,11 +377,6 @@ namespace Editor
             }
         }
 
-
-        /// <summary>
-        /// Открывает файл скрипта в IDE в контексте проекта
-        /// </summary>
-        /// <param name="assetFilePath">Полный путь к файлу скрипта в папке Assets</param>
         public void OpenProjectInIDE(string assetFilePath)
         {
             if (string.IsNullOrEmpty(assetFilePath))
@@ -313,7 +386,6 @@ namespace Editor
                 return;
             }
 
-            // Проверяем существование файла
             if (!File.Exists(assetFilePath))
             {
                 DebLogger.Error($"Файл не существует: {assetFilePath}");
@@ -389,9 +461,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Определяет доступную IDE
-        /// </summary>
         private string DetectIDE()
         {
             try
@@ -441,9 +510,6 @@ namespace Editor
             return "unknown";
         }
 
-        /// <summary>
-        /// Проверяет наличие команды в PATH на Linux
-        /// </summary>
         private bool CommandExists(string command)
         {
             try
@@ -472,9 +538,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Открывает файл в Visual Studio
-        /// </summary>
         private void OpenInVisualStudio(string projectPath, string filePath)
         {
             try
@@ -496,9 +559,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Открывает файл в Visual Studio Code
-        /// </summary>
         private void OpenInVSCode(string folderPath, string filePath)
         {
             try
@@ -520,9 +580,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Открывает файл в JetBrains Rider
-        /// </summary>
         private void OpenInRider(string projectPath, string filePath)
         {
             try

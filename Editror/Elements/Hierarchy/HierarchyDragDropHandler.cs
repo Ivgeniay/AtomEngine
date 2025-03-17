@@ -49,7 +49,7 @@ namespace Editor
                     {
                         _draggedItem = item;
                         _isDragging = false;
-                        _controller.SelectedFile = item;
+                        _controller.SelectedItem = item;
                         _controller.OnEntitySelected(item);
                     }
                 }
@@ -99,7 +99,7 @@ namespace Editor
                 {
                     ReorderEntity(_draggedItem.Value, _dropTargetIndex, _targetParentId);
                 }
-                _controller.SelectedFile = _draggedItem.Value;
+                _controller.SelectedItem = _draggedItem.Value;
             }
             else if (_draggedItem != null && !_isDragging)
             {
@@ -108,9 +108,9 @@ namespace Editor
                 {
                     if (visual.DataContext is EntityHierarchyItem clickedItem)
                     {
-                        if (clickedItem != null && clickedItem == _controller.SelectedFile)
+                        if (clickedItem != null && clickedItem == _controller.SelectedItem)
                         {
-                            _controller.SelectedFile = EntityHierarchyItem.Null;
+                            _controller.SelectedItem = EntityHierarchyItem.Null;
                             _controller.OnEntitySelected(clickedItem);
                         }
                     }
@@ -129,28 +129,7 @@ namespace Editor
 
         public void OnEntityListItemPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
-            var point = e.GetCurrentPoint(null);
-
-            if (point.Properties.IsRightButtonPressed || point.Properties.PointerUpdateKind == PointerUpdateKind.RightButtonReleased)
-            {
-                var element = e.Source as Visual;
-                if (element != null)
-                {
-                    while (element != null && !(element.DataContext is EntityHierarchyItem))
-                    {
-                        element = element.GetVisualParent();
-                    }
-
-                    if (element != null && element.DataContext is EntityHierarchyItem entityItem)
-                    {
-                        _entitiesList.SelectedItem = entityItem;
-                        _controller.OnEntitySelected(entityItem);
-
-                        //_entityContextMenu.Open(_controller);
-                        e.Handled = true;
-                    }
-                }
-            }
+            
         }
 
         private void CalculateDropPosition(Point point)

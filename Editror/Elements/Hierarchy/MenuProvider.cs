@@ -35,62 +35,62 @@ namespace Editor
                 Command = new Command(CreateNewEntity)
             };
 
-            var separatorItem = new MenuItem
-            {
-                Header = "-",
-                Classes = { "hierarchySeparator" }
-            };
+            //var separatorItem = new MenuItem
+            //{
+            //    Header = "-",
+            //    Classes = { "hierarchySeparator" }
+            //};
 
-            var transform3dItem = new MenuItem
-            {
-                Header = "3D Object",
-                Classes = { "hierarchyMenuItem" }
-            };
+            //var transform3dItem = new MenuItem
+            //{
+            //    Header = "3D Object",
+            //    Classes = { "hierarchyMenuItem" }
+            //};
 
-            var cubeItem = new MenuItem
-            {
-                Header = "Cube",
-                Classes = { "hierarchyMenuItem" },
-                Command = new Command(CreateCube)
-            };
+            //var cubeItem = new MenuItem
+            //{
+            //    Header = "Cube",
+            //    Classes = { "hierarchyMenuItem" },
+            //    Command = new Command(CreateCube)
+            //};
 
-            var sphereItem = new MenuItem
-            {
-                Header = "Sphere",
-                Classes = { "hierarchyMenuItem" },
-                Command = new Command(CreateSphere)
-            };
+            //var sphereItem = new MenuItem
+            //{
+            //    Header = "Sphere",
+            //    Classes = { "hierarchyMenuItem" },
+            //    Command = new Command(CreateSphere)
+            //};
 
-            var capsuleItem = new MenuItem
-            {
-                Header = "Capsule",
-                Classes = { "hierarchyMenuItem" },
-                Command = new Command(CreateCapsule)
-            };
+            //var capsuleItem = new MenuItem
+            //{
+            //    Header = "Capsule",
+            //    Classes = { "hierarchyMenuItem" },
+            //    Command = new Command(CreateCapsule)
+            //};
 
-            var cylinderItem = new MenuItem
-            {
-                Header = "Cylinder",
-                Classes = { "hierarchyMenuItem" },
-                Command = new Command(CreateCylinder)
-            };
+            //var cylinderItem = new MenuItem
+            //{
+            //    Header = "Cylinder",
+            //    Classes = { "hierarchyMenuItem" },
+            //    Command = new Command(CreateCylinder)
+            //};
 
-            var planeItem = new MenuItem
-            {
-                Header = "Plane",
-                Classes = { "hierarchyMenuItem" },
-                Command = new Command(CreatePlane)
-            };
+            //var planeItem = new MenuItem
+            //{
+            //    Header = "Plane",
+            //    Classes = { "hierarchyMenuItem" },
+            //    Command = new Command(CreatePlane)
+            //};
 
-            transform3dItem.Items.Add(cubeItem);
-            transform3dItem.Items.Add(sphereItem);
-            transform3dItem.Items.Add(capsuleItem);
-            transform3dItem.Items.Add(cylinderItem);
-            transform3dItem.Items.Add(planeItem);
+            //transform3dItem.Items.Add(cubeItem);
+            //transform3dItem.Items.Add(sphereItem);
+            //transform3dItem.Items.Add(capsuleItem);
+            //transform3dItem.Items.Add(cylinderItem);
+            //transform3dItem.Items.Add(planeItem);
 
             backgroundMenu.Items.Add(createEntityItem);
-            backgroundMenu.Items.Add(separatorItem);
-            backgroundMenu.Items.Add(transform3dItem);
+            //backgroundMenu.Items.Add(separatorItem);
+            //backgroundMenu.Items.Add(transform3dItem);
 
             return backgroundMenu;
         }

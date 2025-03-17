@@ -26,7 +26,7 @@ namespace Editor
         public event EventHandler<EntityReorderEventArgs> EntityReordered;
 
         private SceneManager _sceneManager;
-        private EntityHierarchyItem _selectedFile = EntityHierarchyItem.Null;
+        private EntityHierarchyItem _selectedItem = EntityHierarchyItem.Null;
 
         private HierarchyUIBuilder _uiBuilder;
         private HierarchyDataManager _dataManager;
@@ -38,7 +38,7 @@ namespace Editor
         public ListBox EntitiesList => _entitiesList;
         public ProjectScene CurrentScene => _currentScene;
         public SceneManager SceneManager => _sceneManager;
-        public EntityHierarchyItem SelectedFile { get => _selectedFile; set => _selectedFile = value; }
+        public EntityHierarchyItem SelectedItem { get => _selectedItem; set => _selectedItem = value; }
 
         public HierarchyController()
         {
@@ -53,7 +53,6 @@ namespace Editor
              
             _sceneManager = ServiceHub.Get<SceneManager>();
             _sceneManager.OnSceneInitialize += UpdateHyerarchy;
-
             _sceneManager.OnEntityCreated += (worldId, entityId) =>
             {
                 var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
@@ -62,7 +61,6 @@ namespace Editor
                     CreateHierarchyEntity(entityData);
                 }
             };
-
             _sceneManager.OnEntityDuplicated += (worldId, entityIdFrom, entityIdTo) =>
             {
                 var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityIdTo);
@@ -71,7 +69,6 @@ namespace Editor
                     CreateHierarchyEntity(entityData);
                 }
             };
-
             _sceneManager.OnWorldSelected += (worldId, worldName) =>
             {
                 UpdateHyerarchy(_sceneManager.CurrentScene);
@@ -95,6 +92,7 @@ namespace Editor
 
             _entitiesList.SelectionChanged += SelectCallback;
 
+            _entitiesList.AddHandler(InputElement.PointerReleasedEvent, _menuProvider.OnEntityContextMenuRequested, Avalonia.Interactivity.RoutingStrategies.Tunnel);
             _entitiesList.AddHandler(InputElement.PointerReleasedEvent, _dragDropHandler.OnEntityListItemPointerReleased, Avalonia.Interactivity.RoutingStrategies.Tunnel);
             _entitiesList.AddHandler(InputElement.PointerPressedEvent, _dragDropHandler.OnEntityPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
             _entitiesList.AddHandler(InputElement.PointerMovedEvent, _dragDropHandler.OnEntityPointerMoved, Avalonia.Interactivity.RoutingStrategies.Tunnel);

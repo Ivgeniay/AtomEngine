@@ -31,10 +31,10 @@ namespace WindowsBuild
                 sceneLoader.InitializeScene(scene, resourceManager);
             };
 
-            Input.KeyDown += (s, e) =>
-            {
-                DebLogger.Debug(e);
-            };
+            //Input.KeyDown += (s, e) =>
+            //{
+            //    DebLogger.Debug(e);
+            //};
 
             app.OnUpdated += (deltaTime) =>
             {

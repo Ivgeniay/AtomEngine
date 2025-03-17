@@ -14,8 +14,8 @@
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <PropertyGroup>
-      <DebugDestination>..\Editor\bin\Debug\net9.0\Execution</DebugDestination>
-      <ReleaseDestination>..\Editor\bin\Release\net9.0\Execution</ReleaseDestination>
+      <DebugDestination>..\Editror\bin\Debug\net9.0\Execution</DebugDestination>
+      <ReleaseDestination>..\Editror\bin\Release\net9.0\Execution</ReleaseDestination>
     </PropertyGroup>
 
     <MakeDir Directories="$(DebugDestination);$(ReleaseDestination)" />
@@ -24,12 +24,10 @@
       <OutputFiles Include="$(OutputPath)\**\*.*" />
     </ItemGroup>
 
-    <Copy SourceFiles="@(OutputFiles)"
-          DestinationFolder="$(DebugDestination)"
+    <Exec Command="xcopy /y /i /E &quot;$(OutputPath)\*&quot; &quot;$(DebugDestination)\&quot;"
           Condition="'$(Configuration)' == 'Debug'" />
 
-    <Copy SourceFiles="@(OutputFiles)"
-          DestinationFolder="$(ReleaseDestination)"
+    <Exec Command="xcopy /y /i /E &quot;$(OutputPath)\*&quot; &quot;$(ReleaseDestination)\&quot;"
           Condition="'$(Configuration)' == 'Release'" />
   </Target>
 

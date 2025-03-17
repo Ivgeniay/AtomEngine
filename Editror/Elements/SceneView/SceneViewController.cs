@@ -342,7 +342,12 @@ namespace Editor
             try
             {
                 if (!_isGlInitialized) return;
-
+                var error = gl.GetError();
+                if (error != GLEnum.NoError)
+                {
+                    DebLogger.Error($"Error viewport: {error}");
+                    return;
+                }
 
                 var scalingFactor = VisualRoot?.RenderScaling ?? 1.0;
                 uint width = (uint)(_renderCanvas.Bounds.Width * scalingFactor);
@@ -353,6 +358,7 @@ namespace Editor
                 gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
                 gl.Enable(EnableCap.DepthTest);
                 gl.DepthFunc(DepthFunction.Lequal);
+
 
                 var view = _camera.GetViewMatrix();
                 Matrix4x4 projection = _camera.GetProjection(_isPerspective);
