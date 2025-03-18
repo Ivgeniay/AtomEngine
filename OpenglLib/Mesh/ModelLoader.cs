@@ -255,16 +255,13 @@ namespace OpenglLib
         {
             try
             {
-                //var normalizedModelPath = NormalizePath(modelPath);
                 var normalizedModelPath = modelPath;
                 var basePath = _customBasePath;
 
-                // Сначала пробуем найти файл по полному пути
                 var fullPath = Path.Combine(basePath, normalizedModelPath);
 
                 if (!System.IO.File.Exists(fullPath))
                 {
-                    // Если файл не найден, ищем все файлы с таким именем
                     var fileName = Path.GetFileName(normalizedModelPath);
                     var searchResults = Directory
                         .GetFiles(basePath, fileName, SearchOption.AllDirectories)
@@ -285,7 +282,6 @@ namespace OpenglLib
                             $"Available models:\n{string.Join("\n", availableModels)}");
                     }
 
-                    // Если найдено больше одного файла, проверяем на точное совпадение пути
                     if (searchResults.Count > 1)
                     {
                         var normalizedSearchPath = NormalizePath(normalizedModelPath);
@@ -295,12 +291,10 @@ namespace OpenglLib
 
                         if (exactMatch != null)
                         {
-                            // Нашли точное совпадение по относительному пути
                             fullPath = Path.Combine(basePath, exactMatch);
                         }
                         else
                         {
-                            // Если файл с таким именем существует в нескольких местах и нет точного совпадения пути
                             throw new MeshError(
                                 $"Ambiguous model name: {modelPath}\n" +
                                 $"Multiple matches found:\n{string.Join("\n", searchResults)}");
@@ -308,7 +302,6 @@ namespace OpenglLib
                     }
                     else
                     {
-                        // Если найден только один файл, используем его
                         fullPath = Path.Combine(basePath, searchResults[0]);
                     }
                 }
@@ -327,7 +320,6 @@ namespace OpenglLib
                         throw new MeshError($"Failed to load model from file: {fullPath}. Assimp error: {errorMsg}");
                     }
 
-                    // Создаем модель и загружаем её
                     Model model = new Model(gl);
                     model.Directory = Path.GetDirectoryName(fullPath);
 

@@ -9,7 +9,7 @@ namespace Editor
 {
     internal class MeshManager : IService
     {
-        public string[] _meshExtensions = new string[] { "*.obj" };
+        public string[] _meshExtensionsPattern = new string[] { "*.obj" };
         private Dictionary<string, string> _guidPathMap = new Dictionary<string, string>();
         private Dictionary<string, string> _cacheMeshes = new Dictionary<string, string>();
 
@@ -19,6 +19,14 @@ namespace Editor
                 string assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
                 CacheAllMesh(assetsPath);
             });
+        }
+
+        public IEnumerable<string> GetExtensions()
+        {
+            foreach (string extension in _meshExtensionsPattern)
+            {
+                yield return extension.Substring(1);
+            }
         }
 
         internal string LoadMesh(string path)
@@ -59,7 +67,7 @@ namespace Editor
             try
             {
                 List<string> meshFiles = new List<string>();
-                foreach (string extension in _meshExtensions)
+                foreach (string extension in _meshExtensionsPattern)
                 {
                     meshFiles.AddRange(Directory.GetFiles(rootDirectory, extension, SearchOption.AllDirectories));
                 }

@@ -11,12 +11,9 @@ namespace Editor
 {
     public delegate void RegenerateCodeEventHandler(string sourcePath, AssetMetadata metadata);
 
-    /// <summary>
-    /// Менеджер метаданных для отслеживания ресурсов проекта
-    /// </summary>
     public class MetadataManager : IService
     {
-        public event RegenerateCodeEventHandler RegenerateCodeNeeded;
+        public event RegenerateCodeEventHandler? RegenerateCodeNeeded;
 
         private Dictionary<string, AssetMetadata> _metadataCache = new();
         private Dictionary<string, string> _guidToPathMap = new();

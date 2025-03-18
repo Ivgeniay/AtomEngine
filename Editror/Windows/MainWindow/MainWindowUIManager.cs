@@ -220,7 +220,7 @@ namespace Editor
                 Description = "Checking to compiling code",
                 Action = (e) =>
                 {
-                    var result = GlslCodeGenerator.TryToCompile(e);
+                    var result = GlslCompiler.TryToCompile(e);
                     if (result.Success) DebLogger.Info(result);
                     else DebLogger.Error(result);
                 }

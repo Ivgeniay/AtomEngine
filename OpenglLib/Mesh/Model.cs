@@ -1,5 +1,6 @@
 ﻿using AtomEngine;
 using Silk.NET.Assimp;
+using Silk.NET.Core.Attributes;
 using Silk.NET.OpenGL;
 using System.Numerics;
 using AssimpMesh = Silk.NET.Assimp.Mesh;
@@ -20,6 +21,7 @@ namespace OpenglLib
         public List<Texture> _texturesLoaded = new List<Texture>();
         public string Directory { get; set; } = string.Empty;
         public List<Mesh> Meshes { get; set; } = new List<Mesh>();
+        public MeshNode Nodes { get; set; } = null;
 
         private unsafe void ProcessNode(Node* node, Scene* scene)
         {
@@ -38,12 +40,10 @@ namespace OpenglLib
 
         private unsafe Mesh ProcessMesh(AssimpMesh* mesh, Scene* scene)
         {
-            // data to fill
             List<Vertex> vertices = new List<Vertex>();
             List<uint> indices = new List<uint>();
             List<Texture> textures = new List<Texture>();
 
-            // walk through each of the mesh's vertices
             for (uint i = 0; i < mesh->MNumVertices; i++)
             {
                 Vertex vertex = new Vertex();
@@ -179,6 +179,19 @@ namespace OpenglLib
 
             _texturesLoaded = null;
         }
+    }
+
+    public class MeshNode
+    {
+        public AssimpString Name;
+        public Matrix4x4 Transformation;
+        public MeshNode Parent;
+        public uint NumChildren;
+        public MeshNode Children;
+        public uint NumMeshes;
+        public uint Meshes;
+
+        public Dictionary<string, object> MMetaData = new Dictionary<string, object>();
     }
 
 }

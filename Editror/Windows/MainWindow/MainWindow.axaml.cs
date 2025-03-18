@@ -369,7 +369,6 @@ namespace Editor
             _reloader.RegisterCacheble(inspector);
             _reloader.RegisterCacheble(hierarhy);
             _reloader.RegisterCacheble(worlds);
-            //_reloader.RegisterCacheble(sceneView);
             _reloader.RegisterCacheble(systems);
 
             ServiceHub.Get<FileSystemWatcher>().RegisterCommand(new FileEventCommand()
@@ -378,7 +377,7 @@ namespace Editor
                 Type = FileEventType.FileChanged,
                 Command = new Command<FileEvent>((e) =>
                 {
-                    var result = GlslCodeGenerator.TryToCompile(e);
+                    var result = GlslCompiler.TryToCompile(e);
                     if (result.Success) DebLogger.Info(result);
                     else DebLogger.Error(result);
                 })
