@@ -62,7 +62,7 @@ namespace Editor
 
                     Assimp assimp = Assimp.GetApi();
 
-                    var mb_Model = ModelLoader.LoadModel(e.FilePath, gl, assimp, false);
+                    var mb_Model = ModelLoader.LoadModel(e.FileFullPath, gl, assimp, false);
                     result.Model = mb_Model.Unwrap();
                     result.Success = true;
                 }

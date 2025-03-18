@@ -1,9 +1,13 @@
 ﻿using System.Collections.Generic;
+using Avalonia.Controls;
 using System.Numerics;
+using Avalonia.Input;
 using System.Linq;
 using AtomEngine;
 using System.IO;
+using Avalonia;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace Editor
 {
@@ -11,12 +15,126 @@ namespace Editor
     {
         private readonly HierarchyController _hierarchyController;
         private readonly EntityHierarchyOperations _operations;
+        private readonly ListBox _entitiesList;
+        private readonly Canvas _indicatorCanvas;
+        private readonly Border _modelDropIndicator;
+        private readonly SceneManager _sceneManager;
 
-        public ModelDragDropHandler(HierarchyController hierarchyController)
+        public ModelDragDropHandler(
+            HierarchyController hierarchyController, ListBox entitiesList, Canvas indicatorCanvas, Border modelDropIndicator)
         {
             _hierarchyController = hierarchyController;
             _operations = new EntityHierarchyOperations(hierarchyController);
+            _entitiesList = entitiesList;
+            _indicatorCanvas = indicatorCanvas;
+            _modelDropIndicator = modelDropIndicator;
+
+            _sceneManager = ServiceHub.Get<SceneManager>();
         }
+
+        public void Initialize()
+        {
+            DragDrop.SetAllowDrop(_hierarchyController, true);
+            DragDrop.SetAllowDrop(_entitiesList, true);
+
+            _hierarchyController.AddHandler(DragDrop.DragEnterEvent, OnModelDragEnter);
+            _hierarchyController.AddHandler(DragDrop.DragLeaveEvent, OnModelDragLeave);
+            _hierarchyController.AddHandler(DragDrop.DropEvent, OnModelDrop);
+
+            _modelDropIndicator.AddHandler(DragDrop.DropEvent, OnModelDrop);
+        }
+        private void OnModelDragOver(object? sender, DragEventArgs e)
+        {
+            e.DragEffects = DragDropEffects.Copy;
+
+            if (CanAcceptModelDrop(e))
+            {
+                e.DragEffects = DragDropEffects.Copy;
+            }
+            else
+            {
+                e.DragEffects = DragDropEffects.None;
+            }
+
+            e.Handled = true;
+        }
+
+        private void OnModelDrop(object? sender, DragEventArgs e)
+        {
+            _modelDropIndicator.IsVisible = false;
+
+            if (CanAcceptModelDrop(e))
+            {
+                try
+                {
+                    var jsonData = e.Data.Get(DataFormats.Text) as string;
+                    var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(
+                        jsonData, GlobalDeserializationSettings.Settings);
+
+                    HandleModelDrop(fileEvent);
+                }
+                catch (Exception ex)
+                {
+                    Status.SetStatus($"Ошибка при обработке перетаскивания: {ex.Message}");
+                }
+            }
+
+            e.Handled = true;
+        }
+
+        private void OnModelDragEnter(object? sender, DragEventArgs e)
+        {
+            if (CanAcceptModelDrop(e))
+            {
+                //var bounds = _entitiesList.Bounds;
+                var position = _entitiesList.TranslatePoint(new Point(0, 0), _indicatorCanvas);
+
+                if (position.HasValue)
+                {
+                    Canvas.SetLeft(_modelDropIndicator, position.Value.X);
+                    Canvas.SetTop(_modelDropIndicator, position.Value.Y);
+                    //_modelDropIndicator.Width = bounds.Width;
+                    //_modelDropIndicator.Height = bounds.Height;
+                    _modelDropIndicator.IsVisible = true;
+                }
+            }
+        }
+
+        private void OnModelDragLeave(object? sender, DragEventArgs e)
+        {
+            _modelDropIndicator.IsVisible = false;
+        }
+
+        private bool CanAcceptModelDrop(DragEventArgs e)
+        {
+            if (e.Data.Contains(DataFormats.Text))
+            {
+                try
+                {
+                    var jsonData = e.Data.Get(DataFormats.Text) as string;
+                    if (!string.IsNullOrEmpty(jsonData))
+                    {
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(
+                            jsonData, GlobalDeserializationSettings.Settings);
+
+                        if (fileEvent != null)
+                        {
+                            string extension = fileEvent.FileExtension?.ToLowerInvariant();
+                            if (!string.IsNullOrEmpty(extension))
+                            {
+                                string[] modelExtensions = { ".obj", ".fbx", ".3ds", ".blend" };
+                                return modelExtensions.Contains(extension);
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+            return false;
+        }
+
+
+
 
         public void HandleModelDrop(FileSelectionEvent fileEvent)
         {
@@ -66,52 +184,86 @@ namespace Editor
                     ? _operations.GetUniqueName("Model")
                     : _operations.GetUniqueName(baseModelName);
 
+                progress.Report((0, "Creating root"));
+                _hierarchyController.CreateNewEntity(rootName);
 
-                //Dispatcher.UIThread.Invoke(() =>
-                //{
-                    progress.Report((0, "Creating root"));
-                    _hierarchyController.CreateNewEntity(rootName);
+                var rootEntity = _hierarchyController.Entities.LastOrDefault();
+                if (rootEntity == EntityHierarchyItem.Null)
+                    return;
 
-                    var rootEntity = _hierarchyController.Entities.LastOrDefault();
-                    if (rootEntity == EntityHierarchyItem.Null)
-                        return;
+                uint rootEntityId = rootEntity.Id;
+                //uint rootEntityId = uint.MaxValue;
+                nodePathToEntityId[""] = rootEntityId;
+                entityIdToIndex[rootEntityId] = 0;
 
-                    uint rootEntityId = rootEntity.Id;
-                    nodePathToEntityId[""] = rootEntityId;
-                    entityIdToIndex[rootEntityId] = 0;
+                int full = sortedNodes.Count + 1;
+                int counter = 1;
 
-                    int full = sortedNodes.Count + 1;
-                    int counter = 1;
+                for (int i = 0; i < sortedNodes.Count; i++)
+                {
+                    var nodeData = sortedNodes[i];
 
-                    for (int i = 0; i < sortedNodes.Count; i++)
+                    progress.Report(((int)full/counter+i, $"Creating {nodeData.MeshName}"));
+
+                    string nodeName = string.IsNullOrWhiteSpace(nodeData.MeshName)
+                        ? _operations.GetUniqueName($"Node_{i + 1}")
+                        : _operations.GetUniqueName(nodeData.MeshName);
+
+                    _hierarchyController.CreateNewEntity(nodeName);
+                    //if (i == 0)
+                    //{
+                    //    var rootEntity = _hierarchyController.Entities.LastOrDefault();
+                    //    nodePathToEntityId[""] = rootEntityId;
+                    //    entityIdToIndex[rootEntityId] = 0;
+                    //    continue;
+                    //}
+
+                    var createdEntity = _hierarchyController.Entities.LastOrDefault();
+                    if (createdEntity == EntityHierarchyItem.Null)
+                        continue;
+
+                    uint entityId = createdEntity.Id;
+                    nodePathToEntityId[nodeData.MeshPath] = entityId;
+                    entityIdToIndex[entityId] = i + 1;
+
+                    string parentPath = GetParentPath(nodeData.MeshPath);
+                    if (nodePathToEntityId.TryGetValue(parentPath, out uint parentId))
                     {
-                        var nodeData = sortedNodes[i];
-
-                        progress.Report(((int)full/counter+i, $"Creating {nodeData.MeshName}"));
-
-                        string nodeName = string.IsNullOrWhiteSpace(nodeData.MeshName)
-                            ? _operations.GetUniqueName($"Node_{i + 1}")
-                            : _operations.GetUniqueName(nodeData.MeshName);
-
-                        _hierarchyController.CreateNewEntity(nodeName);
-
-                        var createdEntity = _hierarchyController.Entities.LastOrDefault();
-                        if (createdEntity == EntityHierarchyItem.Null)
-                            continue;
-
-                        uint entityId = createdEntity.Id;
-                        nodePathToEntityId[nodeData.MeshPath] = entityId;
-                        entityIdToIndex[entityId] = i + 1;
-
-                        string parentPath = GetParentPath(nodeData.MeshPath);
-                        if (nodePathToEntityId.TryGetValue(parentPath, out uint parentId))
-                        {
-                            _hierarchyController.SetParent(entityId, parentId);
-                            ApplyTransformation(entityId, nodeData.Matrix);
-                        }
+                        _hierarchyController.SetParent(entityId, parentId);
+                        ApplyTransformation(entityId, nodeData.Matrix);
+                        AddMeshComponent(entityId, metadata, nodeData);
                     }
-            //});
+                }
+
             }, "Creating entities");
+        }
+
+        private void AddMeshComponent(uint entityId, ModelMetadata metadata, NodeModelData nodeData)
+        {
+            if (nodeData.Index < 0) return;
+
+            if (!SceneManager.EntityCompProvider.HasComponent<MeshComponent>(entityId))
+                _sceneManager.AddComponent(entityId, typeof(MeshComponent));
+
+            ref MeshComponent meshComponent = ref SceneManager.EntityCompProvider.GetComponent<MeshComponent>(entityId);
+
+            var guidField = typeof(MeshComponent)
+                .GetFields(System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)
+                .FirstOrDefault(e => e.FieldType == typeof(string) && e.Name.EndsWith("GUID"));
+            
+            var indexatorField = typeof(MeshComponent)
+                .GetFields(System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)
+                .FirstOrDefault(f => f.FieldType == typeof(string) && f.Name.EndsWith("InternalIndex"));
+
+            TypedReference meshComponentRef = __makeref(meshComponent);
+            if (guidField != null)
+            {
+                guidField.SetValueDirect(meshComponentRef, metadata.Guid);
+            }
+            if (indexatorField != null)
+            {
+                indexatorField.SetValueDirect(meshComponentRef, nodeData.Index.ToString());
+            }
         }
 
         private void ApplyTransformation(uint entityId, Matrix4x4 matrix)

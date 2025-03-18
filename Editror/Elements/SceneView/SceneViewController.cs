@@ -478,12 +478,18 @@ namespace Editor
                         var meshGuidField = component.GetType().GetField(meshField.Name + "GUID",
                             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
-                        if (meshGuidField != null)
+                        var meshIndexatorField = component.GetType().GetField(meshField.Name + "InternalIndex",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                        if (meshGuidField != null && meshIndexatorField != null)
                         {
                             string meshGuid = (string)meshGuidField.GetValue(component);
+                            string strIndex = (string)meshIndexatorField.GetValue(component);
+                            if (string.IsNullOrEmpty(meshGuid) || string.IsNullOrEmpty(strIndex)) continue;
+                            int index = int.Parse(strIndex);
                             if (!string.IsNullOrEmpty(meshGuid))
                             {
-                                mesh = _resourceManager.GetResource<MeshBase>(meshGuid);
+                                mesh = _resourceManager.GetResource<MeshBase>(meshGuid, index);
                                 if (mesh != null)
                                 {
                                     meshFieldInfo = meshField;
@@ -753,10 +759,8 @@ namespace Editor
         private void InitializeComponentCache()
         {
             if (!_isOpen || !_isGlInitialized) return;
-
             if (_sceneManager.CurrentScene == null || _sceneManager.CurrentScene.CurrentWorldData == null)
                 return;
-
             
             FreeCache();
             foreach (var entity in _sceneManager.CurrentScene.CurrentWorldData.Entities)
@@ -953,7 +957,7 @@ namespace Editor
             }
             _isGlInitialized = false;
 
-            //_resourceManager?.Dispose();
+            _resourceManager?.Dispose();
             _sceneManager.OnSceneBeforeSave -= PrepareToSave;
 
             _sceneManager.OnComponentChange -= ComponentChange;

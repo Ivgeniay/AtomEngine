@@ -256,6 +256,7 @@ namespace ComponentGenerator
 
             sb.AppendLine("using System;");
             sb.AppendLine("using Newtonsoft.Json;");
+            sb.AppendLine("using AtomEngine;");
             sb.AppendLine();
 
             if (!string.IsNullOrEmpty(namespaceValue))
@@ -274,6 +275,7 @@ namespace ComponentGenerator
                 string memberName = member.Name;
                 string memberType = "Unknown";
                 string guidFieldName = $"{memberName}GUID";
+                string guidFieldNameIndex = $"{memberName}InternalIndex";
 
                 if (member is IFieldSymbol fieldSymbol)
                 {
@@ -285,10 +287,19 @@ namespace ComponentGenerator
                 }
 
                 sb.AppendLine($"{indent}    /// <summary>");
-                sb.AppendLine($"{indent}    /// GUID поле для {memberName} типа {memberType}");
+                sb.AppendLine($"{indent}    /// GUID field for {memberName} typeof {memberType}");
                 sb.AppendLine($"{indent}    /// </summary>");
                 sb.AppendLine($"{indent}    [JsonProperty]");
+                sb.AppendLine($"{indent}    [ShowInInspector]");
                 sb.AppendLine($"{indent}    private string {guidFieldName};");
+                sb.AppendLine();
+
+                sb.AppendLine($"{indent}    /// <summary>");
+                sb.AppendLine($"{indent}    /// Indexator field for {memberName} typeof {memberType}");
+                sb.AppendLine($"{indent}    /// </summary>");
+                sb.AppendLine($"{indent}    [JsonProperty]");
+                sb.AppendLine($"{indent}    [ShowInInspector]");
+                sb.AppendLine($"{indent}    private string {guidFieldNameIndex};");
                 sb.AppendLine();
             }
 

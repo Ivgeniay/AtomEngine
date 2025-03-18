@@ -10,8 +10,12 @@ namespace AtomEngine
     {
         public Entity Owner { get; set; }
         public MeshBase Mesh;
+        [ShowInInspector]
         [JsonProperty]
         private string MeshGUID;
+        [ShowInInspector]
+        [JsonProperty]
+        private string MeshInternalIndex;
 
         public MeshComponent(Entity owner, MeshBase mesh)
         {

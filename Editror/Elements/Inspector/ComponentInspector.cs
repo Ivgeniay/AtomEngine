@@ -29,9 +29,14 @@ namespace Editor
                         if (field.IsPrivate)
                         {
                             if (field.Name.EndsWith("GUID")) return true;
+                            if (field.Name.EndsWith("InternalIndex")) return true;
 
                             bool isShowInInspector = field.GetCustomAttributes(false).Any(e => e.GetType() == typeof(ShowInInspectorAttribute));
-                            if (!isShowInInspector) return false;
+                            if (isShowInInspector)
+                            {
+                                return true;
+                            }
+                            return false;
                         }
 
                         if (!_isGlDependableMap[component] & GLDependableTypes.IsDependableType(field.FieldType))
@@ -59,11 +64,11 @@ namespace Editor
                     )
                     continue;
 
-                if (member is FieldInfo field && 
-                    field.Name.EndsWith("GUID") && 
-                    field.IsPrivate && 
-                    field.FieldType == typeof(string))
-                        continue;
+                //if (member is FieldInfo field && 
+                //    field.Name.EndsWith("GUID") && 
+                //    field.IsPrivate && 
+                //    field.FieldType == typeof(string))
+                //        continue;
 
                 var descriptor = CreateDescriptorForMember(component, member);
                 if (descriptor != null)
@@ -130,16 +135,21 @@ namespace Editor
         {
             if (value is GLValueRedirection redirection)
             {
-                //ShaderGUID
-                string findingFiled = member.Name + "GUID";
-                var guidMember = _componentMap[component].FirstOrDefault(m => m.Name == findingFiled);
+                string findingFiledGUID = member.Name + "GUID";
+                string findingFiledIndexator = member.Name + "InternalIndex";
+                var guidMember = _componentMap[component].FirstOrDefault(m => m.Name == findingFiledGUID);
+                var indexatorMember = _componentMap[component].FirstOrDefault(m => m.Name == findingFiledIndexator);
                 if (guidMember != null)
                 {
-                    var val = GetValue(component, guidMember);
-                    DebLogger.Debug($"{guidMember.Name} Before: {val}");
-                    SetValue(component, guidMember, redirection.Value);
-                    val = GetValue(component, guidMember);
-                    DebLogger.Debug($"{guidMember.Name} After: {val}");
+                    SetValue(component, guidMember, redirection.GUID);
+                }
+                else
+                {
+                    DebLogger.Error("No GUID field");
+                }
+                if (guidMember != null)
+                {
+                    SetValue(component, indexatorMember, redirection.Indexator);
                 }
                 else
                 {
@@ -164,6 +174,7 @@ namespace Editor
 
     public class GLValueRedirection
     {
-        public object Value { get; set; }
+        public string GUID { get; set; } = string.Empty;
+        public string Indexator { get; set; } = string.Empty;
     }
 }

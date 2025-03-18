@@ -36,14 +36,15 @@ namespace Editor
                     var metaData = ServiceHub.Get<MetadataManager>().GetMetadata(e);
                     descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
                     {
-                        Value = metaData.Guid,
+                        GUID = metaData.Guid,
                     });
                 }
                 else
                 {
                     descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
                     {
-                        Value = string.Empty,
+                        GUID = string.Empty,
+                        Indexator = string.Empty,
                     });
                 }
 

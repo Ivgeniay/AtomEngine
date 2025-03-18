@@ -1,10 +1,10 @@
 ﻿namespace AtomEngine
 {
     /// <summary>
-    /// Dont show this field in inspector
+    /// Show private field in inspector
     /// </summary>
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
-    public class HideInInspectorAttribute : Attribute
+    public class ShowInInspectorAttribute : Attribute
     {
     }
 }

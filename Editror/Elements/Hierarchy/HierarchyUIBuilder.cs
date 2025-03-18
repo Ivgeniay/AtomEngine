@@ -19,6 +19,7 @@ namespace Editor
         public ListBox EntitiesList { get; private set; }
         public Canvas IndicatorCanvas { get; private set; }
         public Border DropIndicator { get; private set; }
+        public Border ModelDropIndicator { get; private set; }
 
         public HierarchyUIBuilder(HierarchyController controller)
         {
@@ -45,22 +46,35 @@ namespace Editor
                 Height = 2,
                 Background = new SolidColorBrush(Colors.DodgerBlue),
                 IsVisible = false,
-                ZIndex = 1000
+                ZIndex = 101
             };
 
-             
+            ModelDropIndicator = new Border
+            {
+                BorderThickness = new Thickness(2),
+                BorderBrush = new SolidColorBrush(Colors.DodgerBlue),
+                Background = new SolidColorBrush(Color.FromArgb(50, 30, 144, 255)),
+                CornerRadius = new CornerRadius(3),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                IsVisible = false,
+                ZIndex = 101
+            };
+
             IndicatorCanvas = new Canvas
             {
                 Background = null,
                 ZIndex = 100
             };
             Grid.SetRow(IndicatorCanvas, 1);
+            Grid.SetRow(ModelDropIndicator, 1);
+
             IndicatorCanvas.Children.Add(DropIndicator);
 
-             
             grid.Children.Add(header);
             grid.Children.Add(EntitiesList);
             grid.Children.Add(IndicatorCanvas);
+            grid.Children.Add(ModelDropIndicator);
 
              
             EntitiesList.ZIndex = 2;

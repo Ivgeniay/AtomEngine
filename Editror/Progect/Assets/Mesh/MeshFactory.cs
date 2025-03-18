@@ -11,7 +11,7 @@ namespace Editor
 {
     internal class MeshFactory : IService, IDisposable
     {
-        private Dictionary<string, MeshBase> _meshInstanceCache = new Dictionary<string, MeshBase>();
+        private Dictionary<string, Model> _modelInstanceCache = new Dictionary<string, Model>();
         private Assimp? _assimp;
 
         public Task InitializeAsync()
@@ -19,29 +19,41 @@ namespace Editor
             return Task.CompletedTask;
         }
 
-        public MeshBase CreateMeshInstanceFromPath(GL gl, string meshPath)
+        public MeshBase CreateMeshInstanceFromPath(GL gl, string modelPath, object context)
         {
+            int index = (int)context;
+
             if (_assimp == null) _assimp = Assimp.GetApi();
             try
             {
-                string meshText = ServiceHub.Get<MeshManager>().LoadMesh(meshPath);
-                if (meshText == null)
+                if (_modelInstanceCache.TryGetValue(modelPath, out Model cachedModel))
                 {
-                    DebLogger.Error($"Не удалось загрузить материал из пути: {meshPath}");
-                    return null;
+                    return cachedModel.Meshes[index];
                 }
-                Result<Model, Error> mb_model = ModelLoader.LoadModel(meshPath, gl, _assimp, false);
-                var model = mb_model.Unwrap();
-                var mesh = model.Meshes[0];
-                return mesh;
+                else
+                {
+                    string meshText = ServiceHub.Get<MeshManager>().LoadMesh(modelPath);
+                    if (meshText == null)
+                    {
+                        DebLogger.Error($"Не удалось загрузить объкт из пути: {modelPath}");
+                        return null;
+                    }
+                    Result<Model, Error> mb_model = ModelLoader.LoadModel(modelPath, gl, _assimp, false);
+                    var model = mb_model.Unwrap();
+                    _modelInstanceCache[modelPath] = model;
+                    var mesh = model.Meshes[index];
+                    return mesh;
+                }
+
+                throw new NotFoundError($"Не найден {modelPath}");
             }
             catch (Exception ex)
             {
-                DebLogger.Error($"Ошибка создания экземпляра материала из пути: {ex.Message}");
+                DebLogger.Error($"Ошибка создания экземпляра объкта из пути: {ex.Message}");
                 return null;
             }
         }
-        public MeshBase CreateMeshInstanceFromGuid(GL gl, string meshGuid)
+        public MeshBase CreateMeshInstanceFromGuid(GL gl, string meshGuid, object context)
         {
             try
             {
@@ -52,7 +64,7 @@ namespace Editor
                     return null;
                 }
 
-                return CreateMeshInstanceFromPath(gl, materialPath);
+                return CreateMeshInstanceFromPath(gl, materialPath, context);
             }
             catch(Exception ex) 
             {
@@ -70,11 +82,12 @@ namespace Editor
         {
             _assimp?.Dispose();
             _assimp = null;
-            foreach(var mesh in _meshInstanceCache.Values) 
-            { 
-                mesh.Dispose(); 
+
+            foreach(var model in _modelInstanceCache.Values)
+            {
+                model.Dispose();
             }
-            _meshInstanceCache.Clear();
+            _modelInstanceCache.Clear();
         }
     }
 }

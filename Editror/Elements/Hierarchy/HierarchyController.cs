@@ -1,12 +1,10 @@
 ﻿using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using Avalonia.Controls;
 using Avalonia.Input;
 using System.Linq;
 using AtomEngine;
 using System;
-using Avalonia.Threading;
-using Avalonia.Media;
-using Avalonia;
 
 namespace Editor
 {
@@ -89,6 +87,7 @@ namespace Editor
             _entitiesList = _uiBuilder.EntitiesList;
             _indicatorCanvas = _uiBuilder.IndicatorCanvas;
             _dropIndicator = _uiBuilder.DropIndicator;
+            _modelDropIndicator = _uiBuilder.ModelDropIndicator;
 
             var backgroundMenu = _menuProvider.CreateBackgroundContextMenu();
             var entityMenu = _menuProvider.CreateEntityContextMenu();
@@ -109,133 +108,11 @@ namespace Editor
 
         private void InitializeModelDragDrop()
         {
-            _modelDragDropHandler = new ModelDragDropHandler(this);
-
-            DragDrop.SetAllowDrop(this, true);
-            DragDrop.SetAllowDrop(_entitiesList, true);
-
-            //this.AddHandler(DragDrop.DragOverEvent, OnModelDragOver);
-            this.AddHandler(DragDrop.DropEvent, OnModelDrop);
-
-            //_entitiesList.AddHandler(DragDrop.DragOverEvent, OnModelDragOver);
-            //_entitiesList.AddHandler(DragDrop.DropEvent, OnModelDrop);
-
-            _indicatorCanvas.AddHandler(DragDrop.DragOverEvent, OnModelDragOver);
-            _indicatorCanvas.AddHandler(DragDrop.DropEvent, OnModelDrop);
-            
-
-            _modelDropIndicator = new Border
-            {
-                BorderThickness = new Thickness(2),
-                BorderBrush = new SolidColorBrush(Colors.DodgerBlue),
-                Background = new SolidColorBrush(Color.FromArgb(50, 30, 144, 255)),
-                CornerRadius = new CornerRadius(3),
-                IsVisible = false,
-                ZIndex = 1000
-            };
-
-            _indicatorCanvas.Children.Add(_modelDropIndicator);
-
-            this.AddHandler(DragDrop.DragEnterEvent, OnModelDragEnter);
-            this.AddHandler(DragDrop.DragLeaveEvent, OnModelDragLeave);
-
-            _indicatorCanvas.AddHandler(DragDrop.DragEnterEvent, OnModelDragEnter);
-            _indicatorCanvas.AddHandler(DragDrop.DragLeaveEvent, OnModelDragLeave);
-            //_entitiesList.AddHandler(DragDrop.DragLeaveEvent, OnModelDragLeave);
+            _modelDragDropHandler = new ModelDragDropHandler(this, _entitiesList, _indicatorCanvas, _modelDropIndicator);
+            _modelDragDropHandler.Initialize();
         }
 
-        private void OnModelDragOver(object sender, DragEventArgs e)
-        {
-            e.DragEffects = DragDropEffects.Copy;
-
-            if (CanAcceptModelDrop(e))
-            {
-                e.DragEffects = DragDropEffects.Copy;
-            }
-            else
-            {
-                e.DragEffects = DragDropEffects.None;
-            }
-
-            e.Handled = true;
-        }
-
-        private void OnModelDrop(object sender, DragEventArgs e)
-        {
-            _modelDropIndicator.IsVisible = false;
-
-            if (CanAcceptModelDrop(e))
-            {
-                try
-                {
-                    var jsonData = e.Data.Get(DataFormats.Text) as string;
-                    var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(
-                        jsonData, GlobalDeserializationSettings.Settings);
-
-                    _modelDragDropHandler.HandleModelDrop(fileEvent);
-                    Status.SetStatus($"Модель '{fileEvent.FileName}' добавлена в иерархию");
-                }
-                catch (Exception ex)
-                {
-                    Status.SetStatus($"Ошибка при обработке перетаскивания: {ex.Message}");
-                }
-            }
-
-            e.Handled = true;
-        }
-
-        private void OnModelDragEnter(object sender, DragEventArgs e)
-        {
-            if (CanAcceptModelDrop(e))
-            {
-                var bounds = _entitiesList.Bounds;
-                var position = _entitiesList.TranslatePoint(new Point(0, 0), _indicatorCanvas);
-
-                if (position.HasValue)
-                {
-                    Canvas.SetLeft(_modelDropIndicator, position.Value.X);
-                    Canvas.SetTop(_modelDropIndicator, position.Value.Y);
-                    _modelDropIndicator.Width = bounds.Width;
-                    _modelDropIndicator.Height = bounds.Height;
-                    _modelDropIndicator.IsVisible = true;
-                }
-            }
-        }
-
-        private void OnModelDragLeave(object sender, DragEventArgs e)
-        {
-            _modelDropIndicator.IsVisible = false;
-        }
-
-        private bool CanAcceptModelDrop(DragEventArgs e)
-        {
-            if (e.Data.Contains(DataFormats.Text))
-            {
-                try
-                {
-                    var jsonData = e.Data.Get(DataFormats.Text) as string;
-                    if (!string.IsNullOrEmpty(jsonData))
-                    {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(
-                            jsonData, GlobalDeserializationSettings.Settings);
-
-                        if (fileEvent != null)
-                        {
-                            string extension = fileEvent.FileExtension?.ToLowerInvariant();
-                            if (!string.IsNullOrEmpty(extension))
-                            {
-                                string[] modelExtensions = { ".obj", ".fbx", ".3ds", ".blend" };
-                                return modelExtensions.Contains(extension);
-                            }
-                        }
-                    }
-                }
-                catch { }
-            }
-            return false;
-        }
-
-
+        
         public void CreateNewEntity(string name, bool withAvoking = true)
         {
             if (withAvoking)

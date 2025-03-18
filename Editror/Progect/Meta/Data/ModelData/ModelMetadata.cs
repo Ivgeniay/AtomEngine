@@ -20,5 +20,6 @@ namespace Editor
         public Matrix4x4 Matrix;
         public string MeshName = string.Empty;
         public string MeshPath = string.Empty;
+        public int Index = -1;
     }
 }

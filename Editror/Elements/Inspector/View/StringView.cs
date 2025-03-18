@@ -44,7 +44,10 @@ namespace Editor
             if (descriptor.Context is EntityInspectorContext context)
             {
                 Type type = context.Component.GetType();
-                var _field = type.GetField(descriptor.Name);
+                var _field = type.GetField(descriptor.Name, 
+                    System.Reflection.BindingFlags.Public | 
+                    System.Reflection.BindingFlags.NonPublic | 
+                    System.Reflection.BindingFlags.Instance);
                 var attributes = _field.GetCustomAttributes(false);
                 if (attributes != null && attributes.Count() > 0)
                 {

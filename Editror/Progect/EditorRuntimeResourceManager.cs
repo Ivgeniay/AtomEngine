@@ -11,7 +11,7 @@ namespace Editor
 {
     public class EditorRuntimeResourceManager : IService, IDisposable
     {
-        private Dictionary<string, object> _resourceCache = new Dictionary<string, object>();
+        private Dictionary<(string, object), object> _resourceCache = new Dictionary<(string, object), object>();
         private Dictionary<object, string> _objectToGuidCache = new Dictionary<object, string>(ReferenceEqualityComparer.Instance);
 
         private GL _gl;
@@ -43,31 +43,31 @@ namespace Editor
             //ReloadGLResources();
         }
 
-        public T GetResource<T>(string guid) where T : class
+        public T GetResource<T>(string guid, object context = null) where T : class
         {
-            return GetResource(guid) as T;
+            return GetResource(guid, context) as T;
         }
 
-        public object GetResource(string guid)
+        public object GetResource(string guid, object context = null)
         {
             if (string.IsNullOrEmpty(guid))
                 return null;
 
-            if (_resourceCache.TryGetValue(guid, out var cachedResource))
+            if (_resourceCache.TryGetValue((guid, context), out var cachedResource))
                 return cachedResource;
 
-            var resource = LoadResourceByGuid(guid);
+            var resource = LoadResourceByGuid(guid, context);
 
             if (resource != null)
             {
-                _resourceCache[guid] = resource;
+                _resourceCache[(guid, context)] = resource;
                 _objectToGuidCache[resource] = guid;
             }
 
             return resource;
         }
 
-        private object LoadResourceByGuid(string guid)
+        private object LoadResourceByGuid(string guid, object context = null)
         {
             var meta = _metadataManager.GetMetadataByGuid(guid);
             if (meta == null)
@@ -83,7 +83,7 @@ namespace Editor
             }
             else if (meta.AssetType == MetadataType.Model)
             {
-                return LoadMeshResource(guid);
+                return LoadMeshResource(guid, context);
             }
 
             return null;
@@ -107,43 +107,13 @@ namespace Editor
             return material ;
         }
 
-        private MeshBase LoadMeshResource(string guid)
+        private MeshBase LoadMeshResource(string guid, object context)
         {
             if (!_isGLInitialized || _gl == null)
                 return null;
 
-            var mesh = _meshFactory.CreateMeshInstanceFromGuid(_gl, guid);
+            var mesh = _meshFactory.CreateMeshInstanceFromGuid(_gl, guid, context);
             return mesh;
-        }
-      
-
-        private void ReloadGLResources()
-        {
-            var resourcesNeedingReload = new List<string>();
-
-            foreach (var kvp in _resourceCache)
-            {
-                if (kvp.Value is Texture || kvp.Value is MaterialAsset || kvp.Value is MeshBase)
-                {
-                    resourcesNeedingReload.Add(kvp.Key);
-                }
-            }
-
-            foreach (var guid in resourcesNeedingReload)
-            {
-                var oldResource = _resourceCache[guid];
-                Type resourceType = oldResource.GetType();
-
-                _resourceCache.Remove(guid);
-                _objectToGuidCache.Remove(oldResource);
-
-                var newResource = LoadResourceByGuid(guid);
-                if (newResource != null)
-                {
-                    _resourceCache[guid] = newResource;
-                    _objectToGuidCache[newResource] = guid;
-                }
-            }
         }
 
  

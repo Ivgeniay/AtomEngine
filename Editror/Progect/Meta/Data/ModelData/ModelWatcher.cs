@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using System.IO;
+using System.Linq;
 
 namespace Editor
 {
@@ -32,6 +33,11 @@ namespace Editor
             var directoryPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
             var relativePath = Path.GetRelativePath(directoryPath, path);
 
+            if (name == "torus")
+            {
+
+            }
+
             var result =MeshCompiler.TryToCompile(new FileEvent
             {
                 FilePath = relativePath,
@@ -53,8 +59,17 @@ namespace Editor
                     {
                         MeshPath = result.Model.GetNodePath(kvpStringMeshNode.Value),
                         MeshName = kvpStringMeshNode.Key,
-                        Matrix = kvpStringMeshNode.Value.Transformation
+                        Matrix = kvpStringMeshNode.Value.Transformation,
                     };
+
+                    if (kvpStringMeshNode.Value.MeshIndices != null && kvpStringMeshNode.Value.MeshIndices.Count > 0)
+                    {
+                        nodeModelData.Index = kvpStringMeshNode.Value.MeshIndices[0];
+                        if (kvpStringMeshNode.Value.MeshIndices.Count > 1)
+                        {
+
+                        }
+                    }
 
                     modelData.MeshesData.Add(nodeModelData);
                 }

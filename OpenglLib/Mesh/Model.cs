@@ -24,7 +24,6 @@ namespace OpenglLib
         public MeshNode RootNode { get; set; }
         public Dictionary<string, MeshNode> NodeMap { get; set; } = new Dictionary<string, MeshNode>(StringComparer.OrdinalIgnoreCase);
 
-        // Метод для получения узла по имени
         public MeshNode GetNodeByName(string nodeName)
         {
             if (NodeMap.TryGetValue(nodeName, out var node))
@@ -33,7 +32,6 @@ namespace OpenglLib
             return null;
         }
 
-        // Метод для получения всех узлов, содержащих указанную подстроку в имени
         public List<MeshNode> FindNodes(string nameSubstring)
         {
             return NodeMap.Values

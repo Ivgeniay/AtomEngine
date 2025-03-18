@@ -24,8 +24,7 @@ namespace Editor
 
             var allEntities = _controller.CurrentScene.CurrentWorldData.Entities.ToList();
             Dictionary<uint, EntityHierarchyItem> idToItem = new Dictionary<uint, EntityHierarchyItem>();
-
-             
+            
             foreach (var entityData in allEntities)
             {
                 var hierarchyItem = new EntityHierarchyItem(entityData.Id, entityData.Version, entityData.Name);
@@ -34,7 +33,6 @@ namespace Editor
                 if (SceneManager.EntityCompProvider.HasComponent<HierarchyComponent>(entityData.Id))
                 {
                     ref var hierarchyComp = ref SceneManager.EntityCompProvider.GetComponent<HierarchyComponent>(entityData.Id);
-
                     if (hierarchyComp.Parent != uint.MaxValue)
                     {
                         hierarchyItem.ParentId = hierarchyComp.Parent;
@@ -84,11 +82,9 @@ namespace Editor
             if (!idToItem.TryGetValue(parentId, out var parentItem))
                 return;
 
-             
             if (parentItem.Children == null || parentItem.Children.Count == 0)
                 return;
 
-             
             var childrenWithLocalIndices = parentItem.Children
                 .Where(childId => idToItem.ContainsKey(childId))
                 .Select(childId =>
@@ -105,19 +101,14 @@ namespace Editor
                 .Select(x => x.childId)
                 .ToList();
 
-             
             foreach (var childId in childrenWithLocalIndices)
             {
                 if (idToItem.TryGetValue(childId, out var childItem))
                 {
-                     
                     childItem.ParentId = parentId;
                     childItem.Level = parentItem.Level + 1;
 
-                     
                     result.Add(childItem);
-
-                     
                     AddChildrenRecursively(childId, idToItem, result);
                 }
             }

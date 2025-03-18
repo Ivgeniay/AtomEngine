@@ -287,77 +287,26 @@ namespace OpenglLib
             return indices.ToArray();
         }
 
-        private static unsafe Result<Model, Error> LoadFromFile(string modelPath, GL gl, Assimp assimp)
+        private static unsafe Result<Model, Error> LoadFromFile(string modelFullPath, GL gl, Assimp assimp)
         {
             try
             {
-                var normalizedModelPath = modelPath;
-                var basePath = _customBasePath;
-
-                var fullPath = Path.Combine(basePath, normalizedModelPath);
-
-                if (!System.IO.File.Exists(fullPath))
-                {
-                    var fileName = Path.GetFileName(normalizedModelPath);
-                    var searchResults = Directory
-                        .GetFiles(basePath, fileName, SearchOption.AllDirectories)
-                        .Select(path => NormalizePath(Path.GetRelativePath(basePath, path)))
-                        .ToList();
-
-                    if (!searchResults.Any())
-                    {
-                        var availableModels = Directory
-                            .GetFiles(basePath, "*.obj", SearchOption.AllDirectories)
-                            .Concat(Directory.GetFiles(basePath, "*.fbx", SearchOption.AllDirectories))
-                            .Concat(Directory.GetFiles(basePath, "*.3ds", SearchOption.AllDirectories))
-                            .Select(path => NormalizePath(Path.GetRelativePath(basePath, path)));
-
-                        throw new MeshError(
-                            $"Model file not found: {modelPath}\n" +
-                            $"Searched in: {basePath}\n" +
-                            $"Available models:\n{string.Join("\n", availableModels)}");
-                    }
-
-                    if (searchResults.Count > 1)
-                    {
-                        var normalizedSearchPath = NormalizePath(normalizedModelPath);
-                        var exactMatch = searchResults
-                            .FirstOrDefault(path =>
-                                string.Equals(path, normalizedSearchPath, StringComparison.OrdinalIgnoreCase));
-
-                        if (exactMatch != null)
-                        {
-                            fullPath = Path.Combine(basePath, exactMatch);
-                        }
-                        else
-                        {
-                            throw new MeshError(
-                                $"Ambiguous model name: {modelPath}\n" +
-                                $"Multiple matches found:\n{string.Join("\n", searchResults)}");
-                        }
-                    }
-                    else
-                    {
-                        fullPath = Path.Combine(basePath, searchResults[0]);
-                    }
-                }
-
                 unsafe
                 {
                     uint postProcessFlags = (uint)(PostProcessSteps.Triangulate |
                                                   PostProcessSteps.GenerateNormals |
                                                   PostProcessSteps.FlipUVs);
 
-                    Scene* scene = assimp.ImportFile(fullPath, postProcessFlags);
+                    Scene* scene = assimp.ImportFile((string)modelFullPath, postProcessFlags);
 
                     if (scene == null)
                     {
                         string errorMsg = Marshal.PtrToStringAnsi((IntPtr)assimp.GetErrorString());
-                        throw new MeshError($"Failed to load model from file: {fullPath}. Assimp error: {errorMsg}");
+                        throw new MeshError($"Failed to load model from file: {modelFullPath}. Assimp error: {errorMsg}");
                     }
 
                     Model model = new Model(gl);
-                    model.Directory = Path.GetDirectoryName(fullPath);
+                    model.Directory = Path.GetDirectoryName((string)modelFullPath);
 
                     // Сначала строим иерархию узлов
                     model.RootNode = BuildNodeHierarchy(scene->MRootNode, null, model);
