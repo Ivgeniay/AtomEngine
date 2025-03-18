@@ -176,7 +176,6 @@ namespace Editor
                 if (!entityData.Components.TryGetValue(typeof(TransformComponent).FullName, out var component)) { 
                     var transform = Activator.CreateInstance(typeof(TransformComponent));
                     entityData.Components.Add(typeof(TransformComponent).FullName, (TransformComponent)transform);
-
                 }
 
             }

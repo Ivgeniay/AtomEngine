@@ -123,10 +123,13 @@ namespace Editor
         {
             var settings = new JsonSerializerSettings
             {
+                Formatting = Formatting.Indented,
                 TypeNameHandling = TypeNameHandling.Auto,
                 PreserveReferencesHandling = PreserveReferencesHandling.Objects,
-                ReferenceLoopHandling = ReferenceLoopHandling.Serialize
+                ReferenceLoopHandling = ReferenceLoopHandling.Serialize,
+                ObjectCreationHandling = ObjectCreationHandling.Replace
             };
+             
 
             var editorScene = JsonConvert.DeserializeObject<EditorProjectScene>(json, settings);
             return ConvertToPublicScene(editorScene);

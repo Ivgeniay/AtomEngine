@@ -37,6 +37,8 @@ namespace Editor
                                 return new ShaderSourceInspectable((ShaderSourceMetadata)meta);
                             case MetadataType.Script:
                                 return new ScriptInspectable((ScriptMetadata)meta);
+                            case MetadataType.Model:
+                                return new ModelInspectable((ModelMetadata)meta);
                             default:
                                 return new AssetMetadataInspectable(meta);
                         }

@@ -39,7 +39,6 @@ namespace Editor
                 }
 
                 ProjectScene? sceneData = SceneSerializer.DeserializeScene(fileContent);
-                //ProjectScene? sceneData = JsonConvert.DeserializeObject<ProjectScene>(fileContent, GlobalDeserializationSettings.Settings);
 
                 if (sceneData != null)
                 {

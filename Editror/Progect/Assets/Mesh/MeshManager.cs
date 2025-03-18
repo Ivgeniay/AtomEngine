@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Linq;
 using AtomEngine;
 using System.IO;
 using System;
-using System.Linq;
 
 namespace Editor
 {

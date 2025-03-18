@@ -2,6 +2,8 @@
 using Avalonia.Controls;
 using System.IO;
 using System;
+using Avalonia.Layout;
+using AtomEngine;
 
 namespace Editor
 {

@@ -1,8 +1,8 @@
-﻿using AtomEngine;
+﻿using System.Numerics;
 using Silk.NET.Assimp;
-using Silk.NET.Core.Attributes;
 using Silk.NET.OpenGL;
-using System.Numerics;
+using AtomEngine;
+
 using AssimpMesh = Silk.NET.Assimp.Mesh;
 using Node = Silk.NET.Assimp.Node;
 
@@ -21,7 +21,43 @@ namespace OpenglLib
         public List<Texture> _texturesLoaded = new List<Texture>();
         public string Directory { get; set; } = string.Empty;
         public List<Mesh> Meshes { get; set; } = new List<Mesh>();
-        public MeshNode Nodes { get; set; } = null;
+        public MeshNode RootNode { get; set; }
+        public Dictionary<string, MeshNode> NodeMap { get; set; } = new Dictionary<string, MeshNode>(StringComparer.OrdinalIgnoreCase);
+
+        // Метод для получения узла по имени
+        public MeshNode GetNodeByName(string nodeName)
+        {
+            if (NodeMap.TryGetValue(nodeName, out var node))
+                return node;
+
+            return null;
+        }
+
+        // Метод для получения всех узлов, содержащих указанную подстроку в имени
+        public List<MeshNode> FindNodes(string nameSubstring)
+        {
+            return NodeMap.Values
+                .Where(node => node.Name.Contains(nameSubstring, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        public string GetNodePath(MeshNode node)
+        {
+            if (node == null)
+                return string.Empty;
+
+            var path = new List<string>();
+            var current = node;
+
+            while (current != null)
+            {
+                path.Add(current.Name);
+                current = current.Parent;
+            }
+
+            path.Reverse();
+            return string.Join("/", path);
+        }
 
         private unsafe void ProcessNode(Node* node, Scene* scene)
         {
@@ -29,7 +65,6 @@ namespace OpenglLib
             {
                 var mesh = scene->MMeshes[node->MMeshes[i]];
                 Meshes.Add(ProcessMesh(mesh, scene));
-
             }
 
             for (var i = 0; i < node->MNumChildren; i++)
@@ -110,7 +145,6 @@ namespace OpenglLib
                 textures.AddRange(heightMaps);
 
             // return a mesh object created from the extracted mesh data
-            //var result = new Mesh(_gl, BuildVertices(vertices), BuildIndices(indices), textures);
             var result = Mesh.CreateStandardMesh(_gl, BuildVertices(vertices), BuildIndices(indices), textures);
             return result;
         }
@@ -178,20 +212,59 @@ namespace OpenglLib
             }
 
             _texturesLoaded = null;
+            NodeMap = null;
+            RootNode = null;
         }
     }
 
     public class MeshNode
     {
-        public AssimpString Name;
-        public Matrix4x4 Transformation;
-        public MeshNode Parent;
-        public uint NumChildren;
-        public MeshNode Children;
-        public uint NumMeshes;
-        public uint Meshes;
+        public string Name { get; set; }
+        public Matrix4x4 Transformation { get; set; }
+        public MeshNode Parent { get; set; }
+        public List<MeshNode> Children { get; set; } = new List<MeshNode>();
+        public List<int> MeshIndices { get; set; } = new List<int>();
+        public Dictionary<string, object> Metadata { get; set; } = new Dictionary<string, object>();
 
-        public Dictionary<string, object> MMetaData = new Dictionary<string, object>();
+        public MeshNode(string name, Matrix4x4 transformation)
+        {
+            Name = name;
+            Transformation = transformation;
+        }
+
+        // Получение абсолютной трансформации (с учетом родительских узлов)
+        public Matrix4x4 GetGlobalTransformation()
+        {
+            if (Parent == null)
+                return Transformation;
+
+            return Transformation * Parent.GetGlobalTransformation();
+        }
+
+        public MeshNode FindNode(string nodeName)
+        {
+            if (Name == nodeName)
+                return this;
+
+            foreach (var child in Children)
+            {
+                var found = child.FindNode(nodeName);
+                if (found != null)
+                    return found;
+            }
+
+            return null;
+        }
+
+        public void Traverse(Action<MeshNode> action)
+        {
+            action(this);
+
+            foreach (var child in Children)
+            {
+                child.Traverse(action);
+            }
+        }
     }
 
 }

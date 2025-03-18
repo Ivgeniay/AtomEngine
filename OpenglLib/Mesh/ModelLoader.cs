@@ -35,6 +35,10 @@ namespace OpenglLib
             Model model = new Model(gl);
             model.Directory = modelPath;
 
+            // Сначала строим иерархию узлов
+            model.RootNode = BuildNodeHierarchy(scene->MRootNode, null, model);
+
+            // Затем обрабатываем меши
             ProcessNode(scene->MRootNode, scene, gl, _assimp, model);
 
             return new Result<Model, Error>(model);
@@ -45,7 +49,7 @@ namespace OpenglLib
             var assembly = Assembly.GetExecutingAssembly();
             var resources = assembly.GetManifestResourceNames();
             var normalizedModelName = modelPath.Replace('/', '.').Replace('\\', '.');
-            var resourceName = resources.FirstOrDefault(r => 
+            var resourceName = resources.FirstOrDefault(r =>
                 r.EndsWith(normalizedModelName, StringComparison.OrdinalIgnoreCase));
 
             if (resourceName == null)
@@ -95,7 +99,45 @@ namespace OpenglLib
                 }
                 return scene;
             }
+        }
 
+        private unsafe static MeshNode BuildNodeHierarchy(Node* node, MeshNode parent, Model model)
+        {
+            if (node == null)
+                return null;
+
+            // Извлечение имени узла
+            string nodeName = Marshal.PtrToStringAnsi((IntPtr)node->MName.Data)?.Trim() ?? "UnnamedNode";
+
+            // Преобразование матрицы трансформации из Assimp в System.Numerics
+            var transform = new Matrix4x4(
+                node->MTransformation.M11, node->MTransformation.M12, node->MTransformation.M13, node->MTransformation.M14,
+                node->MTransformation.M21, node->MTransformation.M22, node->MTransformation.M23, node->MTransformation.M24,
+                node->MTransformation.M31, node->MTransformation.M32, node->MTransformation.M33, node->MTransformation.M34,
+                node->MTransformation.M41, node->MTransformation.M42, node->MTransformation.M43, node->MTransformation.M44
+            );
+
+            // Создание узла
+            var meshNode = new MeshNode(nodeName, transform);
+            meshNode.Parent = parent;
+
+            // Добавление индексов мешей
+            for (uint i = 0; i < node->MNumMeshes; i++)
+            {
+                meshNode.MeshIndices.Add((int)node->MMeshes[i]);
+            }
+
+            // Добавление узла в словарь для быстрого доступа
+            model.NodeMap[nodeName] = meshNode;
+
+            // Рекурсивное построение дочерних узлов
+            for (uint i = 0; i < node->MNumChildren; i++)
+            {
+                var childNode = BuildNodeHierarchy(node->MChildren[i], meshNode, model);
+                meshNode.Children.Add(childNode);
+            }
+
+            return meshNode;
         }
 
         private static unsafe void ProcessNode(Node* node, Scene* scene, GL gl, Assimp _assimp, Model model)
@@ -104,7 +146,6 @@ namespace OpenglLib
             {
                 var mesh = scene->MMeshes[node->MMeshes[i]];
                 model.Meshes.Add(ProcessMesh(mesh, scene, gl, _assimp, model));
-
             }
 
             for (var i = 0; i < node->MNumChildren; i++)
@@ -187,7 +228,6 @@ namespace OpenglLib
                 textures.AddRange(heightMaps);
 
             // return a mesh object created from the extracted mesh data
-            //var result = new Mesh(gl, BuildVertices(vertices), BuildIndices(indices), textures);
             var result = Mesh.CreateStandardMesh(gl, BuildVertices(vertices), BuildIndices(indices), textures);
             return result;
         }
@@ -212,7 +252,7 @@ namespace OpenglLib
                 }
                 if (!skip)
                 {
-                    var texture = new Texture(gl, model.Directory, type:type);
+                    var texture = new Texture(gl, model.Directory, type: type);
                     texture.Path = path;
                     textures.Add(texture);
                     model._texturesLoaded.Add(texture);
@@ -247,11 +287,7 @@ namespace OpenglLib
             return indices.ToArray();
         }
 
-
-
-
-
-        private static Result<Model, Error> LoadFromFile(string modelPath, GL gl, Assimp assimp)
+        private static unsafe Result<Model, Error> LoadFromFile(string modelPath, GL gl, Assimp assimp)
         {
             try
             {
@@ -323,6 +359,10 @@ namespace OpenglLib
                     Model model = new Model(gl);
                     model.Directory = Path.GetDirectoryName(fullPath);
 
+                    // Сначала строим иерархию узлов
+                    model.RootNode = BuildNodeHierarchy(scene->MRootNode, null, model);
+
+                    // Затем обрабатываем меши
                     ProcessNode(scene->MRootNode, scene, gl, assimp, model);
 
                     return new Result<Model, Error>(model);

@@ -42,6 +42,8 @@ namespace Editor
                 ServiceHub.RegisterService<DirectoryExplorer>();
                 // Загрузка конфигураций
                 ServiceHub.RegisterService<Configuration>();
+                ServiceHub.RegisterService<EventHub>();
+                ServiceHub.RegisterService<ModelWatcher>();
                 // Загрузка сборок
                 ServiceHub.RegisterService<EditorAssemblyManager>();
                 // Сканирование файлов в Assets
@@ -74,7 +76,6 @@ namespace Editor
                 ServiceHub.RegisterService<SceneManager>();
                 ServiceHub.RegisterService<InspectorDistributor>();
                 ServiceHub.RegisterService<ComponentService>();
-                ServiceHub.RegisterService<EventHub>();
                 ServiceHub.RegisterService<LoadingManager>();
 
                 int delay = 1000;

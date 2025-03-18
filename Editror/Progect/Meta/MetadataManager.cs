@@ -62,10 +62,13 @@ namespace Editor
             _extensionToTypeMap[".txt"] = MetadataType.Text;
         }
 
+        private EventHub eventHub;
         public Task InitializeAsync()
         {
             if (_isInitialized)
                 return Task.CompletedTask;
+
+            eventHub = ServiceHub.Get<EventHub>();
 
             return Task.Run(() =>
             {
@@ -120,22 +123,21 @@ namespace Editor
                             metadata.ContentHash = currentHash;
                             metadata.LastModified = DateTime.UtcNow;
                             metadata.Version++;
-                            SaveMetadata(filePath, metadata);
                         }
                     }
                     catch (Exception ex)
                     {
-                        DebLogger.Warn($"Ошибка при чтении метафайла {metaFilePath}: {ex.Message}. Создаю новый метафайл.");
+                        DebLogger.Warn($"Ошибка при чтении метафайла {metaFilePath}: {ex.Message}. Создание нового метафайла.");
                         metadata = CreateMetadata(filePath);
-                        SaveMetadata(filePath, metadata);
                     }
                 }
                 else
                 {
                     metadata = CreateMetadata(filePath);
-                    SaveMetadata(filePath, metadata);
+                    CacheMetadata(metadata, filePath);
                 }
 
+                SaveMetadata(filePath, metadata);
                 _metadataCache[filePath] = metadata;
                 _guidToPathMap[metadata.Guid] = filePath;
             }
@@ -150,6 +152,19 @@ namespace Editor
                     File.Delete(metaFilePath);
                 }
             }
+        }
+
+        internal void CacheMetadata(AssetMetadata metadata, string filePath, bool withInvoke = true)
+        {
+            SaveMetadata(filePath, metadata);
+            _metadataCache[filePath] = metadata;
+            _guidToPathMap[metadata.Guid] = filePath;
+
+            if (withInvoke)
+                eventHub.SendEvent<MetadataCreateEvent>(new MetadataCreateEvent
+                {
+                    Metadata = metadata,
+                });
         }
 
         public AssetMetadata CreateMetadata(string filePath)
@@ -199,7 +214,6 @@ namespace Editor
                 }
                 DebLogger.Debug($"Identified generated file: {filePath}, SourceGuid: {sourceGuid ?? "Unknown"}");
             }
-
             return metadata;
         }
 
@@ -217,7 +231,6 @@ namespace Editor
             };
 
             string metaJson = JsonConvert.SerializeObject(metadata, settings);
-            //_metadataCache[filePath] = metadata;
             File.WriteAllText(metaFilePath, metaJson);
         }
         
@@ -314,8 +327,7 @@ namespace Editor
                 metadata.Guid = guid;
                 metadata.Tags = tags;
                 metadata.Version += 1;
-
-                SaveMetadata(filePath, metadata);
+                CacheMetadata(metadata, filePath);
                 return;
             }
 
@@ -356,11 +368,7 @@ namespace Editor
                 return;
 
             var metadata = CreateMetadata(filePath);
-            SaveMetadata(filePath, metadata);
-            _metadataCache[filePath] = metadata;
-            _guidToPathMap[metadata.Guid] = filePath;
-
-            DebLogger.Info($"Создан новый метафайл для {filePath}");
+            CacheMetadata(metadata, filePath);
         }
 
         internal void HandleFileDeleted(string filePath)
@@ -484,9 +492,7 @@ namespace Editor
             }
 
             metadata = CreateMetadata(filePath);
-            SaveMetadata(filePath, metadata);
-            _metadataCache[filePath] = metadata;
-            _guidToPathMap[metadata.Guid] = filePath;
+            CacheMetadata(metadata, filePath);
 
             return metadata;
         }

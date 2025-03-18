@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Collections;
 using System;
+using AtomEngine;
 
 namespace Editor
 {
@@ -48,6 +49,10 @@ namespace Editor
                     type => type.IsAssignableTo(typeof(OpenglLib.Texture)),
                     descriptor => new TextureView(descriptor)
                     );
+                AddOrUpdateViewFabric(
+                    type => typeof(AtomEngine.IDataSerializable).IsAssignableFrom(type),
+                    descriptor => new DataObjectView(descriptor)
+                );
 
             });
         }

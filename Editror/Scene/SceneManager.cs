@@ -156,44 +156,94 @@ namespace Editor
         }
         internal async Task HandleOpenScene()
         {
-            if (CurrentScene != null && CurrentScene.IsDirty)
+            LoadingManager loadingManager = ServiceHub.Get<LoadingManager>();
+            await loadingManager.RunWithLoading(async (progress) =>
             {
-                var res = await ConfirmationDialog.Show(
-                    _mainWindow,
-                    "Worning",
-                    "There are scene changes. Do you want to safe scene?",
-                    true);
-
-                switch (res)
+                progress.Report((0, "Scene loading..."));
+                if (CurrentScene != null && CurrentScene.IsDirty)
                 {
-                    case ConfirmationDialog.DialogResult.Cancel:
-                        return;
-                    case ConfirmationDialog.DialogResult.Yes:
-                        var t = await FileDialogService.SaveFileAsync(
+                    var res = await ConfirmationDialog.Show(
+                        _mainWindow,
+                        "Worning",
+                        "There are scene changes. Do you want to safe scene?",
+                        true);
+
+                    switch (res)
+                    {
+                        case ConfirmationDialog.DialogResult.Cancel:
+                            return;
+                        case ConfirmationDialog.DialogResult.Yes:
+
+                            var t = await FileDialogService.SaveFileAsync(
                             _mainWindow,
                             $"Safe {CurrentScene.WorldName}",
                             $"{CurrentScene.WorldName}",
                             new FileDialogService.FileFilter("scene", "scene"));
 
-                        if (t != null) Status.SetStatus($"{t}");
-                        break;
+                            if (t != null) Status.SetStatus($"{t}");
+                            break;
 
-                    case ConfirmationDialog.DialogResult.No:
-                        break;
+                        case ConfirmationDialog.DialogResult.No:
+                            break;
+                    }
                 }
-            }
-            var loadedScene = await SceneFileHelper.OpenSceneAsync(_mainWindow);
-            if (loadedScene != null)
-            {
-                OnScenUnload?.Invoke();
-                CurrentScene = loadedScene;
-                OnSceneInitialize?.Invoke(CurrentScene);
-                Status.SetStatus($"Opened scene: {CurrentScene.WorldName}");
-            }
-            else
-            {
-                Status.SetStatus($"Opening scene failed");
-            }
+
+                //var loadedScene = await SceneFileHelper.OpenSceneAsync(_mainWindow);
+
+                var filePath = await FileDialogService.OpenFileAsync(
+                    _mainWindow,
+                    "Open Scene",
+                    new[]
+                    {
+                        new FileDialogService.FileFilter("Scene Files", "scene"),
+                        new FileDialogService.FileFilter("JSON Files", "json"),
+                        new FileDialogService.FileFilter("All Files", "*")
+                    });
+                progress.Report((10, "Scene loading..."));
+
+                if (string.IsNullOrEmpty(filePath))
+                {
+                    DebLogger.Error("Не удалось прочитать содержимое файла");
+                    return;
+                }
+                progress.Report((20, "Scene loading..."));
+
+                var fileContent = await FileDialogService.ReadTextFileAsync(filePath);
+                progress.Report((30, "Scene loading..."));
+                if (string.IsNullOrEmpty(fileContent))
+                {
+                    return;
+                }
+
+                ProjectScene? sceneData = SceneSerializer.DeserializeScene(fileContent);
+                progress.Report((40, "Scene loading..."));
+
+                //if (sceneData != null)
+                //{
+                //    DebLogger.Info($"Сцена загружена: {sceneData.WorldName} ({sceneData.Worlds?.Count ?? 0} миров)");
+                //    return;
+                //}
+                ProjectScene loadedScene = sceneData;
+                progress.Report((80, "Scene loading..."));
+                if (loadedScene != null)
+                {
+
+                    await Dispatcher.UIThread.InvokeAsync(() => { 
+                        OnScenUnload?.Invoke();
+                    });
+                    CurrentScene = loadedScene;
+                    await Dispatcher.UIThread.InvokeAsync(() => {
+                        OnSceneInitialize?.Invoke(CurrentScene);
+                    });
+                    Status.SetStatus($"Opened scene: {CurrentScene.WorldName}");
+                }
+                else
+                {
+                    Status.SetStatus($"Opening scene failed");
+                }
+                progress.Report((100, ""));
+            
+            }, "Scene loading...");
         }
         internal async Task HandleSaveScene()
         {

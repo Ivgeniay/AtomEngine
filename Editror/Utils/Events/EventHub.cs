@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Avalonia.Threading;
-using System.Reflection;
 using AtomEngine;
 using System;
 
@@ -60,19 +59,5 @@ namespace Editor
         }
 
         public Task InitializeAsync() => Task.CompletedTask;
-    }
-
-    internal class EventHubEvent
-    {
-
-    }
-
-    internal class AssemblyUnloadEvent : EventHubEvent
-    {
-        public Assembly Assembly;
-    }
-    internal class AssemblyUploadEvent : EventHubEvent
-    {
-        public Assembly Assembly;
     }
 }

@@ -64,6 +64,7 @@ namespace Editor
 
                     var mb_Model = ModelLoader.LoadModel(e.FilePath, gl, assimp, false);
                     result.Model = mb_Model.Unwrap();
+                    result.Success = true;
                 }
             }
             catch (Exception ex)
