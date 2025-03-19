@@ -196,5 +196,20 @@ namespace Editor
         {
             _assemblyDict[TAssembly.UserScript] = null;
         }
+
+        internal IEnumerable<Type> GetTypesByAttribute<T>() where T : Attribute
+        {
+            foreach (var assembly in _assemblyDict)
+            {
+                if (assembly.Key == TAssembly.ComponentGenerator) continue;
+
+                var types = assembly.Value.GetTypes();
+                foreach(Type t in types)
+                {
+                    if (t.GetCustomAttribute<T>(true) != null)
+                        yield return t;
+                }
+            }
+        }
     }
 }

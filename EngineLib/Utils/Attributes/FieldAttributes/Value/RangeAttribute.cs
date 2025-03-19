@@ -6,6 +6,9 @@ namespace EngineLib
     /// Атрибут для установки диапазона значений для числовых типов (int, float, double и т.д.)
     /// </summary>
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
+    [Documentation(DocumentationSection = "Attribute", Name = "RangeAttribute", Description = @"
+    Атрибут для установки ренжа значения для типов (int, float, double и т.д.)
+", SubSection = "Inspector/Setter")]
     public class RangeAttribute : ValidationAttribute
     {
         public readonly double MinValue;

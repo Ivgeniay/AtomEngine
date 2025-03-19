@@ -3,6 +3,9 @@
     /// <summary>
     /// Usage for AddComponent navigation menu
     /// </summary>
+    [Documentation(DocumentationSection = "Attribute", Name = "TooltipCategoryComponentAttribute", Description = @"
+    Usage for AddComponent navigation menu.
+", SubSection = "Inspector")]
     [AttributeUsage(AttributeTargets.Struct)]
     public class TooltipCategoryComponentAttribute : Attribute
     {

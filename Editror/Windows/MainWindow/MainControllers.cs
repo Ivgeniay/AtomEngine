@@ -11,6 +11,7 @@
         Game,
         Systems,
         Chat,
-        Graph
+        Graph,
+        Documentation
     }
 }

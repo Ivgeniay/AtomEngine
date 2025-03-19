@@ -1,0 +1,249 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Editor="using:Editor">
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <!-- Preview content -->
+    </Border>
+  </Design.PreviewWith>
+
+  <!-- Основные стили для контроллера документации -->
+  <Style Selector="Editor|DocumentationController">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <!-- Стили для поля поиска -->
+  <Style Selector="Editor|DocumentationController TextBox">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Foreground" Value="#DCDCDC"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="5 3"/>
+    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+
+  <Style Selector="Editor|DocumentationController TextBox:pointerover">
+    <Setter Property="BorderBrush" Value="#555555"/>
+  </Style>
+
+  <Style Selector="Editor|DocumentationController TextBox:focus">
+    <Setter Property="Background" Value="#252526"/>
+    <Setter Property="BorderBrush" Value="#007ACC"/>
+    <Setter Property="Foreground" Value="#E6E6E6"/>
+  </Style>
+
+  <!-- Стили для TreeView категорий -->
+  <Style Selector="Editor|DocumentationController TreeView">
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+  </Style>
+
+  <Style Selector="TreeViewItem">
+    <Setter Property="Padding" Value="2 1"/>
+    <Setter Property="MinHeight" Value="20"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+  </Style>
+
+  <Style Selector="TreeViewItem:pointerover">
+    <Setter Property="Background" Value="#2A2D2E"/>
+  </Style>
+
+  <Style Selector="TreeViewItem:selected">
+    <Setter Property="Background" Value="#0D4963"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="TreeViewItem:selected:focus">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+
+  <Style Selector="TreeViewItem:selected:pointerover">
+    <Setter Property="Background" Value="#0E639C"/>
+  </Style>
+
+  <!-- Стили для панели хлебных крошек -->
+  <Style Selector="StackPanel.breadcrumbs">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Margin" Value="0 0 0 5"/>
+  </Style>
+
+  <Style Selector="Button.breadcrumbButton">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="2"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="FontSize" Value="11"/>
+  </Style>
+
+  <Style Selector="Button.breadcrumbButton:pointerover">
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <!-- Стили для документа -->
+  <Style Selector="Editor|DocumentationController ScrollViewer">
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="Padding" Value="10"/>
+  </Style>
+
+  <Style Selector="StackPanel.documentContent">
+    <Setter Property="Margin" Value="0 0 10 0"/>
+  </Style>
+
+  <!-- Стили для заголовков документа -->
+  
+  <Style Selector="TextBlock.docName">
+    <Setter Property="FontSize" Value="22"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="#E6E6E6"/>
+    <Setter Property="Margin" Value="0 0 0 10"/>
+  </Style>
+  
+  <Style Selector="TextBlock.docTitle">
+    <Setter Property="FontSize" Value="17"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="#E6E6E6"/>
+    <Setter Property="Margin" Value="0 0 0 10"/>
+  </Style>
+
+  <Style Selector="TextBlock.docAuthor">
+    <Setter Property="FontStyle" Value="Italic"/>
+    <Setter Property="Foreground" Value="#AAAAAA"/>
+    <Setter Property="Margin" Value="0 0 0 15"/>
+  </Style>
+
+  <Style Selector="TextBlock.docDescription">
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="LineHeight" Value="20"/>
+  </Style>
+
+  <!-- Стили для ссылок в документе -->
+  <Style Selector="Button.docLink">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="2 0"/>
+    <Setter Property="Foreground" Value="#569CD6"/>
+    <Setter Property="Cursor" Value="Hand"/>
+  </Style>
+
+  <Style Selector="Button.docLink:pointerover">
+    <Setter Property="Foreground" Value="#9CDCFE"/>
+  </Style>
+
+  <!-- Стили для результатов поиска -->
+  <Style Selector="TextBlock.searchResultTitle">
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="#E6E6E6"/>
+    <Setter Property="Margin" Value="0 10 0 5"/>
+  </Style>
+
+  <Style Selector="TextBlock.searchResultPath">
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="FontStyle" Value="Italic"/>
+    <Setter Property="Foreground" Value="#AAAAAA"/>
+    <Setter Property="Margin" Value="10 2 0 5"/>
+  </Style>
+
+  <Style Selector="TextBlock.searchResultPreview">
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Foreground" Value="#BBBBBB"/>
+    <Setter Property="Margin" Value="10 2 0 0"/>
+  </Style>
+
+  <Style Selector="Button.searchResultButton">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="2"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+
+  <Style Selector="Button.searchResultButton:pointerover">
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <!-- Стили для списка документов в категории -->
+  <Style Selector="TextBlock.categoryTitle">
+    <Setter Property="FontSize" Value="18"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="#E6E6E6"/>
+    <Setter Property="Margin" Value="0 0 0 10"/>
+  </Style>
+
+  <Style Selector="Button.categoryDocLink">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="2"/>
+    <Setter Property="HorizontalAlignment" Value="Left"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="Margin" Value="0 2"/>
+  </Style>
+
+  <Style Selector="Button.categoryDocLink:pointerover">
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+    <Setter Property="Background" Value="#2A2D2E"/>
+  </Style>
+
+  <!-- Стили для сообщений об ошибках -->
+  <Style Selector="TextBlock.errorTitle">
+    <Setter Property="FontSize" Value="18"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="Foreground" Value="#E74C3C"/>
+    <Setter Property="Margin" Value="0 0 0 10"/>
+  </Style>
+
+  <Style Selector="TextBlock.errorMessage">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+  </Style>
+
+  <!-- Стили для GridSplitter -->
+  <Style Selector="GridSplitter">
+    <Setter Property="Background" Value="#3F3F46"/>
+    <Setter Property="Width" Value="4"/>
+    <Setter Property="MinWidth" Value="4"/>
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Stretch"/>
+  </Style>
+
+  <Style Selector="GridSplitter:pointerover">
+    <Setter Property="Background" Value="#636363"/>
+  </Style>
+
+  <Style Selector="GridSplitter:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+  </Style>
+
+  <!-- Стили для ScrollBar -->
+  <Style Selector="ScrollBar">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="#3E3E42"/>
+  </Style>
+
+  <Style Selector="ScrollBar:pointerover">
+    <Setter Property="Foreground" Value="#636363"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb:pointerover">
+    <Setter Property="Background" Value="#636363"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+  </Style>
+</Styles>

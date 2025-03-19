@@ -6,6 +6,9 @@ namespace EngineLib
     /// Атрибут для установки максимального значения для числовых типов (int, float, double и т.д.)
     /// </summary>
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
+    [Documentation(DocumentationSection = "Attribute", Name = "MaxAttribute", Description = @"
+    Атрибут для установки максимального значения для числовых типов (int, float, double и т.д.)
+", SubSection = "Inspector/Setter")]
     public class MaxAttribute : ValidationAttribute
     {
         public readonly double MaxValue;

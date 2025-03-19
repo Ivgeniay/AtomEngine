@@ -3,6 +3,9 @@
 namespace EngineLib
 {
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
+    [Documentation(DocumentationSection = "Attribute", Name = "MinAttribute", Description = @"
+    Атрибут для установки минимального значения для числовых типов (int, float, double и т.д.)
+", SubSection = "Inspector/Setter")]
     public class MinAttribute : ValidationAttribute
     {
         public readonly double MinValue;

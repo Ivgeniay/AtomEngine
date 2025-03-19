@@ -50,6 +50,7 @@ namespace Editor
             var sceneView = new SceneViewController();
             var systems = new SystemDependencyController();
             var nodeGraphController = new NodeGraphController();
+            var docController = new DocumentationController();
 
             _uIManager.RegisterController(MainControllers.Hierarchy, hierarhy);
             _uIManager.RegisterController(MainControllers.Inspector, inspector);
@@ -60,6 +61,7 @@ namespace Editor
             _uIManager.RegisterController(MainControllers.Chat, chat);
             _uIManager.RegisterController(MainControllers.Systems, systems);
             _uIManager.RegisterController(MainControllers.Graph, nodeGraphController);
+            _uIManager.RegisterController(MainControllers.Documentation, docController);
 
             _uIManager.Initialize();
 
@@ -344,7 +346,10 @@ namespace Editor
                     {
                         Text = "Documentation",
                         Description = "",
-                        Action = () => { DebLogger.Debug("Documentation"); }
+                        Action = () => {
+                            _uIManager.OpenWindow(MainControllers.Documentation);
+                            //DebLogger.Debug("Documentation"); 
+                        }
                     },
                     new EditorToolbarButton()
                     {

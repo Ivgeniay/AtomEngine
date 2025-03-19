@@ -31,6 +31,7 @@ namespace Editor
                 DebLogger.Info("Export textures");
             });
             exportTexturesBtn.Command = command;
+            exportTexturesBtn.IsEnabled = _modelMetadata.Textures.Count > 0;
 
             panel.Children.Add(exportTexturesBtn);
             yield return panel;
