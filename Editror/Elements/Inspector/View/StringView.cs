@@ -1,8 +1,8 @@
-﻿using Avalonia.Controls;
-using Avalonia.Input;
-using EngineLib;
+﻿using AtomEngine;
+using Avalonia.Controls;
 using System;
 using System.Linq;
+using Key = Avalonia.Input.Key;
 
 namespace Editor
 {

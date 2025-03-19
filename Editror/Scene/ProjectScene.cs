@@ -5,6 +5,7 @@ using System.Linq;
 using AtomEngine;
 using System;
 using EngineLib;
+using System.Reflection;
 
 namespace Editor
 {
@@ -153,38 +154,136 @@ namespace Editor
             var instanceComponent = Activator.CreateInstance(typeComponent);
 
             var fields = typeComponent.GetFields();
-            foreach (var field in fields)
-            {
-                var fieldType = field.FieldType;
-                if (fieldType == typeof(int) ||
-                    fieldType == typeof(long) ||
-                    fieldType == typeof(float) ||
-                    fieldType == typeof(Single) ||
-                    fieldType == typeof(double)) { } else { continue; }
-
-                var attributes = field.GetCustomAttributes(false);
-                var minAtributes_ = attributes.FirstOrDefault(e => e.GetType() == typeof(MinAttribute));
-                if (minAtributes_ != null && minAtributes_ is MinAttribute minValue)
-                {
-                    var value = Convert.ChangeType(minValue.MinValue, fieldType);
-                    field.SetValue(instanceComponent, value);
-                }
-            }
-
-            if (typeComponent == typeof(HierarchyComponent))
-            {
-                if (!entityData.Components.TryGetValue(typeof(TransformComponent).FullName, out var component)) { 
-                    var transform = Activator.CreateInstance(typeof(TransformComponent));
-                    entityData.Components.Add(typeof(TransformComponent).FullName, (TransformComponent)transform);
-                }
-
-            }
+            AddComponentValidation(typeComponent, entityData, instanceComponent, fields);
 
             IComponent interfacesComponent = (IComponent)instanceComponent;
             entityData.Components.Add(typeComponent.FullName, interfacesComponent);
             MakeDirty();
             return instanceComponent;
         }
+
+        private void AddComponentValidation(Type typeComponent, EntityData entityData, object? instanceComponent, FieldInfo[] fields)
+        {
+            foreach (var field in fields)
+            {
+                var fieldType = field.FieldType;
+                var attributes = field.GetCustomAttributes(false);
+
+                // Обработка числовых типов (int, long, float, double)
+                if (fieldType == typeof(int) || fieldType == typeof(long) ||
+                    fieldType == typeof(float) || fieldType == typeof(Single) ||
+                    fieldType == typeof(double))
+                {
+                    // 1. Установка значения по умолчанию из DefaultValueAttribute
+                    var defaultValueAttr = attributes.FirstOrDefault(a => a is DefaultValueAttribute);
+                    if (defaultValueAttr != null)
+                    {
+                        if (defaultValueAttr is DefaultIntAttribute intAttr &&
+                            (fieldType == typeof(int) || fieldType == typeof(long)))
+                        {
+                            var value = Convert.ChangeType(intAttr.Value, fieldType);
+                            field.SetValue(instanceComponent, value);
+                        }
+                        else if (defaultValueAttr is DefaultFloatAttribute floatAttr &&
+                                 (fieldType == typeof(float) || fieldType == typeof(Single) || fieldType == typeof(double)))
+                        {
+                            var value = Convert.ChangeType(floatAttr.Value, fieldType);
+                            field.SetValue(instanceComponent, value);
+                        }
+                    }
+
+                    // 2. Проверка и корректировка значения в соответствии с Range
+                    var rangeAttr = attributes.FirstOrDefault(a => a is RangeAttribute) as RangeAttribute;
+                    if (rangeAttr != null)
+                    {
+                        var currentValue = Convert.ToDouble(field.GetValue(instanceComponent));
+
+                        if (currentValue > rangeAttr.MaxValue)
+                        {
+                            field.SetValue(instanceComponent, Convert.ChangeType(rangeAttr.MaxValue, fieldType));
+                        }
+                        else if (currentValue < rangeAttr.MinValue)
+                        {
+                            field.SetValue(instanceComponent, Convert.ChangeType(rangeAttr.MinValue, fieldType));
+                        }
+                    }
+
+                    // 3. Проверка и корректировка значения в соответствии с Max
+                    var maxAttr = attributes.FirstOrDefault(a => a is MaxAttribute) as MaxAttribute;
+                    if (maxAttr != null)
+                    {
+                        var currentValue = Convert.ToDouble(field.GetValue(instanceComponent));
+
+                        if (currentValue > maxAttr.MaxValue)
+                        {
+                            field.SetValue(instanceComponent, Convert.ChangeType(maxAttr.MaxValue, fieldType));
+                        }
+                    }
+
+                    // 4. Проверка и корректировка значения в соответствии с Min
+                    var minAttr = attributes.FirstOrDefault(a => a is MinAttribute) as MinAttribute;
+                    if (minAttr != null)
+                    {
+                        var currentValue = Convert.ToDouble(field.GetValue(instanceComponent));
+
+                        if (currentValue < minAttr.MinValue)
+                        {
+                            field.SetValue(instanceComponent, Convert.ChangeType(minAttr.MinValue, fieldType));
+                        }
+                    }
+                }
+                // Обработка строк
+                else if (fieldType == typeof(string))
+                {
+                    var defaultStringAttr = attributes.FirstOrDefault(a => a is DefaultStringAttribute) as DefaultStringAttribute;
+                    if (defaultStringAttr != null)
+                    {
+                        field.SetValue(instanceComponent, defaultStringAttr.Value);
+                    }
+                }
+                else if (fieldType.FullName?.Contains("Vector2") == true)
+                {
+                    var defaultVec2Attr = attributes.FirstOrDefault(a => a is DefaultVector2Attribute) as DefaultVector2Attribute;
+                    if (defaultVec2Attr != null)
+                    {
+                        var vector2Instance = Activator.CreateInstance(fieldType,
+                            new object[] { defaultVec2Attr.XValue, defaultVec2Attr.YValue });
+                        field.SetValue(instanceComponent, vector2Instance);
+                    }
+                }
+                else if (fieldType.FullName?.Contains("Vector3") == true)
+                {
+                    var defaultVec3Attr = attributes.FirstOrDefault(a => a is DefaultVector3Attribute) as DefaultVector3Attribute;
+                    if (defaultVec3Attr != null)
+                    {
+                        var vector3Instance = Activator.CreateInstance(fieldType,
+                            new object[] { defaultVec3Attr.XValue, defaultVec3Attr.YValue, defaultVec3Attr.ZValue });
+                        field.SetValue(instanceComponent, vector3Instance);
+                    }
+                }
+                else if (fieldType.FullName?.Contains("Vector4") == true)
+                {
+                    var defaultVec4Attr = attributes.FirstOrDefault(a => a is DefaultVector4Attribute) as DefaultVector4Attribute;
+                    if (defaultVec4Attr != null)
+                    {
+                        var vector4Instance = Activator.CreateInstance(fieldType,
+                            new object[] { defaultVec4Attr.XValue, defaultVec4Attr.YValue,
+                                   defaultVec4Attr.ZValue, defaultVec4Attr.AValue });
+                        field.SetValue(instanceComponent, vector4Instance);
+                    }
+                }
+            }
+
+            if (typeComponent == typeof(HierarchyComponent))
+            {
+                if (!entityData.Components.TryGetValue(typeof(TransformComponent).FullName, out var component))
+                {
+                    var transform = Activator.CreateInstance(typeof(TransformComponent));
+                    entityData.Components.Add(typeof(TransformComponent).FullName, (TransformComponent)transform);
+                }
+            }
+        }
+
         internal object RemoveComponent(uint entityId, Type typeComponent)
         {
             var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);

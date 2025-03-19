@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using EngineLib;
+using System.Numerics;
 
 namespace AtomEngine
 {
@@ -9,6 +10,39 @@ namespace AtomEngine
         Kinematic   
     }
 
+    [Documentation(
+    DocumentationSection = "Core",
+    SubSection = "Components/Physics",
+    Name = "RigidbodyComponent",
+    Description = @"
+    Компонент для симуляции физического поведения сущности.
+    
+    namespace AtomEngine
+    
+    Основные свойства:
+    - Mass - масса физического тела
+    - InverseMass - обратная масса (1/mass)
+    - Inertia - инерция по трем осям
+    - InverseInertia - обратная инерция
+    - BodyType - тип физического тела (Dynamic, Static, Kinematic)
+    
+    Rigidbody автоматически рассчитывает инерцию на основе массы тела. 
+    Для динамических объектов масса должна быть больше нуля.
+    
+    Типы тел:
+    - Dynamic: полностью подвержены физике
+    - Static: неподвижны и не реагируют на столкновения
+    - Kinematic: движутся программно, но влияют на динамические тела
+    
+    Пример использования:
+    var ball = world.CreateEntity();
+    world.AddComponent<RigidbodyComponent>(ball);
+
+    ",
+    Author = "AtomEngine Team",
+    Title = "Компонент твердого тела"
+)]
+    [TooltipCategoryComponent(ComponentCategory.Physic)]
     public struct RigidbodyComponent : IComponent
     {
         public Entity Owner { get; set; }
