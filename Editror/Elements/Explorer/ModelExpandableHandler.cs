@@ -120,38 +120,28 @@ namespace Editor
         {
             try
             {
-                // Определяем анонимный тип для десериализации
                 var settings = new Newtonsoft.Json.JsonSerializerSettings
                 {
                     Error = (sender, errorArgs) => { errorArgs.ErrorContext.Handled = true; }
                 };
 
-                // Десериализуем JSON в динамический объект
                 var data = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(jsonData, settings);
 
-                // Извлекаем необходимые данные
                 string fileName = data.FileName;
                 string fileFullPath = data.FileFullPath;
                 string childName = data.ChildItem.Name;
 
-                // Получаем метаданные модели
                 var metadataManager = ServiceHub.Get<MetadataManager>();
                 var metadata = metadataManager.GetMetadata(fileFullPath) as ModelMetadata;
 
                 if (metadata != null)
                 {
-                    // Ищем соответствующий меш по имени
                     var meshData = metadata.MeshesData.FirstOrDefault(m =>
                         !string.IsNullOrEmpty(m.MeshName) && m.MeshName == childName);
 
                     if (meshData != null)
                     {
-                        // Обрабатываем перетаскивание меша
                         Status.SetStatus($"Обработка перетаскивания меша {meshData.MeshName} из модели {fileName}");
-
-                        // Дополнительная логика для обработки перетаскивания
-                        // Например, создание сущности в сцене с этим мешем
-                        // ServiceHub.Get<SceneManager>().CreateEntityWithModel(fileFullPath, meshData.MeshPath);
                     }
                 }
             }

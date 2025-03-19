@@ -41,7 +41,7 @@ namespace Editor
                     var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(e);
                     if (fileEvent != null)
                     {
-                        var metaData = ServiceHub.Get<MetadataManager>().LoadMetadata(e+".meta");
+                        var metaData = ServiceHub.Get<MetadataManager>().LoadMetadata(fileEvent.FileFullPath + ".meta");
                         descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
                         {
                             GUID = metaData.Guid,

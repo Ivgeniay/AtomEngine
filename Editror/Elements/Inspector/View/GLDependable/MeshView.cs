@@ -2,6 +2,7 @@
 using Silk.NET.Core.Native;
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 namespace Editor
@@ -31,16 +32,34 @@ namespace Editor
             SceneManager sceneManager = ServiceHub.Get<SceneManager>();
             objectField.ObjectChanged += (sender, e) =>
             {
-                if (e != null)
+                if (!string.IsNullOrEmpty(e))
                 {
                     var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(e);
                     if (fileEvent != null)
                     {
-                        var metaData = ServiceHub.Get<MetadataManager>().GetMetadata(fileEvent.FileFullPath);
-                        descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
+                        if (fileEvent.Context != null)
                         {
-                            GUID = metaData.Guid,
-                        });
+                            ExpandableFileItemChild cont = Newtonsoft.Json.JsonConvert.DeserializeObject<ExpandableFileItemChild>(fileEvent.Context.ToString());
+                            if (cont != null)
+                            {
+                                var metaData = ServiceHub.Get<MetadataManager>().GetMetadata(fileEvent.FileFullPath);
+                                if (metaData != null && metaData is ModelMetadata modelData)
+                                {
+                                    var meshData = modelData.MeshesData.First(m => m.MeshName == cont.Name);
+                                    if (meshData.Index >= 0)
+                                    {
+                                        descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
+                                        {
+                                            GUID = metaData.Guid,
+                                            Indexator = meshData.Index.ToString(),
+                                        });
+                                        return;
+                                    }
+                                }
+                            }
+
+                        }
+
                     }
                 }
                 else
@@ -52,7 +71,8 @@ namespace Editor
                     });
                 }
 
-                //if (context != null) sceneManager.ComponentChange(context.EntityId, context.Component);
+                objectField.ObjectPath = string.Empty;
+                objectField.PlaceholderText = string.Empty;
             };
             return objectField;
         }

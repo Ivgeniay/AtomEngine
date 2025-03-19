@@ -169,12 +169,10 @@ namespace Editor
                 var fieldType = field.FieldType;
                 var attributes = field.GetCustomAttributes(false);
 
-                // Обработка числовых типов (int, long, float, double)
                 if (fieldType == typeof(int) || fieldType == typeof(long) ||
                     fieldType == typeof(float) || fieldType == typeof(Single) ||
                     fieldType == typeof(double))
                 {
-                    // 1. Установка значения по умолчанию из DefaultValueAttribute
                     var defaultValueAttr = attributes.FirstOrDefault(a => a is DefaultValueAttribute);
                     if (defaultValueAttr != null)
                     {
@@ -192,7 +190,6 @@ namespace Editor
                         }
                     }
 
-                    // 2. Проверка и корректировка значения в соответствии с Range
                     var rangeAttr = attributes.FirstOrDefault(a => a is RangeAttribute) as RangeAttribute;
                     if (rangeAttr != null)
                     {
@@ -208,7 +205,6 @@ namespace Editor
                         }
                     }
 
-                    // 3. Проверка и корректировка значения в соответствии с Max
                     var maxAttr = attributes.FirstOrDefault(a => a is MaxAttribute) as MaxAttribute;
                     if (maxAttr != null)
                     {
@@ -220,7 +216,6 @@ namespace Editor
                         }
                     }
 
-                    // 4. Проверка и корректировка значения в соответствии с Min
                     var minAttr = attributes.FirstOrDefault(a => a is MinAttribute) as MinAttribute;
                     if (minAttr != null)
                     {
@@ -232,7 +227,6 @@ namespace Editor
                         }
                     }
                 }
-                // Обработка строк
                 else if (fieldType == typeof(string))
                 {
                     var defaultStringAttr = attributes.FirstOrDefault(a => a is DefaultStringAttribute) as DefaultStringAttribute;
@@ -278,8 +272,7 @@ namespace Editor
             {
                 if (!entityData.Components.TryGetValue(typeof(TransformComponent).FullName, out var component))
                 {
-                    var transform = Activator.CreateInstance(typeof(TransformComponent));
-                    entityData.Components.Add(typeof(TransformComponent).FullName, (TransformComponent)transform);
+                    AddComponent(entityData.Id, typeof(TransformComponent));
                 }
             }
         }

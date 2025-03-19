@@ -314,7 +314,6 @@ namespace Editor
 
                 try
                 {
-                    // Создаем копию дочернего элемента без функций для сериализации
                     var childItemForSerialization = new
                     {
                         ParentFilePath = _draggedChildItem.ParentFilePath,
@@ -323,7 +322,6 @@ namespace Editor
                         Level = _draggedChildItem.Level,
                         IsExpanded = _draggedChildItem.IsExpanded,
                         DisplayName = _draggedChildItem.DisplayName
-                        // Не включаем GetDisplayName и Children для предотвращения циклических ссылок
                     };
 
                     var eventForSerialization = new
@@ -332,10 +330,9 @@ namespace Editor
                         FileName = dragEvent.FileName,
                         FileExtension = dragEvent.FileExtension,
                         FileFullPath = dragEvent.FileFullPath,
-                        ChildItem = childItemForSerialization
+                        Context = childItemForSerialization
                     };
 
-                    // Создаем настройки сериализации для Newtonsoft.Json
                     var settings = new Newtonsoft.Json.JsonSerializerSettings
                     {
                         ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore,
@@ -344,24 +341,16 @@ namespace Editor
                             errorArgs.ErrorContext.Handled = true;
                         }
                     };
-
-                    // Сериализуем данные для перетаскивания
                     var jsonData = Newtonsoft.Json.JsonConvert.SerializeObject(eventForSerialization, settings);
 
-                    // Создаем объект данных для перетаскивания
                     var dataObject = new DataObject();
                     dataObject.Set(DataFormats.Text, jsonData);
 
-                    // Начинаем операцию перетаскивания
                     DragDrop.DoDragDrop(e, dataObject, DragDropEffects.Copy);
-                    //{"FilePath":"D:\\Programming\\CS\\AtomEngine\\Editror\\bin\\Debug\\net9.0\\Assets\\Models","FileName":"Can.obj","FileExtension":".obj","FileFullPath":"D:\\Programming\\CS\\AtomEngine\\Editror\\bin\\Debug\\net9.0\\Assets\\Models\\Can.obj","ChildItem":{"ParentFilePath":"D:\\Programming\\CS\\AtomEngine\\Editror\\bin\\Debug\\net9.0\\Assets\\Models\\Can.obj","Name":"Can.obj","Data":{"Matrix":{"M11":1.0,"M12":0.0,"M13":0.0,"M14":0.0,"M21":0.0,"M22":1.0,"M23":0.0,"M24":0.0,"M31":0.0,"M32":0.0,"M33":1.0,"M34":0.0,"M41":0.0,"M42":0.0,"M43":0.0,"M44":1.0,"IsIdentity":true,"Translation":{"X":0.0,"Y":0.0,"Z":0.0}},"MeshName":"Can.obj","MeshPath":"Can.obj","Index":-1},"Level":0,"IsExpanded":false,"DisplayName":"Can.obj"}}
-
-                    // Уведомляем обработчик о перетаскивании
                     handler.RaiseChildItemDragged(_draggedChildItem, dragEvent);
                 }
                 catch (Exception ex)
                 {
-                    // Обрабатываем исключение при сериализации
                     Status.SetStatus($"Ошибка при перетаскивании: {ex.Message}");
                 }
             }
