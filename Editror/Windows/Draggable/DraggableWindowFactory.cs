@@ -109,7 +109,7 @@ namespace Editor
 
             var textButton = new Button
             {
-                Content = "x",
+                Content = "",
                 Classes = { "buttonText" }
             };
 

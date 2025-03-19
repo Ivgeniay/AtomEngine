@@ -12,16 +12,14 @@ namespace AtomEngine
     Name = "HideInInspectorAttribute",
     SubSection = "Attribute/Inspector/Visible",
     Description = @"
-    Скрывает поле в инспекторе.
-    
+    Hides the field in the inspector.
+
     namespace AtomEngine
     HideInInspectorAttribute()
-    
-    Этот атрибут используется для исключения отдельных полей из отображения 
-    в инспекторе. Это полезно для служебных полей, которые не должны изменяться 
-    пользователем напрямую, но при этом должны оставаться частью компонента.
-    
-    Примеры использования:
+
+    This attribute is used to exclude individual fields from being displayed in the inspector. This is useful for utility fields that should not be changed by the user directly, but should still be part of the component.
+
+    Usage examples:
     public struct PlayerComponent : IComponent
     {
         public string Name;

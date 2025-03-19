@@ -100,19 +100,19 @@ namespace AtomEngine
     Name = "DefaultStringAttribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Устанавливает значение по умолчанию для полей типа string.
-    
+    Sets the default value for string fields.
+
     namespace AtomEngine
     DefaultStringAttribute(string value)
-    
-    Этот атрибут используется для задания начального значения строковых полей.
-    При создании компонента с таким атрибутом, соответствующее поле будет 
-    автоматически инициализировано указанным значением.
-    
-    Параметры:
-    - value: Строковое значение по умолчанию
-    
-    Примеры использования:
+
+    This attribute is used to set the initial value of string fields.
+    When creating a component with this attribute, the corresponding field will be
+    automatically initialized with the specified value.
+
+    Parameters:
+    - value: Default string value
+
+    Usage examples:
     public struct NameTagComponent : IComponent
     {
         [DefaultString(""Player"")]
@@ -136,20 +136,20 @@ namespace AtomEngine
     Name = "DefaultVector2Attribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Устанавливает значение по умолчанию для полей типа Vector2.
-    
+    Sets the default value for Vector2 fields.
+
     namespace AtomEngine
     DefaultVector2Attribute(float x, float y)
-    
-    Этот атрибут используется для задания начальных значений для двумерных векторов.
-    При создании компонента с таким атрибутом, соответствующее поле будет 
-    автоматически инициализировано указанными значениями координат.
-    
-    Параметры:
-    - x: Значение координаты X по умолчанию
-    - y: Значение координаты Y по умолчанию
-    
-    Примеры использования:
+
+    This attribute is used to set initial values ​​for two-dimensional vectors.
+    When creating a component with this attribute, the corresponding field will be
+    automatically initialized with the specified coordinate values.
+
+    Parameters:
+    - x: Default X coordinate value
+    - y: Default Y coordinate value
+
+    Usage examples:
     public struct SizeComponent : IComponent
     {
         [DefaultVector2(100.0f, 50.0f)]
@@ -175,21 +175,21 @@ namespace AtomEngine
     Name = "DefaultVector3Attribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Устанавливает значение по умолчанию для полей типа Vector3.
-    
+    Sets the default value for Vector3 fields.
+
     namespace AtomEngine
     DefaultVector3Attribute(float x, float y, float z)
-    
-    Этот атрибут используется для задания начальных значений для трехмерных векторов.
-    При создании компонента с таким атрибутом, соответствующее поле будет 
-    автоматически инициализировано указанными значениями координат.
-    
-    Параметры:
-    - x: Значение координаты X по умолчанию
-    - y: Значение координаты Y по умолчанию
-    - z: Значение координаты Z по умолчанию
-    
-    Примеры использования:
+
+    This attribute is used to set initial values ​​for three-dimensional vectors.
+    When creating a component with this attribute, the corresponding field will be
+    automatically initialized with the specified coordinate values.
+
+    Parameters:
+    - x: Default X coordinate value
+    - y: Default Y coordinate value
+    - z: Default Z coordinate value
+
+    Usage examples:
     public struct PositionComponent : IComponent
     {
         [DefaultVector3(0.0f, 1.0f, 0.0f)]
@@ -217,22 +217,22 @@ namespace AtomEngine
     Name = "DefaultVector4Attribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Устанавливает значение по умолчанию для полей типа Vector4.
-    
+    Sets the default value for Vector4 fields.
+
     namespace AtomEngine
     DefaultVector4Attribute(float x, float y, float z, float a)
-    
-    Этот атрибут используется для задания начальных значений для четырехмерных векторов.
-    При создании компонента с таким атрибутом, соответствующее поле будет 
-    автоматически инициализировано указанными значениями координат.
-    
-    Параметры:
-    - x: Значение координаты X по умолчанию
-    - y: Значение координаты Y по умолчанию
-    - z: Значение координаты Z по умолчанию
-    - a: Значение координаты A по умолчанию (часто используется как альфа-компонент)
-    
-    Примеры использования:
+
+    This attribute is used to set initial values ​​for four-dimensional vectors.
+    When creating a component with this attribute, the corresponding field will be
+    automatically initialized with the specified coordinate values.
+
+    Parameters:
+    - x: Default X coordinate value
+    - y: Default Y coordinate value
+    - z: Default Z coordinate value
+    - a: Default A coordinate value (often used as an alpha component)
+
+    Usage examples:
     public struct ColorComponent : IComponent
     {
         [DefaultVector4(1.0f, 1.0f, 1.0f, 1.0f)]

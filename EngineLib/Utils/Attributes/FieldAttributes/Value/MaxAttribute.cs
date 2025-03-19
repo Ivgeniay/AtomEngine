@@ -12,24 +12,24 @@ namespace AtomEngine
     Name = "MaxAttribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Устанавливает максимально допустимое значение для числовых полей.
-    
+    Sets the maximum allowed value for numeric fields.
+
     namespace AtomEngine
     MaxAttribute(int maxValue)
     MaxAttribute(double maxValue)
-    
-    Этот атрибут осуществляет проверку значения числового поля или свойства
-    и гарантирует, что оно не превышает заданного максимального значения.
-    Может использоваться с любыми числовыми типами (int, float, double и т.д.),
-    которые можно преобразовать в double.
-    
-    Параметры:
-    - maxValue: Максимально допустимое значение для поля или свойства
-    
-    При валидации, если значение превышает указанный максимум, генерируется
-    сообщение об ошибке: ""Значение {имя_поля} должно быть не больше {максимум}""
-    
-    Примеры использования:
+
+    This attribute validates the value of a numeric field or property
+    and ensures that it does not exceed the specified maximum value.
+
+    Can be used with any numeric type (int, float, double, etc.)
+    that can be converted to double.
+
+    Parameters:
+    - maxValue: The maximum allowed value for the field or property
+
+    During validation, if the value exceeds the specified maximum, an error message is generated: ""The value of {field_name} must be less than or equal to {maximum}""
+
+    Usage examples:
     public struct StatsComponent : IComponent
     {
         [Max(100)]

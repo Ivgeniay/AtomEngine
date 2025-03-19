@@ -7,22 +7,21 @@ namespace AtomEngine
     SubSection = "Components/Physics",
     Name = "StaticComponent",
     Description = @"
-    Компонент, обозначающий сущность как статичную.
-    
+    Component that marks an entity as static.
+
     namespace AtomEngine
-    
-    Статичные сущности не подвержены физическим взаимодействиям и не перемещаются 
-    в результате столкновений. Они используются для создания неподвижных объектов 
-    сцены, таких как земля, стены и другие элементы окружения.
-    
-    Пример использования:
+
+    Static entities are not subject to physical interactions and do not move
+    as a result of collisions. They are used to create stationary objects in the scene, such as the ground, walls, and other elements of the environment.
+
+    Example of use:
     var wall = world.CreateEntity();
     world.AddComponent<StaticComponent>(wall);
 
 
     ",
     Author = "AtomEngine Team",
-    Title = "Компонент статичного объекта"
+    Title = "Static object component"
 )]
     [TooltipCategoryComponent(ComponentCategory.Physic)]
     public struct StaticComponent : IComponent

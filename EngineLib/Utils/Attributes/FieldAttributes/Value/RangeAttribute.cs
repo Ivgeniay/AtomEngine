@@ -12,25 +12,23 @@ namespace AtomEngine
     Name = "RangeAttribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Устанавливает допустимый диапазон значений для числовых полей.
-    
+    Sets the allowed range of values ​​for numeric fields.
+
     namespace AtomEngine
     RangeAttribute(float minValue, float maxValue)
     RangeAttribute(int minValue, int maxValue)
-    
-    Этот атрибут осуществляет проверку значения числового поля или свойства
-    и гарантирует, что оно находится в заданном диапазоне между минимальным и
-    максимальным значением включительно. Может использоваться с любыми числовыми
-    типами (int, float, double и т.д.), которые можно преобразовать в double.
-    
-    Параметры:
-    - minValue: Минимально допустимое значение для поля или свойства
-    - maxValue: Максимально допустимое значение для поля или свойства
-    
-    При валидации, если значение выходит за указанный диапазон, генерируется
-    сообщение об ошибке: ""Значение {имя_поля} должно быть между {минимум} и {максимум}""
-    
-    Примеры использования:
+
+    This attribute validates the value of a numeric field or property and ensures that it is in the specified range between the minimum and
+    maximum values, inclusive. It can be used with any numeric
+    type (int, float, double, etc.) that can be converted to double.
+
+    Parameters:
+    - minValue: The minimum allowed value for the field or property
+    - maxValue: The maximum allowed value for the field or property
+
+    During validation, if the value is outside the specified range, an error message is generated: ""The value of {field_name} must be between {minimum} and {maximum}""
+
+    Usage examples:
     public struct ColorComponent : IComponent
     {
         [Range(0, 255)]

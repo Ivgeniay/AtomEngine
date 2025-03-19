@@ -11,16 +11,18 @@ namespace AtomEngine
     Name = "ShowInInspectorAttribute",
     SubSection = "Attribute/Inspector/Visible",
     Description = @"
-    Отображает приватное поле в инспекторе.
-    
+    Shows a private field in the inspector.
+
     namespace AtomEngine
     ShowInInspectorAttribute()
-    
-    По умолчанию приватные поля не отображаются в инспекторе. Этот атрибут 
-    позволяет сделать приватные поля видимыми и редактируемыми в инспекторе, 
-    сохраняя при этом их инкапсуляцию в коде.
-    
-    Примеры использования:
+
+    By default, private fields are not shown in the inspector. This attribute
+
+    allows you to make private fields visible and editable in the inspector,
+
+    while keeping them encapsulated in code.
+
+    Usage examples:
     public struct ConfigComponent : IComponent
     {
         public string ConfigName;

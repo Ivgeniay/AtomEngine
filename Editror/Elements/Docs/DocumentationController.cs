@@ -27,6 +27,8 @@ namespace Editor
         private TextBox _searchBox;
         private StackPanel _breadcrumbsPanel;
 
+        private HtmlDocumentationGenerator _htmlGenerator;
+
         public Action<object> OnClose { get; set; }
 
         public DocumentationController()
@@ -42,27 +44,48 @@ namespace Editor
             VerticalAlignment = VerticalAlignment.Stretch;
             Height = double.NaN;
 
-            RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Поиск
-            RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Контент
+            RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); 
 
-            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Дерево категорий
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Разделитель
-            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) }); // Документация
+            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); 
+            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
 
-            // Панель поиска
             var searchPanel = new Grid
             {
-                Margin = new Thickness(10, 5)
+                Margin = new Thickness(10, 5),
             };
+            searchPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
+            searchPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            searchPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             _searchBox = new TextBox
             {
-                Watermark = "Поиск в документации...",
-                Margin = new Thickness(0, 0, 0, 5),
+                Watermark = "Search...",
+                Margin = new Thickness(0, 0, 0, 0),
+                Height = 38,
             };
+            Grid.SetRow(_searchBox, 0);
+            Grid.SetColumn(_searchBox, 0);
 
             _searchBox.TextChanged += OnSearchTextChanged;
             searchPanel.Children.Add(_searchBox);
+
+            var exportButton = new Button
+            {
+                Content = "📤",
+                Width = 38,
+                Height = 38,
+                Margin = new Thickness(0, 0, 0, 0),
+                Padding = new Thickness(0, 0, 0, 0),
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center
+            };
+
+            exportButton.Click += OnExportButtonClick;
+            Grid.SetRow(exportButton, 0);
+            Grid.SetColumn(exportButton, 1);
+            searchPanel.Children.Add(exportButton);
 
             Grid.SetRow(searchPanel, 0);
             Grid.SetColumnSpan(searchPanel, 3);
@@ -141,6 +164,8 @@ namespace Editor
             Grid.SetRow(contentPanel, 1);
             Grid.SetColumnSpan(contentPanel, 3);
             Children.Add(contentPanel);
+
+            _htmlGenerator = new HtmlDocumentationGenerator();
         }
 
         private void LoadDocumentation()
@@ -191,6 +216,39 @@ namespace Editor
             catch (Exception ex)
             {
                 ShowErrorMessage($"Ошибка загрузки документации через рефлексию: {ex.Message}");
+            }
+        }
+
+        private async void OnExportButtonClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            try
+            {
+                var saveDialog = new SaveFileDialog
+                {
+                    Title = "Сохранить документацию как HTML",
+                    DefaultExtension = "html",
+                    Filters = new List<FileDialogFilter>
+            {
+                new FileDialogFilter
+                {
+                    Name = "HTML файлы",
+                    Extensions = new List<string> { "html", "htm" }
+                }
+            }
+                };
+
+                var result = await saveDialog.ShowAsync(this.VisualRoot as Window);
+
+                if (!string.IsNullOrEmpty(result))
+                {
+                    var html = _htmlGenerator.GenerateDocumentation(_documentLookup.Values.ToList(), _rootNode);
+                    await System.IO.File.WriteAllTextAsync(result, html);
+                    Status.SetStatus($"Документация экспортирована в {result}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Status.SetStatus($"Ошибка при экспорте документации: {ex.Message}");
             }
         }
 
@@ -504,7 +562,7 @@ namespace Editor
         }
 
 
-        private void OnSearchTextChanged(object sender, EventArgs e)
+        private void OnSearchTextChanged(object? sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(_searchBox.Text))
             {
@@ -643,25 +701,5 @@ namespace Editor
         public void Redraw()
         {
         }
-    }
-
-    public class DocumentInfo
-    {
-        public string Name { get; set; }
-        public string Title { get; set; }
-        public string Description { get; set; }
-        public string Author { get; set; }
-        public string Section { get; set; }
-        public string SubSection { get; set; }
-        public Type RelatedType { get; set; }
-    }
-
-    public class DocumentTreeNode
-    {
-        public string Name { get; set; }
-        public string DisplayName { get; set; }
-        public bool IsCategory { get; set; }
-        public DocumentInfo Document { get; set; }
-        public List<DocumentTreeNode> Children { get; } = new List<DocumentTreeNode>();
     }
 }

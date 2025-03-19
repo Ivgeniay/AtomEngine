@@ -8,34 +8,34 @@ namespace AtomEngine
     SubSection = "Components/Transform",
     Name = "TransformComponent",
     Description = @"
-    Компонент трансформации, отвечающий за положение, поворот и масштаб сущности в 3D пространстве.
-    
-    namespace AtomEngine
-    
-    Основные свойства:
-    - Position - позиция в мировом пространстве (Vector3)
-    - Rotation - поворот в градусах (Vector3)
-    - Scale - масштаб по трем осям (Vector3, по умолчанию 1,1,1)
-    
-    Методы:
-    - GetTranslationMatrix() - возвращает матрицу перемещения
-    - GetRotationMatrix() - возвращает матрицу поворота
-    - GetScaleMatrix() - возвращает матрицу масштабирования
-    - GetModelMatrix(Matrix4x4? parentWorldMatrix = null) - возвращает итоговую модельную матрицу
-    
-    Особенности:
-    - Использует кэширование матриц для оптимизации производительности
-    - Отслеживает изменения через флаги IsDirty
-    - Поддерживает иерархическое преобразование через parentWorldMatrix
+    Transformation component responsible for the position, rotation and scale of an entity in 3D space.
 
-    Пример использования:
+    namespace AtomEngine
+
+    Main properties:
+    - Position - position in world space (Vector3)
+    - Rotation - rotation in degrees (Vector3)
+    - Scale - scale along three axes (Vector3, default 1,1,1)
+
+    Methods:
+    - GetTranslationMatrix() - returns translation matrix
+    - GetRotationMatrix() - returns rotation matrix
+    - GetScaleMatrix() - returns scaling matrix
+    - GetModelMatrix(Matrix4x4? parentWorldMatrix = null) - returns final model matrix
+
+    Features:
+    - Uses matrix caching to optimize performance
+    - Tracks changes via IsDirty flags
+    - Supports hierarchical transformation via parentWorldMatrix
+
+    Usage example:
     var entity = world.CreateEntity();
     world.AddComponent<TransformComponent>(entity);
 
 
     ",
     Author = "AtomEngine Team",
-    Title = "Компонент трансформации"
+    Title = "Transformation component"
 )]
     public struct TransformComponent : IComponent
     {

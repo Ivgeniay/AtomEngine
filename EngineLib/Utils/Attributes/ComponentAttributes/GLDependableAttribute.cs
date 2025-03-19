@@ -7,32 +7,31 @@ namespace AtomEngine
     Name = "GLDependableAttribute",
     SubSection = "Attribute/Rendering",
     Description = @"
-    Указывает, что компонент использует GL-зависимые поля и требует генерации служебного кода.
-    
+    Indicates that the component uses GL-dependent fields and requires the generation of service code.
+
     namespace AtomEngine
     GLDependableAttribute()
-    
-    Данный атрибут применяется к публичным partial-компонентам, реализующим интерфейс IComponent,
-    чтобы указать генератору кода на необходимость создания дополнительных служебных полей для
-    правильного рендеринга в графическом контексте.
-    
-    Важно:
-    - Компонент должен быть объявлен как partial
-    - Компонент должен реализовывать интерфейс IComponent
-    - Компонент должен быть публичным
-    
-    Примеры использования:
+
+    This attribute is applied to public partial components implementing the IComponent interface
+    to indicate to the code generator the need to create additional service fields for
+    correct rendering in the graphics context.
+
+    Important:
+    - The component must be declared as partial
+    - The component must implement the IComponent interface
+    - The component must be public
+
+    Examples of use:
     [GLDependable]
     public partial struct RenderComponent : IComponent
     {
-        public Vector3 Position;
-        public Vector4 Color;
-        
-        // Генератор кода автоматически добавит необходимые GL-зависимые поля
-        // и методы в дополнительный partial-класс
+        public Shader Shader;
+        public Mesh Mesh;
+        public Texture Texture;
     }
     ",
-    Author = "AtomEngine Team")]
+    Author = "AtomEngine Team",
+    Title = "GL")]
     [AttributeUsage(AttributeTargets.Struct, AllowMultiple = false)]
     public class GLDependableAttribute : Attribute
     {

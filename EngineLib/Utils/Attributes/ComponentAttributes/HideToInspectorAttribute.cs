@@ -17,10 +17,9 @@
 
     Usage examples:
     [HideToInspector]
-    public struct SystemComponent : IComponent
-    {
-        // Содержимое компонента
-    }
+    public struct HiddenComponent : IComponent {}
+
+
     ",
         Author = "AtomEngine Team"
     )]

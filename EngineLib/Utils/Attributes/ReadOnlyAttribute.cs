@@ -9,18 +9,16 @@ namespace AtomEngine
     Title = "Атрибут только для чтения",
     SubSection = "Attribute/Inspector",
     Description = @"
-    Делает поле или компонент доступным только для чтения в инспекторе.
-    
+    Makes a field or component read-only in the inspector.
+
     namespace AtomEngine
     ReadOnlyAttribute()
-    
-    При применении этого атрибута к полю или структуре, они будут отображаться 
-    в инспекторе, но пользователь не сможет изменить их значения. Это полезно 
-    для отображения информации, которая не должна быть изменена через интерфейс.
-    
-    Атрибут может применяться как к отдельным полям, так и к целым компонентам.
-    
-    Примеры использования:
+
+    When this attribute is applied to a field or structure, it will be displayed in the inspector, but the user will not be able to change its value. This is useful for displaying information that should not be changed through the interface.
+
+    The attribute can be applied to individual fields or entire components.
+
+    Usage examples:
     public struct StatsComponent : IComponent
     {
         public string PlayerName;

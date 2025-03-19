@@ -8,34 +8,34 @@ namespace AtomEngine
     SubSection = "Components/Rendering",
     Name = "CameraComponent",
     Description = @"
-    Компонент камеры для просмотра и отображения сцены.
-    
+    Camera component for viewing and displaying the scene.
+
     namespace AtomEngine
-    
-    Основные свойства:
-    - FieldOfView - угол обзора в градусах (мин. 0.1)
-    - AspectRatio - соотношение сторон (ширина/высота) (мин. 0.1)
-    - NearPlane - ближняя плоскость отсечения (мин. 0.001)
-    - FarPlane - дальняя плоскость отсечения (мин. 0.01)
-    - ViewMatrix - текущая матрица вида
-    - CameraUp - вектор, указывающий вверх для камеры (по умолчанию (0,1,0))
-    - CameraFront - вектор направления камеры (по умолчанию (0,0,1))
-    
-    Методы:
-    - CreateProjectionMatrix() - создает матрицу проекции для камеры
-    
-    Пример использования:
+
+    Main properties:
+    - FieldOfView - field of view in degrees (min. 0.1)
+    - AspectRatio - aspect ratio (width/height) (min. 0.1)
+    - NearPlane - near clipping plane (min. 0.001)
+    - FarPlane - far clipping plane (min. 0.01)
+    - ViewMatrix - current view matrix
+    - CameraUp - camera up vector (default (0,1,0))
+    - CameraFront - camera front vector (default (0,0,1))
+
+    Methods:
+    - CreateProjectionMatrix() - creates a projection matrix for the camera
+
+    Usage example:
     var cameraEntity = world.CreateEntity();
     var camera = world.AddComponent<CameraComponent>(cameraEntity);
     var transform = cameraEntity.GetComponent<TransformComponent>();
     transform.Position = new Vector3(0, 5, -10);
-    
-    // Получение матриц для рендеринга
+
+    // Getting matrices for rendering
     var viewMatrix = camera.ViewMatrix;
     var projectionMatrix = camera.CreateProjectionMatrix();
     ",
     Author = "AtomEngine Team",
-    Title = "Компонент камеры"
+    Title = "Camera Component"
 )]
     [TooltipCategoryComponent(ComponentCategory.Render)]
     public struct CameraComponent : IComponent

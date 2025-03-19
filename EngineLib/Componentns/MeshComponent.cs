@@ -9,19 +9,19 @@ namespace AtomEngine
     SubSection = "Components/Rendering",
     Name = "MeshComponent",
     Description = @"
-    Компонент для привязки и отображения 3D-моделей.
-    
+    Component for binding and displaying 3D models.
+
     namespace AtomEngine
-    
-    Основные свойства:
-    - Mesh - ссылка на базовый класс 3D-модели
-    
-    Используется для привязки 3D-моделей к сущностям для их отображения в сцене.
-    Работает в сочетании с TransformComponent для определения положения и ориентации модели.
+
+    Main properties:
+    - Mesh - reference to the base class of the 3D model
+
+    Used to bind 3D models to entities for displaying them in the scene.
+    Works in combination with TransformComponent to determine the position and orientation of the model.
 
     ",
     Author = "AtomEngine Team",
-    Title = "Компонент 3D-модели"
+    Title = "3D Model Component"
 )]
     [TooltipCategoryComponent(ComponentCategory.Render)]
     [GLDependable]

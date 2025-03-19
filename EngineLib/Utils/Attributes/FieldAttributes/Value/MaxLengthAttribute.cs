@@ -12,22 +12,21 @@ namespace AtomEngine
     Name = "MaxLengthAttribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Устанавливает максимально допустимую длину для строковых полей.
-    
+    Sets the maximum allowed length for string fields.
+
     namespace AtomEngine
     MaxLengthAttribute(int maxLength)
-    
-    Этот атрибут осуществляет проверку длины строкового поля или свойства
-    и гарантирует, что она не превышает заданного максимального значения.
-    Применяется только к полям типа string.
-    
-    Параметры:
-    - maxLength: Максимально допустимая длина строки в символах
-    
-    При валидации, если длина строки превышает указанный максимум, генерируется
-    сообщение об ошибке: ""Длина строки {имя_поля} не должна превышать {максимум} символов""
-    
-    Примеры использования:
+
+    This attribute validates the length of a string field or property
+    and ensures that it does not exceed the specified maximum value.
+    Applies only to string fields.
+
+    Parameters:
+    - maxLength: The maximum allowed string length in characters
+
+    During validation, if the string length exceeds the specified maximum, an error message is generated: ""The length of the {field_name} string must not exceed {maximum} characters""
+
+    Usage examples:
     public struct NameComponent : IComponent
     {
         [MaxLength(50)]

@@ -9,24 +9,24 @@ namespace AtomEngine
     Name = "MinAttribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Устанавливает минимально допустимое значение для числовых полей.
-    
+    Sets the minimum allowed value for numeric fields.
+
     namespace AtomEngine
     MinAttribute(int minValue)
     MinAttribute(double minValue)
-    
-    Этот атрибут осуществляет проверку значения числового поля или свойства
-    и гарантирует, что оно не меньше заданного минимального значения.
-    Может использоваться с любыми числовыми типами (int, float, double и т.д.),
-    которые можно преобразовать в double.
-    
-    Параметры:
-    - minValue: Минимально допустимое значение для поля или свойства
-    
-    При валидации, если значение меньше указанного минимума, генерируется
-    сообщение об ошибке: ""Значение {имя_поля} должно быть не меньше {минимум}""
-    
-    Примеры использования:
+
+    This attribute validates the value of a numeric field or property
+    and ensures that it is not less than the specified minimum value.
+
+    Can be used with any numeric type (int, float, double, etc.)
+    that can be converted to double.
+
+    Parameters:
+    - minValue: The minimum allowed value for the field or property
+
+    During validation, if the value is less than the specified minimum, an error message is generated: ""The value of {field_name} must be at least {minimum}""
+
+    Usage examples:
     public struct PowerComponent : IComponent
     {
         [Min(0)]
