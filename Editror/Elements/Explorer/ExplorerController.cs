@@ -16,6 +16,8 @@ using Avalonia;
 using System;
 using MouseButton = Avalonia.Input.MouseButton;
 using Key = Avalonia.Input.Key;
+using Avalonia.Controls.Templates;
+using Avalonia.Controls.Primitives;
 
 
 namespace Editor
@@ -43,6 +45,16 @@ namespace Editor
         private ContextMenu _explorerContextMenu;
         private ContextMenu _fileContextMenu;
 
+        private readonly ExpandableFileManager _expandableFileManager;
+        private readonly ExplorerExpandableFileView _expandableFileView;
+        public string CurrentPath
+        {
+            get
+            {
+                return _currentPath ?? _rootPath ?? string.Empty;
+            }
+        }
+
         private FileSystemWatcher fileSystem;
         private SceneManager _sceneManager;
 
@@ -67,8 +79,13 @@ namespace Editor
             _fileItems = new ObservableCollection<string>();
             _expandedPaths = new HashSet<string>();
 
+            _customContextMenus = new List<DescriptionCustomContextMenu>();
             _explorerContextMenu = CreateDirectoryContextMenu();
             _fileContextMenu = CreateDefaultFileContextMenu();
+
+            // Инициализация менеджера раскрываемых файлов
+            _expandableFileManager = new ExpandableFileManager();
+            _expandableFileManager.StateChanged += OnExpandableFilesStateChanged;
 
             RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
@@ -172,7 +189,6 @@ namespace Editor
                 Margin = new Avalonia.Thickness(5),
                 ItemsSource = _fileItems
             };
-            
 
             _fileList.SelectionChanged += OnFileListSelectionChanged;
 
@@ -205,15 +221,27 @@ namespace Editor
             Children.Add(_overlayCanvas);
 
             InitializeDragAndDrop();
-            //EnableTreeViewDragDrop();
+            RefreshView();
+            _expandableFileView = new ExplorerExpandableFileView(this, _expandableFileManager, _fileList);
+            t = new ModelExpandableHandler(_expandableFileManager);
+        }
+        ModelExpandableHandler t;
 
+        private void OnExpandableFilesStateChanged()
+        {
             RefreshView();
         }
+
 
         public void RegisterCustomContextMenu(DescriptionCustomContextMenu description)
         {
             if (!_customContextMenus.Contains(description))
                 _customContextMenus.Add(description);
+        }
+
+        public void RegisterExpandableFileHandler(ExpandableFileItem handler)
+        {
+            _expandableFileManager.RegisterHandler(handler);
         }
 
         private void RefreshView()
@@ -296,7 +324,7 @@ namespace Editor
                                        .Select(Path.GetFileName)
                                        .Where(e =>
                                        {
-                                           foreach(var ext in configs.ExcludeExtension)
+                                           foreach (var ext in configs.ExcludeExtension)
                                            {
                                                var r = e.EndsWith(ext);
                                                if (r) return false;
@@ -307,6 +335,14 @@ namespace Editor
                     foreach (var file in files)
                     {
                         _fileItems.Add(file);
+                        string fullPath = Path.Combine(_currentPath, file);
+                        if (_expandableFileManager.IsFileExpanded(fullPath))
+                        {
+                            foreach (var childMarker in _expandableFileView.GetChildItemMarkers(fullPath))
+                            {
+                                _fileItems.Add(childMarker);
+                            }
+                        }
                     }
                 }
                 else
@@ -324,6 +360,41 @@ namespace Editor
             }
         }
 
+        private ExpandableFileItemChild FindChildItem(List<ExpandableFileItemChild> items, string name, int level)
+        {
+            foreach (var item in items)
+            {
+                if (item.Name == name && item.Level == level)
+                    return item;
+
+                if (item.Children.Count > 0)
+                {
+                    var found = FindChildItem(item.Children, name, level);
+                    if (found != null)
+                        return found;
+                }
+            }
+            return null;
+        }
+
+
+
+        private void AddChildItemToList(ExpandableFileItemChild item)
+        {
+            // Добавляем специальный маркер для дочернего элемента
+            // Формат: "__CHILD__[IndentLevel]__[ParentFile]__[ChildName]"
+            string childMarker = $"__CHILD__{item.Level}__{Path.GetFileName(item.ParentFilePath)}__{item.Name}";
+            _fileItems.Add(childMarker);
+
+            if (item.IsExpanded && item.Children.Count > 0)
+            {
+                foreach (var child in item.Children)
+                {
+                    AddChildItemToList(child);
+                }
+            }
+        }
+
         private void OnBackButtonClick(object? sender, RoutedEventArgs e)
         {
             if (_currentPath == _rootPath) return;
@@ -336,6 +407,9 @@ namespace Editor
                 DirectorySelected?.Invoke(_currentPath);
             }
         }
+
+
+
 
         private void OnTreeViewSelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
@@ -357,6 +431,7 @@ namespace Editor
             if (e.AddedItems?.Count > 0 && e.AddedItems[0] is string fileName)
             {
                 _selectedFile = fileName;
+
             }
         }
 
@@ -590,6 +665,46 @@ namespace Editor
             var point = e.GetPosition(_fileList);
             var item = _fileList.SelectedItem as string;
             if (item == null) return;
+
+            // Проверяем, является ли элемент дочерним
+            if (_expandableFileView.IsChildItemMarker(item, out var childInfo))
+            {
+                var childItem = _expandableFileManager.FindChildItem(childInfo.parentPath, childInfo.name, childInfo.level);
+                if (childItem != null)
+                {
+                    if (e.InitialPressMouseButton == MouseButton.Right)
+                    {
+                        // Создаем контекстное меню для дочернего элемента
+                        var contextMenu = new ContextMenu
+                        {
+                            Classes = { "explorerMenu" },
+                            Placement = PlacementMode.Pointer,
+                            Items =
+                    {
+                        new MenuItem
+                        {
+                            Header = $"Выбрать {childItem.Name}",
+                            Classes = { "explorerMenuItem" },
+                            Command = new Command(() =>
+                            {
+                                Status.SetStatus($"Выбран элемент {childItem.Name}");
+                            })
+                        }
+                    }
+                        };
+
+                        contextMenu.PlacementTarget = _fileList;
+                        contextMenu.Open(this);
+                    }
+                    else if (e.InitialPressMouseButton == MouseButton.Left)
+                    {
+                        _expandableFileView.HandleChildItemClick(childItem, e);
+                    }
+
+                    e.Handled = true;
+                    return;
+                }
+            }
 
             if (e.InitialPressMouseButton == MouseButton.Right)
             {
@@ -1403,6 +1518,14 @@ namespace Editor
         {
         }
 
+        public void Redraw()
+        {
+            if (_isOpen)
+            {
+                RefreshView();
+                _expandableFileManager.RefreshExpandedFiles();
+            }
+        }
         private void Redraw(FileEvent fileChangedEvent)
         {
             Dispatcher.UIThread.Post(() =>
@@ -1424,12 +1547,886 @@ namespace Editor
                 Redraw();
             });
         }
-        public void Redraw()
+    }
+
+
+    public class ModelExpandableHandler
+    {
+        private readonly List<string> _supportedExtensions = new List<string>();
+        private readonly ExpandableFileManager _fileManager;
+
+        /// <summary>
+        /// Создает новый экземпляр обработчика 3D-моделей
+        /// </summary>
+        public ModelExpandableHandler(ExpandableFileManager fileManager)
         {
-            if (_isOpen)
+            _fileManager = fileManager;
+
+            // Добавляем поддерживаемые расширения
+            _supportedExtensions.Add(".obj");
+            _supportedExtensions.Add(".fbx");
+            _supportedExtensions.Add(".3ds");
+            _supportedExtensions.Add(".blend");
+
+            RegisterHandler();
+        }
+
+        /// <summary>
+        /// Регистрирует обработчик в менеджере
+        /// </summary>
+        private void RegisterHandler()
+        {
+            _fileManager.RegisterHandlerByExtension(
+                "3D Model Viewer",
+                "Позволяет просматривать и использовать внутреннюю структуру 3D-моделей",
+                _supportedExtensions,
+                GetModelChildItems,
+                HandleModelChildItemDrag
+            );
+        }
+
+        /// <summary>
+        /// Получает дочерние элементы модели
+        /// </summary>
+        private IEnumerable<ExpandableFileItemChild> GetModelChildItems(string filePath)
+        {
+            var metadataManager = ServiceHub.Get<MetadataManager>();
+            var metadata = metadataManager.GetMetadata(filePath) as ModelMetadata;
+
+            if (metadata == null || metadata.MeshesData.Count == 0)
+                yield break;
+
+            // Строим иерархию дочерних элементов
+            var pathToItem = new Dictionary<string, ExpandableFileItemChild>();
+            var rootItems = new List<ExpandableFileItemChild>();
+
+            // Сначала создаем все элементы
+            foreach (var meshData in metadata.MeshesData)
             {
-                RefreshView();
+                var path = meshData.MeshPath;
+                var name = string.IsNullOrEmpty(meshData.MeshName) ?
+                    $"Mesh_{meshData.Index}" : meshData.MeshName;
+
+                var item = ExpandableFileManager.CreateChildItem(
+                    filePath,
+                    name,
+                    meshData,
+                    GetPathLevel(meshData.MeshPath),
+                    child => GetDisplayNameForMesh(child)
+                );
+
+                pathToItem[path] = item;
+
+                if (string.IsNullOrEmpty(path))
+                {
+                    rootItems.Add(item);
+                }
+            }
+
+            // Затем строим иерархию
+            foreach (var meshData in metadata.MeshesData)
+            {
+                if (string.IsNullOrEmpty(meshData.MeshPath))
+                    continue;
+
+                var parentPath = GetParentPath(meshData.MeshPath);
+                if (!string.IsNullOrEmpty(parentPath) && pathToItem.TryGetValue(parentPath, out var parentItem))
+                {
+                    var item = pathToItem[meshData.MeshPath];
+                    parentItem.Children.Add(item);
+                }
+                else if (!rootItems.Contains(pathToItem[meshData.MeshPath]))
+                {
+                    rootItems.Add(pathToItem[meshData.MeshPath]);
+                }
+            }
+
+            // Возвращаем только корневые элементы
+            foreach (var item in rootItems)
+            {
+                yield return item;
             }
         }
+
+        /// <summary>
+        /// Получает отображаемое имя для меша
+        /// </summary>
+        private string GetDisplayNameForMesh(ExpandableFileItemChild child)
+        {
+            if (child.Data is NodeModelData meshData)
+            {
+                string name = !string.IsNullOrEmpty(meshData.MeshName) ?
+                    meshData.MeshName : $"Mesh_{meshData.Index}";
+
+                return name;
+            }
+
+            return child.Name;
+        }
+
+        /// <summary>
+        /// Обрабатывает перетаскивание дочернего элемента модели
+        /// </summary>
+        private void HandleModelChildItemDrag(ExpandableFileItemChild child, DragDropEventArgs args)
+        {
+            if (child.Data is NodeModelData meshData)
+            {
+                // Обработка перетаскивания элемента модели
+                Status.SetStatus($"Перетаскивание меша {meshData.MeshName} из модели {Path.GetFileName(args.FileFullPath)}");
+
+                // Дополнительная логика для обработки перетаскивания
+                // Например, создание сущности в сцене с этим мешем
+            }
+        }
+
+        public void HandleModelDropData(string jsonData)
+        {
+            try
+            {
+                // Определяем анонимный тип для десериализации
+                var settings = new Newtonsoft.Json.JsonSerializerSettings
+                {
+                    Error = (sender, errorArgs) => { errorArgs.ErrorContext.Handled = true; }
+                };
+
+                // Десериализуем JSON в динамический объект
+                var data = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(jsonData, settings);
+
+                // Извлекаем необходимые данные
+                string fileName = data.FileName;
+                string fileFullPath = data.FileFullPath;
+                string childName = data.ChildItem.Name;
+
+                // Получаем метаданные модели
+                var metadataManager = ServiceHub.Get<MetadataManager>();
+                var metadata = metadataManager.GetMetadata(fileFullPath) as ModelMetadata;
+
+                if (metadata != null)
+                {
+                    // Ищем соответствующий меш по имени
+                    var meshData = metadata.MeshesData.FirstOrDefault(m =>
+                        !string.IsNullOrEmpty(m.MeshName) && m.MeshName == childName);
+
+                    if (meshData != null)
+                    {
+                        // Обрабатываем перетаскивание меша
+                        Status.SetStatus($"Обработка перетаскивания меша {meshData.MeshName} из модели {fileName}");
+
+                        // Дополнительная логика для обработки перетаскивания
+                        // Например, создание сущности в сцене с этим мешем
+                        // ServiceHub.Get<SceneManager>().CreateEntityWithModel(fileFullPath, meshData.MeshPath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Status.SetStatus($"Ошибка при обработке перетаскивания: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Получает уровень вложенности пути
+        /// </summary>
+        private int GetPathLevel(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return 0;
+
+            return path.Count(c => c == '/');
+        }
+
+        /// <summary>
+        /// Получает родительский путь
+        /// </summary>
+        private string GetParentPath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return string.Empty;
+
+            int lastSlashIndex = path.LastIndexOf('/');
+            if (lastSlashIndex < 0)
+                return string.Empty;
+
+            return path.Substring(0, lastSlashIndex);
+        }
+    }
+
+    public class ExplorerExpandableFileView
+    {
+        private readonly ExplorerController _explorerController;
+        private readonly ExpandableFileManager _fileManager;
+        private readonly ListBox _fileList;
+
+        private Point _childItemDragStartPoint;
+        private bool _isChildItemDragInProgress;
+        private ExpandableFileItemChild _draggedChildItem;
+        private string _draggedChildParentFile;
+
+        public ExplorerExpandableFileView(ExplorerController explorerController, ExpandableFileManager fileManager, ListBox fileList)
+        {
+            _explorerController = explorerController;
+            _fileManager = fileManager;
+            _fileList = fileList;
+
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            _fileList.ItemTemplate = CreateFileItemDataTemplate();
+
+            _fileList.AddHandler(InputElement.PointerPressedEvent, OnChildItemPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+            _fileList.AddHandler(InputElement.PointerMovedEvent, OnChildItemPointerMoved, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+            _fileList.AddHandler(InputElement.PointerReleasedEvent, OnChildItemPointerReleased, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        }
+
+
+        private FuncDataTemplate<string> CreateFileItemDataTemplate()
+        {
+            return new FuncDataTemplate<string>((fileName, scope) =>
+            {
+                if (IsChildItemMarker(fileName, out var childInfo))
+                {
+                    var childItem = _fileManager.FindChildItem(childInfo.parentPath, childInfo.name, childInfo.level);
+                    if (childItem != null)
+                    {
+                        return CreateChildItemTemplate(childItem);
+                    }
+                }
+
+                return CreateFileItemTemplate(fileName);
+            });
+        }
+
+        private Control CreateFileItemTemplate(string fileName)
+        {
+            if (fileName == null || string.IsNullOrEmpty(_explorerController.CurrentPath))
+            {
+                return new TextBlock { Text = fileName ?? "Неизвестный файл" };
+            }
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+
+            string fullPath = Path.Combine(_explorerController.CurrentPath, fileName);
+
+            bool isExpandable = _fileManager.CanExpandFile(fullPath);
+            bool isExpanded = _fileManager.IsFileExpanded(fullPath);
+
+            if (isExpandable)
+            {
+                var expandButton = new ToggleButton
+                {
+                    Content = isExpanded ? "▼" : "►",
+                    Width = 16,
+                    Height = 16,
+                    IsChecked = isExpanded,
+                    Margin = new Thickness(2),
+                    Classes = { "expandButton" }
+                };
+
+                expandButton.Click += (sender, e) =>
+                {
+                    if (expandButton.IsChecked == true)
+                    {
+                        _fileManager.ExpandFile(fullPath);
+                    }
+                    else
+                    {
+                        _fileManager.CollapseFile(fullPath);
+                    }
+                };
+
+                Grid.SetColumn(expandButton, 0);
+                grid.Children.Add(expandButton);
+            }
+            var textBlock = new TextBlock
+            {
+                Text = fileName,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(2)
+            };
+            Grid.SetColumn(textBlock, 1);
+            grid.Children.Add(textBlock);
+
+            return grid;
+        }
+
+        private Control CreateChildItemTemplate(ExpandableFileItemChild childItem)
+        {
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20 * (childItem.Level + 1)) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+
+            var indent = new Border
+            {
+                Background = null
+            };
+            Grid.SetColumn(indent, 0);
+            grid.Children.Add(indent);
+
+            if (childItem.Children.Count > 0)
+            {
+                var expandButton = new ToggleButton
+                {
+                    Content = childItem.IsExpanded ? "▼" : "►",
+                    Width = 16,
+                    Height = 16,
+                    IsChecked = childItem.IsExpanded,
+                    Margin = new Thickness(2),
+                    Classes = { "expandButton" }
+                };
+
+                expandButton.Click += (sender, e) =>
+                {
+                    _fileManager.ToggleChildItemExpansion(childItem);
+                };
+
+                Grid.SetColumn(expandButton, 1);
+                grid.Children.Add(expandButton);
+            }
+
+            var textBlock = new TextBlock
+            {
+                Text = childItem.DisplayName,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(2)
+            };
+            Grid.SetColumn(textBlock, 2);
+            grid.Children.Add(textBlock);
+
+            return grid;
+        }
+
+        public bool IsChildItemMarker(string item, out (string parentPath, string name, int level) childInfo)
+        {
+            childInfo = default;
+            if (item == null || string.IsNullOrEmpty(_explorerController.CurrentPath))
+            {
+                return false;
+            }
+
+            if (item.StartsWith("__CHILD__"))
+            {
+                var parts = item.Split("__");
+                if (parts.Length >= 5)
+                {
+                    int level = int.Parse(parts[2]);
+                    string parentFileName = parts[3];
+                    string childName = string.Join("__", parts.Skip(4));
+
+                    string parentFullPath = Path.Combine(_explorerController.CurrentPath, parentFileName);
+
+                    childInfo = (parentFullPath, childName, level);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public string CreateChildItemMarker(ExpandableFileItemChild item)
+        {
+            if (item == null)
+                return null;
+
+            if (string.IsNullOrEmpty(item.ParentFilePath))
+                return null;
+
+            if (string.IsNullOrEmpty(item.Name))
+                return null;
+
+            return $"__CHILD__{item.Level}__{Path.GetFileName(item.ParentFilePath)}__{item.Name}";
+        }
+
+        public IEnumerable<string> GetChildItemMarkers(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath))
+                yield break;
+
+            if (!File.Exists(filePath))
+                yield break;
+
+            if (!_fileManager.IsFileExpanded(filePath))
+                yield break;
+
+            var childItems = _fileManager.GetChildItems(filePath);
+
+            if (childItems == null)
+                yield break;
+
+            foreach (var item in GetChildItemMarkersRecursive(childItems))
+            {
+                yield return item;
+            }
+        }
+
+        private IEnumerable<string> GetChildItemMarkersRecursive(IEnumerable<ExpandableFileItemChild> items)
+        {
+            if (items == null)
+                yield break;
+
+            foreach (var item in items)
+            {
+                if (item == null)
+                    continue;
+
+                string marker = CreateChildItemMarker(item);
+                if (!string.IsNullOrEmpty(marker))
+                {
+                    yield return marker;
+                }
+
+                if (item.IsExpanded && item.Children != null && item.Children.Count > 0)
+                {
+                    foreach (var childMarker in GetChildItemMarkersRecursive(item.Children))
+                    {
+                        if (!string.IsNullOrEmpty(childMarker))
+                        {
+                            yield return childMarker;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void OnChildItemPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (e.GetCurrentPoint(null).Properties.IsLeftButtonPressed)
+            {
+                var point = e.GetPosition(_fileList);
+                if (e.Source is Visual visual && visual.DataContext is string item)
+                {
+                    if (IsChildItemMarker(item, out var childInfo))
+                    {
+                        var childItem = _fileManager.FindChildItem(childInfo.parentPath, childInfo.name, childInfo.level);
+                        if (childItem != null)
+                        {
+                            _childItemDragStartPoint = e.GetPosition(null);
+                            _isChildItemDragInProgress = false;
+                            _draggedChildItem = childItem;
+                            _draggedChildParentFile = childItem.ParentFilePath;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void OnChildItemPointerMoved(object? sender, PointerEventArgs e)
+        {
+            if (_draggedChildItem != null && e.GetCurrentPoint(null).Properties.IsLeftButtonPressed)
+            {
+                var currentPosition = e.GetPosition(null);
+
+                if (!_isChildItemDragInProgress &&
+                    (Math.Abs(currentPosition.X - _childItemDragStartPoint.X) > 3 ||
+                     Math.Abs(currentPosition.Y - _childItemDragStartPoint.Y) > 3))
+                {
+                    _isChildItemDragInProgress = true;
+                    StartChildItemDrag(e);
+                }
+            }
+        }
+
+        private void OnChildItemPointerReleased(object? sender, PointerReleasedEventArgs e)
+        {
+            _draggedChildItem = null;
+            _draggedChildParentFile = null;
+            _isChildItemDragInProgress = false;
+        }
+
+        private void StartChildItemDrag(PointerEventArgs e)
+        {
+            var handler = _fileManager.GetExpandableHandler(_draggedChildParentFile);
+            if (handler != null && _draggedChildItem != null)
+            {
+                var dragEvent = new DragDropEventArgs
+                {
+                    FilePath = Path.GetDirectoryName(_draggedChildParentFile),
+                    FileName = Path.GetFileName(_draggedChildParentFile),
+                    FileExtension = Path.GetExtension(_draggedChildParentFile),
+                    FileFullPath = _draggedChildParentFile,
+                    ChildItem = _draggedChildItem
+                };
+
+                try
+                {
+                    // Создаем копию дочернего элемента без функций для сериализации
+                    var childItemForSerialization = new
+                    {
+                        ParentFilePath = _draggedChildItem.ParentFilePath,
+                        Name = _draggedChildItem.Name,
+                        Data = _draggedChildItem.Data,
+                        Level = _draggedChildItem.Level,
+                        IsExpanded = _draggedChildItem.IsExpanded,
+                        DisplayName = _draggedChildItem.DisplayName
+                        // Не включаем GetDisplayName и Children для предотвращения циклических ссылок
+                    };
+
+                    var eventForSerialization = new
+                    {
+                        FilePath = dragEvent.FilePath,
+                        FileName = dragEvent.FileName,
+                        FileExtension = dragEvent.FileExtension,
+                        FileFullPath = dragEvent.FileFullPath,
+                        ChildItem = childItemForSerialization
+                    };
+
+                    // Создаем настройки сериализации для Newtonsoft.Json
+                    var settings = new Newtonsoft.Json.JsonSerializerSettings
+                    {
+                        ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore,
+                        Error = (sender, errorArgs) =>
+                        {
+                            errorArgs.ErrorContext.Handled = true;
+                        }
+                    };
+
+                    // Сериализуем данные для перетаскивания
+                    var jsonData = Newtonsoft.Json.JsonConvert.SerializeObject(eventForSerialization, settings);
+
+                    // Создаем объект данных для перетаскивания
+                    var dataObject = new DataObject();
+                    dataObject.Set(DataFormats.Text, jsonData);
+
+                    // Начинаем операцию перетаскивания
+                    DragDrop.DoDragDrop(e, dataObject, DragDropEffects.Copy);
+                    //{"FilePath":"D:\\Programming\\CS\\AtomEngine\\Editror\\bin\\Debug\\net9.0\\Assets\\Models","FileName":"Can.obj","FileExtension":".obj","FileFullPath":"D:\\Programming\\CS\\AtomEngine\\Editror\\bin\\Debug\\net9.0\\Assets\\Models\\Can.obj","ChildItem":{"ParentFilePath":"D:\\Programming\\CS\\AtomEngine\\Editror\\bin\\Debug\\net9.0\\Assets\\Models\\Can.obj","Name":"Can.obj","Data":{"Matrix":{"M11":1.0,"M12":0.0,"M13":0.0,"M14":0.0,"M21":0.0,"M22":1.0,"M23":0.0,"M24":0.0,"M31":0.0,"M32":0.0,"M33":1.0,"M34":0.0,"M41":0.0,"M42":0.0,"M43":0.0,"M44":1.0,"IsIdentity":true,"Translation":{"X":0.0,"Y":0.0,"Z":0.0}},"MeshName":"Can.obj","MeshPath":"Can.obj","Index":-1},"Level":0,"IsExpanded":false,"DisplayName":"Can.obj"}}
+
+                    // Уведомляем обработчик о перетаскивании
+                    handler.RaiseChildItemDragged(_draggedChildItem, dragEvent);
+                }
+                catch (Exception ex)
+                {
+                    // Обрабатываем исключение при сериализации
+                    Status.SetStatus($"Ошибка при перетаскивании: {ex.Message}");
+                }
+            }
+        }
+
+        public void HandleChildItemClick(ExpandableFileItemChild childItem, PointerReleasedEventArgs e)
+        {
+            var point = e.GetPosition(e.Source as Visual);
+            if (point.X < 30 && childItem.Children.Count > 0)
+            {
+                _fileManager.ToggleChildItemExpansion(childItem);
+            }
+            else
+            {
+                Status.SetStatus($"Выбран элемент {childItem.Name} из файла {Path.GetFileName(childItem.ParentFilePath)}");
+            }
+        }
+    }
+
+    public class ExpandableFileManager
+    {
+        private List<ExpandableFileItem> _expandableFileItems = new List<ExpandableFileItem>();
+        private Dictionary<string, List<ExpandableFileItemChild>> _expandedFiles = new Dictionary<string, List<ExpandableFileItemChild>>();
+
+        /// <summary>
+        /// Событие изменения состояния раскрытых файлов
+        /// </summary>
+        public event Action StateChanged;
+
+        /// <summary>
+        /// Регистрирует обработчик раскрываемых файлов
+        /// </summary>
+        public void RegisterHandler(ExpandableFileItem handler)
+        {
+            if (handler != null && !_expandableFileItems.Contains(handler))
+                _expandableFileItems.Add(handler);
+        }
+
+        /// <summary>
+        /// Регистрирует обработчик для раскрываемых файлов
+        /// </summary>
+        /// <param name="name">Название обработчика</param>
+        /// <param name="description">Описание обработчика</param>
+        /// <param name="canExpand">Функция для определения возможности раскрытия файла</param>
+        /// <param name="getChildItems">Функция для получения дочерних элементов</param>
+        /// <param name="onDrag">Обработчик события перетаскивания</param>
+        /// <returns>Созданный обработчик</returns>
+        public ExpandableFileItem RegisterHandler(
+            string name,
+            string description,
+            Func<string, bool> canExpand,
+            Func<string, IEnumerable<ExpandableFileItemChild>> getChildItems,
+            Action<ExpandableFileItemChild, DragDropEventArgs> onDrag = null)
+        {
+            var handler = new ExpandableFileItem
+            {
+                Name = name,
+                Description = description,
+                CanExpand = canExpand,
+                GetChildItems = getChildItems,
+                OnChildItemDrag = onDrag
+            };
+
+            RegisterHandler(handler);
+            return handler;
+        }
+
+        /// <summary>
+        /// Регистрирует обработчик для раскрываемых файлов по расширению
+        /// </summary>
+        /// <param name="name">Название обработчика</param>
+        /// <param name="description">Описание обработчика</param>
+        /// <param name="extensions">Список поддерживаемых расширений</param>
+        /// <param name="getChildItems">Функция для получения дочерних элементов</param>
+        /// <param name="onDrag">Обработчик события перетаскивания</param>
+        /// <returns>Созданный обработчик</returns>
+        public ExpandableFileItem RegisterHandlerByExtension(
+            string name,
+            string description,
+            IEnumerable<string> extensions,
+            Func<string, IEnumerable<ExpandableFileItemChild>> getChildItems,
+            Action<ExpandableFileItemChild, DragDropEventArgs> onDrag = null)
+        {
+            var extensionList = extensions.Select(e => e.StartsWith(".") ? e.ToLowerInvariant() : $".{e.ToLowerInvariant()}").ToList();
+
+            return RegisterHandler(
+                name,
+                description,
+                path => File.Exists(path) && extensionList.Contains(Path.GetExtension(path).ToLowerInvariant()),
+                getChildItems,
+                onDrag
+            );
+        }
+
+        /// <summary>
+        /// Создает дочерний элемент для раскрываемого файла
+        /// </summary>
+        /// <param name="parentFilePath">Путь к родительскому файлу</param>
+        /// <param name="name">Имя элемента</param>
+        /// <param name="data">Данные элемента</param>
+        /// <param name="level">Уровень вложенности</param>
+        /// <param name="displayNameFunc">Функция для получения отображаемого имени</param>
+        /// <returns>Созданный дочерний элемент</returns>
+        public static ExpandableFileItemChild CreateChildItem(
+            string parentFilePath,
+            string name,
+            object data = null,
+            int level = 0,
+            Func<ExpandableFileItemChild, string> displayNameFunc = null)
+        {
+            return new ExpandableFileItemChild
+            {
+                ParentFilePath = parentFilePath,
+                Name = name,
+                Data = data,
+                Level = level,
+                GetDisplayName = displayNameFunc ?? (child => child.Name)
+            };
+        }
+
+        /// <summary>
+        /// Проверяет, можно ли раскрыть файл
+        /// </summary>
+        public bool CanExpandFile(string filePath)
+        {
+            return GetExpandableHandler(filePath) != null;
+        }
+
+        /// <summary>
+        /// Получает обработчик для файла
+        /// </summary>
+        public ExpandableFileItem GetExpandableHandler(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                return null;
+
+            foreach (var handler in _expandableFileItems)
+            {
+                if (handler.CanExpand(filePath))
+                    return handler;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Проверяет, раскрыт ли файл
+        /// </summary>
+        public bool IsFileExpanded(string filePath)
+        {
+            return _expandedFiles.ContainsKey(filePath);
+        }
+
+        /// <summary>
+        /// Раскрывает файл
+        /// </summary>
+        public bool ExpandFile(string filePath)
+        {
+            var handler = GetExpandableHandler(filePath);
+            if (handler == null)
+                return false;
+
+            try
+            {
+                var childItems = handler.GetChildItems(filePath).ToList();
+                if (childItems.Count > 0)
+                {
+                    _expandedFiles[filePath] = childItems;
+                    StateChanged?.Invoke();
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Status.SetStatus($"Ошибка при раскрытии файла: {ex.Message}");
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Сворачивает файл
+        /// </summary>
+        public bool CollapseFile(string filePath)
+        {
+            if (_expandedFiles.ContainsKey(filePath))
+            {
+                _expandedFiles.Remove(filePath);
+                StateChanged?.Invoke();
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Получает дочерние элементы раскрытого файла
+        /// </summary>
+        public IEnumerable<ExpandableFileItemChild> GetChildItems(string filePath)
+        {
+            if (_expandedFiles.TryGetValue(filePath, out var children))
+                return children;
+
+            return Enumerable.Empty<ExpandableFileItemChild>();
+        }
+
+        /// <summary>
+        /// Раскрывает или сворачивает дочерний элемент
+        /// </summary>
+        public void ToggleChildItemExpansion(ExpandableFileItemChild item)
+        {
+            if (item == null) return;
+
+            item.IsExpanded = !item.IsExpanded;
+            StateChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// Ищет дочерний элемент по имени и уровню вложенности
+        /// </summary>
+        public ExpandableFileItemChild FindChildItem(string parentFilePath, string name, int level)
+        {
+            if (_expandedFiles.TryGetValue(parentFilePath, out var rootItems))
+            {
+                return FindChildItemRecursive(rootItems, name, level);
+            }
+
+            return null;
+        }
+
+        private ExpandableFileItemChild FindChildItemRecursive(List<ExpandableFileItemChild> items, string name, int level)
+        {
+            foreach (var item in items)
+            {
+                if (item.Name == name && item.Level == level)
+                    return item;
+
+                if (item.Children.Count > 0)
+                {
+                    var found = FindChildItemRecursive(item.Children, name, level);
+                    if (found != null)
+                        return found;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Обновляет все раскрытые файлы
+        /// </summary>
+        public void RefreshExpandedFiles()
+        {
+            var filesToRefresh = _expandedFiles.Keys.ToList();
+            bool needsUpdate = false;
+
+            foreach (var filePath in filesToRefresh)
+            {
+                if (!File.Exists(filePath))
+                {
+                    _expandedFiles.Remove(filePath);
+                    needsUpdate = true;
+                    continue;
+                }
+
+                var handler = GetExpandableHandler(filePath);
+                if (handler != null)
+                {
+                    try
+                    {
+                        var newItems = handler.GetChildItems(filePath).ToList();
+                        _expandedFiles[filePath] = newItems;
+                        needsUpdate = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Status.SetStatus($"Ошибка при обновлении файла {Path.GetFileName(filePath)}: {ex.Message}");
+                        _expandedFiles.Remove(filePath);
+                        needsUpdate = true;
+                    }
+                }
+                else
+                {
+                    _expandedFiles.Remove(filePath);
+                    needsUpdate = true;
+                }
+            }
+
+            if (needsUpdate)
+                StateChanged?.Invoke();
+        }
+    }
+    
+    public class ExpandableFileItem
+    {
+        public event Action<ExpandableFileItemChild, DragDropEventArgs> ChildItemDragged;
+        public Func<string, bool> CanExpand { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public Func<string, IEnumerable<ExpandableFileItemChild>> GetChildItems { get; set; }
+        public Action<ExpandableFileItemChild, DragDropEventArgs> OnChildItemDrag { get; set; }
+        public void RaiseChildItemDragged(ExpandableFileItemChild child, DragDropEventArgs args)
+        {
+            ChildItemDragged?.Invoke(child, args);
+            OnChildItemDrag?.Invoke(child, args);
+        }
+    }
+
+    public class ExpandableFileItemChild
+    {
+        public string ParentFilePath { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public object Data { get; set; }
+        public Func<ExpandableFileItemChild, string> GetDisplayName { get; set; }
+        public int Level { get; set; } = 0;
+        public List<ExpandableFileItemChild> Children { get; set; } = new List<ExpandableFileItemChild>();
+        public bool IsExpanded { get; set; } = false;
+        public string DisplayName => GetDisplayName?.Invoke(this) ?? Name;
+    }
+
+    public class DragDropEventArgs : EventArgs
+    {
+        public string FilePath { get; set; }
+        public string FileName { get; set; }
+        public string FileExtension { get; set; }
+        public string FileFullPath { get; set; }
+        public ExpandableFileItemChild ChildItem { get; set; }
     }
 }
