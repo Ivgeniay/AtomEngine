@@ -144,21 +144,23 @@ namespace WindowsBuild
                     }
                     try
                     {
-                        var result = ModelLoader.LoadModel(fullPath, gl, assimp, false);
-                        if (result.IsOk())
+                        Model model = resourceManager.GetModel(guid);
+                        if (model == null)
                         {
-                            var model = result.Unwrap();
-                            if (model.Meshes.Count > 0)
+                            var mb_model = ModelLoader.LoadModel(fullPath, gl, assimp, false);
+                            if (mb_model.IsOk())
                             {
-                                var mesh = model.Meshes[0];
-                                resourceManager.RegisterMesh(guid, mesh);
-                                DebLogger.Debug($"Загружен меш: {relativePath}");
+                                model = mb_model.Unwrap();
+                                resourceManager.RegisterModel(guid, model);
+                            }
+                            else
+                            {
+                                DebLogger.Debug($"Ошибка загрузки меша {relativePath}:");
+                                continue;
                             }
                         }
-                        else
-                        {
-                            DebLogger.Debug($"Ошибка загрузки меша {relativePath}:");
-                        }
+                        DebLogger.Debug($"Загружена модель: {relativePath}");
+
                     }
                     catch (Exception meshEx)
                     {

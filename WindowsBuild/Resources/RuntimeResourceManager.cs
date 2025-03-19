@@ -1,4 +1,5 @@
 ﻿using AtomEngine.RenderEntity;
+using OpenglLib;
 using Texture = OpenglLib.Texture;
 
 namespace WindowsBuild
@@ -8,6 +9,7 @@ namespace WindowsBuild
         private readonly Dictionary<string, Texture> _textures = new();
         private readonly Dictionary<string, MeshBase> _meshes = new();
         private readonly Dictionary<string, ShaderBase> _materials = new();
+        private readonly Dictionary<string, Model> _modelCache = new Dictionary<string, Model>();
 
         public int TextureCount => _textures.Count;
         public int MeshCount => _meshes.Count;
@@ -18,6 +20,11 @@ namespace WindowsBuild
             _textures[guid] = texture;
         }
 
+        public void RegisterModel(string guid, Model model)
+        {
+            _modelCache[guid] = model;
+        }
+
         public void RegisterMesh(string guid, MeshBase mesh)
         {
             _meshes[guid] = mesh;
@@ -26,6 +33,11 @@ namespace WindowsBuild
         public void RegisterMaterial(string guid, ShaderBase material)
         {
             _materials[guid] = material;
+        }
+
+        public Model GetModel(string guid)
+        {
+            return _modelCache.TryGetValue(guid, out var model) ? model : null;
         }
 
         public Texture GetTexture(string guid)

@@ -409,7 +409,7 @@ namespace Editor
             {
                 _documentContent.Children.Add(new TextBlock
                 {
-                    Text = $"Автор: {doc.Author}",
+                    Text = $"Author: {doc.Author}",
                     Classes = { "docAuthor" }
                 });
             }

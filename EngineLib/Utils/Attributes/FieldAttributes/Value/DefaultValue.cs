@@ -8,14 +8,13 @@ namespace AtomEngine
     Name = "DefaultValueAttribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Базовый абстрактный атрибут для всех атрибутов установки значений по умолчанию.
-    
+    Base abstract attribute for all default value attributes.
+
     namespace AtomEngine
     DefaultValueAttribute()
-    
-    Этот атрибут служит базовым классом для конкретных атрибутов установки значений по умолчанию
-    для различных типов данных. Не используется напрямую, вместо него следует использовать
-    специализированные атрибуты, такие как DefaultIntAttribute, DefaultFloatAttribute и т.д.
+
+    This attribute serves as a base class for specific default value attributes
+    for different data types. It is not used directly, instead specialized attributes such as DefaultIntAttribute, DefaultFloatAttribute, etc. should be used.
     ",
     Author = "AtomEngine Team")]
     public abstract class DefaultValueAttribute : Attribute { }
@@ -27,19 +26,19 @@ namespace AtomEngine
     Name = "DefaultIntAttribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Устанавливает значение по умолчанию для полей типа int.
-    
+    Sets the default value for int fields.
+
     namespace AtomEngine
     DefaultIntAttribute(int value)
-    
-    Этот атрибут используется для задания начального значения целочисленных полей.
-    При создании компонента с таким атрибутом, соответствующее поле будет 
-    автоматически инициализировано указанным значением.
-    
-    Параметры:
-    - value: Целочисленное значение по умолчанию
-    
-    Примеры использования:
+
+    This attribute is used to set the initial value of integer fields.
+    When creating a component with this attribute, the corresponding field will be
+    automatically initialized with the specified value.
+
+    Parameters:
+    - value: Default integer value
+
+    Usage examples:
     public struct PlayerComponent : IComponent
     {
         [DefaultInt(100)]
@@ -61,22 +60,58 @@ namespace AtomEngine
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
     [Documentation(
     DocumentationSection = "Core",
+    Name = "DefaultBoolAttribute",
+    SubSection = "Attribute/Inspector/Setter",
+    Description = @"
+    Sets the default value for bool fields.
+
+    namespace AtomEngine
+    DefaultBoolAttribute(bool value)
+
+    This attribute is used to set the initial value of boolean fields.
+    When creating a component with this attribute, the corresponding field will be
+    automatically initialized with the specified value.
+
+    Parameters:
+    - value: Default bool value
+
+    Usage examples:
+    public struct NPCActiveComponent : IComponent
+    {
+        [DefaultBool(true)]
+        public bool IsActive;
+    }
+    ",
+    Author = "AtomEngine Team")]
+    public class DefaultBoolAttribute : DefaultValueAttribute
+    {
+        public readonly bool Value;
+        public DefaultBoolAttribute(bool value)
+        {
+            Value = value;
+        }
+
+    }
+
+    [AttributeUsage(AttributeTargets.Field, AllowMultiple = false)]
+    [Documentation(
+    DocumentationSection = "Core",
     Name = "DefaultFloatAttribute",
     SubSection = "Attribute/Inspector/Setter",
     Description = @"
-    Устанавливает значение по умолчанию для полей типа float.
-    
+    Sets the default value for float fields.
+
     namespace AtomEngine
     DefaultFloatAttribute(float value)
-    
-    Этот атрибут используется для задания начального значения полей с плавающей точкой.
-    При создании компонента с таким атрибутом, соответствующее поле будет 
-    автоматически инициализировано указанным значением.
-    
-    Параметры:
-    - value: Значение с плавающей точкой по умолчанию
-    
-    Примеры использования:
+
+    This attribute is used to set the initial value of float fields.
+    When creating a component with this attribute, the corresponding field will be
+    automatically initialized with the specified value.
+
+    Parameters:
+    - value: Default float value
+
+    Usage examples:
     public struct MovementComponent : IComponent
     {
         [DefaultFloat(5.0f)]

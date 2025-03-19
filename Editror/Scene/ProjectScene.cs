@@ -169,6 +169,19 @@ namespace Editor
                 var fieldType = field.FieldType;
                 var attributes = field.GetCustomAttributes(false);
 
+                if (fieldType == typeof(Boolean))
+                {
+                    var defaultValueAttr = attributes.FirstOrDefault(a => a is DefaultValueAttribute);
+                    if (defaultValueAttr != null)
+                    {
+                        if (defaultValueAttr is DefaultBoolAttribute boolAttr)
+                        {
+                            var value = Convert.ChangeType(boolAttr.Value, fieldType);
+                            field.SetValue(instanceComponent, value);
+                        }
+                    }
+                }
+
                 if (fieldType == typeof(int) || fieldType == typeof(long) ||
                     fieldType == typeof(float) || fieldType == typeof(Single) ||
                     fieldType == typeof(double))

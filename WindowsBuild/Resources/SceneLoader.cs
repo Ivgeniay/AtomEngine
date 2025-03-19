@@ -2,6 +2,9 @@
 using AtomEngine.RenderEntity;
 using Newtonsoft.Json;
 using OpenglLib;
+using System;
+using System.Linq;
+using System.Reflection;
 
 namespace WindowsBuild
 {
@@ -259,7 +262,11 @@ namespace WindowsBuild
 
                         if (typeof(MeshBase).IsAssignableFrom(resourceType))
                         {
-                            resource = resourceManager.GetMesh(guidValue);
+                            var model = resourceManager.GetModel(guidValue);
+                            var indexatorField = fields.FirstOrDefault(f => f.Name.Equals(resourceFieldName + "InternalIndex", StringComparison.OrdinalIgnoreCase));
+                            var obj_value = indexatorField?.GetValue(componentData) ?? 0;
+                            int index = int.Parse(obj_value.ToString());
+                            resource = model.Meshes[index];
                         }
                         else if (typeof(ShaderBase).IsAssignableFrom(resourceType))
                         {
