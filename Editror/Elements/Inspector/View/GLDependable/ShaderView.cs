@@ -38,11 +38,15 @@ namespace Editor
             {
                 if (e != null)
                 {
-                    var metaData = ServiceHub.Get<MetadataManager>().LoadMetadata(e+".meta");
-                    descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
+                    var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(e);
+                    if (fileEvent != null)
                     {
-                        GUID = metaData.Guid,
-                    });
+                        var metaData = ServiceHub.Get<MetadataManager>().LoadMetadata(e+".meta");
+                        descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
+                        {
+                            GUID = metaData.Guid,
+                        });
+                    }
                 }
                 else
                 {
@@ -51,8 +55,6 @@ namespace Editor
                         GUID = string.Empty,
                     });
                 }
-
-                //if (context != null) sceneManager.ComponentChange(context.EntityId, context.Component);
             };
             return objectField;
         }

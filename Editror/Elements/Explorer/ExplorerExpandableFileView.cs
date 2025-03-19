@@ -309,7 +309,7 @@ namespace Editor
                     FileName = Path.GetFileName(_draggedChildParentFile),
                     FileExtension = Path.GetExtension(_draggedChildParentFile),
                     FileFullPath = _draggedChildParentFile,
-                    ChildItem = _draggedChildItem
+                    Context = _draggedChildItem
                 };
 
                 try

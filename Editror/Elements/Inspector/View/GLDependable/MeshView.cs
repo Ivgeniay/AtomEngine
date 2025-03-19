@@ -33,11 +33,15 @@ namespace Editor
             {
                 if (e != null)
                 {
-                    var metaData = ServiceHub.Get<MetadataManager>().GetMetadata(e);
-                    descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
+                    var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(e);
+                    if (fileEvent != null)
                     {
-                        GUID = metaData.Guid,
-                    });
+                        var metaData = ServiceHub.Get<MetadataManager>().GetMetadata(fileEvent.FileFullPath);
+                        descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
+                        {
+                            GUID = metaData.Guid,
+                        });
+                    }
                 }
                 else
                 {

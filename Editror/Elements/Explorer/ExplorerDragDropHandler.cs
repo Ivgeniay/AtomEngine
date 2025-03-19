@@ -131,7 +131,7 @@ namespace Editor
         {
             _isDragInProgress = true;
 
-            var fileEvent = new FileSelectionEvent()
+            var fileEvent = new DragDropEventArgs()
             {
                 FileName = fileName,
                 FileFullPath = Path.Combine(_controller.CurrentPath, fileName),
@@ -154,7 +154,7 @@ namespace Editor
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData, GlobalDeserializationSettings.Settings);
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(jsonData, GlobalDeserializationSettings.Settings);
 
                         var position = e.GetPosition(_treeView);
                         var treeItem = FindTreeViewItemAtPosition(_treeView, position);
@@ -200,17 +200,14 @@ namespace Editor
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData, GlobalDeserializationSettings.Settings);
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(jsonData, GlobalDeserializationSettings.Settings);
 
-                        // Получаем целевую папку
                         if (_treeView.SelectedItem is TreeViewItem selectedItem &&
                             selectedItem.Tag is string targetPath &&
                             Directory.Exists(targetPath))
                         {
-                            // Формируем путь назначения
                             string destinationPath = Path.Combine(targetPath, fileEvent.FileName);
 
-                            // Проверяем, не пытаемся ли переместить файл в ту же самую папку
                             if (Path.GetDirectoryName(fileEvent.FileFullPath) != targetPath)
                             {
                                 _fileOperations.HandleFileMoveOperation(fileEvent.FileFullPath, destinationPath);

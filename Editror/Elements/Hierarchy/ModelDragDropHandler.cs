@@ -68,7 +68,7 @@ namespace Editor
                 try
                 {
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
-                    var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(
+                    var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(
                         jsonData, GlobalDeserializationSettings.Settings);
 
                     HandleModelDrop(fileEvent);
@@ -114,7 +114,7 @@ namespace Editor
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(
                             jsonData, GlobalDeserializationSettings.Settings);
 
                         if (fileEvent != null)
@@ -136,7 +136,7 @@ namespace Editor
 
 
 
-        public void HandleModelDrop(FileSelectionEvent fileEvent)
+        public void HandleModelDrop(DragDropEventArgs fileEvent)
         {
             if (!IsModelFile(fileEvent.FileExtension))
                 return;

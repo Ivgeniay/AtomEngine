@@ -246,7 +246,7 @@ namespace Editor
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(jsonData);
 
                         if (IsValidImageFile(fileEvent.FileExtension))
                         {
@@ -287,7 +287,7 @@ namespace Editor
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(jsonData);
                         SetImage(fileEvent);
                     }
                 }
@@ -300,7 +300,7 @@ namespace Editor
             e.Handled = true;
         }
 
-        public void SetImage(FileSelectionEvent fileEvent)
+        public void SetImage(DragDropEventArgs fileEvent)
         {
             if (fileEvent != null)
             {

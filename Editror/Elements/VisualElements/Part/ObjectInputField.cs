@@ -78,7 +78,6 @@ namespace Editor
             ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
             ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            // Основная рамка
             _mainBorder = new Border
             {
                 Classes = { "objectFieldBorder" },
@@ -89,7 +88,6 @@ namespace Editor
             Children.Add(_mainBorder);
             Grid.SetColumnSpan(_mainBorder, 3);
 
-            // Превью изображение
             _previewImage = new Image
             {
                 Width = 16,
@@ -98,7 +96,6 @@ namespace Editor
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            // Текстовый блок для имени объекта
             _objectNameText = new TextBlock
             {
                 Text = PlaceholderText,
@@ -107,7 +104,6 @@ namespace Editor
                 Foreground = new SolidColorBrush(Colors.White)
             };
 
-            // Кнопка выбора объекта
             _browseButton = new Button
             {
                 Content = "⋯",
@@ -121,7 +117,6 @@ namespace Editor
             };
             _browseButton.Click += OnBrowseButtonClick;
 
-            // Кнопка очистки
             _clearButton = new Button
             {
                 Content = "×",
@@ -145,15 +140,11 @@ namespace Editor
             Children.Add(_browseButton);
             Children.Add(_clearButton);
 
-            // Настраиваем перетаскивание
             EnableDragDrop();
 
             UpdateUI();
         }
 
-        /// <summary>
-        /// Включает поддержку Drag & Drop
-        /// </summary>
         private void EnableDragDrop()
         {
             DragDrop.SetAllowDrop(this, true);
@@ -163,10 +154,7 @@ namespace Editor
             this.AddHandler(DragDrop.DropEvent, OnDrop);
         }
 
-        /// <summary>
-        /// Обработчик события перетаскивания над компонентом
-        /// </summary>
-        private void OnDragEnter(object sender, DragEventArgs e)
+        private void OnDragEnter(object? sender, DragEventArgs e)
         {
             if (e.Data.Contains(DataFormats.Text))
             {
@@ -175,7 +163,7 @@ namespace Editor
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(jsonData);
 
                         if (IsValidFileType(fileEvent.FileExtension))
                         {
@@ -198,19 +186,13 @@ namespace Editor
             e.Handled = true;
         }
 
-        /// <summary>
-        /// Обработчик события выхода за пределы компонента при перетаскивании
-        /// </summary>
-        private void OnDragLeave(object sender, DragEventArgs e)
+        private void OnDragLeave(object? sender, DragEventArgs e)
         {
             ResetDragVisual();
             e.Handled = true;
         }
 
-        /// <summary>
-        /// Обработчик события сброса перетаскиваемого элемента
-        /// </summary>
-        private void OnDrop(object sender, DragEventArgs e)
+        private void OnDrop(object? sender, DragEventArgs e)
         {
             ResetDragVisual();
 
@@ -221,13 +203,12 @@ namespace Editor
                     var jsonData = e.Data.Get(DataFormats.Text) as string;
                     if (!string.IsNullOrEmpty(jsonData))
                     {
-                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
+                        var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileEvent>(jsonData);
 
                         if (IsValidFileType(fileEvent.FileExtension))
                         {
                             ObjectPath = fileEvent.FileFullPath;
-                            ObjectChanged?.Invoke(this, ObjectPath);
-                            Status.SetStatus($"Объект выбран: {fileEvent.FileName}");
+                            ObjectChanged?.Invoke(this, jsonData);
                         }
                         else
                         {

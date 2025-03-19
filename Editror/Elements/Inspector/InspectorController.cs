@@ -168,7 +168,7 @@ namespace Editor
                         var jsonData = e.Data.Get(DataFormats.Text) as string;
                         if (!string.IsNullOrEmpty(jsonData))
                         {
-                            var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<FileSelectionEvent>(jsonData);
+                            var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(jsonData);
                             var inspectable = ServiceHub.Get<InspectorDistributor>().GetInspectable(fileEvent);
 
                             if (inspectable != null)

@@ -23,4 +23,10 @@ namespace Editor
     public class FileCreateEvent : FileEvent
     {
     }
+
+    public class DragDropEventArgs : FileEvent
+    {
+        //public ExpandableFileItemChild ChildItem { get; set; }
+        public object Context { get; set; } = null;
+    }
 }
