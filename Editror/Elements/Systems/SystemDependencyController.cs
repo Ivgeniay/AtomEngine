@@ -529,9 +529,7 @@ namespace Editor
                     }
 
                     return true;
-                }
-                )
-                .ToList();
+                }).ToList();
 
             var dependenciesListBox = new ListBox
             {

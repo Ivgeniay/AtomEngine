@@ -57,7 +57,7 @@ namespace Editor
         #region Entity
         internal uint AddEntity(string entityName)
         {
-            var index = GetAvailableId(CurrentWorldData.Entities);
+            var index = GetAvailableId(CurrentWorldData.WorldId, CurrentWorldData.Entities);
             Entity entity = new Entity(index, 0);
             EntityData newEntityData = new EntityData()
             {
@@ -71,7 +71,7 @@ namespace Editor
         }
         internal uint AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
         {
-            var index = GetAvailableId(CurrentWorldData.Entities);
+            var index = GetAvailableId( CurrentWorldData.WorldId, CurrentWorldData.Entities);
             var ivaliableName = hierarchyEntity.Name + " (Duplicate)";
             Entity entity = new Entity(index, 0);
             EntityData newEntityData = new EntityData()
@@ -300,14 +300,18 @@ namespace Editor
         }
 
 
-        private uint GetAvailableId(List<EntityData> entities)
+        private uint GetAvailableId(uint worldId, List<EntityData> entities)
         {
-            var sortedEntities = entities.OrderBy(e => e.Id).ToList();
+            var sortedEntities = entities.OrderBy(e => e.Id).Select(e => e.Id).ToList();
+            if (worldReservedIdMap.ContainsKey(worldId))
+            {
+                sortedEntities.AddRange(worldReservedIdMap[worldId]);
+            }
 
             uint expectedId = 0;
-            foreach (var entity in sortedEntities)
+            foreach (var id in sortedEntities)
             {
-                if (entity.Id != expectedId)
+                if (id != expectedId)
                 {
                     return expectedId;
                 }
@@ -331,5 +335,28 @@ namespace Editor
             return name;
         }
 
+        private Dictionary<uint, List<uint>> worldReservedIdMap = new Dictionary<uint, List<uint>>();
+        internal uint GetAndReserveId(uint worldId)
+        {
+            uint id = GetAvailableId(worldId, CurrentWorldData.Entities);
+
+            if (!worldReservedIdMap.TryGetValue(worldId, out var idList))
+            {
+                worldReservedIdMap[worldId] = new List<uint>();
+            }
+            worldReservedIdMap[worldId].Add(id);
+
+            return id;
+        }
+
+        internal void DisposeReservedId(uint worldId) => worldReservedIdMap[worldId].Clear();
+
+        internal void DisposeAllReservedId()
+        {
+            foreach (var idList in worldReservedIdMap.Values)
+            {
+                idList.Clear();
+            }
+        }
     }
 }

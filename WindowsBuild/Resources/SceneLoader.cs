@@ -191,9 +191,10 @@ namespace WindowsBuild
 
         private void LoadEntities(World world, BuildWorldData worldData, RuntimeResourceManager resourceManager)
         {
+            var admin = world.GetAdmin();
             foreach (var entityData in worldData.Entities)
             {
-                Entity entity = world.CreateEntityWithId(entityData.Id, entityData.Version);
+                Entity entity = admin.CreateEntityWithId(entityData.Id, entityData.Version);
                 foreach (var kvp in entityData.Components)
                 {
                     string componentTypeName = kvp.Key;

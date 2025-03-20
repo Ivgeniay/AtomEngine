@@ -507,5 +507,9 @@ namespace Editor
             CurrentScene = scene;
             OnSceneInitialize?.Invoke(CurrentScene);
         }
+
+        internal uint GetAndReserveId(uint worldId) => CurrentScene.GetAndReserveId(worldId);
+        internal void DisposeReservedId(uint worldId) => CurrentScene.DisposeReservedId(worldId);
+        internal void DisposeAllReservedId() => CurrentScene.DisposeAllReservedId();
     }
 }

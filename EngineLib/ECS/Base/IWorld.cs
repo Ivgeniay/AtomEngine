@@ -4,6 +4,7 @@ namespace AtomEngine
 {
     public interface IWorld
     {
+        public void UpdateSingeThread(double deltaTime);
         public void Update(double deltaTime);
         public void Render(double deltaTime);
         public void FixedUpdate();

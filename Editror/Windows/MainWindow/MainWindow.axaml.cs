@@ -33,6 +33,8 @@ namespace Editor
             InitializeComponent();
             InitializeStatusBar();
 
+            Input.Initialize(new EditorInputSystem(this));
+
             MainCanvas_ = MainCanvas;
             ServiceHub.Get<DraggableWindowManagerService>().SetCanvas(MainCanvas);
             ServiceHub.Get<LoadingManager>().SetCanvas(MainCanvas);

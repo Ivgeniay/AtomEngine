@@ -18,12 +18,15 @@ using System;
 using KeyEventArgs = Avalonia.Input.KeyEventArgs;
 using MouseButton = Avalonia.Input.MouseButton;
 using OpenglLib;
+using Avalonia.Interactivity;
 
 namespace Editor
 {
     internal class SceneViewController : ContentControl, IWindowed, IDisposableController, ICacheble
     {
         public Action<uint> OnEntitySelected;
+
+        private GL _gl;
 
         private GLController _glController;
         private EditorRuntimeResourceManager _resourceManager;
@@ -32,26 +35,26 @@ namespace Editor
         private Border _toolbarBorder;
         private Grid _renderCanvas;
 
-        private EditorCamera _camera;
-        private AABBManager _aabbManager;
-        private CameraFrustumManager _cameraFrustumManager;
+        private WorldManager _worldManager;
+        private Dictionary<string, World> _sceneWorlds = new Dictionary<string, World>();
+        private World _currentEditorWorld;
 
         private Dictionary<EntityData, RenderPairCache> _componentRenderCache = new Dictionary<EntityData, RenderPairCache>();
-
         private ConcurrentQueue<OpenGLCommand> _glCommands = new ConcurrentQueue<OpenGLCommand>();
 
         private SceneManager _sceneManager;
         private MaterialFactory _materialFactory;
         private EventHub _eventHub;
 
-        private GridShader _gridShader;
-        private TransformMode _currentTransformMode = TransformMode.Translate;
         private bool _isPerspective = true;
         private bool _isOpen = false;
         private bool _isGlInitialized = false;
+        private bool _isDataInitialized = false;
 
         private bool _isPreparingClose = false;
         private TaskCompletionSource<bool> _disposeTcs;
+
+        private Entity _editorCameraEntity;
 
         public Action<object> OnClose { get; set; }
 
@@ -59,13 +62,6 @@ namespace Editor
         {
             InitializeUI();
             InitializeEvents();
-
-            _camera = new EditorCamera(
-                        position: new Vector3(5, 5, -10),
-                        target: Vector3.Zero,
-                        up: Vector3.UnitY,
-                        root: _renderCanvas
-                    );
 
             _resourceManager = ServiceHub.Get<EditorRuntimeResourceManager>();
             _materialFactory = ServiceHub.Get<MaterialFactory>();
@@ -76,6 +72,8 @@ namespace Editor
             _sceneManager.OnScenUnload += UnloadScene;
 
             BVHTree.Instance.Initialize(SceneManager.EntityCompProvider);
+
+            _worldManager = new WorldManager();
         }
 
         private void InitializeUI()
@@ -131,19 +129,12 @@ namespace Editor
 
         private void InitializeEvents()
         {
-            _renderCanvas.PointerPressed += OnPointerPressed;
             _renderCanvas.PointerReleased += OnPointerReleased;
-            _renderCanvas.PointerMoved += OnPointerMoved;
-            _renderCanvas.PointerWheelChanged += OnPointerWheelChanged;
-
-            KeyDown += OnKeyDown;
-            KeyUp += OnKeyUp;
 
             _renderTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(16)
             };
-            int counter = 0;
             _renderTimer.Tick += (sender, args) =>
             {
                 Render();
@@ -154,10 +145,143 @@ namespace Editor
         {
             EnqueueGLCommand((gl) =>
             {
-                UpdateEntitiesFromScene();
+                SetupWorldsFromScene(scene);
             });
         }
-        
+
+        private void SetupWorldsFromScene(ProjectScene scene)
+        {
+            if (!_isGlInitialized) return;
+            if (_isDataInitialized) return;
+
+            foreach (var world in _sceneWorlds.Values)
+            {
+                world.Dispose();
+            }
+            _sceneWorlds.Clear();
+
+            foreach (var worldData in scene.Worlds)
+            {
+                var world = new World();
+                _sceneWorlds[worldData.WorldName] = world;
+                _worldManager.AddWorld(world);
+
+                CreateEditorCamera(world, worldData);
+
+                InitializeRenderSystemsForWorld(world);
+                CreateEntitiesForWorld(world, worldData);
+            }
+
+            if (scene.CurrentWorldData != null && _sceneWorlds.TryGetValue(scene.CurrentWorldData.WorldName, out var currentWorld))
+            {
+                _worldManager.CurrentWorld = currentWorld;
+                _currentEditorWorld = currentWorld;
+            }
+            else if (_sceneWorlds.Count > 0)
+            {
+                _currentEditorWorld = _sceneWorlds.Values.First();
+                _worldManager.CurrentWorld = _currentEditorWorld;
+            }
+
+            _isDataInitialized = true;
+        }
+
+        private void CreateEditorCamera(World world, WorldData worldData)
+        {
+            uint id = _sceneManager.GetAndReserveId(worldData.WorldId);
+            var admin = world.GetAdmin();
+
+            _editorCameraEntity = admin.CreateEntityWithId(id, 0);
+
+            var transform = new TransformComponent
+            {
+                Position = new Vector3(5, 5, -10),
+                Rotation = new Vector3(0, -90, 0),
+                Scale = Vector3.One
+            };
+            world.AddComponent(_editorCameraEntity, in transform);
+
+            var cameraComp = new CameraComponent
+            {
+                FieldOfView = 45,
+                AspectRatio = (float)_renderCanvas.Bounds.Width / (float)_renderCanvas.Bounds.Height,
+                NearPlane = 0.1f,
+                FarPlane = 1000.0f,
+                CameraUp = Vector3.UnitY,
+                CameraFront = Vector3.UnitZ
+            };
+            world.AddComponent(_editorCameraEntity, in cameraComp);
+
+            var editorCamComp = new EditorCameraComponent
+            {
+                Target = Vector3.Zero,
+                MoveSpeed = 0.1f,
+                RotationSpeedX = 0.001f,
+                RotationSpeedY = 0.01f,
+                IsPerspective = _isPerspective,
+                LastMousePosition = new Point(0, 0)
+            };
+            world.AddComponent(_editorCameraEntity, in editorCamComp);
+
+            var cameraControl = new EditorCameraControllerComponent
+            {
+                IsActive = true
+            };
+            world.AddComponent(_editorCameraEntity, cameraControl);
+        }
+
+        private void InitializeRenderSystemsForWorld(World world)
+        {
+            world.AddSystem(new EditorGridRenderSystem(world, _gl));
+            world.AddSystem(new EditorAABBRenderSystem(world, _gl, SceneManager.EntityCompProvider));
+            world.AddSystem(new EditorCameraFrustumRenderSystem(world, _gl));
+            world.AddSystem(new EditorCameraControllerSystem(world));
+        }
+
+        private void CreateEntitiesForWorld(World world, WorldData worldData)
+        {
+            var admin = world.GetAdmin();
+
+            foreach (var entityData in worldData.Entities)
+            {
+                var entity = admin.CreateEntityWithId(entityData.Id, entityData.Version);
+                foreach (var componentPair in entityData.Components)
+                {
+                    var component = componentPair.Value;
+                    var componentType = component.GetType();
+
+                    // Используем reflection для добавления компонента
+                    var addComponentMethod = typeof(World).GetMethod("AddComponent").MakeGenericMethod(componentType);
+                    addComponentMethod.Invoke(world, new object[] { entity, component });
+
+                    if (typeof(MeshComponent).IsAssignableFrom(componentType))
+                    {
+                        var mesh = GetMeshFromComponent((MeshComponent)component);
+                        if (mesh?.BoundingVolume != null)
+                        {
+                            BVHTree.Instance.AddEntity(entityData.Id);
+                        }
+                    }
+                }
+            }
+        }
+
+        private MeshBase GetMeshFromComponent(MeshComponent meshComponent)
+        {
+            var type = meshComponent.GetType();
+            var fields = type
+                .GetFields(BindingFlags.Public | BindingFlags.Instance)
+                .FirstOrDefault(e => typeof(MeshBase).IsAssignableFrom(e.FieldType));
+
+            if (fields != null)
+            {
+                var value = fields.GetValue(meshComponent);
+                if (value != null) return value as MeshBase;
+            }
+
+            return null;
+        }
+
         public void UnloadScene()
         {
             if (!_isOpen) return;
@@ -182,8 +306,6 @@ namespace Editor
                 _renderCanvas.Children.Add(_glController);
             }
 
-            //Select.OnSelectChange += CameraFrustrumAddCamera();
-
             _materialFactory.SetSceneViewController(this);
 
             _sceneManager.OnSceneBeforeSave += PrepareToSave;
@@ -194,26 +316,12 @@ namespace Editor
             _sceneManager.OnComponentRemoved += ComponentRemoved;
             _sceneManager.OnEntityCreated += EntityCreated;
             _sceneManager.OnEntityRemoved += EntityRemoved;
+            _sceneManager.OnWorldSelected += WorldSelected;
 
             _renderTimer.Start();
             _isOpen = true;
             this.Focus();
         }
-
-        //private Action<uint, SelectType> CameraFrustrumAddCamera()
-        //{
-        //    return (e, t) =>
-        //    {
-        //        if (t == SelectType.Selected)
-        //        {
-        //            if (sceneEntityComponentProvider.HasComponent<CameraComponent>(e) &&
-        //                sceneEntityComponentProvider.HasComponent<TransformComponent>(e))
-        //            {
-        //                _cameraFrustumManager.AddCamera(e);
-        //            }
-        //        }
-        //    };
-        //}
 
         public void Close() { }
 
@@ -226,119 +334,25 @@ namespace Editor
         {
             try
             {
-#if DEBUG
-                gl.DebugMessageCallback((source, type, id, severity, length, message, param) =>
-                {
-                    string errorMessage = System.Runtime.InteropServices.Marshal.PtrToStringAnsi(message, length);
-
-                    string sourceStr = source switch
-                    {
-                        GLEnum.DebugSourceApi => "API",
-                        GLEnum.DebugSourceWindowSystem => "Window System",
-                        GLEnum.DebugSourceShaderCompiler => "Shader Compiler",
-                        GLEnum.DebugSourceThirdParty => "Third Party",
-                        GLEnum.DebugSourceApplication => "Application",
-                        GLEnum.DebugSourceOther => "Other",
-                        _ => $"Unknown ({source})"
-                    };
-
-                    string typeStr = type switch
-                    {
-                        GLEnum.DebugTypeError => "Error",
-                        GLEnum.DebugTypeDeprecatedBehavior => "Deprecated Behavior",
-                        GLEnum.DebugTypeUndefinedBehavior => "Undefined Behavior",
-                        GLEnum.DebugTypePortability => "Portability",
-                        GLEnum.DebugTypePerformance => "Performance",
-                        GLEnum.DebugTypeMarker => "Marker",
-                        GLEnum.DebugTypePushGroup => "Push Group",
-                        GLEnum.DebugTypePopGroup => "Pop Group",
-                        GLEnum.DebugTypeOther => "Other",
-                        _ => $"Unknown ({type})"
-                    };
-
-                    string severityStr = severity switch
-                    {
-                        GLEnum.DebugSeverityHigh => "High",
-                        GLEnum.DebugSeverityMedium => "Medium",
-                        GLEnum.DebugSeverityLow => "Low",
-                        GLEnum.DebugSeverityNotification => "Notification",
-                        _ => $"Unknown ({severity})"
-                    };
-
-                    if (severity == GLEnum.DebugSeverityHigh)
-                    {
-                        DebLogger.Error($"OpenGL {severityStr} {typeStr} [{sourceStr}] (ID: {id}): {errorMessage}");
-                    }
-                    else if (severity == GLEnum.DebugSeverityMedium)
-                    {
-                        DebLogger.Warn($"OpenGL {severityStr} {typeStr} [{sourceStr}] (ID: {id}): {errorMessage}");
-                    }
-                    else if (severity == GLEnum.DebugSeverityLow)
-                    {
-                        DebLogger.Info($"OpenGL {severityStr} {typeStr} [{sourceStr}] (ID: {id}): {errorMessage}");
-                    }
-                    else
-                    {
-                        DebLogger.Debug($"OpenGL {severityStr} {typeStr} [{sourceStr}] (ID: {id}): {errorMessage}");
-                    }
-
-                }, IntPtr.Zero);
-
-                gl.Enable(EnableCap.DebugOutput);
-                gl.Enable(EnableCap.DebugOutputSynchronous);
-#endif
+                _gl = gl;
                 _isGlInitialized = true;
-                InitializeGrid(gl);
-                InitializeAABBManager(gl);
-                InitializeCameraFrustumManager(gl);
-                UpdateEntitiesFromScene();
+                if (_sceneManager.CurrentScene != null)
+                {
+                    SetupWorldsFromScene(_sceneManager.CurrentScene);
+                }
             }
             catch (Exception ex)
             {
                 DebLogger.Error($"Failed to initialize scene renderer: {ex.Message}");
             }
         }
-
-        private void InitializeGrid(GL gl)
-        {
-            try
-            {
-                _gridShader = new GridShader(gl);
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Failed to initialize grid: {ex.Message}");
-            }
-        }
-
-        private void InitializeAABBManager(GL gl)
-        {
-            try
-            {
-                _aabbManager = new AABBManager(gl, SceneManager.EntityCompProvider);
-            }
-            catch (Exception ex)
-            {
-            }
-        }
-
-        private void InitializeCameraFrustumManager(GL gl)
-        {
-            try
-            {
-                _cameraFrustumManager = new CameraFrustumManager(gl, SceneManager.EntityCompProvider);
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Failed to initialize camera frustum manager: {ex.Message}");
-            }
-        }
-
+        
         private void OnRender(GL gl)
         {
             try
             {
                 if (!_isGlInitialized) return;
+
                 var error = gl.GetError();
                 if (error != GLEnum.NoError)
                 {
@@ -356,21 +370,14 @@ namespace Editor
                 gl.Enable(EnableCap.DepthTest);
                 gl.DepthFunc(DepthFunction.Lequal);
 
-
-                var view = _camera.GetViewMatrix();
-                Matrix4x4 projection = _camera.GetProjection(_isPerspective);
-
                 while (_glCommands.TryDequeue(out var command))
                 {
                     command.Execute(gl);
                 }
 
-                RenderGrid(gl, view, projection);
-                RenderEntities(gl, view, projection);
+                _worldManager.Render(0.016);
 
-                _aabbManager?.Render(view, projection);
-                _cameraFrustumManager?.Render(view, projection);
-
+                Input.Update();
                 if (_isPreparingClose)
                 {
                     Dispose();
@@ -382,262 +389,17 @@ namespace Editor
             }
         }
 
-        private void RenderGrid(GL gl, Matrix4x4 view, Matrix4x4 projection)
-        {
-            if (_gridShader != null)
-            {
-                try
-                {
-                    _gridShader.Use();
-                    _gridShader.SetMVP(Matrix4x4.Identity, view, projection);
-                    _gridShader.Draw();
-                }
-                catch (Exception ex)
-                {
-                    DebLogger.Error($"Ошибка при рендеринге сетки: {ex.Message}");
-                }
-            }
-        }
-
-        private void RenderEntities(GL gl, Matrix4x4 view, Matrix4x4 projection)
-        {
-            foreach (var kvp in _componentRenderCache)
-            {
-                try
-                {
-                    var entity = kvp.Key;
-                    var renderPairCache = kvp.Value;
-
-                    if (!TryGetTransformComponent(entity, out TransformComponent transform))
-                        continue;
-
-                    if (renderPairCache.Shader == null || renderPairCache.Mesh == null)
-                        continue;
-
-                    Matrix4x4 model = CreateModelMatrix(transform);
-                    RenderEntityWithShaderAndMesh(gl, renderPairCache.Shader, renderPairCache.Mesh, model, view, projection);
-                }
-                catch (Exception ex)
-                {
-                    DebLogger.Error($"Ошибка при рендеринге сущности: {ex.Message}");
-                }
-            }
-        }
-
-        private void FindRenderableComponents(
-            EntityData entity, 
-            out ShaderBase shader, 
-            out FieldInfo shaderFieldInfo, 
-            out MeshBase mesh, 
-            out FieldInfo meshFieldInfo, 
-            out object shaderObj, 
-            out object meshObj)
-        {
-            shader = null;
-            mesh = null;
-            shaderFieldInfo = null;
-            meshFieldInfo = null;
-            shaderObj = null;
-            meshObj = null;
-
-            var glDependableComponents = FindGLDependableComponents(entity);
-
-            foreach (var component in glDependableComponents)
-            {
-                if (shader == null)
-                {
-                    var shaderFields = FindFieldsByBaseType(component.GetType(), typeof(ShaderBase));
-                    foreach (var shaderField in shaderFields)
-                    {
-                        var shaderGuidField = component.GetType().GetField(shaderField.Name + "GUID",
-                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-                        if (shaderGuidField != null)
-                        {
-                            string shaderGuid = (string)shaderGuidField.GetValue(component);
-                            if (!string.IsNullOrEmpty(shaderGuid))
-                            {
-                                shader = _resourceManager.GetResource<ShaderBase>(shaderGuid);
-                                if (shader != null)
-                                {
-                                    shaderFieldInfo = shaderField;
-                                    shaderField.SetValue(component, shader);
-                                    shaderObj = component;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (mesh == null)
-                {
-                    var meshFields = FindFieldsByBaseType(component.GetType(), typeof(MeshBase));
-                    foreach (var meshField in meshFields)
-                    {
-                        var meshGuidField = component.GetType().GetField(meshField.Name + "GUID",
-                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-                        var meshIndexatorField = component.GetType().GetField(meshField.Name + "InternalIndex",
-                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-                        if (meshGuidField != null && meshIndexatorField != null)
-                        {
-                            string meshGuid = (string)meshGuidField.GetValue(component);
-                            string strIndex = (string)meshIndexatorField.GetValue(component);
-                            if (string.IsNullOrEmpty(meshGuid) || string.IsNullOrEmpty(strIndex)) continue;
-                            int index = int.Parse(strIndex);
-                            if (!string.IsNullOrEmpty(meshGuid))
-                            {
-                                mesh = _resourceManager.GetResource<MeshBase>(meshGuid, index);
-                                if (mesh != null)
-                                {
-                                    meshFieldInfo = meshField;
-                                    meshField.SetValue(component, mesh);
-                                    meshObj = component;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (shader != null && mesh != null)
-                    break;
-            }
-        }
-
-        private unsafe void RenderEntityWithShaderAndMesh(GL gl, ShaderBase shader, MeshBase mesh, Matrix4x4 model, Matrix4x4 view, Matrix4x4 projection)
-        {
-            shader.Use();
-
-            try
-            {
-                var modelLoc = gl.GetUniformLocation(shader.Handle, "model");
-                var viewLoc = gl.GetUniformLocation(shader.Handle, "view");
-                var projLoc = gl.GetUniformLocation(shader.Handle, "projection");
-
-                if (modelLoc >= 0)
-                    gl.UniformMatrix4(modelLoc, 1, false, GetMatrix4x4Values(model));
-
-                if (viewLoc >= 0)
-                    gl.UniformMatrix4(viewLoc, 1, false, GetMatrix4x4Values(view));
-
-                if (projLoc >= 0)
-                    gl.UniformMatrix4(projLoc, 1, false, GetMatrix4x4Values(projection));
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Warn($"Не удалось установить MVP матрицы в шейдер: {ex.Message}");
-            }
-
-            mesh.Draw(shader);
-        }
-       
-        private bool TryGetTransformComponent(EntityData entity, out TransformComponent transform)
-        {
-            transform = new TransformComponent();
-
-            if (entity.Components.TryGetValue(typeof(TransformComponent).FullName, out var transformComponent))
-            {
-                transform = (TransformComponent)transformComponent;
-                return true;
-            }
-
-            return false;
-        }
-
-        private Matrix4x4 CreateModelMatrix(TransformComponent transform)
-        {
-            Matrix4x4 model = Matrix4x4.CreateFromQuaternion(transform.Rotation.ToQuaternion());
-            model *= Matrix4x4.CreateTranslation(transform.Position);
-            model *= Matrix4x4.CreateScale(transform.Scale);
-            return model;
-        }
-
-        private List<IComponent> FindGLDependableComponents(EntityData entity)
-        {
-            var result = new List<IComponent>();
-
-            foreach (var component in entity.Components.Values)
-            {
-                if (IsGLDependableComponent(component))
-                {
-                    result.Add(component);
-                }
-            }
-
-            return result;
-        }
-
-        private bool IsGLDependableComponent(IComponent component)
-        {
-            var componentType = component.GetType();
-            var glDependableAttr = componentType.GetCustomAttribute(typeof(GLDependableAttribute), true);
-
-            if (glDependableAttr != null)
-                return true;
-
-            var fields = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-            foreach (var field in fields)
-            {
-                if (GLDependableTypes.IsDependableType(field.FieldType))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private List<FieldInfo> FindFieldsByBaseType(Type componentType, Type baseType)
-        {
-            return componentType.GetFields(BindingFlags.Public | BindingFlags.Instance)
-                .Where(f => baseType.IsAssignableFrom(f.FieldType))
-                .ToList();
-        }
-
-        private unsafe void RenderEntity(GL gl, ShaderBase shader, MeshBase mesh, Matrix4x4 model, Matrix4x4 view, Matrix4x4 projection)
-        {
-            shader.Use();
-
-            try
-            {
-                var modelLoc = gl.GetUniformLocation(shader.Handle, "model");
-                var viewLoc = gl.GetUniformLocation(shader.Handle, "view");
-                var projLoc = gl.GetUniformLocation(shader.Handle, "projection");
-
-                if (modelLoc >= 0)
-                    gl.UniformMatrix4(modelLoc, 1, false, GetMatrix4x4Values(model));
-
-                if (viewLoc >= 0)
-                    gl.UniformMatrix4(viewLoc, 1, false, GetMatrix4x4Values(view));
-
-                if (projLoc >= 0)
-                    gl.UniformMatrix4(projLoc, 1, false, GetMatrix4x4Values(projection));
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Warn($"Не удалось установить MVP матрицы в шейдер: {ex.Message}");
-            }
-
-            mesh.Draw(shader);
-        }
-
-        private unsafe float* GetMatrix4x4Values(Matrix4x4 matrix)
-        {
-            return (float*)&matrix;
-        }
-
         private void UpdateEntitiesFromScene()
         {
-            FreeCache();
             if (!_isOpen || !_isGlInitialized) return;
 
             if (_sceneManager.CurrentScene == null)
                 return;
 
-            InitializeComponentCache();
+            EnqueueGLCommand((gl) =>
+            {
+                SetupWorldsFromScene(_sceneManager.CurrentScene);
+            });
         }
 
         private void Render()
@@ -650,41 +412,28 @@ namespace Editor
             _glCommands.Enqueue(new OpenGLCommand { Execute = command });
         }
 
-
-        private void OnPointerPressed(object sender, PointerPressedEventArgs e)
-        {
-            _camera.HandlePointerPressed(e.GetPosition(this), e.GetCurrentPoint(this).Properties.PointerUpdateKind);
-        }
-
         private void OnPointerReleased(object sender, PointerReleasedEventArgs e)
         {
-            _camera.HandlePointerReleased(e.GetCurrentPoint(this).Properties.PointerUpdateKind);
             if (e.InitialPressMouseButton == MouseButton.Left)
             {
                 PickObject(e.GetPosition(_renderCanvas));
             }
         }
 
-        private void OnPointerMoved(object? sender, PointerEventArgs e)
-        {
-            _camera.HandlePointerMoved(e.GetPosition(this));
-        }
-
-        private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
-        {
-            _camera.HandlePointerWheelChanged(e.Delta);
-        }
-
         private void PickObject(Point point)
         {
-            if (!_isOpen || !_isGlInitialized || _sceneManager.CurrentScene == null)
+            if (!_isOpen || !_isGlInitialized || _sceneManager.CurrentScene == null || _editorCameraEntity == null)
                 return;
 
             float x = (float)(point.X / _renderCanvas.Bounds.Width) * 2 - 1;
             float y = 1 - (float)(point.Y / _renderCanvas.Bounds.Height) * 2;
 
-            var rayDirection = CalculateRayDirection(x, y);
-            var ray = new BVHTree.BvhRay(_camera.Position, rayDirection);
+            ref var transform = ref _currentEditorWorld.GetComponent<TransformComponent>(_editorCameraEntity);
+            ref var camera = ref _currentEditorWorld.GetComponent<CameraComponent>(_editorCameraEntity);
+            ref var editorCamera = ref _currentEditorWorld.GetComponent<EditorCameraComponent>(_editorCameraEntity);
+
+            var rayDirection = CalculateRayDirection(x, y, transform, camera, editorCamera.IsPerspective);
+            var ray = new BVHTree.BvhRay(transform.Position, rayDirection);
 
             if (ray.Raycast(out var hit))
             {
@@ -695,241 +444,265 @@ namespace Editor
                 }
             }
         }
-        
-        private Vector3 CalculateRayDirection(float normalizedX, float normalizedY)
+
+        private Vector3 CalculateRayDirection(float normalizedX, float normalizedY, TransformComponent transform, CameraComponent camera, bool isPerspective)
         {
             Vector4 clipCoords = new Vector4(normalizedX, normalizedY, -1.0f, 1.0f);
 
-            Matrix4x4.Invert(_camera.GetProjection(_isPerspective), out var invProjection);
+            Matrix4x4.Invert(GetProjectionMatrix(camera, isPerspective), out var invProjection);
             Vector4 eyeCoords = Vector4.Transform(clipCoords, invProjection);
             eyeCoords = new Vector4(eyeCoords.X, eyeCoords.Y, -1.0f, 0.0f);
 
-            Matrix4x4.Invert(_camera.GetViewMatrix(), out var invView);
+            Matrix4x4.Invert(GetViewMatrix(transform, camera), out var invView);
             Vector4 rayWorld = Vector4.Transform(eyeCoords, invView);
             Vector3 rayDirection = new Vector3(rayWorld.X, rayWorld.Y, rayWorld.Z);
 
             return Vector3.Normalize(rayDirection);
         }
 
-        private void OnKeyDown(object? sender, KeyEventArgs e)
+        private Matrix4x4 GetProjectionMatrix(CameraComponent camera, bool isPerspective)
         {
-            _camera.HandleKeyboardInput(e);
+            float aspectRatio = (float)_renderCanvas.Bounds.Width / (float)_renderCanvas.Bounds.Height;
+
+            if (isPerspective)
+            {
+                return Matrix4x4.CreatePerspectiveFieldOfView(
+                    camera.FieldOfView * (float)(Math.PI / 180.0),
+                    aspectRatio,
+                    camera.NearPlane,
+                    camera.FarPlane);
+            }
+            else
+            {
+                float size = 5f; // Может быть настроено в зависимости от масштаба
+                return Matrix4x4.CreateOrthographic(
+                    size * aspectRatio,
+                    size,
+                    camera.NearPlane,
+                    camera.FarPlane);
+            }
         }
 
-        private void OnKeyUp(object? sender, KeyEventArgs e)
+        private Matrix4x4 GetViewMatrix(TransformComponent transform, CameraComponent camera)
         {
-            
+            return Matrix4x4.CreateLookAt(
+                transform.Position,
+                transform.Position + camera.CameraFront,
+                camera.CameraUp);
         }
 
         private void SetTransformMode(TransformMode mode)
         {
-            _currentTransformMode = mode;
+            // Логика выбора режима трансформации
             Status.SetStatus($"Transform mode: {mode}");
         }
 
         private void TogglePerspective()
         {
             _isPerspective = !_isPerspective;
+
+            if (_currentEditorWorld != null && _editorCameraEntity != null)
+            {
+                ref var editorCamera = ref _currentEditorWorld.GetComponent<EditorCameraComponent>(_editorCameraEntity);
+                editorCamera.IsPerspective = _isPerspective;
+            }
+
             Status.SetStatus($"Camera projection: {(_isPerspective ? "Perspective" : "Orthographic")}");
         }
 
         private void PrepareToSave()
         {
-            SetDefaulFieldValue();
+            // Подготовка к сохранению
             FreeCache();
         }
+
+        Dictionary<World, QueryEntity> _cameraQueries = new Dictionary<World, QueryEntity>();
+        private void WorldSelected(uint worldId, string worldName)
+        {
+            if (_sceneWorlds.TryGetValue(worldName, out var world))
+            {
+                _currentEditorWorld = world;
+                if (_cameraQueries.TryGetValue(world, out QueryEntity queryEntity)) {
+                    _editorCameraEntity = queryEntity.Build()[0];
+                }
+                else
+                {
+                    _cameraQueries[world] = world.CreateEntityQuery().With<EditorCameraComponent>();
+                    _editorCameraEntity = _cameraQueries[world].Build()[0];
+                }
+                _worldManager.CurrentWorld = world;
+            }
+        }
+
         public void FreeCache()
         {
+            foreach (var world in _sceneWorlds.Values)
+            {
+                world.Dispose();
+            }
+
+            _sceneWorlds.Clear();
             _componentRenderCache.Clear();
-            _aabbManager?.FreeCache();
-            _cameraFrustumManager?.FreeCache();
+            _sceneManager.DisposeAllReservedId();
+            _cameraQueries.Clear();
             BVHTree.Instance?.FreeCache();
-        }
-        private void SetDefaulFieldValue()
-        {
-            foreach(var kvp in _componentRenderCache)
-            {
-                RenderPairCache cache = kvp.Value;
-                cache.ShaderField.SetValue(cache.ShaderObject, null);
-                cache.MeshField.SetValue(cache.MeshObject, null);
-            }
+
+            _editorCameraEntity = new Entity(uint.MaxValue, uint.MaxValue);
         }
 
-
-        private void InitializeComponentCache()
-        {
-            if (!_isOpen || !_isGlInitialized) return;
-            if (_sceneManager.CurrentScene == null || _sceneManager.CurrentScene.CurrentWorldData == null)
-                return;
-            
-            FreeCache();
-            foreach (var entity in _sceneManager.CurrentScene.CurrentWorldData.Entities)
-            {
-                CacheEntityComponents(entity);
-            }
-        }
         public void EntityCreated(uint worldId, uint entityId)
         {
             if (!_isOpen) return;
 
             EnqueueGLCommand((gl) =>
             {
-                EntityData entity = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
-                if (entity == null)
-                    return;
+                if (_sceneManager.CurrentScene == null || !_sceneWorlds.Any()) return;
 
-                CacheEntityComponents(entity);
+                var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                if (worldData == null) return;
+
+                if (_sceneWorlds.TryGetValue(worldData.WorldName, out var world))
+                {
+                    var entityData = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
+                    if (entityData == null) return;
+
+                    var admin = world.GetAdmin();
+                    var entity = admin.CreateEntityWithId(entityId, entityData.Version);
+
+                    foreach (var componentPair in entityData.Components)
+                    {
+                        var component = componentPair.Value;
+                        var componentType = component.GetType();
+
+                        var addComponentMethod = typeof(World).GetMethod("AddComponent").MakeGenericMethod(componentType);
+                        addComponentMethod.Invoke(world, new object[] { entity, component });
+                    }
+                }
             });
         }
+
         public void EntityRemoved(uint worldId, uint entityId)
         {
             if (!_isOpen) return;
 
             EnqueueGLCommand((gl) =>
             {
-                var entityToRemove = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
-                if (entityToRemove != null)
+                // Находим соответствующий мир
+                var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                if (worldData != null && _sceneWorlds.TryGetValue(worldData.WorldName, out var world))
                 {
-                    _componentRenderCache.Remove(entityToRemove);
-                    BVHTree.Instance.RemoveEntity(entityId);
-                    _aabbManager.RemoveEntity(entityId);
-                    _cameraFrustumManager?.RemoveCamera(entityId);
+                    // Удаляем сущность из мира ECS
+                    world.DestroyEntity(new Entity(entityId, 0));
                 }
+
+                // Удаляем из BVH
+                BVHTree.Instance.RemoveEntity(entityId);
             });
         }
+
         public void ComponentAdded(uint worldId, uint entityId, IComponent component)
         {
             if (!_isOpen) return;
 
             EnqueueGLCommand((gl) =>
             {
-                var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
-
-                if (entity != null)
+                // Находим соответствующий мир
+                var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                if (worldData != null && _sceneWorlds.TryGetValue(worldData.WorldName, out var world))
                 {
-                    _componentRenderCache.Remove(entity);
-                }
-                else
-                {
-                    entity = _sceneManager.CurrentScene?.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
-                }
+                    var componentType = component.GetType();
+                    var entity = new Entity(entityId, 0);
 
-                if (entity != null)
-                {
-                    CacheEntityComponents(entity);
-
-                    if (component is CameraComponent || component is TransformComponent)
+                    // Проверяем существует ли сущность
+                    if (world.IsEntityValid(entityId, 0))
                     {
-                        _cameraFrustumManager?.AddCamera(entityId);
+                        // Добавляем компонент к сущности
+                        var addComponentMethod = typeof(World).GetMethod("AddComponent").MakeGenericMethod(componentType);
+                        addComponentMethod.Invoke(world, new object[] { entity, component });
+
+                        // Обновляем BVH если это MeshComponent
+                        if (componentType == typeof(MeshComponent))
+                        {
+                            BVHTree.Instance.AddEntity(entityId);
+                        }
                     }
                 }
             });
         }
+
         public void ComponentRemoved(uint worldId, uint entityId, IComponent component)
         {
             if (!_isOpen) return;
 
             EnqueueGLCommand((gl) =>
             {
-                var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
-
-                if (entity != null)
+                // Находим соответствующий мир
+                var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                if (worldData != null && _sceneWorlds.TryGetValue(worldData.WorldName, out var world))
                 {
-                    var cache = _componentRenderCache[entity];
-                    if ((cache.ShaderObject?.GetType() == component.GetType()) ||
-                        (cache.MeshObject?.GetType() == component.GetType()))
+                    var componentType = component.GetType();
+                    var entity = new Entity(entityId, 0);
+
+                    // Проверяем существует ли сущность
+                    if (world.IsEntityValid(entityId, 0))
                     {
-                        _componentRenderCache.Remove(entity);
-                        CacheEntityComponents(entity);
-                        if (component.GetType() == cache.MeshObject?.GetType())
+                        // Удаляем компонент у сущности
+                        var removeComponentMethod = typeof(World).GetMethod("RemoveComponent").MakeGenericMethod(componentType);
+                        removeComponentMethod.Invoke(world, new object[] { entity });
+
+                        // Если удаляется MeshComponent, удаляем из BVH
+                        if (componentType == typeof(MeshComponent))
                         {
                             BVHTree.Instance.RemoveEntity(entityId);
-                            _aabbManager.RemoveEntity(entity.Id);
                         }
-                    }
-
-                    if (component is CameraComponent)
-                    {
-                        _cameraFrustumManager?.RemoveCamera(entityId);
                     }
                 }
             });
         }
+
         public void ComponentChange(uint worldId, uint entityId, IComponent component)
         {
             if (!_isOpen) return;
 
             EnqueueGLCommand((gl) =>
             {
-                var entity = _componentRenderCache.Keys.FirstOrDefault(e => e.Id == entityId);
-                if (entity != null)
+                // Находим соответствующий мир
+                var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                if (worldData != null && _sceneWorlds.TryGetValue(worldData.WorldName, out var world))
                 {
-                    var cache = _componentRenderCache[entity];
-                    if (cache.ShaderObject == component || cache.MeshObject == component)
-                    {
-                        _componentRenderCache.Remove(entity);
-                        BVHTree.Instance.RemoveEntity(entityId);
-                        _aabbManager.RemoveEntity(entity.Id);
-                        CacheEntityComponents(entity);
-                    }
-                }
-                else
-                {
-                    entity = _sceneManager.CurrentScene?.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == entityId);
-                    if (entity != null)
-                    {
-                        CacheEntityComponents(entity);
-                    }
-                }
+                    var componentType = component.GetType();
+                    var entity = new Entity(entityId, 0);
 
-                if (component is TransformComponent transform)
-                {
-                    BVHTree.Instance.UpdateEntity(entityId);
-                    _aabbManager.UpdateEntity(entityId);
+                    // Проверяем существует ли сущность
+                    if (world.IsEntityValid(entityId, 0))
+                    {
+                        // Удаляем старый компонент и добавляем новый
+                        var removeComponentMethod = typeof(World).GetMethod("RemoveComponent").MakeGenericMethod(componentType);
+                        removeComponentMethod.Invoke(world, new object[] { entity });
+
+                        var addComponentMethod = typeof(World).GetMethod("AddComponent").MakeGenericMethod(componentType);
+                        addComponentMethod.Invoke(world, new object[] { entity, component });
+
+                        // Обновляем BVH, если это TransformComponent
+                        if (componentType == typeof(TransformComponent))
+                        {
+                            BVHTree.Instance.UpdateEntity(entityId);
+                        }
+                    }
                 }
             });
         }
 
-        private void CacheEntityComponents(EntityData entity)
-        {
-            if (!TryGetTransformComponent(entity, out _))
-                return;
-
-            ShaderBase shader = null;
-            MeshBase mesh = null;
-            FieldInfo shaderFieldInfo = null;
-            FieldInfo meshFieldInfo = null;
-            object shaderObject = null;
-            object meshObject = null;
-
-            FindRenderableComponents(entity, out shader, out shaderFieldInfo, out mesh, out meshFieldInfo, out shaderObject, out meshObject);
-
-            if (shader != null && mesh != null)
-            {
-                _componentRenderCache[entity] = new RenderPairCache()
-                {
-                    Shader = shader,
-                    ShaderField = shaderFieldInfo,
-                    Mesh = mesh,
-                    MeshField = meshFieldInfo,
-                    ShaderObject = shaderObject,
-                    MeshObject = meshObject
-                };
-                BVHTree.Instance.AddEntity(entity.Id);
-                _aabbManager.AddEntity(entity.Id, mesh);
-            }
-
-            if (entity.Components.ContainsKey(nameof(CameraComponent)) && entity.Components.ContainsKey(nameof(TransformComponent)))
-            {
-                _cameraFrustumManager?.AddCamera(entity.Id);
-            }
-        }
-
         public void Dispose()
         {
-            SetDefaulFieldValue();
-            FreeCache();
             _materialFactory.SetSceneViewController(null);
+            _sceneManager.DisposeAllReservedId();
+
+            foreach (var world in _sceneWorlds.Values)
+            {
+                world.Dispose();
+            }
+            _sceneWorlds.Clear();
 
             if (_glController != null)
             {
@@ -940,21 +713,6 @@ namespace Editor
                 _glController = null;
             }
 
-            if (_gridShader != null)
-            {
-                _gridShader.Dispose();
-                _gridShader = null;
-            }
-            if (_aabbManager != null)
-            {
-                _aabbManager.Dispose();
-                _aabbManager = null;
-            }
-            if (_cameraFrustumManager != null)
-            {
-                _cameraFrustumManager.Dispose();
-                _cameraFrustumManager = null;
-            }
             _isGlInitialized = false;
 
             _resourceManager?.Dispose();
@@ -965,10 +723,13 @@ namespace Editor
             _sceneManager.OnComponentRemoved -= ComponentRemoved;
             _sceneManager.OnEntityCreated -= EntityCreated;
             _sceneManager.OnEntityRemoved -= EntityRemoved;
+            _sceneManager.OnWorldSelected -= WorldSelected;
 
             _renderTimer.Stop();
             _isOpen = false;
             _isGlInitialized = false;
+
+            BVHTree.Instance?.FreeCache();
         }
 
         public async Task PrepareForCloseAsync()
@@ -983,7 +744,6 @@ namespace Editor
 
             _isPreparingClose = false;
         }
-
 
         private class RenderPairCache
         {
@@ -1000,6 +760,176 @@ namespace Editor
             Rotate,
             Scale
         }
-        
+
+    }
+
+    public class EditorCameraFrustumRenderSystem : IRenderSystem
+    {
+        private IWorld _world;
+        public IWorld World => _world;
+
+        private readonly IEntityComponentInfoProvider _componentProvider;
+        private readonly GL _gl;
+        private CameraFrustumShader _shader;
+        private Vector4 _defaultColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+
+        private QueryEntity _queryCameras;
+        private QueryEntity _queryEditorCamera;
+
+        public EditorCameraFrustumRenderSystem(IWorld world, GL gl)
+        {
+            _world = world;
+            _gl = gl;
+
+            _queryCameras = world.CreateEntityQuery()
+                .Without<EditorCameraComponent>()
+                .With<TransformComponent>()
+                .With<CameraComponent>();
+
+            _queryEditorCamera = world.CreateEntityQuery()
+                .With<TransformComponent>()
+                .With<CameraComponent>()
+                .With<EditorCameraComponent>();
+
+            try
+            {
+                _shader = new CameraFrustumShader(_gl);
+                _shader.SetColor(_defaultColor);
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка инициализации CameraFrustumShader: {ex.Message}");
+            }
+        }
+
+        public void Initialize() { }
+
+        public void Render(double deltaTime)
+        {
+            if (_shader == null)
+                return;
+
+            var editorCameras = _queryEditorCamera.Build();
+            if (editorCameras.Length == 0) return;
+
+            var cameras = _queryCameras.Build();
+            if (cameras.Length == 0)
+                return;
+
+            var editorCameraEntity = editorCameras[0];
+            ref var editorTransform = ref _world.GetComponent<TransformComponent>(editorCameraEntity);
+            ref var editorCamera = ref _world.GetComponent<CameraComponent>(editorCameraEntity);
+            ref var editorCameraExt = ref _world.GetComponent<EditorCameraComponent>(editorCameraEntity);
+
+            Matrix4x4 view = editorCamera.ViewMatrix;
+            Matrix4x4 projection = editorCameraExt.IsPerspective
+                ? editorCamera.CreateProjectionMatrix()
+                : CreateOrthographicMatrix(editorCamera, editorTransform, editorCameraExt);
+
+            GLEnum blendingEnabled = _gl.GetBoolean(GetPName.Blend) ? GLEnum.True : GLEnum.False;
+            GLEnum depthTestEnabled = _gl.GetBoolean(GetPName.DepthTest) ? GLEnum.True : GLEnum.False;
+            GLEnum cullFaceEnabled = _gl.GetBoolean(GetPName.CullFace) ? GLEnum.True : GLEnum.False;
+
+            _gl.Enable(EnableCap.Blend);
+            _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            _gl.Enable(EnableCap.DepthTest);
+            _gl.DepthFunc(DepthFunction.Lequal);
+            _gl.Disable(EnableCap.CullFace);
+
+            _shader.Use();
+
+            foreach (var cameraEntity in cameras)
+            {
+                ref var transformComponent = ref _world.GetComponent<TransformComponent>(cameraEntity);
+                ref var cameraComponent = ref _world.GetComponent<CameraComponent>(cameraEntity);
+
+                Vector3[] frustumCorners = CalculateFrustumCorners(transformComponent, cameraComponent);
+                _shader.UpdateFrustumVertices(frustumCorners);
+                _shader.SetMVP(Matrix4x4.Identity, view, projection);
+                _shader.SetColor(_defaultColor);
+                _shader.Draw();
+            }
+
+            if (blendingEnabled == GLEnum.False) _gl.Disable(EnableCap.Blend);
+            else _gl.Enable(EnableCap.Blend);
+
+            if (depthTestEnabled == GLEnum.False) _gl.Disable(EnableCap.DepthTest);
+            else _gl.Enable(EnableCap.DepthTest);
+
+            if (cullFaceEnabled == GLEnum.True) _gl.Enable(EnableCap.CullFace);
+            else _gl.Disable(EnableCap.CullFace);
+        }
+
+        private Vector3[] CalculateFrustumCorners(TransformComponent transform, CameraComponent camera)
+        {
+            Vector3[] frustumCornersLocal = new Vector3[8];
+
+            float nearPlane = camera.NearPlane;
+            float farPlane = camera.FarPlane;
+            float fovY = camera.FieldOfView * (MathF.PI / 180f);
+            float aspect = camera.AspectRatio;
+
+            float nearHeight = 2.0f * MathF.Tan(fovY / 2.0f) * nearPlane;
+            float nearWidth = nearHeight * aspect;
+            float farHeight = 2.0f * MathF.Tan(fovY / 2.0f) * farPlane;
+            float farWidth = farHeight * aspect;
+
+            frustumCornersLocal[0] = new Vector3(-nearWidth / 2, -nearHeight / 2, -nearPlane);  // левый нижний
+            frustumCornersLocal[1] = new Vector3(nearWidth / 2, -nearHeight / 2, -nearPlane);   // правый нижний
+            frustumCornersLocal[2] = new Vector3(nearWidth / 2, nearHeight / 2, -nearPlane);    // правый верхний
+            frustumCornersLocal[3] = new Vector3(-nearWidth / 2, nearHeight / 2, -nearPlane);   // левый верхний
+
+            float visualFarPlane = Math.Min(farPlane, 20.0f);
+            float visualFarHeight = 2.0f * MathF.Tan(fovY / 2.0f) * visualFarPlane;
+            float visualFarWidth = visualFarHeight * aspect;
+
+            frustumCornersLocal[4] = new Vector3(-visualFarWidth / 2, -visualFarHeight / 2, -visualFarPlane);  // левый нижний
+            frustumCornersLocal[5] = new Vector3(visualFarWidth / 2, -visualFarHeight / 2, -visualFarPlane);   // правый нижний
+            frustumCornersLocal[6] = new Vector3(visualFarWidth / 2, visualFarHeight / 2, -visualFarPlane);    // правый верхний
+            frustumCornersLocal[7] = new Vector3(-visualFarWidth / 2, visualFarHeight / 2, -visualFarPlane);   // левый верхний
+
+            Vector3[] frustumCornersWorld = new Vector3[8];
+            Matrix4x4 cameraTransform = CreateModelMatrix(transform);
+
+            for (int i = 0; i < 8; i++)
+            {
+                frustumCornersWorld[i] = Vector3.Transform(frustumCornersLocal[i], cameraTransform);
+            }
+
+            return frustumCornersWorld;
+        }
+
+        private Matrix4x4 CreateModelMatrix(TransformComponent transform)
+        {
+            Matrix4x4 rotationMatrix = Matrix4x4.CreateFromQuaternion(transform.Rotation.ToQuaternion());
+            Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(transform.Position);
+            Matrix4x4 scaleMatrix = Matrix4x4.CreateScale(transform.Scale);
+
+            Matrix4x4 result = Matrix4x4.Identity;
+            result *= rotationMatrix;
+            result *= translationMatrix;
+
+            return result;
+        }
+
+        private Matrix4x4 CreateOrthographicMatrix(CameraComponent camera, TransformComponent transform, EditorCameraComponent editorCamera)
+        {
+            float size = Vector3.Distance(transform.Position, editorCamera.Target) * 0.1f;
+            return Matrix4x4.CreateOrthographic(
+                size * camera.AspectRatio,
+                size,
+                camera.NearPlane,
+                camera.FarPlane);
+        }
+
+        public void Resize(Vector2 size)
+        {
+            var cameras = _queryEditorCamera.Build();
+            if (cameras.Length > 0)
+            {
+                ref var camera = ref _world.GetComponent<CameraComponent>(cameras[0]);
+                camera.AspectRatio = size.X / size.Y;
+            }
+        }
     }
 }

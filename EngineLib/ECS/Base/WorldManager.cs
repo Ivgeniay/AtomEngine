@@ -41,6 +41,11 @@ namespace AtomEngine
 
         public int Count() => worlds.Count;
 
+        public void UpdateSingeThread(double deltaTime)
+        {
+            CurrentWorld.UpdateSingeThread(deltaTime);
+        }
+
         public void Update(double deltaTime)
         {
             CurrentWorld.Update(deltaTime);

@@ -28,11 +28,13 @@ namespace AtomEngine
         public readonly BVHPool BvhPool;
 
         private bool _isDisposed;
-
+        private WorldAdmin worldAdmin;
         public World()
         {
             BvhPool = new BVHPool(this);
+            worldAdmin = new WorldAdmin(this);
         }
+        public WorldAdmin GetAdmin() => worldAdmin;
 
         #region Entity
         public Entity CreateEntity()
@@ -53,19 +55,7 @@ namespace AtomEngine
                 return new Entity(id, version);
             }
         }
-        public Entity CreateEntityWithId(uint id, uint version)
-        {
-            lock (_entityCreationLock)
-            {
-                _entityVersions[id] = version;
-                if (id >= _nextEntityId)
-                {
-                    _nextEntityId = id + 1;
-                }
 
-                return new Entity(id, version);
-            }
-        }
         public void DestroyEntity(uint entityId, uint entityVersion) => DestroyEntity(new Entity(entityId, entityVersion));
         public void DestroyEntity(Entity entity)
         {
@@ -343,6 +333,27 @@ namespace AtomEngine
             UpdateAsync(deltaTime).GetAwaiter().GetResult();
         }
 
+        public void UpdateSingeThread(double deltaTime)
+        {
+            if (_initialize_systems.Count > 0)
+            {
+                foreach (var system in _initialize_systems)
+                {
+                    system.Initialize();
+                }
+                _initialize_systems.Clear();
+            }
+
+            var systemLevels = _dependencyGraph.GetExecutionLevels();
+            foreach (var level in systemLevels)
+            {
+                foreach(var system in level)
+                {
+                    UpdateSystemSafely(system, deltaTime);
+                }
+            }
+        }
+
         public void FixedUpdate()
         {
             foreach (var system in _physicSystems)
@@ -394,6 +405,29 @@ namespace AtomEngine
                 }
             }
             _isDisposed = true;
+        }
+
+        public class WorldAdmin
+        {
+            private readonly World world;
+            public WorldAdmin(World world)
+            {
+                this.world = world;
+            }
+
+            public Entity CreateEntityWithId(uint id, uint version)
+            {
+                lock (world._entityCreationLock)
+                {
+                    world._entityVersions[id] = version;
+                    if (id >= world._nextEntityId)
+                    {
+                        world._nextEntityId = id + 1;
+                    }
+
+                    return new Entity(id, version);
+                }
+            }
         }
     }
 }

@@ -157,7 +157,7 @@ namespace Editor
         {
             _worlds.Add(name);
             if (withInvoking) WorldCreated?.Invoke(this, name);
-            _worldsList.SelectedItem = name;
+            //_worldsList.SelectedItem = name;
         }
 
         private ContextMenu CreateListContextMenus()
