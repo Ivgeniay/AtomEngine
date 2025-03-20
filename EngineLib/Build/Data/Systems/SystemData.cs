@@ -14,7 +14,7 @@
             {
                 SystemFullTypeName = SystemFullTypeName,
                 ExecutionOrder = ExecutionOrder,
-                Dependencies = new List<SystemData>(Dependencies),
+                Dependencies = this.Dependencies,
                 IncludInWorld = new List<uint>(IncludInWorld),
                 Category = Category
             };
@@ -23,6 +23,22 @@
         object ICloneable.Clone()
         {
             return Clone();
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is not SystemData other) return false;
+            return SystemFullTypeName == other.SystemFullTypeName;
+        }
+
+        public override int GetHashCode()
+        {
+            return SystemFullTypeName?.GetHashCode() ?? 0;
+        }
+
+        public override string ToString()
+        {
+            return SystemFullTypeName;
         }
     }
 }

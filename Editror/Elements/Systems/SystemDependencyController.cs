@@ -8,6 +8,7 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
+
 using MouseButton = Avalonia.Input.MouseButton;
 using Avalonia.Threading;
 
@@ -41,25 +42,21 @@ namespace Editor
         public SystemDependencyController()
         {
             _sceneManager = ServiceHub.Get<SceneManager>();
-            _sceneManager.OnSceneInitialize += (e) =>
+
+            _sceneManager.OnSceneInitialize += (scene) =>
             {
-                LoadSystems(e.Systems);
+                LoadSystems();
             };
-            _sceneManager.OnSceneBeforeSave += () =>
-            {
-                _sceneManager.CurrentScene.Systems = _systems.Select(s => s.Clone()).ToList();
-            };
+
             InitializeUI();
             RegisterEvents();
         }
 
-        public void LoadSystems(List<SystemData> systems)
+        private void LoadSystems()
         {
-            _systems = systems.Select(s => s.Clone()).ToList();
+            _systems = _sceneManager.GetSystems();
             RefreshSystemsView();
         }
-
-        public List<SystemData> GetSystemsData() => _systems.Select(s => s.Clone()).ToList();
 
         private void InitializeUI()
         {
@@ -193,6 +190,7 @@ namespace Editor
             _normalSystemsButton.Click += (s, e) =>
             {
                 _currentCategory = SystemCategory.System;
+                _systems = _sceneManager.GetSystemsByCategory(_currentCategory);
                 RefreshSystemsView();
                 UpdateCategoryButtonsState();
             };
@@ -200,6 +198,7 @@ namespace Editor
             _renderSystemsButton.Click += (s, e) =>
             {
                 _currentCategory = SystemCategory.Render;
+                _systems = _sceneManager.GetSystemsByCategory(_currentCategory);
                 RefreshSystemsView();
                 UpdateCategoryButtonsState();
             };
@@ -207,6 +206,7 @@ namespace Editor
             _physicsSystemsButton.Click += (s, e) =>
             {
                 _currentCategory = SystemCategory.Physics;
+                _systems = _sceneManager.GetSystemsByCategory(_currentCategory);
                 RefreshSystemsView();
                 UpdateCategoryButtonsState();
             };
@@ -231,7 +231,7 @@ namespace Editor
                     break;
             }
         }
-        
+
         private void OnSystemsContainerPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             if (e.InitialPressMouseButton == MouseButton.Right)
@@ -250,7 +250,7 @@ namespace Editor
             CloseContextMenu();
             _isCardContextMenuOpen = false;
         }
-        
+
         private void OnPointerMoved(object? sender, PointerEventArgs e)
         {
             currentCursorPosition = e.GetPosition(this);
@@ -261,6 +261,7 @@ namespace Editor
             if (!_isCardContextMenuOpen)
                 _contextMenu.Open(this);
         }
+
         private void CloseContextMenu()
         {
             _contextMenu?.Close();
@@ -274,7 +275,8 @@ namespace Editor
 
             searchDialog.ItemSelected += (selectedType) =>
             {
-                AddSystem((Type)selectedType);
+                _sceneManager.AddSystem((Type)selectedType, _currentCategory);
+                LoadSystems();
             };
 
             Point position = new Point(
@@ -313,6 +315,7 @@ namespace Editor
             }
             return systems;
         }
+
         private List<SearchPopupItem> GetAvailableSystems()
         {
             IEnumerable<Type> systems = GetAvailableTypes();
@@ -342,22 +345,6 @@ namespace Editor
             return systems.Select(t => new SearchPopupItem(t.Name, t)).ToList();
         }
 
-        private void AddSystem(Type systemType)
-        {
-            var systemData = new SystemData
-            {
-                SystemFullTypeName = systemType.FullName,
-                Category = _currentCategory,
-                ExecutionOrder = -1
-            };
-
-            _systems.Add(systemData);
-            AddSystemCard(systemData, 0);
-
-            SelectSystem(systemData);
-            Status.SetStatus($"Added system: {systemData.SystemFullTypeName}");
-        }
-
         private void AddSystemCard(SystemData system, int level)
         {
             if (!_dependencyStacks.ContainsKey(level))
@@ -371,20 +358,33 @@ namespace Editor
                 _dependencyStacks[level] = stack;
                 _systemsContainer.Children.Add(stack);
             }
-            
+
             var card = new SystemCardControl(system);
 
             card.OnContexMenuOpen += (e) =>
             {
                 _isCardContextMenuOpen = true;
             };
+
             card.OnContexMenuClosed += (e) =>
             {
                 _isCardContextMenuOpen = false;
             };
 
             card.Selected += (s, e) => SelectSystem(system);
-            card.Delete += (s, e) => RemoveSystem(system);
+
+            card.Delete += (s, e) =>
+            {
+                _sceneManager.RemoveSystem(system);
+                LoadSystems();
+
+                if (_selectedSystem == system)
+                {
+                    _selectedSystem = null;
+                    UpdateParametersPanel();
+                }
+            };
+
             card.MoveUp += (s, e) => MoveSystemUp(system, level);
             card.MoveDown += (s, e) => MoveSystemDown(system, level);
 
@@ -402,6 +402,17 @@ namespace Editor
             {
                 stack.Children.RemoveAt(index);
                 stack.Children.Insert(index - 1, card);
+
+                var systems = new List<SystemData>();
+                foreach (var child in stack.Children)
+                {
+                    if (child is SystemCardControl cardControl)
+                    {
+                        systems.Add(cardControl.GetSystem());
+                    }
+                }
+
+                _sceneManager.ReorderSystems(systems);
                 Status.SetStatus($"Moved system up: {system.SystemFullTypeName}");
             }
         }
@@ -416,6 +427,16 @@ namespace Editor
             {
                 stack.Children.RemoveAt(index);
                 stack.Children.Insert(index + 1, card);
+
+                var systems = new List<SystemData>();
+                foreach (var child in stack.Children)
+                {
+                    if (child is SystemCardControl cardControl)
+                    {
+                        systems.Add(cardControl.GetSystem());
+                    }
+                }
+                _sceneManager.ReorderSystems(systems);
                 Status.SetStatus($"Moved system down: {system.SystemFullTypeName}");
             }
         }
@@ -434,26 +455,6 @@ namespace Editor
             {
                 _systemCards[system].IsSelected = true;
             }
-        }
-
-        private void RemoveSystem(SystemData system)
-        {
-            foreach (var s in _systems)
-            {
-                s.Dependencies.Remove(system);
-            }
-
-            _systems.Remove(system);
-
-            RefreshSystemsView();
-
-            if (_selectedSystem == system)
-            {
-                _selectedSystem = null;
-                UpdateParametersPanel();
-            }
-
-            Status.SetStatus($"Removed system: {system.SystemFullTypeName}");
         }
 
         private void UpdateParametersPanel()
@@ -481,8 +482,6 @@ namespace Editor
                 Classes = { "parameterTitle" }
             };
 
-
-            //Oreder
             var executionOrderLabel = new TextBlock
             {
                 Text = "Execution Order:",
@@ -504,11 +503,11 @@ namespace Editor
             {
                 if (executionOrderInput.Value.HasValue)
                 {
-                    _selectedSystem.ExecutionOrder = (int)executionOrderInput.Value.Value;
+                    _sceneManager.ChangeSystemExecutionOrder(_selectedSystem, (int)executionOrderInput.Value.Value);
+                    LoadSystems();
                 }
             };
 
-            //Dependencies
             var dependenciesLabel = new TextBlock
             {
                 Text = "Dependencies:",
@@ -517,7 +516,21 @@ namespace Editor
             };
 
             var availableSystems = _systems
-                .Where(s => s != _selectedSystem && s.Category == _selectedSystem.Category)
+                .Where(s =>
+                {
+                    if (s == _selectedSystem) return false;
+                    if (s.Equals(_selectedSystem)) return false;
+                    if (s.Category != _selectedSystem.Category) return false;
+
+                    foreach( var ds in s.Dependencies)
+                    {
+                        if (ds.SystemFullTypeName == _selectedSystem.SystemFullTypeName)
+                            return false;
+                    }
+
+                    return true;
+                }
+                )
                 .ToList();
 
             var dependenciesListBox = new ListBox
@@ -529,7 +542,6 @@ namespace Editor
 
             foreach (var system in availableSystems)
             {
-
                 var item = new CheckBox
                 {
                     Content = system.SystemFullTypeName,
@@ -543,23 +555,22 @@ namespace Editor
                     bool value = checkBox.IsChecked.HasValue ? checkBox.IsChecked.Value : false;
                     if (value)
                     {
-                        var deletedSystem = _selectedSystem.Dependencies.FirstOrDefault(e => e.SystemFullTypeName == system.SystemFullTypeName);
-                        if (deletedSystem != null)
-                        {
-                            _selectedSystem.Dependencies.Remove(deletedSystem);
-                        }
-                        _selectedSystem.Dependencies.Add(system);
-                        RefreshSystemsView();
+                        _sceneManager.AddSystemDependency(_selectedSystem, system);
                     }
                     else
                     {
-                        var deletedSystem = _selectedSystem.Dependencies.FirstOrDefault(e => e.SystemFullTypeName == system.SystemFullTypeName);
-                        if (deletedSystem != null)
+                        var dependencyToRemove = _selectedSystem.Dependencies
+                            .FirstOrDefault(dep => dep.SystemFullTypeName == system.SystemFullTypeName);
+
+                        if (dependencyToRemove != null)
                         {
-                            _selectedSystem.Dependencies.Remove(deletedSystem);
-                            RefreshSystemsView();
+                            _sceneManager.RemoveSystemDependency(_selectedSystem, dependencyToRemove);
                         }
                     }
+
+                    LoadSystems();
+                    SelectSystem(_sceneManager.GetSystemsByCategory(_currentCategory)
+                        .FirstOrDefault(s => s.SystemFullTypeName == _selectedSystem.SystemFullTypeName));
                 };
 
                 var listBoxItem = new ListBoxItem
@@ -571,7 +582,6 @@ namespace Editor
                 dependenciesListBox.Items.Add(listBoxItem);
             }
 
-            //Worlds
             var includeInWorldsLabel = new TextBlock
             {
                 Text = "Include in Worlds:",
@@ -607,18 +617,21 @@ namespace Editor
 
                         if (isSelected && !_selectedSystem.IncludInWorld.Contains(worldId))
                         {
-                            _selectedSystem.IncludInWorld.Add(worldId);
+                            _sceneManager.AddSystemToWorld(_selectedSystem, worldId);
                         }
                         else if (!isSelected && _selectedSystem.IncludInWorld.Contains(worldId))
                         {
-                            _selectedSystem.IncludInWorld.Remove(worldId);
+                            _sceneManager.RemoveSystemFromWorld(_selectedSystem, worldId);
                         }
+
+                        LoadSystems();
+                        SelectSystem(_sceneManager.GetSystemsByCategory(_currentCategory)
+                            .FirstOrDefault(s => s.SystemFullTypeName == _selectedSystem.SystemFullTypeName));
                     }
                 };
 
                 worldsPanel.Children.Add(worldCheckBox);
             }
-
 
             _parametersPanel.Children.Add(titleBlock);
             _parametersPanel.Children.Add(executionOrderLabel);
@@ -639,7 +652,6 @@ namespace Editor
             }
 
             var categorySystems = _systems.Where(s => s.Category == _currentCategory).ToList();
-
             var levels = CalculateDependencyLevels(categorySystems);
 
             foreach (var entry in levels)
@@ -647,9 +659,22 @@ namespace Editor
                 AddSystemCard(entry.Key, entry.Value);
             }
 
-            if (_selectedSystem != null && _systemCards.ContainsKey(_selectedSystem))
+            if (_selectedSystem != null)
             {
-                _systemCards[_selectedSystem].IsSelected = true;
+                var updatedSystem = _systems.FirstOrDefault(s =>
+                    s.SystemFullTypeName == _selectedSystem.SystemFullTypeName);
+
+                if (updatedSystem != null && _systemCards.ContainsKey(updatedSystem))
+                {
+                    _selectedSystem = updatedSystem;
+                    _systemCards[updatedSystem].IsSelected = true;
+                    UpdateParametersPanel();
+                }
+                else
+                {
+                    _selectedSystem = null;
+                    UpdateParametersPanel();
+                }
             }
         }
 
@@ -668,14 +693,45 @@ namespace Editor
             do
             {
                 changed = false;
+
                 foreach (var system in systems.Where(s => !processed.Contains(s)))
                 {
-                    if (system.Dependencies.All(d => processed.Contains(d)))
+                    bool allDependenciesProcessed = true;
+
+                    foreach (var dep in system.Dependencies)
+                    {
+                        bool dependencyFound = false;
+
+                        foreach (var processedSystem in processed)
+                        {
+                            if (processedSystem.SystemFullTypeName == dep.SystemFullTypeName)
+                            {
+                                dependencyFound = true;
+                                break;
+                            }
+                        }
+
+                        if (!dependencyFound)
+                        {
+                            allDependenciesProcessed = false;
+                            break;
+                        }
+                    }
+
+                    if (allDependenciesProcessed)
                     {
                         int maxDependencyLevel = 0;
+
                         foreach (var dep in system.Dependencies)
                         {
-                            maxDependencyLevel = Math.Max(maxDependencyLevel, result[dep]);
+                            foreach (var entry in result)
+                            {
+                                if (entry.Key.SystemFullTypeName == dep.SystemFullTypeName)
+                                {
+                                    maxDependencyLevel = Math.Max(maxDependencyLevel, entry.Value);
+                                    break;
+                                }
+                            }
                         }
 
                         result[system] = maxDependencyLevel + 1;
@@ -686,10 +742,11 @@ namespace Editor
             } while (changed && processed.Count < systems.Count);
 
             int lastLevel = result.Any() ? result.Values.Max() + 1 : 0;
+
             foreach (var system in systems.Where(s => !processed.Contains(s)))
             {
+                DebLogger.Debug($"Unresolved dependency detected for system {system.SystemFullTypeName}");
                 result[system] = lastLevel;
-                DebLogger.Debug($"Cyclic dependency detected for system {system.SystemFullTypeName}");
             }
 
             return result;
@@ -698,12 +755,12 @@ namespace Editor
         public void Open()
         {
             _currentCategory = SystemCategory.System;
+            LoadSystems();
 
             PointerMoved += OnPointerMoved;
             PointerPressed += OnPointerPressed;
 
             UpdateCategoryButtonsState();
-            RefreshSystemsView();
         }
 
         public void Close()
@@ -720,7 +777,7 @@ namespace Editor
 
         public void Redraw()
         {
-            RefreshSystemsView();
+            LoadSystems();
         }
 
         public void FreeCache()
@@ -734,8 +791,12 @@ namespace Editor
                     stack.Children.Clear();
                 }
 
-                _systems.Clear();
-                _systems = null;
+                if (_systems != null)
+                {
+                    _systems.Clear();
+                    _systems = null;
+                }
+
                 _systems = new List<SystemData>();
             }));
         }

@@ -27,6 +27,67 @@ namespace AtomEngine
             }
         }
 
+        public void RemoveSystem(ISystem system)
+        {
+            if (system == null)
+                throw new ArgumentNullException(nameof(system));
+
+            if (!_dependencies.ContainsKey(system))
+                return;
+
+            HashSet<ISystem> dependencies;
+            HashSet<ISystem> dependents;
+
+            lock (_dependencies[system])
+            {
+                dependencies = new HashSet<ISystem>(_dependencies[system]);
+            }
+
+            lock (_dependents[system])
+            {
+                dependents = new HashSet<ISystem>(_dependents[system]);
+            }
+            foreach (var dependent in dependents)
+            {
+                foreach (var dependency in dependencies)
+                {
+                    if (dependent != dependency)
+                    {
+                        try
+                        {
+                            AddDependency(dependent, dependency);
+                        }
+                        catch (InvalidOperationException ex) when (ex.Message.Contains("cycle"))
+                        {
+                            DebLogger.Debug($"Warning: Skipping transitive dependency {dependent.GetType().Name} -> {dependency.GetType().Name} which would create a cycle");
+                        }
+                    }
+                }
+            }
+
+            foreach (var dependent in dependents)
+            {
+                lock (_dependencies[dependent])
+                {
+                    _dependencies[dependent].Remove(system);
+                }
+            }
+
+            foreach (var dependency in dependencies)
+            {
+                lock (_dependents[dependency])
+                {
+                    _dependents[dependency].Remove(system);
+                }
+            }
+
+            _dependencies.TryRemove(system, out _);
+            _dependents.TryRemove(system, out _);
+
+            InvalidateCache();
+            GraphChanged?.Invoke();
+        }
+
         public void AddDependency(ISystem dependent, ISystem dependency)                                      
         {
             if (dependent == null)

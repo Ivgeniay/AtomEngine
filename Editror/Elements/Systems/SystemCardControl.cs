@@ -32,6 +32,8 @@ namespace Editor
             }
         }
 
+        public SystemData GetSystem() => _system;
+
         public SystemCardControl(SystemData system)
         {
             _system = system;

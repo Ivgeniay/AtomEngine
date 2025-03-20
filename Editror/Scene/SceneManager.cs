@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using AtomEngine;
 using System;
 using Avalonia.Threading;
+using System.Linq;
 
 namespace Editor
 {
@@ -33,6 +34,17 @@ namespace Editor
         public Action<uint, string> OnWorldRemove;
         public Action<uint, string> OnWorldCreate;
         public Action<uint, string> OnWorldSelected;
+
+        public Action<SystemData>? OnSystemAdded;
+        public Action<SystemData>? OnSystemRemoved;
+        public Action<SystemData>? OnSystemUpdated;
+        public Action<SystemData, SystemData>? OnSystemDependencyAdded;
+        public Action<SystemData, SystemData>? OnSystemDependencyRemoved;
+        public Action<SystemData, uint>? OnSystemAddedToWorld;
+        public Action<SystemData, uint>? OnSystemRemovedFromWorld;
+        public Action<SystemData, int>? OnSystemExecutionOrderChanged;
+        public Action<List<SystemData>>? OnSystemsReordered;
+        public Action<SystemCategory>? OnSystemCategoryChanged;
 
         internal ProjectScene CurrentScene { get => _currentScene; private set => _currentScene = value; }
         private ProjectScene _currentScene;
@@ -117,6 +129,170 @@ namespace Editor
             OnWorldSelected?.Invoke(CurrentScene.CurrentWorldData.WorldId, CurrentScene.CurrentWorldData.WorldName);
         }
 
+
+        internal void AddSystem(Type systemType, SystemCategory category)
+        {
+            var systemData = new SystemData
+            {
+                SystemFullTypeName = systemType.FullName,
+                Category = category,
+                ExecutionOrder = -1
+            };
+
+            CurrentScene.Systems.Add(systemData);
+            OnSystemAdded?.Invoke(systemData);
+            OnSceneDirty?.Invoke(CurrentScene);
+        }
+        internal void RemoveSystem(SystemData system)
+        {
+            foreach (var s in CurrentScene.Systems)
+            {
+                if (s.Dependencies.Any(d => d.SystemFullTypeName == system.SystemFullTypeName))
+                {
+                    var dependencyToRemove = s.Dependencies.FirstOrDefault(d =>
+                        d.SystemFullTypeName == system.SystemFullTypeName);
+
+                    if (dependencyToRemove != null)
+                    {
+                        s.Dependencies.Remove(dependencyToRemove);
+                    }
+                }
+            }
+
+            var systemToRemove = CurrentScene.Systems.FirstOrDefault(s =>
+                s.SystemFullTypeName == system.SystemFullTypeName);
+
+            if (systemToRemove != null)
+            {
+                CurrentScene.Systems.Remove(systemToRemove);
+                OnSystemRemoved?.Invoke(systemToRemove);
+                OnSceneDirty?.Invoke(CurrentScene);
+            }
+        }
+        internal void AddSystemDependency(SystemData system, SystemData dependency)
+        {
+            var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                s.SystemFullTypeName == system.SystemFullTypeName);
+
+            if (systemToUpdate != null)
+            {
+                var dependencyToAdd = CurrentScene.Systems.FirstOrDefault(s =>
+                    s.SystemFullTypeName == dependency.SystemFullTypeName);
+
+                if (dependencyToAdd != null && !systemToUpdate.Dependencies.Any(d =>
+                    d.SystemFullTypeName == dependencyToAdd.SystemFullTypeName))
+                {
+                    systemToUpdate.Dependencies.Add(dependencyToAdd);
+                    OnSystemDependencyAdded?.Invoke(systemToUpdate, dependencyToAdd);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                }
+            }
+        }
+        internal void RemoveSystemDependency(SystemData system, SystemData dependency)
+        {
+            var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                s.SystemFullTypeName == system.SystemFullTypeName);
+
+            if (systemToUpdate != null)
+            {
+                var dependencyToRemove = systemToUpdate.Dependencies.FirstOrDefault(d =>
+                    d.SystemFullTypeName == dependency.SystemFullTypeName);
+
+                if (dependencyToRemove != null)
+                {
+                    systemToUpdate.Dependencies.Remove(dependencyToRemove);
+                    OnSystemDependencyRemoved?.Invoke(systemToUpdate, dependency);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                }
+            }
+        }
+        internal void AddSystemToWorld(SystemData system, uint worldId)
+        {
+            var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                s.SystemFullTypeName == system.SystemFullTypeName);
+
+            if (systemToUpdate != null && !systemToUpdate.IncludInWorld.Contains(worldId))
+            {
+                systemToUpdate.IncludInWorld.Add(worldId);
+                OnSystemAddedToWorld?.Invoke(systemToUpdate, worldId);
+                OnSceneDirty?.Invoke(CurrentScene);
+
+                var world = CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                if (world != null)
+                {
+                    Status.SetStatus($"Added system to world: {system.SystemFullTypeName} -> {world.WorldName}");
+                }
+            }
+        }
+        internal void RemoveSystemFromWorld(SystemData system, uint worldId)
+        {
+            var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                s.SystemFullTypeName == system.SystemFullTypeName);
+
+            if (systemToUpdate != null && systemToUpdate.IncludInWorld.Contains(worldId))
+            {
+                systemToUpdate.IncludInWorld.Remove(worldId);
+                OnSystemRemovedFromWorld?.Invoke(systemToUpdate, worldId);
+                OnSceneDirty?.Invoke(CurrentScene);
+                var world = CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                if (world != null)
+                {
+                    Status.SetStatus($"Removed system from world: {system.SystemFullTypeName} -> {world.WorldName}");
+                }
+            }
+        }
+        internal void ChangeSystemExecutionOrder(SystemData system, int newOrder)
+        {
+            var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                s.SystemFullTypeName == system.SystemFullTypeName);
+
+            if (systemToUpdate != null && systemToUpdate.ExecutionOrder != newOrder)
+            {
+                systemToUpdate.ExecutionOrder = newOrder;
+                OnSystemExecutionOrderChanged?.Invoke(systemToUpdate, newOrder);
+                OnSceneDirty?.Invoke(CurrentScene);
+                Status.SetStatus($"Changed execution order for system: {system.SystemFullTypeName} -> {newOrder}");
+            }
+        }
+        internal void ReorderSystems(List<SystemData> systems)
+        {
+            if (systems != null && systems.Count > 0)
+            {
+                OnSystemsReordered?.Invoke(systems);
+                OnSceneDirty?.Invoke(CurrentScene);
+            }
+        }
+        internal List<SystemData> GetSystems()
+        {
+            if (CurrentScene == null)
+            {
+                return new List<SystemData>();
+            }
+
+            if (CurrentScene.Systems == null)
+            {
+                CurrentScene.Systems = new List<SystemData>();
+            }
+
+            return CurrentScene.Systems.Select(s => s.Clone()).ToList();
+        }
+        internal List<SystemData> GetSystemsByCategory(SystemCategory category)
+        {
+            if (CurrentScene == null)
+            {
+                return new List<SystemData>();
+            }
+
+            if (CurrentScene.Systems == null)
+            {
+                CurrentScene.Systems = new List<SystemData>();
+            }
+
+            return CurrentScene.Systems
+                .Where(s => s.Category == category)
+                .Select(s => s.Clone())
+                .ToList();
+        }
 
 
         public Task InitializeAsync() => Task.CompletedTask;

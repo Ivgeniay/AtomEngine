@@ -237,17 +237,16 @@ namespace SmokeTesting
     }
     public class BoundingMoveSystem : ISystem
     {
-        private IWorld _world;
-        public IWorld World => _world;
+        public IWorld World { get; set; }
         private QueryEntity queryEntity;
 
         public BoundingMoveSystem(IWorld world)
         {
-            _world = world;
+            World = world;
             queryEntity = this.CreateEntityQuery()
                 .With<BoudingMovedComponent>();
         }
-
+        public void Initialize() { }
         public void Update(double deltaTime)
         {
             Entity[] entities = queryEntity.Build();
@@ -259,12 +258,6 @@ namespace SmokeTesting
                 moved.Direction = Vector3.Zero;
             }
         }
-
-
-        public void Initialize()
-        {
-        }
-
     }
 
     public class RotateSystem : ISystem
@@ -353,7 +346,6 @@ namespace SmokeTesting
                 .With<ShaderComponent>();
         }
 
-
         public void Render(double deltaTime)
         {
             Entity[] cameras = queryCameraEntity.Build();
@@ -370,11 +362,9 @@ namespace SmokeTesting
 
             var cameraRotation = cameraTransform.GetRotationMatrix();
             var cameraPosition = cameraTransform.GetTranslationMatrix();
-            //Matrix4x4.Invert(cameraPosition * cameraRotation, out var resMatrix);
             cameraComponent.ViewMatrix = Matrix4x4.CreateLookAt(cameraTransform.Position, cameraTransform.Position + cameraComponent.CameraFront, cameraComponent.CameraUp);
 
             var viewProjectionMatrix = cameraComponent.ViewMatrix * cameraComponent.CreateProjectionMatrix();
-
             Entity[] rendererEntities = queryRenderersEntity.Build();
 
             foreach (var entity in rendererEntities)

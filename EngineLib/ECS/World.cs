@@ -13,7 +13,7 @@ namespace AtomEngine
         // SYSTEMS
         private readonly SystemDependencyGraph _dependencyGraph = new SystemDependencyGraph();
         private readonly List<ISystem> _systems = new List<ISystem>();
-        private readonly List<ISystem> initialize_systems = new List<ISystem>();
+        private readonly List<ISystem> _initialize_systems = new List<ISystem>();
         private readonly List<IRenderSystem> _renderSystems = new List<IRenderSystem>();
         private readonly List<IRenderSystem> initialize_render_systems = new List<IRenderSystem>();
         private readonly List<IPhysicSystem> _physicSystems = new List<IPhysicSystem>();
@@ -220,7 +220,7 @@ namespace AtomEngine
         {
             if (system == null) throw new NullValueError(nameof(system));
 
-            if (system is PhysicsSystem physicsSystem) AddSystem(physicsSystem);
+            if (system is IPhysicSystem physicsSystem) AddSystem(physicsSystem);
             else if(system is IRenderSystem render) AddSystem(render);
             else if (system is ISystem sys) AddSystem(sys);
         }
@@ -238,11 +238,58 @@ namespace AtomEngine
             {
                 _systems.Add(system);
                 _dependencyGraph.AddSystem(system);
-                initialize_systems.Add(system);
+                _initialize_systems.Add(system);
                 if (system is IPhysicSystem physicSystem)
                 {
                     _physicSystems.Add(physicSystem);
                 }
+            }
+        }
+
+        public void RemoveSystem(ISystem system)
+        {
+            lock (_systemsLock)
+            {
+                if (_systems.Contains(system))
+                {
+                    _systems.Remove(system);
+                }
+                _dependencyGraph.RemoveSystem(system);
+                if (_initialize_systems.Contains(system))
+                {
+                    _initialize_systems.Remove(system);
+                }
+                if (system is IPhysicSystem render)
+                {
+                    _physicSystems.Remove(render);
+                }
+            }
+        }
+        public void RemoveSystem(IRenderSystem system)
+        {
+            lock (_renderSystemsLock)
+            {
+                if (_renderSystems.Contains(system))
+                {
+                    _renderSystems.Remove(system);
+                }
+            }
+        }
+        public void RemoveSystem(ICommonSystem system)
+        {
+            if (system == null) throw new NullValueError(nameof(system));
+
+            if (system is IPhysicSystem physicsSystem)
+            {
+                RemoveSystem(physicsSystem);
+            }
+            else if (system is IRenderSystem render)
+            {
+                RemoveSystem(render);
+            }
+            else if (system is ISystem sys)
+            {
+                RemoveSystem(sys);
             }
         }
 
@@ -285,13 +332,13 @@ namespace AtomEngine
         {
             //BvhPool.UpdateDirtyNodes();
 
-            if (initialize_systems.Count > 0)
+            if (_initialize_systems.Count > 0)
             {
-                foreach (var system in initialize_systems)
+                foreach (var system in _initialize_systems)
                 {
                     system.Initialize();
                 }
-                initialize_systems.Clear();
+                _initialize_systems.Clear();
             }
             UpdateAsync(deltaTime).GetAwaiter().GetResult();
         }
