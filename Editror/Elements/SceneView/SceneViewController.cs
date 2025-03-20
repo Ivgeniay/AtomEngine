@@ -19,6 +19,8 @@ using KeyEventArgs = Avalonia.Input.KeyEventArgs;
 using MouseButton = Avalonia.Input.MouseButton;
 using OpenglLib;
 using Avalonia.Interactivity;
+using EngineLib;
+using Silk.NET.Maths;
 
 namespace Editor
 {
@@ -45,6 +47,9 @@ namespace Editor
         private SceneManager _sceneManager;
         private MaterialFactory _materialFactory;
         private EventHub _eventHub;
+
+        private Dictionary<string, Dictionary<string, ICommonSystem>> _worldSystems = new Dictionary<string, Dictionary<string, ICommonSystem>>();
+        Dictionary<World, QueryEntity> _cameraQueries = new Dictionary<World, QueryEntity>();
 
         private bool _isPerspective = true;
         private bool _isOpen = false;
@@ -168,8 +173,16 @@ namespace Editor
 
                 CreateEditorCamera(world, worldData);
 
-                InitializeRenderSystemsForWorld(world);
+                InitializeRenderSystemsForWorld(world, worldData);
                 CreateEntitiesForWorld(world, worldData);
+            }
+
+            foreach (var system in scene.Systems)
+            {
+                foreach(var worldId in system.IncludInWorld)
+                {
+                    AddSystem(system, worldId);
+                }
             }
 
             if (scene.CurrentWorldData != null && _sceneWorlds.TryGetValue(scene.CurrentWorldData.WorldName, out var currentWorld))
@@ -230,12 +243,29 @@ namespace Editor
             world.AddComponent(_editorCameraEntity, cameraControl);
         }
 
-        private void InitializeRenderSystemsForWorld(World world)
+        private void InitializeRenderSystemsForWorld(World world, WorldData worldData)
         {
-            world.AddSystem(new EditorGridRenderSystem(world, _gl));
-            world.AddSystem(new EditorAABBRenderSystem(world, _gl, SceneManager.EntityCompProvider));
-            world.AddSystem(new EditorCameraFrustumRenderSystem(world, _gl));
-            world.AddSystem(new EditorCameraControllerSystem(world));
+            if (!_worldSystems.ContainsKey(worldData.WorldName))
+            {
+                _worldSystems[worldData.WorldName] = new Dictionary<string, ICommonSystem>();
+            }
+            var systemDict = _worldSystems[worldData.WorldName];
+
+            var gridSystem = new EditorGridRenderSystem(world, _gl);
+            world.AddSystem(gridSystem);
+            systemDict[typeof(EditorGridRenderSystem).FullName] = gridSystem;
+
+            var aabbSystem = new EditorAABBRenderSystem(world, _gl, SceneManager.EntityCompProvider);
+            world.AddSystem(aabbSystem);
+            systemDict[typeof(EditorAABBRenderSystem).FullName] = aabbSystem;
+
+            var frustumSystem = new EditorCameraFrustumRenderSystem(world, _gl);
+            world.AddSystem(frustumSystem);
+            systemDict[typeof(EditorCameraFrustumRenderSystem).FullName] = frustumSystem;
+
+            var cameraSystem = new EditorCameraControllerSystem(world);
+            world.AddSystem(cameraSystem);
+            systemDict[typeof(EditorCameraControllerSystem).FullName] = cameraSystem;
         }
 
         private void CreateEntitiesForWorld(World world, WorldData worldData)
@@ -250,9 +280,10 @@ namespace Editor
                     var component = componentPair.Value;
                     var componentType = component.GetType();
 
-                    // Используем reflection для добавления компонента
                     var addComponentMethod = typeof(World).GetMethod("AddComponent").MakeGenericMethod(componentType);
                     addComponentMethod.Invoke(world, new object[] { entity, component });
+
+                    ProcessGLDependentComponent(world, entity, ref component);
 
                     if (typeof(MeshComponent).IsAssignableFrom(componentType))
                     {
@@ -317,6 +348,9 @@ namespace Editor
             _sceneManager.OnEntityCreated += EntityCreated;
             _sceneManager.OnEntityRemoved += EntityRemoved;
             _sceneManager.OnWorldSelected += WorldSelected;
+            _sceneManager.OnWorldCreate += WorldCreate;
+            _sceneManager.OnSystemAddedToWorld += SystemAddedToWorld;
+            _sceneManager.OnSystemRemovedFromWorld += SystemRemovedFromWorld;
 
             _renderTimer.Start();
             _isOpen = true;
@@ -515,8 +549,7 @@ namespace Editor
             // Подготовка к сохранению
             FreeCache();
         }
-
-        Dictionary<World, QueryEntity> _cameraQueries = new Dictionary<World, QueryEntity>();
+        
         private void WorldSelected(uint worldId, string worldName)
         {
             if (_sceneWorlds.TryGetValue(worldName, out var world))
@@ -545,7 +578,9 @@ namespace Editor
             _componentRenderCache.Clear();
             _sceneManager.DisposeAllReservedId();
             _cameraQueries.Clear();
+            _worldSystems.Clear();
             BVHTree.Instance?.FreeCache();
+            _isDataInitialized = false;
 
             _editorCameraEntity = new Entity(uint.MaxValue, uint.MaxValue);
         }
@@ -587,15 +622,11 @@ namespace Editor
 
             EnqueueGLCommand((gl) =>
             {
-                // Находим соответствующий мир
                 var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
                 if (worldData != null && _sceneWorlds.TryGetValue(worldData.WorldName, out var world))
                 {
-                    // Удаляем сущность из мира ECS
                     world.DestroyEntity(new Entity(entityId, 0));
                 }
-
-                // Удаляем из BVH
                 BVHTree.Instance.RemoveEntity(entityId);
             });
         }
@@ -606,21 +637,19 @@ namespace Editor
 
             EnqueueGLCommand((gl) =>
             {
-                // Находим соответствующий мир
                 var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
                 if (worldData != null && _sceneWorlds.TryGetValue(worldData.WorldName, out var world))
                 {
                     var componentType = component.GetType();
                     var entity = new Entity(entityId, 0);
 
-                    // Проверяем существует ли сущность
                     if (world.IsEntityValid(entityId, 0))
                     {
-                        // Добавляем компонент к сущности
                         var addComponentMethod = typeof(World).GetMethod("AddComponent").MakeGenericMethod(componentType);
                         addComponentMethod.Invoke(world, new object[] { entity, component });
 
-                        // Обновляем BVH если это MeshComponent
+                        ProcessGLDependentComponent(world, entity, ref component);
+
                         if (componentType == typeof(MeshComponent))
                         {
                             BVHTree.Instance.AddEntity(entityId);
@@ -636,21 +665,17 @@ namespace Editor
 
             EnqueueGLCommand((gl) =>
             {
-                // Находим соответствующий мир
                 var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
                 if (worldData != null && _sceneWorlds.TryGetValue(worldData.WorldName, out var world))
                 {
                     var componentType = component.GetType();
                     var entity = new Entity(entityId, 0);
 
-                    // Проверяем существует ли сущность
                     if (world.IsEntityValid(entityId, 0))
                     {
-                        // Удаляем компонент у сущности
                         var removeComponentMethod = typeof(World).GetMethod("RemoveComponent").MakeGenericMethod(componentType);
                         removeComponentMethod.Invoke(world, new object[] { entity });
 
-                        // Если удаляется MeshComponent, удаляем из BVH
                         if (componentType == typeof(MeshComponent))
                         {
                             BVHTree.Instance.RemoveEntity(entityId);
@@ -666,24 +691,22 @@ namespace Editor
 
             EnqueueGLCommand((gl) =>
             {
-                // Находим соответствующий мир
                 var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
                 if (worldData != null && _sceneWorlds.TryGetValue(worldData.WorldName, out var world))
                 {
                     var componentType = component.GetType();
                     var entity = new Entity(entityId, 0);
 
-                    // Проверяем существует ли сущность
                     if (world.IsEntityValid(entityId, 0))
                     {
-                        // Удаляем старый компонент и добавляем новый
                         var removeComponentMethod = typeof(World).GetMethod("RemoveComponent").MakeGenericMethod(componentType);
                         removeComponentMethod.Invoke(world, new object[] { entity });
 
                         var addComponentMethod = typeof(World).GetMethod("AddComponent").MakeGenericMethod(componentType);
                         addComponentMethod.Invoke(world, new object[] { entity, component });
 
-                        // Обновляем BVH, если это TransformComponent
+                        ProcessGLDependentComponent(world, entity, ref component);
+
                         if (componentType == typeof(TransformComponent))
                         {
                             BVHTree.Instance.UpdateEntity(entityId);
@@ -693,16 +716,231 @@ namespace Editor
             });
         }
 
+
+        private void ProcessGLDependentComponent(World world, Entity entity, ref IComponent component)
+        {
+            var componentType = component.GetType();
+            
+            if (IsGLDependableComponent(component))
+            {
+                var shaderFields = FindFieldsByBaseType(componentType, typeof(ShaderBase));
+                foreach (var shaderField in shaderFields)
+                {
+                    var shaderGuidField = componentType.GetField(shaderField.Name + "GUID",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+
+                    if (shaderGuidField != null)
+                    {
+                        string shaderGuid = (string)shaderGuidField.GetValue(component);
+                        if (!string.IsNullOrEmpty(shaderGuid))
+                        {
+                            var shader = _resourceManager.GetResource<ShaderBase>(shaderGuid);
+                            if (shader != null)
+                            {
+                                world.ModifyComponent(entity.Id, componentType, (e) =>
+                                {
+                                    shaderField.SetValue(e, shader);
+                                    return e;
+                                });
+                                //shaderField.SetValue(component, shader);
+                            }
+                        }
+                    }
+                }
+
+                // Обработка мешей
+                var meshFields = FindFieldsByBaseType(componentType, typeof(MeshBase));
+                foreach (var meshField in meshFields)
+                {
+                    // Получаем GUID и индекс меша
+                    var meshGuidField = componentType.GetField(meshField.Name + "GUID",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    var meshIndexatorField = componentType.GetField(meshField.Name + "InternalIndex",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+
+                    if (meshGuidField != null && meshIndexatorField != null)
+                    {
+                        string meshGuid = (string)meshGuidField.GetValue(component);
+                        string strIndex = (string)meshIndexatorField.GetValue(component);
+
+                        if (!string.IsNullOrEmpty(meshGuid) && !string.IsNullOrEmpty(strIndex))
+                        {
+                            int index = int.Parse(strIndex);
+
+                            // Получаем меш из ResourceManager
+                            var mesh = _resourceManager.GetResource<MeshBase>(meshGuid, index);
+                            if (mesh != null)
+                            {
+                                world.ModifyComponent(entity.Id, componentType, (e) =>
+                                {
+                                    meshField.SetValue(e, mesh);
+                                    return e;
+                                });
+
+                                //meshField.SetValue(component, mesh);
+
+                                if (mesh.BoundingVolume != null)
+                                {
+                                    BVHTree.Instance.AddEntity(entity.Id);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Здесь можно добавить обработку текстур по аналогии
+            }
+        }
+
+        private bool IsGLDependableComponent(IComponent component)
+        {
+            var componentType = component.GetType();
+
+            var glDependableAttr = componentType.GetCustomAttribute(typeof(GLDependableAttribute), true);
+            if (glDependableAttr != null)
+                return true;
+
+            var fields = componentType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+            foreach (var field in fields)
+            {
+                if (GLDependableTypes.IsDependableType(field.FieldType))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private List<FieldInfo> FindFieldsByBaseType(Type componentType, Type baseType)
+        {
+            return componentType.GetFields(BindingFlags.Public | BindingFlags.Instance)
+                .Where(f => baseType.IsAssignableFrom(f.FieldType))
+                .ToList();
+        }
+
+
+
+
+        public void WorldCreate(uint worldId, string worldName)
+        {
+            if (!_isOpen || !_isGlInitialized) return;
+
+            EnqueueGLCommand((gl) =>
+            {
+                if (_sceneManager.CurrentScene == null) return;
+
+                if (!_sceneWorlds.ContainsKey(worldName))
+                {
+                    var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                    if (worldData == null) return;
+
+                    var world = new World();
+                    _sceneWorlds[worldName] = world;
+                    _worldManager.AddWorld(world);
+
+                    CreateEditorCamera(world, worldData);
+                    InitializeRenderSystemsForWorld(world, worldData);
+                    CreateEntitiesForWorld(world, worldData);
+
+                    // Выбираем его, если это первый мир
+                    if (_sceneWorlds.Count == 1)
+                    {
+                        _currentEditorWorld = world;
+                        _worldManager.CurrentWorld = world;
+                    }
+                }
+            });
+        }
+
+        public void SystemAddedToWorld(SystemData system, uint worldId)
+        {
+            if (!_isOpen || !_isGlInitialized) return;
+
+            EnqueueGLCommand((gl) =>
+            {
+                AddSystem(system, worldId);
+            });
+        }
+
+        private void AddSystem(SystemData system, uint worldId)
+        {
+            if (_sceneManager.CurrentScene == null) return;
+
+            var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+            if (worldData == null || !_sceneWorlds.TryGetValue(worldData.WorldName, out var world)) return;
+
+            var assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
+            var systemType = assemblyManager.FindType(system.SystemFullTypeName, true);
+
+            if (systemType != null && typeof(ICommonSystem).IsAssignableFrom(systemType))
+            {
+                try
+                {
+                    if (!_worldSystems.TryGetValue(worldData.WorldName, out var systemDict))
+                    {
+                        systemDict = new Dictionary<string, ICommonSystem>();
+                        _worldSystems[worldData.WorldName] = systemDict;
+                    }
+                    if (!systemDict.ContainsKey(system.SystemFullTypeName))
+                    {
+                        var constructor = systemType.GetConstructor(new[] { typeof(IWorld) });
+                        if (constructor != null)
+                        {
+                            var systemInstance = (ICommonSystem)constructor.Invoke(new object[] { world });
+                            world.AddSystem(systemInstance);
+
+                            systemDict[system.SystemFullTypeName] = systemInstance;
+
+                            DebLogger.Info($"System {system.SystemFullTypeName} added to world {worldData.WorldName}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebLogger.Error($"Error adding system {system.SystemFullTypeName} to world: {ex.Message}");
+                }
+            }
+        }
+
+        public void SystemRemovedFromWorld(SystemData system, uint worldId)
+        {
+            if (!_isOpen || !_isGlInitialized) return;
+
+            EnqueueGLCommand((gl) =>
+            {
+                if (_sceneManager.CurrentScene == null) return;
+
+                var worldData = _sceneManager.CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                if (worldData == null || !_sceneWorlds.TryGetValue(worldData.WorldName, out var world)) return;
+
+                if (_worldSystems.TryGetValue(worldData.WorldName, out var systemDict))
+                {
+                    if (systemDict.TryGetValue(system.SystemFullTypeName, out var systemInstance))
+                    {
+                        world.RemoveSystem(systemInstance);
+                        systemDict.Remove(system.SystemFullTypeName);
+
+                        DebLogger.Info($"System {system.SystemFullTypeName} removed from world {worldData.WorldName}");
+                    }
+                }
+            });
+        }
+
         public void Dispose()
         {
+            FreeCache();
             _materialFactory.SetSceneViewController(null);
             _sceneManager.DisposeAllReservedId();
+            _isDataInitialized = false;
 
             foreach (var world in _sceneWorlds.Values)
             {
                 world.Dispose();
             }
             _sceneWorlds.Clear();
+            _worldSystems.Clear();
+            _cameraQueries.Clear();
 
             if (_glController != null)
             {
@@ -724,6 +962,10 @@ namespace Editor
             _sceneManager.OnEntityCreated -= EntityCreated;
             _sceneManager.OnEntityRemoved -= EntityRemoved;
             _sceneManager.OnWorldSelected -= WorldSelected;
+            _sceneManager.OnWorldCreate -= WorldCreate; 
+            _sceneManager.OnSystemAddedToWorld -= SystemAddedToWorld;
+            _sceneManager.OnSystemRemovedFromWorld -= SystemRemovedFromWorld;
+
 
             _renderTimer.Stop();
             _isOpen = false;
@@ -763,173 +1005,64 @@ namespace Editor
 
     }
 
-    public class EditorCameraFrustumRenderSystem : IRenderSystem
+    [GLDependable]
+    [TooltipCategoryComponent(ComponentCategory.Render, "Kek")]
+    public partial struct TestShaderComponent66 : IComponent
     {
-        private IWorld _world;
-        public IWorld World => _world;
-
-        private readonly IEntityComponentInfoProvider _componentProvider;
-        private readonly GL _gl;
-        private CameraFrustumShader _shader;
-        private Vector4 _defaultColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-
-        private QueryEntity _queryCameras;
-        private QueryEntity _queryEditorCamera;
-
-        public EditorCameraFrustumRenderSystem(IWorld world, GL gl)
+        public Entity Owner { get; set; }
+        public ShaderBase Shader;
+        [ShowInInspector]
+        private string ShaderGUID;
+        [ShowInInspector]
+        private string ShaderInternalIndex;
+    }
+    public class TestShaderRender66 : IRenderSystem
+    {
+        public IWorld World { get; set; }
+        public QueryEntity shaderEntityQuery;
+        public QueryEntity cameraEntitiesQuery;
+        public TestShaderRender66(IWorld world)
         {
-            _world = world;
-            _gl = gl;
-
-            _queryCameras = world.CreateEntityQuery()
-                .Without<EditorCameraComponent>()
+            World = world;
+            shaderEntityQuery = this.CreateEntityQuery()
                 .With<TransformComponent>()
+                .With<MeshComponent>()
+                .With<TestShaderComponent66>();
+            cameraEntitiesQuery = this.CreateEntityQuery()
+                .With<TransformComponent>()
+                .With<EditorCameraComponent>()
                 .With<CameraComponent>();
-
-            _queryEditorCamera = world.CreateEntityQuery()
-                .With<TransformComponent>()
-                .With<CameraComponent>()
-                .With<EditorCameraComponent>();
-
-            try
-            {
-                _shader = new CameraFrustumShader(_gl);
-                _shader.SetColor(_defaultColor);
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Ошибка инициализации CameraFrustumShader: {ex.Message}");
-            }
         }
 
         public void Initialize() { }
 
-        public void Render(double deltaTime)
+        public unsafe void Render(double deltaTime)
         {
-            if (_shader == null)
-                return;
+            var queryRenderersEntity = shaderEntityQuery.Build();
+            var cameraEntity = cameraEntitiesQuery.Build()[0];
+            ref var cameraTransform = ref this.GetComponent<TransformComponent>(cameraEntity);
+            ref var cameraComponent = ref this.GetComponent<CameraComponent>(cameraEntity);
 
-            var editorCameras = _queryEditorCamera.Build();
-            if (editorCameras.Length == 0) return;
-
-            var cameras = _queryCameras.Build();
-            if (cameras.Length == 0)
-                return;
-
-            var editorCameraEntity = editorCameras[0];
-            ref var editorTransform = ref _world.GetComponent<TransformComponent>(editorCameraEntity);
-            ref var editorCamera = ref _world.GetComponent<CameraComponent>(editorCameraEntity);
-            ref var editorCameraExt = ref _world.GetComponent<EditorCameraComponent>(editorCameraEntity);
-
-            Matrix4x4 view = editorCamera.ViewMatrix;
-            Matrix4x4 projection = editorCameraExt.IsPerspective
-                ? editorCamera.CreateProjectionMatrix()
-                : CreateOrthographicMatrix(editorCamera, editorTransform, editorCameraExt);
-
-            GLEnum blendingEnabled = _gl.GetBoolean(GetPName.Blend) ? GLEnum.True : GLEnum.False;
-            GLEnum depthTestEnabled = _gl.GetBoolean(GetPName.DepthTest) ? GLEnum.True : GLEnum.False;
-            GLEnum cullFaceEnabled = _gl.GetBoolean(GetPName.CullFace) ? GLEnum.True : GLEnum.False;
-
-            _gl.Enable(EnableCap.Blend);
-            _gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            _gl.Enable(EnableCap.DepthTest);
-            _gl.DepthFunc(DepthFunction.Lequal);
-            _gl.Disable(EnableCap.CullFace);
-
-            _shader.Use();
-
-            foreach (var cameraEntity in cameras)
+            foreach (var entity in queryRenderersEntity)
             {
-                ref var transformComponent = ref _world.GetComponent<TransformComponent>(cameraEntity);
-                ref var cameraComponent = ref _world.GetComponent<CameraComponent>(cameraEntity);
+                ref var transform = ref this.GetComponent<TransformComponent>(entity);
+                ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);
+                ref var shaderComponent = ref this.GetComponent<TestShaderComponent66>(entity);
+                dynamic shader = shaderComponent.Shader;
+                if (shader == null || meshComponent.Mesh == null) continue;
+                shader.Use();
 
-                Vector3[] frustumCorners = CalculateFrustumCorners(transformComponent, cameraComponent);
-                _shader.UpdateFrustumVertices(frustumCorners);
-                _shader.SetMVP(Matrix4x4.Identity, view, projection);
-                _shader.SetColor(_defaultColor);
-                _shader.Draw();
+                shader.model = transform.GetModelMatrix().ToSilk();
+                shader.view = cameraComponent.ViewMatrix.ToSilk();
+                shader.projection = cameraComponent.CreateProjectionMatrix().ToSilk();
+
+                meshComponent.Mesh.Draw(shader);
             }
-
-            if (blendingEnabled == GLEnum.False) _gl.Disable(EnableCap.Blend);
-            else _gl.Enable(EnableCap.Blend);
-
-            if (depthTestEnabled == GLEnum.False) _gl.Disable(EnableCap.DepthTest);
-            else _gl.Enable(EnableCap.DepthTest);
-
-            if (cullFaceEnabled == GLEnum.True) _gl.Enable(EnableCap.CullFace);
-            else _gl.Disable(EnableCap.CullFace);
-        }
-
-        private Vector3[] CalculateFrustumCorners(TransformComponent transform, CameraComponent camera)
-        {
-            Vector3[] frustumCornersLocal = new Vector3[8];
-
-            float nearPlane = camera.NearPlane;
-            float farPlane = camera.FarPlane;
-            float fovY = camera.FieldOfView * (MathF.PI / 180f);
-            float aspect = camera.AspectRatio;
-
-            float nearHeight = 2.0f * MathF.Tan(fovY / 2.0f) * nearPlane;
-            float nearWidth = nearHeight * aspect;
-            float farHeight = 2.0f * MathF.Tan(fovY / 2.0f) * farPlane;
-            float farWidth = farHeight * aspect;
-
-            frustumCornersLocal[0] = new Vector3(-nearWidth / 2, -nearHeight / 2, -nearPlane);  // левый нижний
-            frustumCornersLocal[1] = new Vector3(nearWidth / 2, -nearHeight / 2, -nearPlane);   // правый нижний
-            frustumCornersLocal[2] = new Vector3(nearWidth / 2, nearHeight / 2, -nearPlane);    // правый верхний
-            frustumCornersLocal[3] = new Vector3(-nearWidth / 2, nearHeight / 2, -nearPlane);   // левый верхний
-
-            float visualFarPlane = Math.Min(farPlane, 20.0f);
-            float visualFarHeight = 2.0f * MathF.Tan(fovY / 2.0f) * visualFarPlane;
-            float visualFarWidth = visualFarHeight * aspect;
-
-            frustumCornersLocal[4] = new Vector3(-visualFarWidth / 2, -visualFarHeight / 2, -visualFarPlane);  // левый нижний
-            frustumCornersLocal[5] = new Vector3(visualFarWidth / 2, -visualFarHeight / 2, -visualFarPlane);   // правый нижний
-            frustumCornersLocal[6] = new Vector3(visualFarWidth / 2, visualFarHeight / 2, -visualFarPlane);    // правый верхний
-            frustumCornersLocal[7] = new Vector3(-visualFarWidth / 2, visualFarHeight / 2, -visualFarPlane);   // левый верхний
-
-            Vector3[] frustumCornersWorld = new Vector3[8];
-            Matrix4x4 cameraTransform = CreateModelMatrix(transform);
-
-            for (int i = 0; i < 8; i++)
-            {
-                frustumCornersWorld[i] = Vector3.Transform(frustumCornersLocal[i], cameraTransform);
-            }
-
-            return frustumCornersWorld;
-        }
-
-        private Matrix4x4 CreateModelMatrix(TransformComponent transform)
-        {
-            Matrix4x4 rotationMatrix = Matrix4x4.CreateFromQuaternion(transform.Rotation.ToQuaternion());
-            Matrix4x4 translationMatrix = Matrix4x4.CreateTranslation(transform.Position);
-            Matrix4x4 scaleMatrix = Matrix4x4.CreateScale(transform.Scale);
-
-            Matrix4x4 result = Matrix4x4.Identity;
-            result *= rotationMatrix;
-            result *= translationMatrix;
-
-            return result;
-        }
-
-        private Matrix4x4 CreateOrthographicMatrix(CameraComponent camera, TransformComponent transform, EditorCameraComponent editorCamera)
-        {
-            float size = Vector3.Distance(transform.Position, editorCamera.Target) * 0.1f;
-            return Matrix4x4.CreateOrthographic(
-                size * camera.AspectRatio,
-                size,
-                camera.NearPlane,
-                camera.FarPlane);
         }
 
         public void Resize(Vector2 size)
         {
-            var cameras = _queryEditorCamera.Build();
-            if (cameras.Length > 0)
-            {
-                ref var camera = ref _world.GetComponent<CameraComponent>(cameras[0]);
-                camera.AspectRatio = size.X / size.Y;
-            }
+
         }
     }
 }

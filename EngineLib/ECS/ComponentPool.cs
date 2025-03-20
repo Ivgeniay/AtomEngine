@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace AtomEngine
 {
@@ -17,6 +18,19 @@ namespace AtomEngine
             return ref GetComponentRef<T>(entityId);
         }
 
+        public void WithComponent(uint entityId, Type componentType, Action<object> action)
+        {
+            if (_components.TryGetValue(componentType, out var components) &&
+                components.TryGetValue(entityId, out var component))
+            {
+                action(component);
+            }
+            else
+            {
+                throw new ComponentError($"Component {componentType.Name} not found for entity {entityId}");
+            }
+        }
+
         public ref T GetComponent<T>(uint entityId) where T : struct, IComponent
         {
             var type = typeof(T);
@@ -29,6 +43,17 @@ namespace AtomEngine
                 throw new ComponentError($"Component {type.Name} not found for entity {entityId}");
 
             return ref GetComponentRef<T>(entityId);
+        }
+
+        public void ModifyComponent(uint entityId, Type type, Func<IComponent, IComponent> func)
+        {
+            if (!_components.TryGetValue(type, out var components))
+                throw new ComponentError($"Component type {type} not found");
+
+            if (!components.TryGetValue(entityId, out var component))
+                throw new ComponentError($"Component {type.Name} not found for entity {entityId}");
+
+            components[entityId] = func(component);
         }
 
         internal IEnumerable<uint> GetAllEntitiesWithType(Type componentType)
@@ -189,4 +214,5 @@ namespace AtomEngine
             _isDisposed = true;
         }
     }
+
 }

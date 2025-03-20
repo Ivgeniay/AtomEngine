@@ -95,6 +95,8 @@ namespace AtomEngine
 
             return ref _componentPool.GetComponent<T>(entity.Id);
         }
+        public void ModifyComponent(uint entityId, Type type, Func<IComponent, IComponent> func) =>
+            _componentPool.ModifyComponent(entityId, type, func);
         public bool HasComponent<T>(Entity entity) where T : struct, IComponent
         {
             if (!IsEntityValid(entity.Id, entity.Version))
@@ -175,7 +177,11 @@ namespace AtomEngine
 
             InvalidateQueries();
         }
-        
+        public void WithComponent(uint entityId, Type componentType, Action<object> action)
+        {
+            _componentPool.WithComponent(entityId, componentType, action);
+        }
+
         public Archetype GetEntityArchetype(ref Entity entity)
         {
             if (_entityArchetypesCache.TryGetValue(entity.Id, out var cachedArchetype))
@@ -282,6 +288,38 @@ namespace AtomEngine
                 RemoveSystem(sys);
             }
         }
+
+        public void SetOrder(ISystem system, int oreder)
+        {
+            lock (_systemsLock)
+            {
+                
+            }
+        }
+        public void SetOrder(IRenderSystem system, int oreder)
+        {
+            lock (_renderSystemsLock)
+            {
+            }
+        }
+        public void SetOrder(ICommonSystem system, int oreder)
+        {
+            if (system == null) throw new NullValueError(nameof(system));
+
+            if (system is IPhysicSystem physicsSystem)
+            {
+                SetOrder(physicsSystem, oreder);
+            }
+            else if (system is IRenderSystem render)
+            {
+                SetOrder(render, oreder);
+            }
+            else if (system is ISystem sys)
+            {
+                SetOrder(sys, oreder);
+            }
+        }
+
 
         public void AddSystemDependency(ISystem dependent, ISystem dependency)
         {

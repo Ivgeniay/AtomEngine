@@ -25,7 +25,6 @@ namespace Editor
 
         public Action<uint, uint, EntityChange>? OnEntityChange;
         public Action<uint, uint>? OnEntityCreated;
-        public Action<uint, uint>? OnEntityDeleted;
         public Action<uint, uint, uint>? OnEntityDuplicated;
         public Action<uint, uint>? OnEntityRemoved;
         public Action<uint, uint>? OnEntityRenamed;

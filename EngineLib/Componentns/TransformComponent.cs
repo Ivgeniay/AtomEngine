@@ -48,9 +48,12 @@ namespace AtomEngine
         public Vector3 Rotation { get => _rotation; set { _rotation = value;  IsDirtyRot = true; } }
         public Vector3 Scale { get => _scale; set { _scale = value;  IsDirtyScale = true; } }
 
-        private bool IsDirtyPos = false;
-        private bool IsDirtyRot = false;
-        private bool IsDirtyScale = false;
+        [DefaultBool(true)]
+        private bool IsDirtyPos;
+        [DefaultBool(true)]
+        private bool IsDirtyRot;
+        [DefaultBool(true)]
+        private bool IsDirtyScale;
 
         private Matrix4x4 _translationMatrixCache;
         private Matrix4x4 _rotationMatrixCache;
@@ -67,31 +70,23 @@ namespace AtomEngine
 
         public Matrix4x4 GetTranslationMatrix()
         {
-            if (IsDirtyPos)
-            {
-                _translationMatrixCache = Matrix4x4.CreateTranslation(Position);
-                IsDirtyPos = false;
-            }
+            _translationMatrixCache = Matrix4x4.CreateTranslation(Position);
+            IsDirtyPos = false;
             return _translationMatrixCache;
         }
         public Matrix4x4 GetScaleMatrix()
         {
-            if (IsDirtyScale)
-            {
-                _scaleMatrixCache = Matrix4x4.CreateScale(Scale);
-                IsDirtyScale = false;
-            }
+            _scaleMatrixCache = Matrix4x4.CreateScale(Scale);
+            IsDirtyScale = false;
             return _scaleMatrixCache;
         }
         public Matrix4x4 GetRotationMatrix()
         {
-            if (IsDirtyRot)
-            {
-                _rotationMatrixCache = Matrix4x4.CreateRotationZ(Rotation.Z.DegreesToRadians()) *
-                                  Matrix4x4.CreateRotationX(Rotation.X.DegreesToRadians()) *
-                                  Matrix4x4.CreateRotationY(Rotation.Y.DegreesToRadians());
-                IsDirtyRot = false;
-            }
+            
+            _rotationMatrixCache = Matrix4x4.CreateRotationZ(Rotation.Z.DegreesToRadians()) *
+                                Matrix4x4.CreateRotationX(Rotation.X.DegreesToRadians()) *
+                                Matrix4x4.CreateRotationY(Rotation.Y.DegreesToRadians());
+            IsDirtyRot = false;
             return _rotationMatrixCache;
         } 
 
@@ -99,7 +94,11 @@ namespace AtomEngine
         {
             if (IsDirtyPos || IsDirtyScale || IsDirtyRot)
             {
-                _modelMatrixCache = GetScaleMatrix() * GetRotationMatrix() * GetTranslationMatrix();
+                Matrix4x4 result = Matrix4x4.Identity;
+                result *= GetRotationMatrix();
+                result *= GetTranslationMatrix();
+                result *= GetScaleMatrix();
+                _modelMatrixCache = result;
             }
             if (parentWorldMatrix.HasValue)
             {

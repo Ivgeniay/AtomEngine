@@ -115,7 +115,7 @@ namespace Editor
             }
 
             float wheelDelta = Input.GetMouseWheelDelta();
-            if (wheelDelta != 0)
+            if (wheelDelta != 0 && Input.IsMouseButtonDown(AtomEngine.MouseButton.Right))
             {
                 ZoomCamera(ref transform, ref editorCamera, wheelDelta);
             }
