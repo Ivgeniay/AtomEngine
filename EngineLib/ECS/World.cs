@@ -19,6 +19,10 @@ namespace AtomEngine
         private readonly List<IPhysicSystem> _physicSystems = new List<IPhysicSystem>();
         private readonly object _systemsLock = new object();
         private readonly object _renderSystemsLock = new object();
+
+        private readonly ConcurrentDictionary<ISystem, int> _systemExecutionOrder = new ConcurrentDictionary<ISystem, int>();
+        private readonly ConcurrentDictionary<IRenderSystem, int> _renderSystemExecutionOrder = new ConcurrentDictionary<IRenderSystem, int>();
+        private readonly ConcurrentDictionary<IPhysicSystem, int> _physicSystemExecutionOrder = new ConcurrentDictionary<IPhysicSystem, int>();
         // COMPONENTS
         private readonly ConcurrentDictionary<uint, Archetype> _entityArchetypesCache = new ConcurrentDictionary<uint, Archetype>();
         private readonly ResourceManager _resourceManager = new ResourceManager();
@@ -226,6 +230,7 @@ namespace AtomEngine
             {
                 _renderSystems.Add(system);
                 initialize_render_systems.Add(system);
+                _renderSystemExecutionOrder[system] = -1;
             }
         }
         public void AddSystem(ISystem system)
@@ -238,6 +243,11 @@ namespace AtomEngine
                 if (system is IPhysicSystem physicSystem)
                 {
                     _physicSystems.Add(physicSystem);
+                    _physicSystemExecutionOrder[physicSystem] = -1;
+                }
+                else
+                {
+                    _systemExecutionOrder[system] = -1;
                 }
             }
         }
@@ -255,9 +265,14 @@ namespace AtomEngine
                 {
                     _initialize_systems.Remove(system);
                 }
-                if (system is IPhysicSystem render)
+                if (system is IPhysicSystem physics)
                 {
-                    _physicSystems.Remove(render);
+                    _physicSystems.Remove(physics);
+                    _physicSystemExecutionOrder.TryRemove(physics, out _);
+                }
+                else
+                {
+                    _systemExecutionOrder.TryRemove(system, out _);
                 }
             }
         }
@@ -269,6 +284,7 @@ namespace AtomEngine
                 {
                     _renderSystems.Remove(system);
                 }
+                _renderSystemExecutionOrder.TryRemove(system, out _);
             }
         }
         public void RemoveSystem(ICommonSystem system)
@@ -289,34 +305,53 @@ namespace AtomEngine
             }
         }
 
-        public void SetOrder(ISystem system, int oreder)
+        public void SetOrder(ISystem system, int order)
         {
             lock (_systemsLock)
             {
-                
+                if (system is IPhysicSystem physic) SetOrder(physic, order);
+
+                if (!_systems.Contains(system))
+                    throw new ArgumentException("System must be added to the world first");
+
+                _systemExecutionOrder[system] = order;
             }
         }
-        public void SetOrder(IRenderSystem system, int oreder)
+        public void SetOrder(IRenderSystem system, int order)
         {
             lock (_renderSystemsLock)
             {
+                if (!_renderSystems.Contains(system))
+                    throw new ArgumentException("Render system must be added to the world first");
+
+                _renderSystemExecutionOrder[system] = order;
             }
         }
-        public void SetOrder(ICommonSystem system, int oreder)
+        public void SetOrder(IPhysicSystem system, int order)
+        {
+            lock (_systemsLock)
+            {
+                if (!_physicSystems.Contains(system))
+                    throw new ArgumentException("Physics system must be added to the world first");
+
+                _physicSystemExecutionOrder[system] = order;
+            }
+        }
+        public void SetOrder(ICommonSystem system, int order)
         {
             if (system == null) throw new NullValueError(nameof(system));
 
             if (system is IPhysicSystem physicsSystem)
             {
-                SetOrder(physicsSystem, oreder);
+                SetOrder(physicsSystem, order);
             }
             else if (system is IRenderSystem render)
             {
-                SetOrder(render, oreder);
+                SetOrder(render, order);
             }
             else if (system is ISystem sys)
             {
-                SetOrder(sys, oreder);
+                SetOrder(sys, order);
             }
         }
 
@@ -338,10 +373,21 @@ namespace AtomEngine
             var systemLevels = _dependencyGraph.GetExecutionLevels();
             foreach (var level in systemLevels)
             {
-                var systemTasks = level.Select(system =>
-                    Task.Run(() => UpdateSystemSafely(system, deltaTime))
-                );
-                await Task.WhenAll(systemTasks);
+                var systemGroups = level
+                    .GroupBy(system => {
+                        if (!_systemExecutionOrder.TryGetValue(system, out int order))
+                            order = -1;
+                        return order;
+                    })
+                    .OrderBy(g => g.Key == -1 ? int.MaxValue : g.Key);
+
+                foreach (var group in systemGroups)
+                {
+                    var systemTasks = group.Select(system =>
+                        Task.Run(() => UpdateSystemSafely(system, deltaTime))
+                    );
+                    await Task.WhenAll(systemTasks);
+                }
             }
         }
         private void UpdateSystemSafely(ISystem system, double deltaTime)
@@ -385,7 +431,15 @@ namespace AtomEngine
             var systemLevels = _dependencyGraph.GetExecutionLevels();
             foreach (var level in systemLevels)
             {
-                foreach(var system in level)
+                var sortedSystems = level
+                        .OrderBy(system => {
+                            if (!_systemExecutionOrder.TryGetValue(system, out int order))
+                                order = -1;
+                            return order == -1 ? int.MaxValue : order;
+                        })
+                        .ToList();
+
+                foreach (var system in sortedSystems)
                 {
                     UpdateSystemSafely(system, deltaTime);
                 }
@@ -394,7 +448,15 @@ namespace AtomEngine
 
         public void FixedUpdate()
         {
-            foreach (var system in _physicSystems)
+            var sortedPhysicSystems = _physicSystems
+                    .OrderBy(system => {
+                        if (!_physicSystemExecutionOrder.TryGetValue(system, out int order))
+                            order = -1;
+                        return order == -1 ? int.MaxValue : order;
+                    })
+                    .ToList();
+
+            foreach (var system in sortedPhysicSystems)
                 system.FixedUpdate();
         }
 
@@ -408,7 +470,16 @@ namespace AtomEngine
                 }
                 initialize_render_systems.Clear();
             }
-            foreach (var system in _renderSystems)
+
+            var sortedRenderSystems = _renderSystems
+                .OrderBy(system => {
+                    if (!_renderSystemExecutionOrder.TryGetValue(system, out int order))
+                        order = -1;
+                    return order == -1 ? int.MaxValue : order;
+                })
+                .ToList();
+
+            foreach (var system in sortedRenderSystems)
                 system.Render(deltaTime);
         }
         public void Resize(Vector2 size)

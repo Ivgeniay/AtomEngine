@@ -345,12 +345,36 @@ namespace Editor
             _sceneManager.OnComponentChange += ComponentChange;
             _sceneManager.OnComponentAdded += ComponentAdded;
             _sceneManager.OnComponentRemoved += ComponentRemoved;
+
             _sceneManager.OnEntityCreated += EntityCreated;
             _sceneManager.OnEntityRemoved += EntityRemoved;
+
             _sceneManager.OnWorldSelected += WorldSelected;
             _sceneManager.OnWorldCreate += WorldCreate;
+
             _sceneManager.OnSystemAddedToWorld += SystemAddedToWorld;
             _sceneManager.OnSystemRemovedFromWorld += SystemRemovedFromWorld;
+            _sceneManager.OnSystemExecutionOrderChanged += (system, e) =>
+            {
+                var worldData = _sceneManager
+                .CurrentScene
+                .Worlds
+                .Where(w => 
+                    system.IncludInWorld
+                    .Contains(w.WorldId))
+                .Select(e => e.WorldName)
+                .ToList();
+
+                foreach(var wName in worldData)
+                {
+                    var instance = _worldSystems[wName][system.SystemFullTypeName];
+                    if (instance == null) continue;
+                    if (_sceneWorlds.TryGetValue(wName, out var world))
+                    {
+                        world.SetOrder(instance, e);
+                    }
+                }
+            };
 
             _renderTimer.Start();
             _isOpen = true;
@@ -889,6 +913,7 @@ namespace Editor
                         {
                             var systemInstance = (ICommonSystem)constructor.Invoke(new object[] { world });
                             world.AddSystem(systemInstance);
+                            world.SetOrder(systemInstance, system.ExecutionOrder);
 
                             systemDict[system.SystemFullTypeName] = systemInstance;
 
