@@ -2,13 +2,14 @@
 using Silk.NET.OpenGL;
 using AtomEngine;
 using System;
+using EngineLib;
 
 namespace Editor
 {
+    [HideInspectorSearchAttribute]
     public class EditorCameraFrustumRenderSystem : IRenderSystem
     {
-        private IWorld _world;
-        public IWorld World => _world;
+        public IWorld World { get; set; }
 
         private readonly IEntityComponentInfoProvider _componentProvider;
         private readonly GL _gl;
@@ -20,7 +21,7 @@ namespace Editor
 
         public EditorCameraFrustumRenderSystem(IWorld world, GL gl)
         {
-            _world = world;
+            World = world;
             _gl = gl;
 
             _queryCameras = world.CreateEntityQuery()
@@ -59,9 +60,9 @@ namespace Editor
                 return;
 
             var editorCameraEntity = editorCameras[0];
-            ref var editorTransform = ref _world.GetComponent<TransformComponent>(editorCameraEntity);
-            ref var editorCamera = ref _world.GetComponent<CameraComponent>(editorCameraEntity);
-            ref var editorCameraExt = ref _world.GetComponent<EditorCameraComponent>(editorCameraEntity);
+            ref var editorTransform = ref World.GetComponent<TransformComponent>(editorCameraEntity);
+            ref var editorCamera = ref World.GetComponent<CameraComponent>(editorCameraEntity);
+            ref var editorCameraExt = ref World.GetComponent<EditorCameraComponent>(editorCameraEntity);
 
             Matrix4x4 view = editorCamera.ViewMatrix;
             Matrix4x4 projection = editorCameraExt.IsPerspective
@@ -82,8 +83,8 @@ namespace Editor
 
             foreach (var cameraEntity in cameras)
             {
-                ref var transformComponent = ref _world.GetComponent<TransformComponent>(cameraEntity);
-                ref var cameraComponent = ref _world.GetComponent<CameraComponent>(cameraEntity);
+                ref var transformComponent = ref World.GetComponent<TransformComponent>(cameraEntity);
+                ref var cameraComponent = ref World.GetComponent<CameraComponent>(cameraEntity);
 
                 Vector3[] frustumCorners = CalculateFrustumCorners(transformComponent, cameraComponent);
                 _shader.UpdateFrustumVertices(frustumCorners);
@@ -169,7 +170,7 @@ namespace Editor
             var cameras = _queryEditorCamera.Build();
             if (cameras.Length > 0)
             {
-                ref var camera = ref _world.GetComponent<CameraComponent>(cameras[0]);
+                ref var camera = ref World.GetComponent<CameraComponent>(cameras[0]);
                 camera.AspectRatio = size.X / size.Y;
             }
         }

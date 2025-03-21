@@ -54,7 +54,7 @@
     ",
         Author = "AtomEngine Team"
     )]
-    [AttributeUsage(AttributeTargets.Struct, AllowMultiple = false)]
+    [AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class, AllowMultiple = false)]
     public class HideInspectorSearchAttribute : Attribute
     {
     }

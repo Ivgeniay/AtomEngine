@@ -2,7 +2,7 @@
 {
     public interface ICommonSystem
     {
-        IWorld World { get; }
+        IWorld World { get; set; }
         public void Initialize();
     }
 }

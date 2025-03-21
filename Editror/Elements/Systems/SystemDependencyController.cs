@@ -11,6 +11,7 @@ using System;
 
 using MouseButton = Avalonia.Input.MouseButton;
 using Avalonia.Threading;
+using EngineLib;
 
 namespace Editor
 {
@@ -327,6 +328,17 @@ namespace Editor
                 {
                     var interfaces = type.GetInterfaces();
                     if (interfaces != null && interfaces.Contains(typeof(IPhysicSystem)))
+                    {
+                        typeToRemove.Add(type);
+                    }
+                }
+            }
+
+            foreach (Type type in systems)
+            {
+                if (type.GetCustomAttributes(false).Any(e => e.GetType() == typeof(HideInspectorSearchAttribute)))
+                {
+                    if (!typeToRemove.Contains(type))
                     {
                         typeToRemove.Add(type);
                     }

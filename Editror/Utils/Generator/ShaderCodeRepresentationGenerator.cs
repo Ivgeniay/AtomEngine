@@ -309,7 +309,7 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
                     break;
                 case "float":
-                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, valuef);");
+                    builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
                     break;
                 case "double":
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");

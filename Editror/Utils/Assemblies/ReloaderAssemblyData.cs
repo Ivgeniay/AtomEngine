@@ -27,6 +27,7 @@ namespace Editor
         {
             try
             {
+                if (assembly.Assembly == null) return;
                 DebLogger.Info($"Начинаем выгрузку сборки: {assembly.Assembly.FullName}");
                 ServiceHub.Get<EditorAssemblyManager>().FreeCache();
                 ServiceHub.Get<DraggableWindowManagerService>().Unload();

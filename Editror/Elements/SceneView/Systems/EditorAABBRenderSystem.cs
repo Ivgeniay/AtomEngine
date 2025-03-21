@@ -1,26 +1,26 @@
 ﻿using System.Numerics;
 using Silk.NET.OpenGL;
 using AtomEngine;
+using EngineLib;
 
 namespace Editor
 {
+    [HideInspectorSearchAttribute]
     public class EditorAABBRenderSystem : IRenderSystem
-    {
-        private IWorld _world;
-        public IWorld World => _world;
+    { 
+        public IWorld World { get;set; }
 
         private AABBManager _aabbManager;
         private QueryEntity _queryCameras;
 
         public EditorAABBRenderSystem(IWorld world, GL gl, IEntityComponentInfoProvider componentProvider)
         {
-            _world = world;
+            World = world;
             _queryCameras = world.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<CameraComponent>()
                 .With<EditorCameraComponent>();
 
-            // Инициализируем менеджер AABB
             _aabbManager = new AABBManager(gl, componentProvider);
         }
 
@@ -34,8 +34,8 @@ namespace Editor
             if (cameras.Length == 0) return;
 
             var cameraEntity = cameras[0];
-            ref var cameraTransform = ref _world.GetComponent<TransformComponent>(cameraEntity);
-            ref var camera = ref _world.GetComponent<CameraComponent>(cameraEntity);
+            ref var cameraTransform = ref World.GetComponent<TransformComponent>(cameraEntity);
+            ref var camera = ref World.GetComponent<CameraComponent>(cameraEntity);
 
             _aabbManager.Render(camera.ViewMatrix, camera.CreateProjectionMatrix());
         }
@@ -45,7 +45,7 @@ namespace Editor
             var cameras = _queryCameras.Build();
             if (cameras.Length > 0)
             {
-                ref var camera = ref _world.GetComponent<CameraComponent>(cameras[0]);
+                ref var camera = ref World.GetComponent<CameraComponent>(cameras[0]);
                 camera.AspectRatio = size.X / size.Y;
             }
         }

@@ -15,6 +15,7 @@ namespace WindowsBuild
             WindowBuildFileRouter router = new WindowBuildFileRouter(rootPath);
 
             AssemblyManager assemblyManager = new AssemblyManager();
+            assemblyManager.InitializeAddDomainAssemblies();
             assemblyManager.ScanDirectory(router.AssembliesPath);
 
             RuntimeResourceManager resourceManager = new RuntimeResourceManager();

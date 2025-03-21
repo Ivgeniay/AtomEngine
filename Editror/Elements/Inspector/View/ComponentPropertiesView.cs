@@ -6,6 +6,7 @@ using EngineLib;
 using Avalonia;
 using System;
 using AtomEngine;
+using System.Reflection;
 
 namespace Editor
 {
@@ -92,9 +93,28 @@ namespace Editor
 
             panel.Children.Add(headerBorder);
 
+            Type componentType = null;
+            if (descriptor.Context is EntityInspectorContext entityContext)
+                componentType = entityContext.Component.GetType();
+
             var properties = (List<PropertyDescriptor>)descriptor.Value;
             foreach (var property in properties)
             {
+                bool withIgnoreSceneOnChanging = false;
+                if (componentType != null)
+                {
+                    FieldInfo field =
+                        componentType
+                        .GetField(property.Name, 
+                            System.Reflection.BindingFlags.Public | 
+                            System.Reflection.BindingFlags.Instance | 
+                            System.Reflection.BindingFlags.NonPublic);
+                    if (field != null)
+                    {
+                        withIgnoreSceneOnChanging = field.GetCustomAttribute<IgnoreChangingSceneAttribute>() != null;
+                    }
+                }
+
                 var view = _inspectorViewFactory.CreateView(property);
                 panel.Children.Add(view.GetView());
 
@@ -102,7 +122,7 @@ namespace Editor
                 {
                     if (descriptor.Context != null)
                     {
-                        sceneManager.ComponentChange(context.EntityId, context.Component);
+                        sceneManager.ComponentChange(context.EntityId, context.Component, withIgnoreSceneOnChanging);
                     }
                 };
             }

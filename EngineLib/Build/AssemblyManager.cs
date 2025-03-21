@@ -5,24 +5,57 @@ namespace AtomEngine
     public class AssemblyManager
     {
         public static AssemblyManager Instance { get; private set; }
+        protected readonly HashSet<Assembly> _assemblies = new();
 
         public AssemblyManager() { 
             Instance = this;
         }
 
-        protected readonly HashSet<Assembly> _assemblies = new();
+
+        public void InitializeAddDomainAssemblies()
+        {
+            IEnumerable<Assembly> initialAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+            foreach (var assembly in initialAssemblies)
+                _assemblies.Add(assembly);
+        }
 
         public virtual void ScanDirectory(string path)
         {
+
             foreach (var file in Directory.GetFiles(path, "*.dll", SearchOption.AllDirectories))
             {
                 try
                 {
-                    var assembly = Assembly.LoadFrom(file);
-                    _assemblies.Add(assembly);
+                    var result = LoadAssembly(file);
+                    if (!result)
+                    {
+                        DebLogger.Error($"Не удалось загрузить сборку {file}");
+                    }
                 }
                 catch (AssemblyError ex)
-                { }
+                { 
+                }
+            }
+        }
+
+        private bool LoadAssembly(string path)
+        {
+            try
+            {
+                var assemblyName = AssemblyName.GetAssemblyName(path);
+
+                if (_assemblies.Any(e => e.FullName == assemblyName.FullName))
+                {
+                    return false;
+                }
+                var assembly = Assembly.LoadFrom(path);
+                _assemblies.Add(assembly);
+                return true;
+            }
+            catch (AssemblyError ex)
+            {
+                return false;
             }
         }
 

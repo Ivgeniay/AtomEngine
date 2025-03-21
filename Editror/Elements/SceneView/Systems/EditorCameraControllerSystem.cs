@@ -2,13 +2,15 @@
 using AtomEngine;
 using Avalonia;
 using System;
+using EngineLib;
 
 namespace Editor
 {
-    public class EditorCameraControllerSystem : IRenderSystem
+    [HideInspectorSearch]
+    [ExecutionOnScene]
+    public class EditorCameraControllerSystem : ISystem
     {
-        private IWorld _world;
-        public IWorld World => _world;
+        public IWorld World { get; set; }
 
         private QueryEntity _queryCameraController;
 
@@ -17,7 +19,7 @@ namespace Editor
 
         public EditorCameraControllerSystem(IWorld world)
         {
-            _world = world;
+            World = world;
             _queryCameraController = world.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<CameraComponent>()
@@ -25,11 +27,9 @@ namespace Editor
                 .With<EditorCameraControllerComponent>();
         }
 
-        public void Initialize()
-        {
-        }
+        public void Initialize() { }
 
-        public void Render(double deltaTime)
+        public void Update(double deltaTime)
         {
             float dt = (float)deltaTime;
             var cameras = _queryCameraController.Build();
@@ -37,10 +37,10 @@ namespace Editor
 
             foreach (var entity in cameras)
             {
-                ref var transform = ref _world.GetComponent<TransformComponent>(entity);
-                ref var camera = ref _world.GetComponent<CameraComponent>(entity);
-                ref var editorCamera = ref _world.GetComponent<EditorCameraComponent>(entity);
-                ref var controller = ref _world.GetComponent<EditorCameraControllerComponent>(entity);
+                ref var transform = ref World.GetComponent<TransformComponent>(entity);
+                ref var camera = ref World.GetComponent<CameraComponent>(entity);
+                ref var editorCamera = ref World.GetComponent<EditorCameraComponent>(entity);
+                ref var controller = ref World.GetComponent<EditorCameraControllerComponent>(entity);
 
                 if (!controller.IsActive) continue;
 
@@ -170,7 +170,7 @@ namespace Editor
             var cameras = _queryCameraController.Build();
             if (cameras.Length > 0)
             {
-                ref var camera = ref _world.GetComponent<CameraComponent>(cameras[0]);
+                ref var camera = ref World.GetComponent<CameraComponent>(cameras[0]);
                 camera.AspectRatio = size.X / size.Y;
             }
         }

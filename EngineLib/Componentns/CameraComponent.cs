@@ -59,6 +59,9 @@ namespace AtomEngine
         public Vector3 CameraUp; 
         [DefaultVector3(0f, 0f, 1f)]
         public Vector3 CameraFront;
+        [DefaultBool(true)]
+        [IgnoreChangingScene]
+        public bool IsActive;
 
         public CameraComponent(Entity owner, float fieldOfView = 45.0f, float aspectRatio = 16f / 9f,
                              float nearPlane = 0.1f, float farPlane = 200.0f)

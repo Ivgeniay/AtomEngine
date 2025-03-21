@@ -21,7 +21,7 @@ namespace Editor
 
         public Action<uint, uint, IComponent>? OnComponentAdded;
         public Action<uint, uint, IComponent>? OnComponentRemoved;
-        public Action<uint, uint, IComponent>? OnComponentChange;
+        public Action<uint, uint, IComponent, bool>? OnComponentChange;
 
         public Action<uint, uint, EntityChange>? OnEntityChange;
         public Action<uint, uint>? OnEntityCreated;
@@ -72,9 +72,9 @@ namespace Editor
             OnSceneDirty?.Invoke(CurrentScene);
             OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentRemoved);
         }
-        internal void ComponentChange(uint entityId, IComponent component)
+        internal void ComponentChange(uint entityId, IComponent component, bool withIgnoreSceneView)
         {
-            OnComponentChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, component);
+            OnComponentChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, component, withIgnoreSceneView);
             OnSceneDirty?.Invoke(CurrentScene);
             OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentValueChange);
         }

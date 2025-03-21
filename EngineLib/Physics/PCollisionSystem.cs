@@ -5,14 +5,13 @@ namespace AtomEngine
 {
     public class PCollisionSystem : IPhysicSystem
     {
-        private World _world;
-        public IWorld World => _world;
+        public IWorld World { get; set; } 
         private BVHPool _bvhPool;
         private Dictionary<CollisionPair, CollisionState> _activeCollisions = new Dictionary<CollisionPair, CollisionState>();
         private int _currentFrame = 0;
         private QueryEntity dynamicBodyQuery;
         public PCollisionSystem(World world) {
-            _world = world;
+            World = world;
             _bvhPool = world.BvhPool;
             dynamicBodyQuery = new QueryEntity(world)
                 .With<TransformComponent>()
@@ -78,8 +77,8 @@ namespace AtomEngine
 
         private List<Entity> CheckBroadPhase(Entity dynamicEntity)
         {
-            var dynamicTransform = _world.GetComponent<TransformComponent>(dynamicEntity);
-            var dynamicCollider = _world.GetComponent<ColliderComponent>(dynamicEntity);
+            var dynamicTransform = World.GetComponent<TransformComponent>(dynamicEntity);
+            var dynamicCollider = World.GetComponent<ColliderComponent>(dynamicEntity);
             var dynamicBounds = dynamicCollider.ComputeBounds().Transform(dynamicTransform.GetModelMatrix());
 
             return _bvhPool.GetPotentialCollisions(dynamicBounds);
@@ -88,10 +87,10 @@ namespace AtomEngine
         // Уровень 2: GJK без EPA
         private bool CheckGJKCollision(Entity dynamicEntity, Entity staticEntity)
         {
-            var dynamicTransform = _world.GetComponent<TransformComponent>(dynamicEntity);
-            var staticTransform = _world.GetComponent<TransformComponent>(staticEntity);
-            var dynamicCollider = _world.GetComponent<ColliderComponent>(dynamicEntity);
-            var staticCollider = _world.GetComponent<ColliderComponent>(staticEntity);
+            var dynamicTransform = World.GetComponent<TransformComponent>(dynamicEntity);
+            var staticTransform = World.GetComponent<TransformComponent>(staticEntity);
+            var dynamicCollider = World.GetComponent<ColliderComponent>(dynamicEntity);
+            var staticCollider = World.GetComponent<ColliderComponent>(staticEntity);
 
             SupportFunction supportA = direction =>
             {
@@ -118,10 +117,10 @@ namespace AtomEngine
         {
             var manifold = new CollisionManifold(dynamicEntity, staticEntity);
 
-            var dynamicTransform = _world.GetComponent<TransformComponent>(dynamicEntity);
-            var staticTransform = _world.GetComponent<TransformComponent>(staticEntity);
-            var dynamicCollider = _world.GetComponent<ColliderComponent>(dynamicEntity);
-            var staticCollider = _world.GetComponent<ColliderComponent>(staticEntity);
+            var dynamicTransform = World.GetComponent<TransformComponent>(dynamicEntity);
+            var staticTransform = World.GetComponent<TransformComponent>(staticEntity);
+            var dynamicCollider = World.GetComponent<ColliderComponent>(dynamicEntity);
+            var staticCollider = World.GetComponent<ColliderComponent>(staticEntity);
 
             SupportFunction supportA = direction =>
             {

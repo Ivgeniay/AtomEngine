@@ -12,12 +12,11 @@ namespace AtomEngine
     public class PhysicsSystem : IPhysicSystem, IDisposable
     {
         private Simulation _simulation;
-        private BufferPool _bufferPool;
-        private World _world;
+        private BufferPool _bufferPool; 
         private QueryEntity queryEntity;
 
         Dictionary<CollidableReference, Entity> _collidableToEntityMap = new Dictionary<CollidableReference, Entity>();
-        public IWorld World => _world;
+        public IWorld World { get; set; }
 
         private struct NarrowPhaseCallbacks : INarrowPhaseCallbacks
         {
@@ -65,18 +64,18 @@ namespace AtomEngine
 
                 if (_physicsSystem._collidableToEntityMap.TryGetValue(pair.A, out Entity entityA))
                 {
-                    if (_physicsSystem._world.HasComponent<PhysicsMaterialComponent>(entityA))
+                    if (_physicsSystem.World.HasComponent<PhysicsMaterialComponent>(entityA))
                     {
-                        materialA = _physicsSystem._world.GetComponent<PhysicsMaterialComponent>(entityA).Material;
+                        materialA = _physicsSystem.World.GetComponent<PhysicsMaterialComponent>(entityA).Material;
                         hasMatA = true;
                     }
                 }
 
                 if (_physicsSystem._collidableToEntityMap.TryGetValue(pair.B, out Entity entityB))
                 {
-                    if (_physicsSystem._world.HasComponent<PhysicsMaterialComponent>(entityB))
+                    if (_physicsSystem.World.HasComponent<PhysicsMaterialComponent>(entityB))
                     {
-                        materialB = _physicsSystem._world.GetComponent<PhysicsMaterialComponent>(entityB).Material;
+                        materialB = _physicsSystem.World.GetComponent<PhysicsMaterialComponent>(entityB).Material;
                         hasMatB = true;
                     }
                 }
@@ -171,13 +170,13 @@ namespace AtomEngine
 
         public PhysicsSystem(World world)
         {
-            _world = world;
+            World = world;
             _bufferPool = new BufferPool();
 
             var narrowPhaseCallbacks = new NarrowPhaseCallbacks(this);
             var poseIntegratorCallbacks = new PoseIntegratorCallbacks(this, new Vector3(0, Physic.GRAVITY, 0));
 
-            queryEntity = _world.CreateEntityQuery()
+            queryEntity = World.CreateEntityQuery()
                 .With<BepuBodyComponent>();
 
             _simulation = Simulation.Create(
@@ -194,8 +193,8 @@ namespace AtomEngine
 
             foreach (var entity in entities)
             {
-                ref var body = ref _world.GetComponent<BepuBodyComponent>(entity);
-                ref var transform = ref _world.GetComponent<TransformComponent>(entity);
+                ref var body = ref World.GetComponent<BepuBodyComponent>(entity);
+                ref var transform = ref World.GetComponent<TransformComponent>(entity);
 
                 switch (body.BodyType)
                 {
@@ -267,9 +266,9 @@ namespace AtomEngine
         private void AddCollisionEvent<TManifold>(Entity entity, Entity otherEntity, TManifold manifold)
             where TManifold : unmanaged, IContactManifold<TManifold>
         {
-            if (!_world.HasComponent<CollisionComponent>(entity)) return;
+            if (!World.HasComponent<CollisionComponent>(entity)) return;
 
-            ref var collisionComponent = ref _world.GetComponent<CollisionComponent>(entity);
+            ref var collisionComponent = ref World.GetComponent<CollisionComponent>(entity);
 
             for(int i =0, count = manifold.Count; i < count; i++)
             {
@@ -307,8 +306,8 @@ namespace AtomEngine
 
             _collidableToEntityMap.Add(collidableReference, transform.Owner);
 
-            _world.AddComponent(transform.Owner, new BepuBodyComponent(transform.Owner, handle, BodyType.Dynamic));
-            _world.AddComponent(transform.Owner, new BepuColliderComponent(transform.Owner, shapeIndex));
+            World.AddComponent(transform.Owner, new BepuBodyComponent(transform.Owner, handle, BodyType.Dynamic));
+            World.AddComponent(transform.Owner, new BepuColliderComponent(transform.Owner, shapeIndex));
         }
 
         public void CreateStaticBox(ref TransformComponent transform, Vector3 size)
@@ -329,8 +328,8 @@ namespace AtomEngine
             CollidableReference collidableReference = new CollidableReference(handle);
             _collidableToEntityMap.Add(collidableReference, transform.Owner);
 
-            _world.AddComponent(transform.Owner, new BepuBodyComponent(transform.Owner, handle));
-            _world.AddComponent(transform.Owner, new BepuColliderComponent(transform.Owner, shapeIndex));
+            World.AddComponent(transform.Owner, new BepuBodyComponent(transform.Owner, handle));
+            World.AddComponent(transform.Owner, new BepuColliderComponent(transform.Owner, shapeIndex));
         }
 
         public void Dispose()

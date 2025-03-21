@@ -143,17 +143,9 @@ namespace Editor
                 {
                     SetValue(component, guidMember, redirection.GUID);
                 }
-                else
-                {
-                    DebLogger.Error("No GUID field");
-                }
                 if (guidMember != null)
                 {
                     SetValue(component, indexatorMember, redirection.Indexator);
-                }
-                else
-                {
-                    DebLogger.Error("No GUID field");
                 }
                 return;
             }

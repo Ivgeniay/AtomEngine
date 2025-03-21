@@ -154,15 +154,14 @@ namespace SmokeTesting
 
     public class BoundingInputSystem : ISystem
     {
-        public IWorld World => _world;
-        private IWorld _world; 
+        public IWorld World { get; set; }
         private QueryEntity movedComp;
         private QueryEntity sphereEntity;
         private App app;
         public BoundingInputSystem(IWorld world, App app)
         {
             this.app = app;
-            _world = world;
+            World = world;
             movedComp = this.CreateEntityQuery()
                 .With<BoundingComponent>()
                 .With<BoudingMovedComponent>();
@@ -209,7 +208,7 @@ namespace SmokeTesting
             IsUp = false;
             IsDown = false;
 
-            if (_world is World world)
+            if (World is World world)
             {
                 //var currentCol = world.GetCurrentCollisions();
                 //foreach (var con in currentCol)
@@ -262,13 +261,12 @@ namespace SmokeTesting
 
     public class RotateSystem : ISystem
     {
-        private IWorld _world;
-        public IWorld World => _world;
+        public IWorld World { get; set; }
         private QueryEntity queryEntity;
 
         public RotateSystem(IWorld world)
         {
-            _world = world;
+            World = world;
             queryEntity = this.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<RotateComponent>();
@@ -291,19 +289,18 @@ namespace SmokeTesting
                     deltaRotation 
                 );
             }
-        }
-
+        } 
         public void Initialize() { }
     }
     public class CollisionSystem : ISystem
     {
-        public IWorld World => _world;
+        public IWorld World { get; set; }
         private readonly World _world;
         private QueryEntity queryEntity;
 
         public CollisionSystem(World world)
         {
-            _world = world;
+            World = world;
             queryEntity = this.CreateEntityQuery()
                 .With<CollisionComponent>();
         }
@@ -328,14 +325,13 @@ namespace SmokeTesting
     }
     public class RenderSystem : IRenderSystem
     {
-        private IWorld _world;
-        public IWorld World => _world;
+        public IWorld World { get; set; }
         private QueryEntity queryCameraEntity;
         private QueryEntity queryRenderersEntity;
 
         public RenderSystem(IWorld world)
         { 
-            _world = world;
+            World = world;
             queryCameraEntity = this.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<CameraComponent>();
@@ -399,7 +395,7 @@ namespace SmokeTesting
     }
     public class CameraMoveSystem : ISystem
     {
-        private IWorld _world;
+        public IWorld World { get; set; }
         private QueryEntity queryEntity;
         private App app;
         private float moveSpeed = 5.0f;
@@ -416,13 +412,11 @@ namespace SmokeTesting
         private Vector3 cameraFront = new Vector3(0, 0, -1);
         private Vector3 cameraRight = Vector3.Zero;
         private Vector3 cameraUp = Vector3.UnitY;
-        private float run = 3f;
-
-        public IWorld World => _world;
+        private float run = 3f; 
 
         public CameraMoveSystem(IWorld world, App app)
         {
-            _world = world;
+            World = world;
             this.app = app;
 
             queryEntity = this.CreateEntityQuery()
@@ -512,13 +506,12 @@ namespace SmokeTesting
     }
     public class BoundingRenderSystem : IRenderSystem
     {
-        private IWorld _world;
-        public IWorld World => _world;
+        public IWorld World { get; set; }
         private QueryEntity boundingRenderQuery;
         private QueryEntity queryCameraEntity;
         public BoundingRenderSystem(IWorld world)
         {
-            _world = world;
+            World = world;
             queryCameraEntity = this.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<CameraComponent>();

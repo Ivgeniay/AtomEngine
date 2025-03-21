@@ -55,6 +55,9 @@ namespace AtomEngine
         [DefaultBool(true)]
         private bool IsDirtyScale;
 
+        [HideInInspector]
+        public Matrix4x4? parentWorldMatrix = null;
+
         private Matrix4x4 _translationMatrixCache;
         private Matrix4x4 _rotationMatrixCache;
         private Matrix4x4 _scaleMatrixCache;
@@ -90,7 +93,7 @@ namespace AtomEngine
             return _rotationMatrixCache;
         } 
 
-        public Matrix4x4 GetModelMatrix(Matrix4x4? parentWorldMatrix = null)
+        public Matrix4x4 GetModelMatrix()
         {
             if (IsDirtyPos || IsDirtyScale || IsDirtyRot)
             {
@@ -100,6 +103,7 @@ namespace AtomEngine
                 result *= GetScaleMatrix();
                 _modelMatrixCache = result;
             }
+
             if (parentWorldMatrix.HasValue)
             {
                 _modelMatrixCache *= parentWorldMatrix.Value;
@@ -108,3 +112,7 @@ namespace AtomEngine
         }
     }
 }
+
+/*
+ * Третья система ISystem должна следить за изменениями состояний HierarchyComponent у Entity. К примеру есть у Entity изменился родитель, то система должна должна сдвинуть 
+ */

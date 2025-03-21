@@ -18,9 +18,6 @@ using System;
 using KeyEventArgs = Avalonia.Input.KeyEventArgs;
 using MouseButton = Avalonia.Input.MouseButton;
 using OpenglLib;
-using Avalonia.Interactivity;
-using EngineLib;
-using Silk.NET.Maths;
 
 namespace Editor
 {
@@ -171,10 +168,9 @@ namespace Editor
                 _sceneWorlds[worldData.WorldName] = world;
                 _worldManager.AddWorld(world);
 
-                CreateEditorCamera(world, worldData);
-
                 InitializeRenderSystemsForWorld(world, worldData);
                 CreateEntitiesForWorld(world, worldData);
+                CreateEditorCamera(world, worldData);
             }
 
             foreach (var system in scene.Systems)
@@ -221,7 +217,8 @@ namespace Editor
                 NearPlane = 0.1f,
                 FarPlane = 1000.0f,
                 CameraUp = Vector3.UnitY,
-                CameraFront = Vector3.UnitZ
+                CameraFront = Vector3.UnitZ,
+                IsActive = true
             };
             world.AddComponent(_editorCameraEntity, in cameraComp);
 
@@ -232,7 +229,7 @@ namespace Editor
                 RotationSpeedX = 0.001f,
                 RotationSpeedY = 0.01f,
                 IsPerspective = _isPerspective,
-                LastMousePosition = new Point(0, 0)
+                LastMousePosition = new Point(0, 0),
             };
             world.AddComponent(_editorCameraEntity, in editorCamComp);
 
@@ -367,6 +364,8 @@ namespace Editor
 
                 foreach(var wName in worldData)
                 {
+                    if (_worldSystems.Count == 0) return;
+
                     var instance = _worldSystems[wName][system.SystemFullTypeName];
                     if (instance == null) continue;
                     if (_sceneWorlds.TryGetValue(wName, out var world))
@@ -433,6 +432,7 @@ namespace Editor
                     command.Execute(gl);
                 }
 
+                _worldManager.UpdateSingeThread(0.016);
                 _worldManager.Render(0.016);
 
                 Input.Update();
@@ -709,9 +709,10 @@ namespace Editor
             });
         }
 
-        public void ComponentChange(uint worldId, uint entityId, IComponent component)
+        public void ComponentChange(uint worldId, uint entityId, IComponent component, bool withIgnoreSceneView)
         {
             if (!_isOpen) return;
+            if (withIgnoreSceneView) return;
 
             EnqueueGLCommand((gl) =>
             {
@@ -899,6 +900,12 @@ namespace Editor
 
             if (systemType != null && typeof(ICommonSystem).IsAssignableFrom(systemType))
             {
+                if (typeof(ISystem).IsAssignableFrom(systemType))
+                {
+                    var isFit = systemType.GetCustomAttributes().Any(e => e.GetType() == typeof(ExecutionOnScene));
+                    if (!isFit) return;
+                }
+
                 try
                 {
                     if (!_worldSystems.TryGetValue(worldData.WorldName, out var systemDict))
@@ -1030,64 +1037,4 @@ namespace Editor
 
     }
 
-    [GLDependable]
-    [TooltipCategoryComponent(ComponentCategory.Render, "Kek")]
-    public partial struct TestShaderComponent66 : IComponent
-    {
-        public Entity Owner { get; set; }
-        public ShaderBase Shader;
-        [ShowInInspector]
-        private string ShaderGUID;
-        [ShowInInspector]
-        private string ShaderInternalIndex;
-    }
-    public class TestShaderRender66 : IRenderSystem
-    {
-        public IWorld World { get; set; }
-        public QueryEntity shaderEntityQuery;
-        public QueryEntity cameraEntitiesQuery;
-        public TestShaderRender66(IWorld world)
-        {
-            World = world;
-            shaderEntityQuery = this.CreateEntityQuery()
-                .With<TransformComponent>()
-                .With<MeshComponent>()
-                .With<TestShaderComponent66>();
-            cameraEntitiesQuery = this.CreateEntityQuery()
-                .With<TransformComponent>()
-                .With<EditorCameraComponent>()
-                .With<CameraComponent>();
-        }
-
-        public void Initialize() { }
-
-        public unsafe void Render(double deltaTime)
-        {
-            var queryRenderersEntity = shaderEntityQuery.Build();
-            var cameraEntity = cameraEntitiesQuery.Build()[0];
-            ref var cameraTransform = ref this.GetComponent<TransformComponent>(cameraEntity);
-            ref var cameraComponent = ref this.GetComponent<CameraComponent>(cameraEntity);
-
-            foreach (var entity in queryRenderersEntity)
-            {
-                ref var transform = ref this.GetComponent<TransformComponent>(entity);
-                ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);
-                ref var shaderComponent = ref this.GetComponent<TestShaderComponent66>(entity);
-                dynamic shader = shaderComponent.Shader;
-                if (shader == null || meshComponent.Mesh == null) continue;
-                shader.Use();
-
-                shader.model = transform.GetModelMatrix().ToSilk();
-                shader.view = cameraComponent.ViewMatrix.ToSilk();
-                shader.projection = cameraComponent.CreateProjectionMatrix().ToSilk();
-
-                meshComponent.Mesh.Draw(shader);
-            }
-        }
-
-        public void Resize(Vector2 size)
-        {
-
-        }
-    }
 }

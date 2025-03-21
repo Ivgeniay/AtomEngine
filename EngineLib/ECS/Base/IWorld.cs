@@ -15,6 +15,7 @@ namespace AtomEngine
         public void RemoveComponent<T>(Entity entity) where T : struct, IComponent;
 
         public Entity CreateEntity();
+        public bool IsEntityValid(uint entity_id, uint _version);
         public void DestroyEntity(Entity entity);
         public QueryEntity CreateEntityQuery();
 

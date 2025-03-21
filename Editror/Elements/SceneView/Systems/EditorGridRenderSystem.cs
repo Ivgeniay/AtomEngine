@@ -1,13 +1,14 @@
 ﻿using System.Numerics;
 using Silk.NET.OpenGL;
 using AtomEngine;
+using EngineLib;
 
 namespace Editor
 {
+    [HideInspectorSearch]
     public class EditorGridRenderSystem : IRenderSystem
     {
-        private IWorld _world;
-        public IWorld World => _world;
+        public IWorld World { get; set; }
 
         private GridShader _gridShader;
         private GL _gl;
@@ -16,7 +17,7 @@ namespace Editor
 
         public EditorGridRenderSystem(IWorld world, GL gl)
         {
-            _world = world;
+            World = world;
             _gl = gl;
             _queryEditorCameras = world.CreateEntityQuery()
                 .With<TransformComponent>()
@@ -28,7 +29,7 @@ namespace Editor
 
         public void Initialize()
         {
-            _gridEntity = _world.CreateEntity();
+            _gridEntity = World.CreateEntity();
         }
 
         public void Render(double deltaTime)
@@ -37,9 +38,9 @@ namespace Editor
             if (cameras.Length == 0) return;
 
             var cameraEntity = cameras[0];
-            ref var cameraTransform = ref _world.GetComponent<TransformComponent>(cameraEntity);
-            ref var camera = ref _world.GetComponent<CameraComponent>(cameraEntity);
-            ref var editorCamera = ref _world.GetComponent<EditorCameraComponent>(cameraEntity);
+            ref var cameraTransform = ref World.GetComponent<TransformComponent>(cameraEntity);
+            ref var camera = ref World.GetComponent<CameraComponent>(cameraEntity);
+            ref var editorCamera = ref World.GetComponent<EditorCameraComponent>(cameraEntity);
 
             _gl.Enable(EnableCap.DepthTest);
             _gl.DepthFunc(DepthFunction.Lequal);
@@ -71,7 +72,7 @@ namespace Editor
             var cameras = _queryEditorCameras.Build();
             if (cameras.Length > 0)
             {
-                ref var camera = ref _world.GetComponent<CameraComponent>(cameras[0]);
+                ref var camera = ref World.GetComponent<CameraComponent>(cameras[0]);
                 camera.AspectRatio = size.X / size.Y;
             }
         }
