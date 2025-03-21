@@ -4,6 +4,7 @@ using System.Linq;
 using AtomEngine;
 using System.IO;
 using System;
+using EngineLib;
 
 namespace Editor
 {
@@ -14,7 +15,7 @@ namespace Editor
         public Task InitializeAsync()
         {
             return Task.Run(() => {
-                string assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
+                string assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
                 CacheAllMaterials(assetsPath);
             });
         }

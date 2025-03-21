@@ -1,10 +1,11 @@
 ﻿using AtomEngine.RenderEntity;
+using EngineLib;
 using OpenglLib;
 using Texture = OpenglLib.Texture;
 
 namespace WindowsBuild
 {
-    public class RuntimeResourceManager
+    public class RuntimeResourceManager : IService
     {
         private readonly Dictionary<string, Texture> _textures = new();
         private readonly Dictionary<string, MeshBase> _meshes = new();
@@ -75,5 +76,7 @@ namespace WindowsBuild
             }
             _materials.Clear();
         }
+
+        public Task InitializeAsync() => Task.CompletedTask;
     }
 }

@@ -9,6 +9,7 @@ using System.Linq;
 using Avalonia;
 using System;
 using Avalonia.Threading;
+using EngineLib;
 
 namespace Editor
 {

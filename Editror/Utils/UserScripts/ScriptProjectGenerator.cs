@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Runtime.Loader;
 using System.Collections.Generic;
 using System.Linq;
+using EngineLib;
 
 namespace Editor
 {
@@ -50,8 +51,8 @@ namespace Editor
 
             return Task.Run(() =>
             {
-                _assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
-                _scriptProjectPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.CSharp_Assembly);
+                _assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
+                _scriptProjectPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<CSharp_AssemblyDirectory>();
                 _outputPath = Path.Combine(_scriptProjectPath, "bin");
 
                 _isInitialized = true;
@@ -214,7 +215,7 @@ namespace Editor
                     return null;
                 }
 
-                string cacheDir = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Cache);
+                string cacheDir = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<CacheDirectory>();
                 string assemblyCachePath = Path.Combine(cacheDir, "AssemblyCache");
                 EnsureCacheDirectory(assemblyCachePath);
 

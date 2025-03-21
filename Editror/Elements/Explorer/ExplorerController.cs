@@ -8,6 +8,7 @@ using AtomEngine;
 using System.IO;
 using Avalonia;
 using System;
+using EngineLib;
 
 
 namespace Editor
@@ -65,7 +66,7 @@ namespace Editor
 
             Classes.Add("directoryExplorer");
 
-            _rootPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
+            _rootPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
             _currentPath = _rootPath;
 
             _expandableFileManager = new ExpandableFileManager();

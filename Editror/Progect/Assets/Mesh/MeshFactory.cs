@@ -5,6 +5,7 @@ using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
 using AtomEngine;
 using OpenglLib;
+using EngineLib;
 using System;
 
 namespace Editor
@@ -32,7 +33,7 @@ namespace Editor
                 }
                 else
                 {
-                    string meshText = ServiceHub.Get<MeshManager>().LoadMesh(modelPath);
+                    string meshText = ServiceHub.Get<ModelManager>().LoadModel(modelPath);
                     if (meshText == null)
                     {
                         DebLogger.Error($"Не удалось загрузить объкт из пути: {modelPath}");

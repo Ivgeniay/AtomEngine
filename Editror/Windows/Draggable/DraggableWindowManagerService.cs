@@ -2,6 +2,7 @@
 using Avalonia.Threading;
 using Avalonia.Controls;
 using System.Linq;
+using EngineLib;
 using System;
 
 namespace Editor

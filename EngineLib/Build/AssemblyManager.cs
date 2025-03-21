@@ -1,8 +1,9 @@
-﻿using System.Reflection;
+﻿using EngineLib;
+using System.Reflection;
 
 namespace AtomEngine
 {
-    public class AssemblyManager
+    public class AssemblyManager : IService
     {
         public static AssemblyManager Instance { get; private set; }
         protected readonly HashSet<Assembly> _assemblies = new();
@@ -136,5 +137,6 @@ namespace AtomEngine
             }
         }
 
+        public virtual Task InitializeAsync() => Task.CompletedTask;
     }
 }

@@ -1,9 +1,9 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
+using System.Text;
+using EngineLib;
+using System.IO;
 
 namespace Editor
 {
@@ -29,22 +29,22 @@ namespace Editor
                 configsSource.Add(
                     ConfigurationSource.ExplorerConfigs,
                     Path.Combine(
-                        ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Configurations),
+                        ServiceHub.Get<EditorDirectoryExplorer>().GetPath<ConfigurationsDirectory>(),
                         EXPLORER_CONFIG_FILE));
                 configsSource.Add(
                     ConfigurationSource.SceneConfigs,
                     Path.Combine(
-                        ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Configurations),
+                        ServiceHub.Get<EditorDirectoryExplorer>().GetPath<ConfigurationsDirectory>(),
                         SCENE_CONFIG_FILE));
                 configsSource.Add(
                     ConfigurationSource.ProjectConfigs,
                     Path.Combine(
-                        ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Configurations),
+                        ServiceHub.Get<EditorDirectoryExplorer>().GetPath<ConfigurationsDirectory>(),
                         PROJECT_CONFIG_FILE));
                 configsSource.Add(
                     ConfigurationSource.WindowManagerConfigs,
                     Path.Combine(
-                        ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Configurations),
+                        ServiceHub.Get<EditorDirectoryExplorer>().GetPath<ConfigurationsDirectory>(),
                         WINDOW_MANAGER_CONFIG_FILE));
 
                 foreach (KeyValuePair<ConfigurationSource, string> kvp in configsSource)

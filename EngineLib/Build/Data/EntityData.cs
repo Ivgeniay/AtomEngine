@@ -1,10 +1,14 @@
-﻿namespace AtomEngine
+﻿using Newtonsoft.Json;
+using EngineLib;
+
+namespace AtomEngine
 {
     public class EntityData
     {
         public uint Id { get; set; }
         public uint Version { get; set; }
         public string Name { get; set; } = string.Empty;
+        [JsonConverter(typeof(ComponentDictionaryConverter))]
         public Dictionary<string, IComponent> Components { get; set; } = new();
 
         public string Guid { get; set; } = System.Guid.NewGuid().ToString();

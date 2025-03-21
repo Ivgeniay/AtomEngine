@@ -2,6 +2,7 @@
 using System.Linq;
 using System.IO;
 using System;
+using EngineLib;
 
 
 namespace Editor
@@ -42,11 +43,9 @@ namespace Editor
             if (metadata == null || metadata.MeshesData.Count == 0)
                 yield break;
 
-            // Строим иерархию дочерних элементов
             var pathToItem = new Dictionary<string, ExpandableFileItemChild>();
             var rootItems = new List<ExpandableFileItemChild>();
 
-            // Сначала создаем все элементы
             foreach (var meshData in metadata.MeshesData)
             {
                 var path = meshData.MeshPath;
@@ -69,7 +68,6 @@ namespace Editor
                 }
             }
 
-            // Затем строим иерархию
             foreach (var meshData in metadata.MeshesData)
             {
                 if (string.IsNullOrEmpty(meshData.MeshPath))
@@ -87,7 +85,6 @@ namespace Editor
                 }
             }
 
-            // Возвращаем только корневые элементы
             foreach (var item in rootItems)
             {
                 yield return item;
@@ -111,9 +108,6 @@ namespace Editor
             {
                 // Обработка перетаскивания элемента модели
                 Status.SetStatus($"Перетаскивание меша {meshData.MeshName} из модели {Path.GetFileName(args.FileFullPath)}");
-
-                // Дополнительная логика для обработки перетаскивания
-                // Например, создание сущности в сцене с этим мешем
             }
         }
         public void HandleModelDropData(string jsonData)

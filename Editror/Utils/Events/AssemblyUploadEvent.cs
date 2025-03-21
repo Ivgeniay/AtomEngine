@@ -1,8 +1,9 @@
 ﻿using System.Reflection;
+using EngineLib;
 
 namespace Editor
 {
-    internal class AssemblyUnloadEvent : EventHubEvent
+    internal class AssemblyUploadEvent : EventHubEvent
     {
         public Assembly Assembly;
     }

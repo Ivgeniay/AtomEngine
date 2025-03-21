@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using AtomEngine;
+using EngineLib;
 
 namespace Editor
 {
@@ -15,8 +16,8 @@ namespace Editor
             "Editor", "chats.json");
 
         public ChatManager() { 
-            var directoryManager = ServiceHub.Get<DirectoryExplorer>();
-            var cachePath = directoryManager.GetPath(DirectoryType.Cache);
+            var directoryManager = ServiceHub.Get<EditorDirectoryExplorer>();
+            var cachePath = directoryManager.GetPath<CacheDirectory>();
             _chatStoragePath = Path.Combine(cachePath, "chats.json");
         }
 

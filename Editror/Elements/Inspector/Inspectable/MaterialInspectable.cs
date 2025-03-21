@@ -4,6 +4,7 @@ using System.IO;
 using System;
 using Avalonia.Layout;
 using AtomEngine;
+using EngineLib;
 
 namespace Editor
 {

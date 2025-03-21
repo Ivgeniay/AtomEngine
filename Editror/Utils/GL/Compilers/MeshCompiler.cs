@@ -6,6 +6,7 @@ using System.Linq;
 using OpenglLib;
 using System;
 using System.Text;
+using EngineLib;
 
 namespace Editor
 {
@@ -17,7 +18,7 @@ namespace Editor
             result.FilePath = e.FileFullPath;
             GL gl = null;
 
-            MeshManager meshManager = ServiceHub.Get<MeshManager>();
+            ModelManager meshManager = ServiceHub.Get<ModelManager>();
             var extensions = meshManager.GetExtensions().ToList();
             result.Log.AppendLine("Format checking");
             if (!extensions.Any(t => t == e.FileExtension))

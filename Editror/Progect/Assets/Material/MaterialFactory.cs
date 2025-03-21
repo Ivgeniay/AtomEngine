@@ -1,12 +1,12 @@
 ﻿using AtomEngine;
-using Silk.NET.OpenGL;
 using System.Collections.Generic;
+using AtomEngine.RenderEntity;
 using System.Threading.Tasks;
 using System.Reflection;
-using System;
+using Silk.NET.OpenGL;
 using OpenglLib;
-using AtomEngine.RenderEntity;
-using Avalonia.Threading;
+using EngineLib;
+using System;
 
 namespace Editor
 {
@@ -14,13 +14,13 @@ namespace Editor
     {
         private Dictionary<string, ShaderBase> _shaderInstanceCache = new Dictionary<string, ShaderBase>();
         private Dictionary<ShaderBase, GL> _glShaderMap = new Dictionary<ShaderBase, GL>();
-        private TextureFactory _textureFactory;
+        private EditorTextureFactory _textureFactory;
         private EditorAssemblyManager _assemblyManager;
         SceneViewController sceneViewController;
 
         public Task InitializeAsync()
         {
-            _textureFactory = ServiceHub.Get<TextureFactory>();
+            _textureFactory = ServiceHub.Get<EditorTextureFactory>();
             _assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
             return Task.CompletedTask;
         }
@@ -137,13 +137,7 @@ namespace Editor
 
         private Type FindShaderRepresentationType(string typeName)
         {
-            Type type = _assemblyManager.FindTypeInUserAssembly(typeName, true);
-            if (type != null)
-            {
-                return type;
-            }
-
-            type = _assemblyManager.FindType(typeName, true);
+            Type type = _assemblyManager.FindType(typeName, true);
             if (type != null)
             {
                 return type;

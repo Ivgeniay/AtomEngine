@@ -5,6 +5,7 @@ using Avalonia.Media;
 using Avalonia;
 using System;
 using Avalonia.Threading;
+using EngineLib;
 
 namespace Editor
 {

@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using System.Reflection;
 using System.Linq;
 using AtomEngine;
+using EngineLib;
 using System;
 
 namespace Editor

@@ -1,10 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using EngineLib;
 using System;
-using Silk.NET.OpenGL;
-using Silk.NET.Windowing;
-using OpenglLib;
-using System.Reflection.Metadata;
 
 namespace Editor.Utils.Generator
 {
@@ -112,8 +109,8 @@ namespace Editor.Utils.Generator
                     var shaderSource = File.ReadAllText(shaderFile);
                     if (GlslParser.IsCompleteShaderFile(shaderSource))
                     {
-                        var materialName = GenerateCode(shaderFile, outputDirectory, generateStructs);
-                        generatedMaterials.Add(materialName);
+                        var fileName = GenerateCode(shaderFile, outputDirectory, generateStructs);
+                        generatedMaterials.Add(fileName);
                     }
                 }
                 catch (Exception ex)

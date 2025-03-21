@@ -10,6 +10,7 @@ using System.Drawing;
 using Avalonia.Controls.Shapes;
 using Color = Avalonia.Media.Color;
 using System.Diagnostics;
+using EngineLib;
 
 //using Color = Avalonia.Media.Color;
 
@@ -111,7 +112,7 @@ namespace Editor
             button.Click += async (s, e) =>
             {
                 BuildManager buildManager = ServiceHub.Get<BuildManager>();
-                DirectoryExplorer directoryExplorer = ServiceHub.Get<DirectoryExplorer>();
+                EditorDirectoryExplorer directoryExplorer = ServiceHub.Get<EditorDirectoryExplorer>();
                 ScriptProjectGenerator scriptProjectGenerator = ServiceHub.Get<ScriptProjectGenerator>();
 
                 var result = await scriptProjectGenerator.BuildProject();
@@ -134,7 +135,7 @@ namespace Editor
                 }
 
                 BuildConfig config = new BuildConfig();
-                string cachepath = directoryExplorer.GetPath(DirectoryType.Cache);
+                string cachepath = directoryExplorer.GetPath<CacheDirectory>();
                 config.OutputPath = System.IO.Path.Combine(cachepath, "temp_build");
                 if (System.IO.Directory.Exists(config.OutputPath))
                 {

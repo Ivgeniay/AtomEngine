@@ -18,6 +18,7 @@ using System;
 using KeyEventArgs = Avalonia.Input.KeyEventArgs;
 using MouseButton = Avalonia.Input.MouseButton;
 using OpenglLib;
+using EngineLib;
 
 namespace Editor
 {
@@ -336,8 +337,8 @@ namespace Editor
 
             _materialFactory.SetSceneViewController(this);
 
-            _sceneManager.OnSceneBeforeSave += PrepareToSave;
-            _sceneManager.OnSceneAfterSave += UpdateEntitiesFromScene;
+            //_sceneManager.OnSceneBeforeSave += PrepareToSave;
+            //_sceneManager.OnSceneAfterSave += UpdateEntitiesFromScene;
 
             _sceneManager.OnComponentChange += ComponentChange;
             _sceneManager.OnComponentAdded += ComponentAdded;
@@ -570,7 +571,6 @@ namespace Editor
 
         private void PrepareToSave()
         {
-            // Подготовка к сохранению
             FreeCache();
         }
         
@@ -986,7 +986,7 @@ namespace Editor
             _isGlInitialized = false;
 
             _resourceManager?.Dispose();
-            _sceneManager.OnSceneBeforeSave -= PrepareToSave;
+            //_sceneManager.OnSceneBeforeSave -= PrepareToSave;
 
             _sceneManager.OnComponentChange -= ComponentChange;
             _sceneManager.OnComponentAdded -= ComponentAdded;

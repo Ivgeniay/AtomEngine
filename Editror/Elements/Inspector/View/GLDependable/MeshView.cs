@@ -1,4 +1,5 @@
 ﻿using Avalonia.Controls;
+using EngineLib;
 using Silk.NET.Core.Native;
 using System;
 using System.IO;
@@ -21,7 +22,7 @@ namespace Editor
             string? meshGuid = GettingGUID();
             if (!string.IsNullOrWhiteSpace(meshGuid))
             {
-                objectField.ObjectPath = ServiceHub.Get<MeshManager>().GetPath(meshGuid);
+                objectField.ObjectPath = ServiceHub.Get<ModelManager>().GetPath(meshGuid);
             }
             else
             {

@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using AtomEngine.RenderEntity;
 using System.Reflection;
 using OpenglLib;
+using EngineLib;
 
 namespace Editor
 {
@@ -101,7 +102,7 @@ namespace Editor
 
             var metadataManager = ServiceHub.Get<MetadataManager>();
             var materialManager = ServiceHub.Get<MaterialManager>();
-            var meshManager = ServiceHub.Get<MeshManager>();
+            var meshManager = ServiceHub.Get<ModelManager>();
 
             HashSet<string> textureGuids = new HashSet<string>();
             HashSet<string> meshGuids = new HashSet<string>();
@@ -249,7 +250,7 @@ namespace Editor
 
             string exeName = $"{config.ProjectName}.exe";
 
-            string exeDirectory = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.ExePath);
+            string exeDirectory = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<ExePathDirectory>();
 
             if (Directory.GetFiles(exeDirectory, "*.exe").Length == 0)
             {

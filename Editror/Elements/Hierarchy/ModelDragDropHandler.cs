@@ -7,6 +7,7 @@ using AtomEngine;
 using System.IO;
 using Avalonia;
 using System;
+using EngineLib;
 
 namespace Editor
 {

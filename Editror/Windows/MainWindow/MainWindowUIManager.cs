@@ -6,6 +6,7 @@ using AtomEngine;
 using System.IO;
 using System;
 using System.Threading.Tasks;
+using EngineLib;
 
 namespace Editor
 {
@@ -211,6 +212,18 @@ namespace Editor
                 Action = (e) =>
                 {
                     GlslCodeGenerator.GenerateCode(e.FileFullPath, e.FilePath);
+                }
+            });
+
+            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".glsl",
+                Name = "Generate All",
+                Description = "Generate c sharp view glsl code",
+                Action = (e) =>
+                {
+                    //ShaderCodeGenerationManager.GenerateAllShadersAndComponents(e.FileFullPath, e.FilePath);
+                    ShaderCodeGenerationManager.GenerateAllShadersAndComponents(e.FilePath, e.FilePath);
                 }
             });
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using AtomEngine;
 using System.IO;
+using EngineLib;
 using System;
 
 namespace Editor
@@ -48,7 +49,7 @@ namespace Editor
 
             return Task.Run(() =>
             {
-                _assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
+                _assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
                 _metadataManager = ServiceHub.Get<MetadataManager>();
 
                 if (!Directory.Exists(_assetsPath))

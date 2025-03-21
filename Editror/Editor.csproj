@@ -116,5 +116,6 @@
 
   <ItemGroup>
     <Folder Include="Utils\OpenGL\" />
+    <Folder Include="Utils\Serialization\JsonConvert\" />
   </ItemGroup>
 </Project>

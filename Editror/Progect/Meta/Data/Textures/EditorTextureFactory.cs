@@ -6,22 +6,16 @@ using System;
 
 using Texture = OpenglLib.Texture;
 using System.Threading.Tasks;
+using EngineLib;
+using OpenglLib;
 
 namespace Editor
 {
-    internal class TextureFactory : IService, IDisposable
+    internal class EditorTextureFactory : TextureFactory, IDisposable
     {
-        private Dictionary<string, Texture> _cacheTexture = new Dictionary<string, Texture>();
+        public override Task InitializeAsync() => Task.CompletedTask;
 
-        public Task InitializeAsync()
-        {
-            return Task.CompletedTask;
-        }
-
-        /// <summary>
-        /// Creates a texture from a GUID with configuration from its metadata
-        /// </summary>
-        internal Texture CreateTextureFromGuid(GL gl, string guid)
+        public override Texture CreateTextureFromGuid(GL gl, string guid)
         {
             if (string.IsNullOrEmpty(guid))
             {
@@ -39,10 +33,27 @@ namespace Editor
             return CreateTextureFromPath(gl, texturePath, metadata);
         }
 
-        /// <summary>
-        /// Creates a texture from a file path with optional metadata configuration
-        /// </summary>
-        internal Texture CreateTextureFromPath(GL gl, string texturePath, TextureMetadata metadata = null)
+        public override Texture CreateTextureFromPath(GL gl, string texturePath)
+        {
+            if (_cacheTexture.TryGetValue(texturePath, out Texture cacheTexture)) { return cacheTexture; }
+
+            try
+            {
+                var texture = new Texture(
+                    gl,
+                texturePath,
+                Silk.NET.Assimp.TextureType.Diffuse);
+                _cacheTexture[texturePath] = texture;
+                return texture;
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Failed to create texture from {texturePath}: {ex.Message}");
+                return null;
+            }
+        }
+
+        public Texture CreateTextureFromPath(GL gl, string texturePath, TextureMetadata metadata)
         {
             if (_cacheTexture.TryGetValue(texturePath, out Texture cacheTexture)) { return cacheTexture; }
 
@@ -107,12 +118,12 @@ namespace Editor
             }
         }
 
-        public void ClearCache()
+        public override void ClearCache()
         {
             Dispose();
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             foreach ( var texturePairPathtexture in _cacheTexture )
             {

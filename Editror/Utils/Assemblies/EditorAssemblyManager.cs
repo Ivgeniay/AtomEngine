@@ -2,9 +2,10 @@
 using System.Threading.Tasks;
 using System.Reflection;
 using System.Linq;
-using System.IO;
-using System;
 using AtomEngine;
+using System.IO;
+using EngineLib;
+using System;
 
 namespace Editor
 {
@@ -25,7 +26,7 @@ namespace Editor
 
         private bool _isInitialized = false;
 
-        public Task InitializeAsync()
+        public override Task InitializeAsync()
         {
             if (_isInitialized) return Task.CompletedTask;
 
@@ -36,8 +37,8 @@ namespace Editor
                     _assemblies.Add(assembly);
 
                 string baseDirectry = ServiceHub
-                                        .Get<DirectoryExplorer>()
-                                        .GetPath(DirectoryType.Base);
+                                        .Get<EditorDirectoryExplorer>()
+                                        .GetPath<BaseDirectory>();
 
                 foreach (var filePath in Directory.GetFiles(baseDirectry, "*.dll"))
                 {
@@ -66,7 +67,7 @@ namespace Editor
 
         public void ScanPluginsDirectory()
         {
-            var pluginPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Plugins);
+            var pluginPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<PluginsDirectory>();
             foreach (var file in Directory.GetFiles(pluginPath, "*.dll"))
             {
                 try

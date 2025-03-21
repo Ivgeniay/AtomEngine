@@ -4,6 +4,7 @@ using Silk.NET.OpenGL;
 using System.Linq;
 using AtomEngine;
 using System;
+using EngineLib;
 
 namespace Editor
 {

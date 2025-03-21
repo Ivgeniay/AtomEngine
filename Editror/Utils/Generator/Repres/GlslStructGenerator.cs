@@ -1,156 +1,125 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.IO;
 using System;
 
 namespace Editor
 {
-    internal static class ShaderCodeRepresentationGenerator
+    internal static class GlslStructGenerator
     {
-        /// <summary>
-        /// Генерирует класс материала на основе шейдерного кода
-        /// </summary>
-        /// <param name="filePath">Путь к файлу шейдера</param>
-        /// <param name="outputDirectory">Директория для сохранения файлов генерируемого кода</param>
-        /// <param name="includedFiles">Словарь с включаемыми файлами для обработки директив #include</param>
-        /// <returns>Имя сгенерированного класса материала</returns>
-        public static void GenerateRepresentation(string filePath, string outputDirectory, Dictionary<string, string> includedFiles = null)
+        private static HashSet<string> _generatedTypes = new HashSet<string>();
+        public static List<string> GenerateStructs(string shaderSourceCode, string outputDirectory, string sourceGuid = null)
         {
-            try
+            _generatedTypes = new HashSet<string>();
+            var pendingStructures = new List<GlslStructure>();
+            var result = new List<string>();
+
+            var structures = GlslParser.ParseGlslStructures(shaderSourceCode);
+            pendingStructures.AddRange(structures);
+
+            while (pendingStructures.Count > 0)
             {
-                var sourceText = File.ReadAllText(filePath);
-                string sourceGuid = ServiceHub.Get<MetadataManager>().GetMetadata(filePath)?.Guid;
+                bool processedAny = false;
+                var remainingStructures = new List<GlslStructure>();
 
-                GenerateRepresentationFromSource(Path.GetFileNameWithoutExtension(filePath), sourceText, outputDirectory, includedFiles, sourceGuid, filePath);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error processing {filePath}: {ex.Message}", ex);
-            }
-        }
-
-        /// <summary>
-        /// Генерирует класс материала на основе шейдерного кода
-        /// </summary>
-        /// <param name="representationName">Имя генерируемого материала</param>
-        /// <param name="sourceText">Исходный код шейдера</param>
-        /// <param name="outputDirectory">Директория для сохранения файлов генерируемого кода</param>
-        /// <param name="includedFiles">Словарь с включаемыми файлами для обработки директив #include</param>
-        /// <param name="sourceGuid">GUID исходного файла шейдера</param>
-        /// <param name="sourcePath">Путь к исходному файлу шейдера</param>
-        /// <returns>Имя сгенерированного класса представления</returns>
-        public static string GenerateRepresentationFromSource(string representationName, string sourceText, string outputDirectory,
-            Dictionary<string, string> includedFiles = null, string sourceGuid = null, string sourcePath = null)
-        {
-            if (!GlslParser.IsCompleteShaderFile(sourceText))
-            {
-                throw new Exception("The shader file does not contain both vertex and fragment shaders.");
-            }
-
-            if (string.IsNullOrEmpty(sourceGuid) && !string.IsNullOrEmpty(sourcePath))
-                sourceGuid = ServiceHub.Get<MetadataManager>().GetMetadata(sourcePath)?.Guid;
-
-            var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(sourceText, includedFiles);
-            GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
-
-            var uniforms = GlslParser.ExtractUniforms(vertexSource + "\n" + fragmentSource);
-            var uniformBlocks = GlslParser.ParseUniformBlocks(vertexSource + "\n" + fragmentSource);
-
-            var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid);
-            var representationFilePath = Path.Combine(outputDirectory, $"{representationName}Representation.g.cs");
-            File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);
-
-            return $"{representationName}Representation";
-        }
-
-        /// <summary>
-        /// Генерирует класс для uniform блока
-        /// </summary>
-        public static void GenerateUniformBlockClass(UniformBlockStructure block, string className, string outputDirectory, string representationName, string sourceGuid)
-        {
-            var builder = new StringBuilder();
-
-            WriteGeneratedCodeHeader(builder, sourceGuid);
-
-            builder.AppendLine("using System.Runtime.InteropServices;");
-            builder.AppendLine("using Silk.NET.Maths;");
-            builder.AppendLine();
-            builder.AppendLine("namespace OpenglLib");
-            builder.AppendLine("{");
-            builder.AppendLine("    [StructLayout(LayoutKind.Sequential)]");
-            builder.AppendLine($"    public struct {className}");
-            builder.AppendLine("    {");
-
-            foreach (var (type, name, arraySize) in block.Fields)
-            {
-                var csharpType = GlslParser.MapGlslTypeToCSharp(type);
-                var isCastomType = GlslParser.IsCustomType(csharpType, type);
-                if (!isCastomType)
+                foreach (var structure in pendingStructures)
                 {
-                    if (arraySize.HasValue)
+                    if (CanProcessStructure(structure, _generatedTypes))
                     {
-                        builder.AppendLine($"        [MarshalAs(UnmanagedType.ByValArray, SizeConst = {arraySize.Value})]");
-                        builder.AppendLine($"        public {csharpType}[] {name};");
+                        if (!_generatedTypes.Add(structure.Name))
+                        {
+                            continue;
+                        }
+
+                        var modelCode = GenerateModelClass(structure, sourceGuid);
+                        var filePath = Path.Combine(outputDirectory, $"GlslStruct.{structure.Name}.g.cs");
+                        File.WriteAllText(filePath, modelCode, Encoding.UTF8);
+
+                        result.Add(structure.Name);
+                        processedAny = true;
                     }
                     else
                     {
-                        builder.AppendLine($"        public {csharpType} {name};");
+                        remainingStructures.Add(structure);
                     }
                 }
+
+                if (!processedAny && remainingStructures.Count > 0)
+                {
+                    var circularDeps = string.Join(", ", remainingStructures.Select(s => s.Name));
+                    throw new Exception($"Circular dependencies detected between structures: {circularDeps}");
+                }
+
+                pendingStructures = remainingStructures;
             }
 
-            builder.AppendLine("    }");
-            builder.AppendLine("}");
-
-            string blockClassName = $"{block.Name}_{representationName}";
-            string blockFilePath = Path.Combine(outputDirectory, $"UBO.{blockClassName}.g.cs");
-            string blockCode = builder.ToString();
-
-            File.WriteAllText(blockFilePath, blockCode, Encoding.UTF8);
+            return result;
         }
-
-        /// <summary>
-        /// Генерирует класс представления
-        /// </summary>
-        private static string GenerateRepresentationClass(string materialName, string vertexSource,
-            string fragmentSource, List<(string type, string name, int? arraySize)> uniforms,
-            List<UniformBlockStructure> uniformBlocks, string sourceGuid)
+        private static bool CanProcessStructure(GlslStructure structure, HashSet<string> generatedTypes)
+        {
+            foreach (var (type, _, _) in structure.Fields)
+            {
+                if (!GlslParser.IsGlslBaseType(type) && !generatedTypes.Contains(type))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+        private static string GenerateModelClass(GlslStructure structure, string sourceGuid)
         {
             var builder = new StringBuilder();
             var construcBuilder = new StringBuilder();
             List<string> constructor_lines = new List<string>();
-            int samplers = 0;
 
             WriteGeneratedCodeHeader(builder, sourceGuid);
 
-            builder.AppendLine("using OpenglLib.Buffers;");
-            builder.AppendLine("using Silk.NET.OpenGL;");
             builder.AppendLine("using Silk.NET.Maths;");
+            builder.AppendLine("using Silk.NET.OpenGL;");
             builder.AppendLine("using AtomEngine;");
             builder.AppendLine();
             builder.AppendLine("namespace OpenglLib");
             builder.AppendLine("{");
-            builder.AppendLine($"    public partial class {materialName}Representation : Mat");
+            builder.AppendLine("    //");
+            builder.AppendLine($"    public class {structure.Name} : CustomStruct");
             builder.AppendLine("    {");
-            builder.AppendLine($"        protected new string VertexSource = @\"{vertexSource.Replace("\"", "\"\"")}\";");
-            builder.AppendLine($"        protected new string FragmentSource = @\"{fragmentSource.Replace("\"", "\"\"")}\";");
-
             builder.AppendLine("*construct*");
-            construcBuilder.AppendLine($"        public {materialName}Representation(GL gl) : base(gl)");
-            construcBuilder.AppendLine("        {");
+            builder.AppendLine($"");
 
-            builder.AppendLine("");
+            construcBuilder.AppendLine($"        public {structure.Name}(Silk.NET.OpenGL.GL gl) : base(gl) {{");
 
-            foreach (var (type, name, arraySize) in uniforms)
+            foreach (var (type, name, arraySize) in structure.Fields)
             {
-                string csharpType = GlslParser.MapGlslTypeToCSharp(type);
+                var csharpType = GlslParser.MapGlslTypeToCSharp(type, _generatedTypes);
                 bool isCustomType = GlslParser.IsCustomType(csharpType, type);
-
                 string cashFieldName = $"_{name}";
                 string locationName = $"{name}Location";
-                var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
 
-                if (isCustomType)
+                if (!isCustomType)
+                {
+                    if (arraySize.HasValue)
+                    {
+                        var localeProperty = GetPropertyForLocaleArray(csharpType, name, locationName);
+                        builder.Append(localeProperty);
+                        builder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
+                        builder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
+                        builder.AppendLine("        {");
+                        builder.Append(GetSimpleGetter(cashFieldName));
+                        builder.AppendLine("        }");
+                        constructor_lines.Add($"            {cashFieldName}  = new LocaleArray<{csharpType}>({arraySize.Value}, _gl);");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"        public int {locationName} " + "{" + " get ; set; } = -1;");
+                        builder.AppendLine($"        private {csharpType} {cashFieldName};");
+                        builder.AppendLine($"        public {csharpType} {name}");
+                        builder.AppendLine("        {");
+                        builder.Append(GetSetter(type, locationName, cashFieldName));
+                        builder.AppendLine("        }");
+                    }
+                }
+                else
                 {
                     if (arraySize.HasValue)
                     {
@@ -171,58 +140,8 @@ namespace Editor
                         constructor_lines.Add($"            {cashFieldName} = new {csharpType}(_gl);");
                     }
                 }
-                else
-                {
-                    if (arraySize.HasValue)
-                    {
-                        var localeProperty = GetPropertyForLocaleArray(csharpType, name, locationName);
-                        builder.Append(localeProperty);
-                        builder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
-                        builder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
-                        builder.AppendLine("        {");
-                        builder.Append(GetSimpleGetter(cashFieldName));
-                        builder.AppendLine("        }");
-                        constructor_lines.Add($"            {cashFieldName}  = new LocaleArray<{csharpType}>({arraySize.Value}, _gl);");
-                    }
-                    else
-                    {
-                        if (type.IndexOf("sampler") != -1)
-                        {
-                            builder.AppendLine($"        public void {name}_SetTexture(OpenglLib.Texture texture) => SetTexture(\"Texture{samplers}\", \"{GlslParser.GetTextureTarget(type)}\", {locationName}, {samplers++}, texture);");
-                        }
-                        builder.AppendLine($"        public int {locationName} " + "{" + " get ; protected set; } = -1;");
-                        builder.AppendLine($"        private {csharpType} {cashFieldName};");
-                        builder.AppendLine($"        public {_unsafe}{csharpType} {name}");
-                        builder.AppendLine("        {");
-                        builder.Append(GetSetter(type, locationName, cashFieldName));
-                        builder.AppendLine("        }");
-                    }
-                }
                 builder.AppendLine("");
                 builder.AppendLine("");
-            }
-
-            foreach (var block in uniformBlocks)
-            {
-                if (block.InstanceName != null && block.Binding != null)
-                {
-                    string refStruct = $"_{block.InstanceName}";
-                    builder.AppendLine($"        private UniformBufferObject<{block.Name}_{materialName}> {block.InstanceName}Ubo;");
-                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, {block.Binding.Value});");
-
-                    builder.AppendLine($"        private {block.Name}_{materialName} {refStruct} = new {block.Name}_{materialName}();");
-                    builder.AppendLine($"        public {block.Name}_{materialName} {block.InstanceName}");
-                    builder.AppendLine("        {");
-                    builder.AppendLine("            set");
-                    builder.AppendLine("            {");
-                    builder.AppendLine($"                {refStruct} = value;");
-                    builder.AppendLine($"                {block.InstanceName}Ubo.UpdateData(ref {refStruct});");
-                    builder.AppendLine("            }");
-                    builder.AppendLine("        }");
-
-                    builder.AppendLine("");
-                    builder.AppendLine("");
-                }
             }
 
             builder.AppendLine("    }");
@@ -235,17 +154,11 @@ namespace Editor
                     construcBuilder.AppendLine(line);
                 }
             }
-            construcBuilder.AppendLine("            SetUpShader(VertexSource, FragmentSource);");
-            construcBuilder.AppendLine("            SetupUniformLocations();");
             construcBuilder.AppendLine("        }");
             builder.Replace("*construct*", construcBuilder.ToString());
 
             return builder.ToString();
         }
-
-        /// <summary>
-        /// Добавляет комментарии с информацией о генерации кода
-        /// </summary>
         private static void WriteGeneratedCodeHeader(StringBuilder builder, string sourceGuid)
         {
             builder.AppendLine("// <auto-generated>");
@@ -293,12 +206,14 @@ namespace Editor
             builder.AppendLine("            {");
             builder.AppendLine($"                if ({locationFieldName} == -1)");
             builder.AppendLine($"                {{");
+            builder.AppendLine($"                   DebLogger.Warn(\"You try to set value to -1 lcation field\");");
             builder.AppendLine($"                   return;");
             builder.AppendLine($"                }}");
             builder.AppendLine($"                {cashFieldName} = value;");
 
             switch (type)
             {
+                // Скалярные типы
                 case "bool":
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value ? 1 : 0);");
                     break;
@@ -315,6 +230,7 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
                     break;
 
+                // Векторные типы bool
                 case "bvec2":
                     builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X ? 1 : 0, value.Y ? 1 : 0);");
                     break;
@@ -325,6 +241,7 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X ? 1 : 0, value.Y ? 1 : 0, value.Z ? 1 : 0, value.W ? 1 : 0);");
                     break;
 
+                // Векторные типы int
                 case "ivec2":
                     builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
                     break;
@@ -335,6 +252,7 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
                     break;
 
+                // Векторные типы uint
                 case "uvec2":
                     builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
                     break;
@@ -345,16 +263,18 @@ namespace Editor
                     builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
                     break;
 
+                // Векторные типы float
                 case "vec2":
-                    builder.AppendLine($"                _gl.Uniform2({locationFieldName}, (float)value.X, (float)value.Y);");
+                    builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
                     break;
                 case "vec3":
-                    builder.AppendLine($"                _gl.Uniform3({locationFieldName}, (float)value.X, (float)value.Y, (float)value.Z);");
+                    builder.AppendLine($"                _gl.Uniform3({locationFieldName}, value.X, value.Y, value.Z);");
                     break;
                 case "vec4":
-                    builder.AppendLine($"                _gl.Uniform4({locationFieldName}, (float)value.X, (float)value.Y, (float)value.Z, (float)value.W);");
+                    builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
                     break;
 
+                // Матричные типы float
                 case "mat2":
                 case "mat2x2":
                     builder.AppendLine($"                var mat2 = (Matrix2X2<float>)value;");
@@ -403,6 +323,7 @@ namespace Editor
                     builder.AppendLine($"                _gl.UniformMatrix4x3({locationFieldName}, 1, false, (float*)&mat4x3);");
                     break;
 
+                // Sampler типы
                 case string s when s.StartsWith("sampler"):
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
                     break;

@@ -2,6 +2,7 @@
 using AtomEngine.RenderEntity;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using EngineLib;
 using Silk.NET.Core.Native;
 using System;
 using System.IO;

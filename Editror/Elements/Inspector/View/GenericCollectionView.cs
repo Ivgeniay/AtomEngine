@@ -3,6 +3,7 @@ using System.Collections;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using System.Linq;
+using EngineLib;
 using Avalonia;
 using System;
 

@@ -2,6 +2,7 @@
 using Avalonia.Controls;
 using System.Linq;
 using System;
+using EngineLib;
 
 namespace Editor
 {

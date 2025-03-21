@@ -1,4 +1,6 @@
-﻿namespace Editor
+﻿using EngineLib;
+
+namespace Editor
 {
     internal class MetadataCreateEvent : EventHubEvent
     {

@@ -32,19 +32,16 @@ namespace Editor
 
         public static void ExtractUniformProperties(string code, in Dictionary<string, object> properties, in List<string> samplers)
         {
-            // Ищем объявления вида: public [тип] [имя] { get; set; }
             var propertyRegex = new System.Text.RegularExpressions.Regex(
                 @"public\s+(?:unsafe\s+)?(\w+(?:<\w+>)?)\s+(\w+)\s*\{",
                 System.Text.RegularExpressions.RegexOptions.Multiline
             );
 
-            // Ищем объявления вида: public void [имя]_SetTexture(OpenglLib.Texture texture)
             var samplerRegex = new System.Text.RegularExpressions.Regex(
                 @"public\s+void\s+(\w+)_SetTexture\s*\(OpenglLib\.Texture\s+\w+\)",
                 System.Text.RegularExpressions.RegexOptions.Multiline
             );
 
-            // Находим все совпадения для свойств
             var propertyMatches = propertyRegex.Matches(code);
             foreach (System.Text.RegularExpressions.Match match in propertyMatches)
             {
@@ -61,7 +58,6 @@ namespace Editor
                 }
             }
 
-            // Находим все совпадения для семплеров
             var samplerMatches = samplerRegex.Matches(code);
             foreach (System.Text.RegularExpressions.Match match in samplerMatches)
             {

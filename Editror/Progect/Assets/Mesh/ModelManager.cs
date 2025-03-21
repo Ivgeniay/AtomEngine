@@ -4,10 +4,11 @@ using System.Linq;
 using AtomEngine;
 using System.IO;
 using System;
+using EngineLib;
 
 namespace Editor
 {
-    internal class MeshManager : IService
+    public class ModelManager : IService
     {
         public string[] _meshExtensionsPattern = new string[] { "*.obj" };
         private Dictionary<string, string> _guidPathMap = new Dictionary<string, string>();
@@ -16,8 +17,8 @@ namespace Editor
         public Task InitializeAsync()
         {
             return Task.Run(() => {
-                string assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
-                CacheAllMesh(assetsPath);
+                string assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
+                CacheAllModel(assetsPath);
             });
         }
 
@@ -29,7 +30,7 @@ namespace Editor
             }
         }
 
-        internal string LoadMesh(string path)
+        public string LoadModel(string path)
         {
             if (!File.Exists(path))
             {
@@ -52,17 +53,16 @@ namespace Editor
 
             return sourceText;
         }
-
-        internal string? GetPath(string guid)
+        public string? GetPath(string guid)
         {
             return _guidPathMap[guid];
         }
-        internal string? GetGuid(string path)
+        public string? GetGuid(string path)
         {
             return _guidPathMap.FirstOrDefault(e => e.Value == path).Value;
         }
 
-        private void CacheAllMesh(string rootDirectory)
+        public void CacheAllModel(string rootDirectory)
         {
             try
             {
@@ -76,21 +76,21 @@ namespace Editor
                 {
                     try
                     {
-                        var material = LoadMesh(meshFile);
-                        if (material != null)
+                        var model = LoadModel(meshFile);
+                        if (model != null)
                         {
-                            DebLogger.Debug($"Cached material: {meshFile}");
+                            DebLogger.Debug($"Cached model: {meshFile}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        DebLogger.Warn($"Failed to cache material {meshFile}: {ex.Message}");
+                        DebLogger.Warn($"Failed to cache model {meshFile}: {ex.Message}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                DebLogger.Error($"Error while scanning for meshes: {ex.Message}");
+                DebLogger.Error($"Error while scanning for model: {ex.Message}");
             }
         }
     }

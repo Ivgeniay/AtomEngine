@@ -6,6 +6,7 @@ using System;
 using Texture = OpenglLib.Texture;
 using System.Threading.Tasks;
 using AtomEngine.RenderEntity;
+using EngineLib;
 
 namespace Editor
 {
@@ -18,7 +19,7 @@ namespace Editor
         private bool _isGLInitialized = false;
 
         private MetadataManager _metadataManager;
-        private TextureFactory _textureFactory;
+        private EditorTextureFactory _textureFactory;
         private MaterialFactory _materialFactory;
         private MeshFactory _meshFactory;
 
@@ -28,7 +29,7 @@ namespace Editor
             GLController.OnGLDeInitialized += Dispose;
 
             _metadataManager = ServiceHub.Get<MetadataManager>();
-            _textureFactory = ServiceHub.Get<TextureFactory>();
+            _textureFactory = ServiceHub.Get<EditorTextureFactory>();
             _materialFactory = ServiceHub.Get<MaterialFactory>();
             _meshFactory = ServiceHub.Get<MeshFactory>();
 

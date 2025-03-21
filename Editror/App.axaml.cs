@@ -7,6 +7,8 @@ using Avalonia;
 using System;
 using Application = Avalonia.Application;
 using System.Threading;
+using EngineLib;
+using OpenglLib;
 
 namespace Editor
 {
@@ -39,13 +41,15 @@ namespace Editor
             try
             {
                 // Проверка директор
-                ServiceHub.RegisterService<DirectoryExplorer>();
+                ServiceHub.RegisterService<EditorDirectoryExplorer>();
+                ServiceHub.AddMapping<DirectoryExplorer, EditorDirectoryExplorer>();
                 // Загрузка конфигураций
                 ServiceHub.RegisterService<Configuration>();
                 ServiceHub.RegisterService<EventHub>();
                 ServiceHub.RegisterService<ModelWatcher>();
                 // Загрузка сборок
                 ServiceHub.RegisterService<EditorAssemblyManager>();
+                ServiceHub.AddMapping<AssemblyManager, EditorAssemblyManager>();
                 // Сканирование файлов в Assets
                 ServiceHub.RegisterService<MetadataManager>();
                 // Вотчер событий в Assets
@@ -61,11 +65,12 @@ namespace Editor
                 ServiceHub.RegisterService<CodeFilesSynchronizer>();
                 // Менеджер загрузки и сохранения состояний ресурсов
                 ServiceHub.RegisterService<MaterialManager>();
-                ServiceHub.RegisterService<MeshManager>();
+                ServiceHub.RegisterService<ModelManager>();
                 ServiceHub.RegisterService<BuildManager>();
                 
                 // Фабрики
-                ServiceHub.RegisterService<TextureFactory>();
+                ServiceHub.RegisterService<EditorTextureFactory>();
+                ServiceHub.AddMapping<TextureFactory, EditorTextureFactory>();
                 ServiceHub.RegisterService<MaterialFactory>();
                 ServiceHub.RegisterService<MeshFactory>();
 
@@ -77,6 +82,9 @@ namespace Editor
                 ServiceHub.RegisterService<InspectorDistributor>();
                 ServiceHub.RegisterService<ComponentService>();
                 ServiceHub.RegisterService<LoadingManager>();
+
+                ServiceHub.RegisterService<OpenGlExcludeSerializationTypeService>();
+                ServiceHub.AddMapping<ExcludeSerializationTypeService, OpenGlExcludeSerializationTypeService>();
 
                 int delay = 1000;
 
@@ -95,6 +103,23 @@ namespace Editor
                 await loadingWindow.UpdateLoadingStatus("Компиляция проекта...");
                 await ServiceHub.Get<ScriptSyncSystem>().Compile();
                 await Task.Delay(100);
+
+                EventHub eventHub = ServiceHub.Get<EventHub>();
+                eventHub.RegisterErrorHandler<Exception>((ex, subscriber, evt) =>
+                {
+                    if (ex.Message == "Call from invalid thread")
+                    {
+                        var eventType = evt.GetType();
+                        var delegateType = typeof(Action<>).MakeGenericType(eventType);
+                        var invokeMethod = delegateType.GetMethod("Invoke");
+
+                        Dispatcher.UIThread.Invoke(new Action(() =>
+                        {
+                            invokeMethod.Invoke(subscriber, new object[] { evt });
+                        }));
+                    }
+                });
+
 
                 Dispatcher.UIThread.UnhandledException += (sender, args) =>
                 {

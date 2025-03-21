@@ -1,11 +1,12 @@
 ﻿using System.Security.Cryptography;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Linq;
 using AtomEngine;
 using System.IO;
+using EngineLib;
 using System;
-using System.Threading.Tasks;
 
 namespace Editor
 {
@@ -22,7 +23,7 @@ namespace Editor
         private bool _isInitialized = false;
         private string _assetsPath;
         public const string META_EXTENSION = ".meta";
-
+        private EventHub eventHub;
 
 
         private void InitializeExtensionMappings()
@@ -62,7 +63,6 @@ namespace Editor
             _extensionToTypeMap[".txt"] = MetadataType.Text;
         }
 
-        private EventHub eventHub;
         public Task InitializeAsync()
         {
             if (_isInitialized)
@@ -72,7 +72,7 @@ namespace Editor
 
             return Task.Run(() =>
             {
-                _assetsPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
+                _assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
                 InitializeExtensionMappings();
 
                 RegenerateCodeNeeded += (e, r) =>

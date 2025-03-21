@@ -2,6 +2,7 @@
 using System.IO;
 using System;
 using System.Threading.Tasks;
+using EngineLib;
 
 namespace Editor
 {
@@ -26,7 +27,7 @@ namespace Editor
 
             return Task.Run(() =>
             {
-                _projectPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.CSharp_Assembly);
+                _projectPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<CSharp_AssemblyDirectory>();
 
                 _watcher = new System.IO.FileSystemWatcher(_projectPath)
                 {

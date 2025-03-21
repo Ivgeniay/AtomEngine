@@ -398,14 +398,17 @@ namespace Editor
 
         public void Open()
         {
-            _isOpen = true;
-            DebLogger.AddLogger(this);
-
-            var logs = DebLogger.GetLogs();
-            foreach (var log in logs)
+            Dispatcher.UIThread.Invoke(new Action(() =>
             {
-                Log(log.Message, log.Level);
-            }
+                _isOpen = true;
+                DebLogger.AddLogger(this);
+
+                var logs = DebLogger.GetLogs();
+                foreach (var log in logs)
+                {
+                    Log(log.Message, log.Level);
+                }
+            }));
         }
 
         public void Close()

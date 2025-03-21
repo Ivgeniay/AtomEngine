@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
-using System.IO;
 using System.Linq;
+using System.IO;
+using EngineLib;
 
 namespace Editor
 {
@@ -30,7 +31,7 @@ namespace Editor
 
             var name = Path.GetFileNameWithoutExtension(path);
             var extension = Path.GetExtension(path);
-            var directoryPath = ServiceHub.Get<DirectoryExplorer>().GetPath(DirectoryType.Assets);
+            var directoryPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
             var relativePath = Path.GetRelativePath(directoryPath, path);
 
             if (name == "torus")

@@ -6,5 +6,11 @@ namespace OpenglLib
     {
         private static readonly Type[] _glDependableTypes = { typeof(Texture), typeof(ShaderBase), typeof(MeshBase) };
         public static bool IsDependableType(Type type) => _glDependableTypes.Any(dt => dt.IsAssignableFrom(type));
+
+        public static IEnumerable<Type> GetGLDependableTypes()
+        {
+            foreach (var type in _glDependableTypes)
+                yield return type;
+        }
     }
 }
