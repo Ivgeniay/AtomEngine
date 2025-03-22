@@ -16,27 +16,18 @@ namespace Editor
         public static readonly StyledProperty<string> PlaceholderTextProperty =
             AvaloniaProperty.Register<ObjectField, string>(nameof(PlaceholderText), "None");
 
-        /// <summary>
-        /// Путь к выбранному объекту
-        /// </summary>
         public string ObjectPath
         {
             get => GetValue(ObjectPathProperty);
             set => SetValue(ObjectPathProperty, value);
         }
 
-        /// <summary>
-        /// Разрешенные расширения файлов
-        /// </summary>
         public string[] AllowedExtensions
         {
             get => GetValue(AllowedExtensionsProperty);
             set => SetValue(AllowedExtensionsProperty, value);
         }
 
-        /// <summary>
-        /// Текст, отображаемый когда объект не выбран
-        /// </summary>
         public string PlaceholderText
         {
             get => GetValue(PlaceholderTextProperty);
@@ -47,18 +38,12 @@ namespace Editor
         public static readonly StyledProperty<string> LabelProperty =
             AvaloniaProperty.Register<ObjectField, string>(nameof(Label), string.Empty);
 
-        /// <summary>
-        /// Текст метки поля
-        /// </summary>
         public string Label
         {
             get => GetValue(LabelProperty);
             set => SetValue(LabelProperty, value);
         }
 
-        /// <summary>
-        /// Событие, вызываемое при изменении объекта
-        /// </summary>
         public event EventHandler<string> ObjectChanged;
 
         private TextBlock _labelControl;
@@ -69,6 +54,13 @@ namespace Editor
         {
             InitializeComponent();
             SetupEventHandlers();
+        }
+
+        internal void ResetValue(bool withIvoke = true)
+        {
+            ObjectPath = string.Empty;
+            if (withIvoke) ObjectChanged?.Invoke(this, null);
+            _inputField.ResetValue(withIvoke);
         }
 
         private void InitializeComponent()

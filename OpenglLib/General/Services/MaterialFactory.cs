@@ -11,9 +11,10 @@ namespace OpenglLib
 {
     public class Material
     {
-        public readonly Shader Shader;
+        internal readonly Shader Shader;
         internal readonly MaterialAsset MaterialAsset;
         internal GL GLContext;
+        internal MaterialFactory factory;
         public bool IsValid { get => GLContext != null && Shader != null && Shader.Handle > 0; }
 
         public void SetUniform(string name, object value)
@@ -37,10 +38,12 @@ namespace OpenglLib
             MaterialAsset = materialAsset;
         }
 
-        internal void Dispose()
-        {
+        public Shader Copy() =>
+            (Shader)factory.GetShaderFromMaterialAsset(GLContext, MaterialAsset);
+        public Material Share() =>
+            factory.GetMaterialInstanceFromAsset(GLContext,MaterialAsset);
+        internal void Dispose() =>
             Shader.Dispose();
-        }
     }
 
     public class MaterialFactory : IService, IDisposable
@@ -69,7 +72,7 @@ namespace OpenglLib
                         );
 
                 if (material != null) return material.Shader;
-                return CreateMaterialInstanceFromAsset(gl, materialAsset).Shader;
+                return GetMaterialInstanceFromAsset(gl, materialAsset).Shader;
             }
             catch (Exception ex)
             {
@@ -95,7 +98,7 @@ namespace OpenglLib
                         );
 
                 if (material != null) return material.Shader;
-                return CreateMaterialInstanceFromAssetPath(gl, materialAssetPath).Shader;
+                return GetMaterialInstanceFromAssetPath(gl, materialAssetPath).Shader;
             }
             catch (Exception ex)
             {
@@ -115,7 +118,7 @@ namespace OpenglLib
                         );
 
                 if (material != null) return material.Shader;
-                return CreateMaterialInstanceFromAssetGuid(gl, guid).Shader;
+                return GetMaterialInstanceFromAssetGuid(gl, guid).Shader;
             }
             catch(Exception e)
             {
@@ -124,7 +127,7 @@ namespace OpenglLib
             }
         }
 
-        public virtual Material CreateMaterialInstanceFromAsset(GL gl, MaterialAsset materialAsset)
+        public virtual Material GetMaterialInstanceFromAsset(GL gl, MaterialAsset materialAsset)
         {
             if (materialAsset == null)
             {
@@ -150,6 +153,7 @@ namespace OpenglLib
                     return null;
                 }
                 material = new Material(gl, instance, materialAsset);
+                _materials.Add(material);
                 SetUniformValues(instance, materialAsset.UniformValues);
                 SetTextures(material, materialAsset.TextureReferences);
 
@@ -162,7 +166,7 @@ namespace OpenglLib
             }
         }
 
-        public virtual Material CreateMaterialInstanceFromAssetPath(GL gl, string materialPath)
+        public virtual Material GetMaterialInstanceFromAssetPath(GL gl, string materialPath)
         {
             try
             {
@@ -173,7 +177,7 @@ namespace OpenglLib
                     return null;
                 }
 
-                return CreateMaterialInstanceFromAsset(gl, material);
+                return GetMaterialInstanceFromAsset(gl, material);
             }
             catch (Exception ex)
             {
@@ -182,7 +186,7 @@ namespace OpenglLib
             }
         }
 
-        public virtual Material CreateMaterialInstanceFromAssetGuid(GL gl, string materialAssetGuid)
+        public virtual Material GetMaterialInstanceFromAssetGuid(GL gl, string materialAssetGuid)
         {
             try
             {
@@ -193,7 +197,7 @@ namespace OpenglLib
                     return null;
                 }
 
-                return CreateMaterialInstanceFromAssetPath(gl, materialPath);
+                return GetMaterialInstanceFromAssetPath(gl, materialPath);
             }
             catch (Exception ex)
             {

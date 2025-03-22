@@ -13,14 +13,14 @@ namespace Editor
     {
         private MaterialAsset _materialAsset;
         private MaterialFactory _materialFactory;
-        private MaterialAssetManager _materialAssetManager;
+        private EditorMaterialAssetManager _materialAssetManager;
 
         public MaterialInspectable(MaterialAsset material)
         {
             _materialAsset = material;
 
             _materialFactory = ServiceHub.Get<MaterialFactory>();
-            _materialAssetManager = ServiceHub.Get<MaterialAssetManager>();
+            _materialAssetManager = ServiceHub.Get<EditorMaterialAssetManager>();
         }
 
         public string Title => $"Material: {_materialAsset.Name}";

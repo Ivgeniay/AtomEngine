@@ -21,36 +21,24 @@ namespace Editor
         public static readonly StyledProperty<string> PlaceholderTextProperty =
             AvaloniaProperty.Register<ObjectInputField, string>(nameof(PlaceholderText), "None");
 
-        /// <summary>
-        /// Путь к выбранному объекту
-        /// </summary>
         public string ObjectPath
         {
             get => GetValue(ObjectPathProperty);
             set => SetValue(ObjectPathProperty, value);
         }
 
-        /// <summary>
-        /// Разрешенные расширения файлов
-        /// </summary>
         public string[] AllowedExtensions
         {
             get => GetValue(AllowedExtensionsProperty);
             set => SetValue(AllowedExtensionsProperty, value);
         }
 
-        /// <summary>
-        /// Текст, отображаемый когда объект не выбран
-        /// </summary>
         public string PlaceholderText
         {
             get => GetValue(PlaceholderTextProperty);
             set => SetValue(PlaceholderTextProperty, value);
         }
 
-        /// <summary>
-        /// Событие, вызываемое при изменении объекта
-        /// </summary>
         public event EventHandler<string> ObjectChanged;
 
         private Border _mainBorder;
@@ -225,24 +213,24 @@ namespace Editor
             e.Handled = true;
         }
 
-        /// <summary>
-        /// Сбрасывает визуальные эффекты перетаскивания
-        /// </summary>
+        public void ResetValue(bool withIvoke = true)
+        {
+            ObjectPath = string.Empty;
+            if (withIvoke) ObjectChanged?.Invoke(this, null);
+            UpdateUI();
+        }
+
         private void ResetDragVisual()
         {
             _mainBorder.BorderBrush = new SolidColorBrush(Color.FromRgb(45, 45, 45));
             _mainBorder.Background = new SolidColorBrush(Color.FromRgb(56, 56, 56));
         }
 
-        /// <summary>
-        /// Проверяет валидность типа файла
-        /// </summary>
         private bool IsValidFileType(string extension)
         {
             if (string.IsNullOrEmpty(extension))
                 return false;
 
-            // Если расширения не указаны, принимаем любые
             if (AllowedExtensions == null || AllowedExtensions.Length == 0)
                 return true;
 
@@ -250,9 +238,6 @@ namespace Editor
                 extension.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary>
-        /// Обработчик нажатия кнопки выбора файла
-        /// </summary>
         private async void OnBrowseButtonClick(object sender, RoutedEventArgs e)
         {
             var dialog = new OpenFileDialog
@@ -261,7 +246,6 @@ namespace Editor
                 Title = "Выберите объект"
             };
 
-            // Настраиваем фильтры по расширениям
             if (AllowedExtensions != null && AllowedExtensions.Length > 0)
             {
                 dialog.Filters.Add(new FileDialogFilter
@@ -282,9 +266,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик нажатия кнопки очистки
-        /// </summary>
         private void OnClearButtonClick(object sender, RoutedEventArgs e)
         {
             ObjectPath = null;
@@ -292,10 +273,7 @@ namespace Editor
             UpdateUI();
         }
 
-        /// <summary>
-        /// Обновляет пользовательский интерфейс
-        /// </summary>
-        private void UpdateUI()
+        internal void UpdateUI()
         {
             bool hasObject = !string.IsNullOrEmpty(ObjectPath);
 

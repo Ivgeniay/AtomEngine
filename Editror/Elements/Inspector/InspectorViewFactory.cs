@@ -31,6 +31,10 @@ namespace Editor
                 AddOrUpdateViewMappingFabric(typeof(Editor.ComponentPropertiesView), (descriptor) => new ComponentPropertiesView(descriptor));
 
                 AddOrUpdateViewFabric(
+                    type => type.IsAssignableTo(typeof(OpenglLib.Material)),
+                    descriptor => new MaterialView(descriptor)
+                    );
+                AddOrUpdateViewFabric(
                     type => typeof(IEnumerable).IsAssignableFrom(type) && type != typeof(string),
                     descriptor => new GenericCollectionView(descriptor)
                     );

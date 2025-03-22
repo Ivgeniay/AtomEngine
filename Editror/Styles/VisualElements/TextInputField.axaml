@@ -3,6 +3,7 @@
         xmlns:Editor="using:Editor">
   <Design.PreviewWith>
     <Border Padding="20">
+      <Editor:TextInputField Width="200" IsEnabled="True"/>
     </Border>
   </Design.PreviewWith>
 
@@ -13,6 +14,11 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="3" />
     <Setter Property="Height" Value="24" />
+  </Style>
+
+  <Style Selector="Border.textInputBorder.readOnly">
+    <Setter Property="BorderBrush" Value="#515114" />
+    <Setter Property="Background" Value="#33CC0000" />
   </Style>
 
   <Style Selector="Border.textInputBorder.overflowWarning">
@@ -67,5 +73,6 @@
   <!-- Стиль для режима только для чтения -->
   <Style Selector="TextBox:disabled">
     <Setter Property="Opacity" Value="0.6"/>
+    <Setter Property="Background" Value="Red"/>
   </Style>
 </Styles>

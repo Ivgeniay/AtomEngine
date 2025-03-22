@@ -8,7 +8,6 @@ namespace Editor
 {
     public class TextInputField : Grid
     {
-        #region Свойства зависимостей
 
         public static readonly StyledProperty<string> TextProperty =
             AvaloniaProperty.Register<TextInputField, string>(nameof(Text), string.Empty);
@@ -31,105 +30,62 @@ namespace Editor
         public static readonly StyledProperty<decimal?> MinValueProperty =
             AvaloniaProperty.Register<TextInputField, decimal?>(nameof(MinValue), null);
 
-        #endregion
-
-        #region Публичные свойства
-
-        /// <summary>
-        /// Текст в поле ввода
-        /// </summary>
         public string Text
         {
             get => GetValue(TextProperty);
             set => SetValue(TextProperty, value);
         }
 
-        /// <summary>
-        /// Тип вводимых данных
-        /// </summary>
         public TextInputType InputType
         {
             get => GetValue(InputTypeProperty);
             set => SetValue(InputTypeProperty, value);
         }
 
-        /// <summary>
-        /// Текст-подсказка (placeholder)
-        /// </summary>
         public string Placeholder
         {
             get => GetValue(PlaceholderProperty);
             set => SetValue(PlaceholderProperty, value);
         }
 
-        /// <summary>
-        /// Только для чтения
-        /// </summary>
         public bool IsReadOnly
         {
             get => GetValue(IsReadOnlyProperty);
             set => SetValue(IsReadOnlyProperty, value);
         }
 
-        /// <summary>
-        /// Максимальная длина текста
-        /// </summary>
         public int? MaxLength
         {
             get => GetValue(MaxLengthProperty);
             set => SetValue(MaxLengthProperty, value);
         }
 
-        /// <summary>
-        /// Максимальное значение для числовых полей
-        /// </summary>
         public decimal? MaxValue
         {
             get => GetValue(MaxValueProperty);
             set => SetValue(MaxValueProperty, value);
         }
 
-        /// <summary>
-        /// Минимальное значение для числовых полей
-        /// </summary>
         public decimal? MinValue
         {
             get => GetValue(MinValueProperty);
             set => SetValue(MinValueProperty, value);
         }
 
-        #endregion
-
-        #region События
-
-        /// <summary>
-        /// Событие изменения текста
-        /// </summary>
         public event EventHandler<string> TextChanged;
 
-        #endregion
-
-        #region Приватные поля
 
         private Border _mainBorder;
         private TextBox _textBox;
         private NumericUpDown _numericValidator;
         private bool _isSettingText = false;
 
-        #endregion
-
-        /// <summary>
-        /// Конструктор
-        /// </summary>
         public TextInputField()
         {
             InitializeComponent();
             SetupEventHandlers();
         }
 
-        /// <summary>
-        /// Инициализация компонентов
-        /// </summary>
         private void InitializeComponent()
         {
             ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
@@ -158,9 +114,7 @@ namespace Editor
             Children.Add(_numericValidator);
         }
 
-        /// <summary>
-        /// Устанавливает обработчики событий
-        /// </summary>
+
         private void SetupEventHandlers()
         {
             this.PropertyChanged += (s, e) =>
@@ -180,6 +134,17 @@ namespace Editor
                 else if (e.Property == IsReadOnlyProperty)
                 {
                     _textBox.IsReadOnly = IsReadOnly;
+                    if (IsReadOnly)
+                    {
+                        _mainBorder.Classes.Add("readOnly");
+                        _textBox.IsEnabled = false;
+                    }
+                    else
+                    {
+                        if (_mainBorder.Classes.Contains("readOnly"))
+                            _mainBorder.Classes.Remove("readOnly");
+                        _textBox.IsEnabled = true;
+                    }
                 }
                 else if (e.Property == MaxLengthProperty)
                 {
@@ -196,9 +161,6 @@ namespace Editor
             UpdateValidatorForInputType();
         }
 
-        /// <summary>
-        /// Обновляет валидатор в соответствии с текущим типом ввода
-        /// </summary>
         private void UpdateValidatorForInputType()
         {
             switch (InputType)
@@ -256,9 +218,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обновляет пределы валидатора
-        /// </summary>
         private void UpdateValidatorLimits()
         {
             if (InputType == TextInputType.Integer || InputType == TextInputType.Float)
@@ -266,7 +225,6 @@ namespace Editor
                 _numericValidator.Minimum = MinValue ?? decimal.MinValue;
                 _numericValidator.Maximum = MaxValue ?? decimal.MaxValue;
 
-                // Проверяем текущее значение на соответствие новым ограничениям
                 if (_numericValidator.Value < _numericValidator.Minimum)
                 {
                     _numericValidator.Value = _numericValidator.Minimum;
@@ -278,9 +236,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик изменения текста в TextBox
-        /// </summary>
         private void OnTextBoxTextChanged(object sender, EventArgs e)
         {
             if (_isSettingText)
@@ -297,7 +252,6 @@ namespace Editor
                         return;
                     }
 
-                    // Пытаемся преобразовать в число
                     if (decimal.TryParse(_textBox.Text, out decimal intValue))
                     {
                         _isSettingText = true;
@@ -349,9 +303,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик изменения значения в NumericUpDown
-        /// </summary>
         private void OnNumericValidatorValueChanged(object sender, NumericUpDownValueChangedEventArgs e)
         {
             if (_isSettingText) return;
@@ -359,9 +310,6 @@ namespace Editor
             UpdateTextBoxFromNumericValidator();
         }
 
-        /// <summary>
-        /// Обновляет TextBox из свойства Text
-        /// </summary>
         private void UpdateTextBoxFromText()
         {
             if (_isSettingText) return;
@@ -387,9 +335,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обновляет TextBox и Text из значения NumericUpDown
-        /// </summary>
         private void UpdateTextBoxFromNumericValidator()
         {
             if (_isSettingText) return;
@@ -422,9 +367,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Получает значение соответствующего типа
-        /// </summary>
         public T GetValue<T>()
         {
             if ((InputType == TextInputType.Integer || InputType == TextInputType.Float) &&
@@ -473,9 +415,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Устанавливает значение
-        /// </summary>
         public void SetValue<T>(T value)
         {
             if (value == null)

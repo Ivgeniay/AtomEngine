@@ -73,7 +73,7 @@ namespace Editor
                 }
 
                 objectField.ObjectPath = string.Empty;
-                objectField.PlaceholderText = string.Empty;
+                objectField.ResetValue(false);
             };
             return objectField;
         }

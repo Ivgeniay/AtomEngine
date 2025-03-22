@@ -11,7 +11,7 @@ namespace OpenglLib
     {
         public Entity Owner { get; set; }
 
-        public readonly Material Material;
+        public Material Material;
         [JsonProperty]
         private string MaterialGUID;
 
