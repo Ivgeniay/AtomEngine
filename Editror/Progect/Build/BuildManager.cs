@@ -101,7 +101,7 @@ namespace Editor
             Status.SetStatus($"Export resources...");
 
             var metadataManager = ServiceHub.Get<MetadataManager>();
-            var materialManager = ServiceHub.Get<MaterialCacher>();
+            var materialManager = ServiceHub.Get<MaterialAssetManager>();
             var meshManager = ServiceHub.Get<ModelManager>();
 
             HashSet<string> textureGuids = new HashSet<string>();
@@ -165,7 +165,7 @@ namespace Editor
                 if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
                     continue;
 
-                MaterialAsset material = materialManager.LoadMaterial(sourcePath);
+                MaterialAsset material = materialManager.LoadMaterialAsset(sourcePath);
                 if (material != null && material.TextureReferences != null)
                 {
                     foreach (var textureGuid in material.TextureReferences.Values)

@@ -22,7 +22,7 @@ namespace Editor
 
                     if (eventSelectionEvent.FileExtension.EndsWith(".mat"))
                     {
-                        var matAsset = ServiceHub.Get<EditorMaterialCacher>().LoadMaterial(eventSelectionEvent.FileFullPath);
+                        var matAsset = ServiceHub.Get<EditorMaterialAssetManager>().LoadMaterialAsset(eventSelectionEvent.FileFullPath);
                         return new MaterialInspectable(matAsset);
                     }
                     else

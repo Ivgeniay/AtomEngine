@@ -11,14 +11,19 @@ namespace Editor
 {
     internal class MaterialInspectable : IInspectable
     {
-        private MaterialAsset _material;
+        private MaterialAsset _materialAsset;
+        private MaterialFactory _materialFactory;
+        private MaterialAssetManager _materialAssetManager;
 
         public MaterialInspectable(MaterialAsset material)
         {
-            _material = material;
+            _materialAsset = material;
+
+            _materialFactory = ServiceHub.Get<MaterialFactory>();
+            _materialAssetManager = ServiceHub.Get<MaterialAssetManager>();
         }
 
-        public string Title => $"Material: {_material.Name}";
+        public string Title => $"Material: {_materialAsset.Name}";
 
         public IEnumerable<Control> GetCustomControls(Panel parent)
         {
@@ -31,8 +36,8 @@ namespace Editor
             {
                 Name = "Name",
                 Type = typeof(string),
-                Value = _material.Name,
-                OnValueChanged = value => _material.Name = (string)value
+                Value = _materialAsset.Name,
+                OnValueChanged = value => _materialAsset.Name = (string)value
             };
 
             yield return new PropertyDescriptor
@@ -43,7 +48,7 @@ namespace Editor
                 IsReadOnly = true
             };
 
-            if (_material.UniformValues.Count > 0)
+            if (_materialAsset.UniformValues.Count > 0)
             {
                 // Разделитель
                 //yield return new PropertyDescriptor
@@ -54,13 +59,13 @@ namespace Editor
                 //    IsReadOnly = true
                 //};
 
-                foreach (var pair in _material.UniformValues)
+                foreach (var pair in _materialAsset.UniformValues)
                 {
                     yield return CreatePropertyDescriptorForUniform(pair.Key, pair.Value);
                 }
             }
 
-            if (_material.TextureReferences.Count > 0)
+            if (_materialAsset.TextureReferences.Count > 0)
             {
                 // Разделитель
                 //yield return new PropertyDescriptor
@@ -71,7 +76,7 @@ namespace Editor
                 //    IsReadOnly = true
                 //};
 
-                foreach (var pair in _material.TextureReferences)
+                foreach (var pair in _materialAsset.TextureReferences)
                 {
                     yield return CreatePropertyDescriptorForTexture(pair.Key, pair.Value);
                 }
@@ -80,19 +85,21 @@ namespace Editor
 
         private string GetShaderDisplayName()
         {
-            if (string.IsNullOrEmpty(_material.ShaderRepresentationGuid))
+            if (string.IsNullOrEmpty(_materialAsset.ShaderRepresentationGuid))
                 return "None";
 
-            var metadata = ServiceHub.Get<EditorMetadataManager>().GetMetadataByGuid(_material.ShaderRepresentationGuid);
+            var metadata = ServiceHub.Get<EditorMetadataManager>().GetMetadataByGuid(_materialAsset.ShaderRepresentationGuid);
             if (metadata == null)
-                return _material.ShaderRepresentationTypeName;
+                return _materialAsset.ShaderRepresentationTypeName;
 
-            string path = ServiceHub.Get<EditorMetadataManager>().GetPathByGuid(_material.ShaderRepresentationGuid);
+            string path = ServiceHub.Get<EditorMetadataManager>().GetPathByGuid(_materialAsset.ShaderRepresentationGuid);
             return Path.GetFileNameWithoutExtension(path);
         }
 
+        
         private PropertyDescriptor CreatePropertyDescriptorForUniform(string name, object value)
         {
+
             Type type = value?.GetType() ?? typeof(object);
 
             return new PropertyDescriptor
@@ -101,7 +108,11 @@ namespace Editor
                 Type = type,
                 Value = value,
                 IsReadOnly = false,
-                OnValueChanged = newValue => _material.SetUniformValue(name, newValue)
+                OnValueChanged = newValue =>
+                {
+                    _materialFactory.SetUniformValue(_materialAsset, name, newValue);
+                    _materialAssetManager.SaveMaterialAsset(_materialAsset);
+                }
             };
         }
 
@@ -112,7 +123,11 @@ namespace Editor
                 Name = $"{name} (Texture)",
                 Type = typeof(OpenglLib.Texture), 
                 Value = textureGuid,
-                OnValueChanged = newValue => _material.SetTexture(name, (string)newValue)
+                OnValueChanged = newValue =>
+                {
+                    _materialFactory.SetTexture(_materialAsset, name, (string)newValue);
+                    _materialAssetManager.SaveMaterialAsset(_materialAsset);
+                }
             };
         }
     

@@ -3,7 +3,7 @@ using EngineLib;
 
 namespace OpenglLib
 {
-    public class MaterialCacher : IService
+    public class MaterialAssetManager : IService
     {
         protected Dictionary<string, MaterialAsset> _cacheMaterials = new Dictionary<string, MaterialAsset>();
 
@@ -12,7 +12,7 @@ namespace OpenglLib
             return Task.CompletedTask;
         }
 
-        public MaterialAsset CreateMaterial(string shaderRepresentationGuid)
+        public MaterialAsset CreateMaterialAsset(string shaderRepresentationGuid)
         {
             var material = new MaterialAsset
             {
@@ -57,25 +57,25 @@ namespace OpenglLib
             _cacheMaterials.Add(filePath, material);
             return material;
         }
-        public void SaveMaterial(MaterialAsset material)
+        public virtual void SaveMaterialAsset(MaterialAsset material)
         {
             string path = _cacheMaterials.Where(e => e.Value == material).FirstOrDefault().Key;
             if (path != null)
             {
-                SaveMaterial(material, path);
+                SaveMaterialAsset(material, path);
             }
             else
             {
                 DebLogger.Error($"Saving material {material.Name}. Unkown path to safe");
             }
         }
-        public virtual void SaveMaterial(MaterialAsset material, string path)
+        public virtual void SaveMaterialAsset(MaterialAsset material, string path)
         {
             string json = MaterialSerializer.SerializeMaterial(material);
             File.WriteAllText(path, json);
         }
 
-        public virtual MaterialAsset LoadMaterial(string path)
+        public virtual MaterialAsset LoadMaterialAsset(string path)
         {
             if (!File.Exists(path))
             {
@@ -96,11 +96,11 @@ namespace OpenglLib
 
             return asset;
         }
-        public virtual MaterialAsset GetMaterial(string guid) =>
+        public virtual MaterialAsset GetMaterialAsset(string guid) =>
             _cacheMaterials.FirstOrDefault(e => e.Value.Guid == guid).Value;
-        public virtual string GetPath(string guid) =>
+        public virtual string GetPathFromGUID(string guid) =>
             _cacheMaterials.FirstOrDefault(e => e.Value.Guid == guid).Key;
-        public virtual string GetPath(MaterialAsset material) =>
+        public virtual string GetPathFromAsset(MaterialAsset material) =>
             _cacheMaterials.Where(e => e.Value.Equals(material)).FirstOrDefault().Key;
 
         public virtual void InitializeUniformsFromShaderRepresentation(MaterialAsset material, string shaderRepresentationPath)
@@ -208,12 +208,11 @@ namespace OpenglLib
             try
             {
                 var matFiles = Directory.GetFiles(rootDirectory, "*.mat", SearchOption.AllDirectories);
-
                 foreach (var matFile in matFiles)
                 {
                     try
                     {
-                        var material = LoadMaterial(matFile);
+                        var material = LoadMaterialAsset(matFile);
                         if (material != null)
                         {
                             DebLogger.Debug($"Cached material: {matFile}");

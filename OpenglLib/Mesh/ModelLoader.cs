@@ -202,7 +202,7 @@ namespace OpenglLib
             }
 
             // process materials
-            Material* material = scene->MMaterials[mesh->MMaterialIndex];
+            Silk.NET.Assimp.Material* material = scene->MMaterials[mesh->MMaterialIndex];
             // we assume a convention for sampler names in the shaders. Each diffuse texture should be named
             // as 'texture_diffuseN' where N is a sequential number ranging from 1 to MAX_SAMPLER_NUMBER. 
             // Same applies to other texture as the following list summarizes:
@@ -232,7 +232,7 @@ namespace OpenglLib
             return result;
         }
 
-        private static unsafe List<Texture> LoadMaterialTextures(Material* mat, TextureType type, string typeName, GL gl, Assimp _assimp, Model model)
+        private static unsafe List<Texture> LoadMaterialTextures(Silk.NET.Assimp.Material* mat, TextureType type, string typeName, GL gl, Assimp _assimp, Model model)
         {
             var textureCount = _assimp.GetMaterialTextureCount(mat, type);
             List<Texture> textures = new List<Texture>();

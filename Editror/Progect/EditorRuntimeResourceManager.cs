@@ -29,7 +29,7 @@ namespace Editor
             if (!_isGLInitialized || _gl == null)
                 return null;
 
-            var material = _materialFactory.CreateMaterialInstanceFromGuid(_gl, guid);
+            var material = _materialFactory.GetShaderFormMaterialAssetGUID(_gl, guid);
             return material ;
         }
 

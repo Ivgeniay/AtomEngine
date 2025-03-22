@@ -65,8 +65,8 @@ namespace Editor
                 // Сервис синхронизации состояния между папками пользовательских скриптов и папкой Assets
                 ServiceHub.RegisterService<CodeFilesSynchronizer>();
                 // Менеджер загрузки и сохранения состояний ресурсов
-                ServiceHub.RegisterService<EditorMaterialCacher>();
-                ServiceHub.AddMapping<MaterialCacher, EditorMaterialCacher>();
+                ServiceHub.RegisterService<EditorMaterialAssetManager>();
+                ServiceHub.AddMapping<MaterialAssetManager, EditorMaterialAssetManager>();
                 ServiceHub.RegisterService<EditorModelManager>();
                 ServiceHub.AddMapping<ModelManager, EditorModelManager>();
                 ServiceHub.RegisterService<BuildManager>();

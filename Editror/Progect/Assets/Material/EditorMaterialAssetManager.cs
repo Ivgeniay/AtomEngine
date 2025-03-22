@@ -4,7 +4,7 @@ using OpenglLib;
 
 namespace Editor
 {
-    internal class EditorMaterialCacher : MaterialCacher
+    internal class EditorMaterialAssetManager : MaterialAssetManager
     {
         public override Task InitializeAsync()
         {

@@ -249,15 +249,15 @@ namespace Editor
                     {
                         var metadata = ServiceHub.Get<EditorMetadataManager>().GetMetadata(e.FileFullPath);
 
-                        var materialController = new EditorMaterialCacher();
-                        var material = materialController.CreateMaterial(metadata.Guid);
+                        var materialController = new EditorMaterialAssetManager();
+                        var material = materialController.CreateMaterialAsset(metadata.Guid);
 
                         string materialPath = Path.Combine(
                             Path.GetDirectoryName(e.FileFullPath),
                             $"{Path.GetFileNameWithoutExtension(e.FileName).Replace("Representation.g", "")}_Material.mat"
                         );
 
-                        materialController.SaveMaterial(material, materialPath);
+                        materialController.SaveMaterialAsset(material, materialPath);
                         Status.SetStatus($"Created material: {material.Name}");
                     }
                 }

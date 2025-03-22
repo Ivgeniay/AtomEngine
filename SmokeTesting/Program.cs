@@ -62,7 +62,7 @@ namespace SmokeTesting
                 world.AddComponent(cubeEntity, _cubeMeshComponent1);
                 world.AddComponent(cubeEntity, boudingComponent);
                 world.AddComponent(cubeEntity, boudingMovedComponent);
-                world.AddComponent(cubeEntity, new ShaderComponent(cubeEntity, shader));
+                world.AddComponent(cubeEntity, new MaterialComponent(cubeEntity, shader));
                 world.AddComponent(cubeEntity, new CollisionComponent(cubeEntity));
                 world.AddComponent(cubeEntity, _physicsMaterialComponent);
             }
@@ -82,7 +82,7 @@ namespace SmokeTesting
             world.AddComponent(platformE, platformTransform);
             world.AddComponent(platformE, boudingComponentCube);
             world.AddComponent(platformE, new StaticComponent(platformE));
-            world.AddComponent(platformE, new ShaderComponent(platformE, shader));
+            world.AddComponent(platformE, new MaterialComponent(platformE, shader));
             physicsSystem.CreateStaticBox(ref platformTransform, new Vector3(20, 2, 20));
 
             BoundingShaderMaterial boundingShader = new BoundingShaderMaterial(app.Gl);
@@ -339,7 +339,7 @@ namespace SmokeTesting
             queryRenderersEntity = this.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<MeshComponent>()
-                .With<ShaderComponent>();
+                .With<MaterialComponent>();
         }
 
         public void Render(double deltaTime)
@@ -367,7 +367,7 @@ namespace SmokeTesting
             {
                 ref var transform = ref this.GetComponent<TransformComponent>(entity);
                 ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);
-                ref var shaderComponent = ref this.GetComponent<ShaderComponent>(entity);
+                ref var shaderComponent = ref this.GetComponent<MaterialComponent>(entity);
 
                 TestMaterialMaterial shader = (TestMaterialMaterial)shaderComponent.Shader;
                 shader.Use();

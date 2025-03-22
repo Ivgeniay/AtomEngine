@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using EngineLib;
 using OpenglLib;
 
 namespace Editor
@@ -16,24 +18,53 @@ namespace Editor
             this.sceneViewController = instance;
         }
 
-        public override void ApplyUniformValues(string materialGuid, Dictionary<string, object> uniformValues)
+        public override void SetTextures(Material material, Dictionary<string, string> textureReferences)
         {
-            sceneViewController?.EnqueueGLCommand(gl => {
-                if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
-                {
-                    ApplyUniformValues(shader, uniformValues);
-                }
+            sceneViewController?.EnqueueGLCommand(gl =>
+            {
+                base.SetTextures(material, textureReferences);
             });
         }
-        public override void ApplyTextures(string materialGuid, Dictionary<string, string> textureReferences)
+
+
+        public override void SetTextures(string materialAssetGuid, Dictionary<string, string> textureReferences)
         {
-            if (_shaderInstanceCache.TryGetValue(materialGuid, out var shaderInstance)) 
+            sceneViewController?.EnqueueGLCommand(gl =>
             {
-                sceneViewController?.EnqueueGLCommand( gl =>
-                {
-                    ApplyTextures(gl, shaderInstance, textureReferences);
-                });
-            }
+                base.SetTextures(materialAssetGuid, textureReferences);
+            });
         }
+
+
+        //public override void ApplyUniformValues(string materialAssetGuid, Dictionary<string, object> uniformValues)
+        //{
+        //    sceneViewController?.EnqueueGLCommand(gl => 
+        //    {
+        //        var materials = GetMaterialsFrom(materialAssetGuid);
+        //        foreach (var material in materials)
+        //        {
+        //            ApplyUniformValues(material.Shader, uniformValues);
+        //        }
+        //    });
+        //}
+        //public override void ApplyTextures(string materialAssetGuid, Dictionary<string, string> textureReferences)
+        //{
+        //    sceneViewController?.EnqueueGLCommand(gl =>
+        //    {
+        //        var materials = GetMaterialsFrom(materialAssetGuid);
+        //        foreach (var material in materials)
+        //        {
+        //            ApplyTextures(gl, shaderInstance, textureReferences);
+        //        }
+        //    });
+
+        //    //if (_shaderInstanceCache.TryGetValue(materialAssetGuid, out var shaderInstance)) 
+        //    //{
+        //    //    sceneViewController?.EnqueueGLCommand(gl =>
+        //    //    {
+        //    //        ApplyTextures(gl, shaderInstance, textureReferences);
+        //    //    });
+        //    //}
+        //}
     }
 }
