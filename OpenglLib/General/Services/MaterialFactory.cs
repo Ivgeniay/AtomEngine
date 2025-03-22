@@ -3,9 +3,6 @@ using System.Reflection;
 using Silk.NET.OpenGL;
 using AtomEngine;
 using EngineLib;
-using Silk.NET.Vulkan;
-using Newtonsoft.Json.Linq;
-using System.Xml.Linq;
 
 namespace OpenglLib
 {
@@ -19,7 +16,6 @@ namespace OpenglLib
 
         public void SetUniform(string name, object value)
         {
-
             if (IsValid)
             {
                 DebLogger.Error("Called material is not valid");
@@ -323,6 +319,7 @@ namespace OpenglLib
 
                 if (material.IsValid)
                 {
+                    //material.Shader.SetUniform(name, value);
                     PropertyInfo property = shaderType.GetProperty(name);
                     if (property != null && property.CanWrite)
                     {

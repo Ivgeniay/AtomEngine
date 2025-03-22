@@ -324,7 +324,6 @@ namespace Editor
                     builder.AppendLine($"                _gl.UniformMatrix4x3({locationFieldName}, 1, false, (float*)&mat4x3);");
                     break;
 
-                // Sampler типы
                 case string s when s.StartsWith("sampler"):
                     builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
                     break;

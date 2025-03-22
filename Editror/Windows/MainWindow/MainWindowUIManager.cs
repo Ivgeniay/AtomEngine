@@ -223,7 +223,7 @@ namespace Editor
                 Action = (e) =>
                 {
                     //ShaderCodeGenerationManager.GenerateAllShadersAndComponents(e.FileFullPath, e.FilePath);
-                    ShaderCodeGenerationManager.GenerateAllShadersAndComponents(e.FilePath, e.FilePath);
+                    ShaderCodeGenerationManager.GenerateShadersAndComponents(e.FilePath, e.FilePath);
                 }
             });
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu

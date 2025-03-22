@@ -8,6 +8,7 @@ namespace Editor.Utils.Generator
 {
     internal static class GlslCodeGenerator
     {
+        public const string LABLE = "rep.g";
         private static Dictionary<string, string> _includedFiles = new Dictionary<string, string>();
 
         public static void AddIncludeFile(string includePath, string content)

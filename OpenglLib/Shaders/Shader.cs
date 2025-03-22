@@ -62,7 +62,10 @@ namespace OpenglLib
         public override void SetUniform(string name, object value)
         {
             if (!_uniformLocations.TryGetValue(name, out int location))
-                throw new ArgumentError($"Uniform {name} not found in shader program");
+            {
+                DebLogger.Error($"Uniform {name} not found in shader program");
+                //throw new ArgumentError($"Uniform {name} not found in shader program");
+            }
 
             switch (_uniformInfo[name].Type)
             {
@@ -79,7 +82,6 @@ namespace OpenglLib
                     _gl.Uniform1(location, Convert.ToDouble(value));
                     break;
 
-                // Векторы (float)
                 case UniformType.FloatVec2:
                     var vec2 = (Vector2D<float>)value;
                     _gl.Uniform2(location, vec2.X, vec2.Y);
@@ -93,7 +95,6 @@ namespace OpenglLib
                     _gl.Uniform4(location, vec4.X, vec4.Y, vec4.Z, vec4.W);
                     break;
 
-                // Векторы (int)
                 case UniformType.IntVec2:
                     var ivec2 = (Vector2D<int>)value;
                     _gl.Uniform2(location, ivec2.X, ivec2.Y);
@@ -107,68 +108,92 @@ namespace OpenglLib
                     _gl.Uniform4(location, ivec4.X, ivec4.Y, ivec4.Z, ivec4.W);
                     break;
 
-                // Матрицы
                 case UniformType.FloatMat2:
                     unsafe
                     {
-                        var mat2 = (Matrix2X2<float>)value;
-                        _gl.UniformMatrix2(location, 1, false, (float*)&mat2);
+                        if (value is Matrix2X2<float> mat2)
+                        {
+                            _gl.UniformMatrix2(location, 1, false, (float*)&mat2);
+                        }
                     }
                     break;
                 case UniformType.FloatMat3:
                     unsafe
                     {
-                        var mat3 = (Matrix3X3<float>)value;
-                        _gl.UniformMatrix3(location, 1, false, (float*)&mat3);
+                        if (value is Matrix3X3<float> mat3)
+                        {
+                            _gl.UniformMatrix3(location, 1, false, (float*)&mat3);
+                        }
                     }
                     break;
                 case UniformType.FloatMat4:
                     unsafe
                     {
-                        var mat4 = (Matrix4X4<float>)value;
-                        _gl.UniformMatrix4(location, 1, false, (float*)&mat4);
+                        if (value is Matrix4X4<float> mat4)
+                        {
+                            _gl.UniformMatrix4(location, 1, false, (float*)&mat4);
+                        }
+                        else if (value is System.Numerics.Matrix4x4 mat4x4)
+                        {
+                            var silk = mat4x4.ToSilk();
+                            _gl.UniformMatrix4(location, 1, false, (float*)&silk);
+                        }
                     }
                     break;
                 case UniformType.FloatMat2x3:
                     unsafe
                     {
-                        var mat2x3 = (Matrix2X3<float>)value;
-                        _gl.UniformMatrix2x3(location, 1, false, (float*)&mat2x3);
+                        if (value is Matrix2X3<float> mat2x3)
+                        {
+                            _gl.UniformMatrix2x3(location, 1, false, (float*)&mat2x3);
+                        }
                     }
                     break;
                 case UniformType.FloatMat2x4:
                     unsafe
                     {
-                        var mat2x4 = (Matrix2X4<float>)value;
-                        _gl.UniformMatrix2x4(location, 1, false, (float*)&mat2x4);
+                        if (value is Matrix2X4<float> mat2x4)
+                            _gl.UniformMatrix2x4(location, 1, false, (float*)&mat2x4);
                     }
                     break;
                 case UniformType.FloatMat3x2:
                     unsafe
                     {
-                        var mat3x2 = (Matrix3X2<float>)value;
-                        _gl.UniformMatrix3x2(location, 1, false, (float*)&mat3x2);
+                        if (value is Matrix3X2<float> mat3x2)
+                            _gl.UniformMatrix3x2(location, 1, false, (float*)&mat3x2);
+
+                        else if (value is System.Numerics.Matrix3x2 mat3x2Num)
+                        {
+                            var silk = mat3x2Num.ToSilk();
+                            _gl.UniformMatrix3x2(location, 1, false, (float*)&mat3x2Num);
+                        }
                     }
                     break;
                 case UniformType.FloatMat3x4:
                     unsafe
                     {
-                        var mat3x4 = (Matrix3X4<float>)value;
-                        _gl.UniformMatrix3x4(location, 1, false, (float*)&mat3x4);
+                        if (value is Matrix3X4<float> mat3x4)
+                        {
+                            _gl.UniformMatrix3x4(location, 1, false, (float*)&mat3x4);
+                        }
                     }
                     break;
                 case UniformType.FloatMat4x2:
                     unsafe
                     {
-                        var mat4x2 = (Matrix4X2<float>)value;
-                        _gl.UniformMatrix4x2(location, 1, false, (float*)&mat4x2);
+                        if (value is Matrix4X2<float> mat4x2)
+                        {
+                            _gl.UniformMatrix4x2(location, 1, false, (float*)&mat4x2);
+                        }
                     }
                     break;
                 case UniformType.FloatMat4x3:
                     unsafe
                     {
-                        var mat4x3 = (Matrix4X3<float>)value;
-                        _gl.UniformMatrix4x3(location, 1, false, (float*)&mat4x3);
+                        if (value is Matrix4X3<float> mat4x3)
+                        {
+                            _gl.UniformMatrix4x3(location, 1, false, (float*)&mat4x3);
+                        }
                     }
                     break;
 

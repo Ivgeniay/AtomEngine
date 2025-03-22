@@ -44,6 +44,24 @@ namespace OpenglLib
         }
 
 
+        public static Matrix3X2<float> ToSilk(this Matrix3x2 matrix)
+        {
+            return new Matrix3X2<float>(
+                matrix.M11, matrix.M12,
+                matrix.M21, matrix.M22,
+                matrix.M31, matrix.M32
+                );
+        }
+
+        public static Matrix3x2 ToNumetrix(this Matrix3X2<float> matrix)
+        {
+            return new Matrix3x2(
+                matrix.M11, matrix.M12,
+                matrix.M21, matrix.M22,
+                matrix.M31, matrix.M32
+                );
+        }
+
         public static Matrix4X4<float> ToSilk(this Matrix4x4 matrix)
         {
             return new Matrix4X4<float>(

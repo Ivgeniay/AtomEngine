@@ -1,17 +1,14 @@
 ﻿using System.Collections.Generic;
-using Editor.Utils.Generator;
 using Avalonia.Markup.Xaml;
 using Avalonia.Controls;
 using AtomEngine;
+using EngineLib;
 using Avalonia;
 using System;
-using System.Linq;
-using System.Threading.Tasks;
-using EngineLib;
 
 namespace Editor
 {
-#if MY_FEATURE
+#if FEATURE
 #endif
     public partial class MainWindow : Window
     {

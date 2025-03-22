@@ -4,6 +4,7 @@ using System.IO;
 using EngineLib;
 using System;
 using OpenglLib;
+using Editor.Utils.Generator;
 
 namespace Editor
 {
@@ -42,7 +43,7 @@ namespace Editor
             var uniformBlocks = GlslParser.ParseUniformBlocks(vertexSource + "\n" + fragmentSource);
 
             var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid);
-            var representationFilePath = Path.Combine(outputDirectory, $"{representationName}Representation.g.cs");
+            var representationFilePath = Path.Combine(outputDirectory, $"{representationName}{GlslCodeGenerator.LABLE}.cs");
             File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);
 
             return $"{representationName}Representation";
