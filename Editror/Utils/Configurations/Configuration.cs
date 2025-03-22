@@ -114,7 +114,7 @@ namespace Editor
 
         public ExplorerConfigurations()
         {
-            ExcludeExtension = new List<string>() { ".exe", MetadataManager.META_EXTENSION };
+            ExcludeExtension = new List<string>() { ".exe", EditorMetadataManager.META_EXTENSION };
         }
     }
 

@@ -247,9 +247,9 @@ namespace Editor
                 {
                     if (e.FileName.EndsWith("Representation.g.cs"))
                     {
-                        var metadata = ServiceHub.Get<MetadataManager>().GetMetadata(e.FileFullPath);
+                        var metadata = ServiceHub.Get<EditorMetadataManager>().GetMetadata(e.FileFullPath);
 
-                        var materialController = new MaterialManager();
+                        var materialController = new EditorMaterialCacher();
                         var material = materialController.CreateMaterial(metadata.Guid);
 
                         string materialPath = Path.Combine(

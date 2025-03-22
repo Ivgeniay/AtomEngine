@@ -5,6 +5,7 @@ using System.Linq;
 using AtomEngine;
 using System;
 using EngineLib;
+using OpenglLib;
 
 namespace Editor
 {
@@ -22,7 +23,7 @@ namespace Editor
         public AssetMetadataInspectable(string filePath)
         {
             _filePath = filePath;
-            _metadata = ServiceHub.Get<MetadataManager>().GetMetadata(filePath);
+            _metadata = ServiceHub.Get<EditorMetadataManager>().GetMetadata(filePath);
         }
 
         public virtual string Title => $"Asset Metadata";
@@ -106,8 +107,8 @@ namespace Editor
         }
         protected void Save()
         {
-            if (_filePath == null) ServiceHub.Get<MetadataManager>().SaveMetadata(_metadata);
-            else ServiceHub.Get<MetadataManager>().SaveMetadata(_filePath, _metadata);
+            if (_filePath == null) ServiceHub.Get<EditorMetadataManager>().SaveMetadata(_metadata);
+            else ServiceHub.Get<EditorMetadataManager>().SaveMetadata(_filePath, _metadata);
         }
         public virtual void Update() { }
     }
@@ -379,7 +380,7 @@ namespace Editor
         public override void Update()
         {
             if (!string.IsNullOrWhiteSpace(_filePath))
-                _metadata = (TextureMetadata)ServiceHub.Get<MetadataManager>().GetMetadata(_filePath);
+                _metadata = (TextureMetadata)ServiceHub.Get<EditorMetadataManager>().GetMetadata(_filePath);
         }
     }
 
@@ -435,7 +436,7 @@ namespace Editor
         public override void Update()
         {
             if (!string.IsNullOrWhiteSpace(_filePath))
-                _metadata = (ShaderSourceMetadata)ServiceHub.Get<MetadataManager>().GetMetadata(_filePath);
+                _metadata = (ShaderSourceMetadata)ServiceHub.Get<EditorMetadataManager>().GetMetadata(_filePath);
         }
     }
 
@@ -486,7 +487,7 @@ namespace Editor
         public override void Update()
         {
             if (!string.IsNullOrWhiteSpace(_filePath))
-                _metadata = (ScriptMetadata)ServiceHub.Get<MetadataManager>().GetMetadata(_filePath);
+                _metadata = (ScriptMetadata)ServiceHub.Get<EditorMetadataManager>().GetMetadata(_filePath);
         }
     }
 }

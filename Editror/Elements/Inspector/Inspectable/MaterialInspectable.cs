@@ -5,6 +5,7 @@ using System;
 using Avalonia.Layout;
 using AtomEngine;
 using EngineLib;
+using OpenglLib;
 
 namespace Editor
 {
@@ -82,11 +83,11 @@ namespace Editor
             if (string.IsNullOrEmpty(_material.ShaderRepresentationGuid))
                 return "None";
 
-            var metadata = ServiceHub.Get<MetadataManager>().GetMetadataByGuid(_material.ShaderRepresentationGuid);
+            var metadata = ServiceHub.Get<EditorMetadataManager>().GetMetadataByGuid(_material.ShaderRepresentationGuid);
             if (metadata == null)
                 return _material.ShaderRepresentationTypeName;
 
-            string path = ServiceHub.Get<MetadataManager>().GetPathByGuid(_material.ShaderRepresentationGuid);
+            string path = ServiceHub.Get<EditorMetadataManager>().GetPathByGuid(_material.ShaderRepresentationGuid);
             return Path.GetFileNameWithoutExtension(path);
         }
 

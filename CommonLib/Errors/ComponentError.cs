@@ -1,8 +1,6 @@
-﻿
-
-public class ComponentError : Error
+﻿public class ComponentError : Error
 {
-    public ComponentError(string message) : base(message)
+    public ComponentError(string message = "") : base(message)
     {
     }
 }

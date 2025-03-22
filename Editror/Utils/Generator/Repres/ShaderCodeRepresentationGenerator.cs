@@ -3,6 +3,7 @@ using System.Text;
 using System.IO;
 using EngineLib;
 using System;
+using OpenglLib;
 
 namespace Editor
 {
@@ -13,7 +14,7 @@ namespace Editor
             try
             {
                 var sourceText = File.ReadAllText(filePath);
-                string sourceGuid = ServiceHub.Get<MetadataManager>().GetMetadata(filePath)?.Guid;
+                string sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(filePath)?.Guid;
 
                 GenerateRepresentationFromSource(Path.GetFileNameWithoutExtension(filePath), sourceText, outputDirectory, includedFiles, sourceGuid, filePath);
             }
@@ -32,7 +33,7 @@ namespace Editor
             }
 
             if (string.IsNullOrEmpty(sourceGuid) && !string.IsNullOrEmpty(sourcePath))
-                sourceGuid = ServiceHub.Get<MetadataManager>().GetMetadata(sourcePath)?.Guid;
+                sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(sourcePath)?.Guid;
 
             var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(sourceText, includedFiles);
             GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);

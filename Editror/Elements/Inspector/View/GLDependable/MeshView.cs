@@ -22,7 +22,7 @@ namespace Editor
             string? meshGuid = GettingGUID();
             if (!string.IsNullOrWhiteSpace(meshGuid))
             {
-                objectField.ObjectPath = ServiceHub.Get<ModelManager>().GetPath(meshGuid);
+                objectField.ObjectPath = ServiceHub.Get<EditorModelManager>().GetPath(meshGuid);
             }
             else
             {
@@ -43,7 +43,7 @@ namespace Editor
                             ExpandableFileItemChild cont = Newtonsoft.Json.JsonConvert.DeserializeObject<ExpandableFileItemChild>(fileEvent.Context.ToString());
                             if (cont != null)
                             {
-                                var metaData = ServiceHub.Get<MetadataManager>().GetMetadata(fileEvent.FileFullPath);
+                                var metaData = ServiceHub.Get<EditorMetadataManager>().GetMetadata(fileEvent.FileFullPath);
                                 if (metaData != null && metaData is ModelMetadata modelData)
                                 {
                                     var meshData = modelData.MeshesData.First(m => m.MeshName == cont.Name);

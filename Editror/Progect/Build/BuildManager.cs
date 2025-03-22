@@ -101,7 +101,7 @@ namespace Editor
             Status.SetStatus($"Export resources...");
 
             var metadataManager = ServiceHub.Get<MetadataManager>();
-            var materialManager = ServiceHub.Get<MaterialManager>();
+            var materialManager = ServiceHub.Get<MaterialCacher>();
             var meshManager = ServiceHub.Get<ModelManager>();
 
             HashSet<string> textureGuids = new HashSet<string>();

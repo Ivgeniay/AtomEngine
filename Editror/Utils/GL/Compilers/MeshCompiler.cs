@@ -18,7 +18,7 @@ namespace Editor
             result.FilePath = e.FileFullPath;
             GL gl = null;
 
-            ModelManager meshManager = ServiceHub.Get<ModelManager>();
+            EditorModelManager meshManager = ServiceHub.Get<EditorModelManager>();
             var extensions = meshManager.GetExtensions().ToList();
             result.Log.AppendLine("Format checking");
             if (!extensions.Any(t => t == e.FileExtension))

@@ -1,8 +1,5 @@
-﻿namespace Editor
+﻿namespace EngineLib
 {
-    /// <summary>
-    /// Перечисление типов метаданных
-    /// </summary>
     public enum MetadataType
     {
         Texture,
@@ -19,5 +16,4 @@
         Asset,
         Unknown
     }
-
 }

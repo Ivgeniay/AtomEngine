@@ -1,8 +1,6 @@
-﻿using System.Collections.Generic;
-using AtomEngine;
-using Silk.NET.Maths;
+﻿using Silk.NET.Maths;
 
-namespace Editor
+namespace OpenglLib
 {
     public static class CSRepresentationParser
     {
@@ -103,6 +101,5 @@ namespace Editor
 
             return string.Empty;
         }
-
     }
 }

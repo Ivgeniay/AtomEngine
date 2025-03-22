@@ -3,6 +3,7 @@ using Silk.NET.OpenGL;
 using System.IO;
 using System;
 using System.Text;
+using OpenglLib;
 
 namespace Editor
 {

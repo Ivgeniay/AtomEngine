@@ -1,11 +1,8 @@
 ﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
 using Silk.NET.Maths;
-using OpenglLib;
 using System.Numerics;
 
-namespace Editor
+namespace OpenglLib
 {
     public static class MaterialSerializer
     {
@@ -47,7 +44,15 @@ namespace Editor
 
         public static MaterialAsset DeserializeMaterial(string json)
         {
-            var deserializedData = JsonConvert.DeserializeObject<MaterialAsset>(json, GlobalDeserializationSettings.Settings);
+            JsonSerializerSettings settings = new JsonSerializerSettings()
+            {
+                Formatting = Formatting.Indented,
+                TypeNameHandling = TypeNameHandling.Auto,
+                ObjectCreationHandling = ObjectCreationHandling.Replace,
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+            };
+
+            var deserializedData = JsonConvert.DeserializeObject<MaterialAsset>(json, settings);
 
             if (deserializedData.UniformValues != null)
             {

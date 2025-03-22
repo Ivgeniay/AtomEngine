@@ -1,8 +1,9 @@
 ﻿using Silk.NET.OpenGL;
+using EngineLib;
 
-namespace Editor
+namespace OpenglLib
 {
-    internal class TextureMetadata : AssetMetadata
+    public class TextureMetadata : AssetMetadata
     {
         public TextureMetadata()
         {

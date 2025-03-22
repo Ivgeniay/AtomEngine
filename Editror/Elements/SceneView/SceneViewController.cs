@@ -43,7 +43,7 @@ namespace Editor
         private ConcurrentQueue<OpenGLCommand> _glCommands = new ConcurrentQueue<OpenGLCommand>();
 
         private SceneManager _sceneManager;
-        private MaterialFactory _materialFactory;
+        private EditorMaterialFactory _materialFactory;
         private EventHub _eventHub;
 
         private Dictionary<string, Dictionary<string, ICommonSystem>> _worldSystems = new Dictionary<string, Dictionary<string, ICommonSystem>>();
@@ -67,7 +67,7 @@ namespace Editor
             InitializeEvents();
 
             _resourceManager = ServiceHub.Get<EditorRuntimeResourceManager>();
-            _materialFactory = ServiceHub.Get<MaterialFactory>();
+            _materialFactory = ServiceHub.Get<EditorMaterialFactory>();
             _sceneManager = ServiceHub.Get<SceneManager>();
             _eventHub = ServiceHub.Get<EventHub>();
 
@@ -767,7 +767,6 @@ namespace Editor
                                     shaderField.SetValue(e, shader);
                                     return e;
                                 });
-                                //shaderField.SetValue(component, shader);
                             }
                         }
                     }
@@ -792,7 +791,6 @@ namespace Editor
                         {
                             int index = int.Parse(strIndex);
 
-                            // Получаем меш из ResourceManager
                             var mesh = _resourceManager.GetResource<MeshBase>(meshGuid, index);
                             if (mesh != null)
                             {
@@ -801,8 +799,6 @@ namespace Editor
                                     meshField.SetValue(e, mesh);
                                     return e;
                                 });
-
-                                //meshField.SetValue(component, mesh);
 
                                 if (mesh.BoundingVolume != null)
                                 {

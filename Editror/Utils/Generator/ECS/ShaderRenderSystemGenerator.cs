@@ -30,7 +30,11 @@ namespace Editor.Utils.Generator
             var properties = ExtractShaderProperties(sourceCode);
             string systemName = className + "RenderSystem";
             string componentName = className + "Component";
-            string systemCode = GenerateSystemCode(systemName, componentName, className, properties);
+
+            // Получаем информацию о матрицах из шейдера
+            var matrixInfo = ShaderMatrixInfo.FromSourceCode(sourceCode);
+
+            string systemCode = GenerateSystemCode(systemName, componentName, className, properties, matrixInfo);
 
             string outputPath = Path.Combine(outputDirectory, $"{systemName}.g.cs");
             File.WriteAllText(outputPath, systemCode, Encoding.UTF8);
@@ -65,6 +69,7 @@ namespace Editor.Utils.Generator
 
         private static string ExtractClassName(string sourceCode)
         {
+            // Ищем объявление класса типа: public class SomeNameRepresentation : Mat
             var match = Regex.Match(sourceCode, @"public\s+(?:partial\s+)?class\s+(\w+)\s*:\s*Mat");
             if (match.Success)
             {
@@ -73,9 +78,11 @@ namespace Editor.Utils.Generator
             return null;
         }
 
-        private static List<(string type, string name)> ExtractShaderProperties(string sourceCode)
+        private static List<(string type, string name, bool isTexture)> ExtractShaderProperties(string sourceCode)
         {
-            var properties = new List<(string type, string name)>();
+            var properties = new List<(string type, string name, bool isTexture)>();
+
+            // Ищем все публичные свойства, кроме тех, что с "Location" в имени
             var matches = Regex.Matches(sourceCode, @"public\s+(?:unsafe\s+)?(\w+(?:<\w+>)?)\s+(\w+)(?!\s*Location)(?:\s*\{(?:[^{}]*|(?<brace>\{)|(?<-brace>\}))*\})");
 
             foreach (Match match in matches)
@@ -83,12 +90,17 @@ namespace Editor.Utils.Generator
                 string type = match.Groups[1].Value;
                 string name = match.Groups[2].Value;
 
+                // Исключаем поля с "Location" в имени и проверяем, что это не метод
                 if (!name.Contains("Location") && !sourceCode.Contains($"public {type} {name}("))
                 {
+                    // Если тип - не массив или коллекция, добавляем
                     if (!type.Contains("Array") && !type.Contains("List"))
                     {
+                        bool isTexture = ShaderCodeAnalyzer.IsTextureType(type);
+
+                        // Преобразуем типы из Silk.NET в System.Numerics
                         var mappedType = MapToSystemNumerics(type);
-                        properties.Add((mappedType, name));
+                        properties.Add((mappedType, name, isTexture));
                     }
                 }
             }
@@ -98,6 +110,7 @@ namespace Editor.Utils.Generator
 
         private static string MapToSystemNumerics(string type)
         {
+            // Преобразование типов из Silk.NET в System.Numerics
             switch (type)
             {
                 case "Vector2D<float>":
@@ -113,9 +126,20 @@ namespace Editor.Utils.Generator
             }
         }
 
-        private static string GenerateSystemCode(string systemName, string componentName, string shaderClassName, List<(string type, string name)> properties)
+        private static string GenerateSystemCode(
+            string systemName,
+            string componentName,
+            string shaderClassName,
+            List<(string type, string name, bool isTexture)> properties,
+            ShaderMatrixInfo matrixInfo = null)
         {
             var sb = new StringBuilder();
+
+            // Если matrixInfo не передан, создаем по умолчанию
+            if (matrixInfo == null)
+            {
+                matrixInfo = new ShaderMatrixInfo();
+            }
 
             // Добавляем необходимые using
             sb.AppendLine("using System;");
@@ -140,12 +164,24 @@ namespace Editor.Utils.Generator
 
             // Запросы
             sb.AppendLine("        private QueryEntity queryRenderersEntity;");
+            if (matrixInfo.NeedsCamera)
+            {
+                sb.AppendLine("        private QueryEntity queryCameraEntity;");
+            }
             sb.AppendLine();
 
             // Конструктор
             sb.AppendLine($"        public {systemName}(IWorld world)");
             sb.AppendLine("        {");
             sb.AppendLine("            World = world;");
+
+            if (matrixInfo.NeedsCamera)
+            {
+                sb.AppendLine("            queryCameraEntity = this.CreateEntityQuery()");
+                sb.AppendLine("                .With<TransformComponent>()");
+                sb.AppendLine("                .With<CameraComponent>();");
+            }
+
             sb.AppendLine("            queryRenderersEntity = this.CreateEntityQuery()");
             sb.AppendLine("                .With<TransformComponent>()");
             sb.AppendLine("                .With<MeshComponent>()");
@@ -156,6 +192,54 @@ namespace Editor.Utils.Generator
             // Метод Render
             sb.AppendLine("        public void Render(double deltaTime)");
             sb.AppendLine("        {");
+
+            // Код для работы с камерой, если она нужна
+            if (matrixInfo.NeedsCamera)
+            {
+                sb.AppendLine("            Entity[] cameras = queryCameraEntity.Build();");
+                sb.AppendLine("            if (cameras.Length == 0)");
+                sb.AppendLine("            {");
+                sb.AppendLine("                return;");
+                sb.AppendLine("            }");
+                sb.AppendLine();
+                sb.AppendLine("            Entity activeCamera = Entity.Null;");
+                sb.AppendLine("            foreach (var camera in cameras)");
+                sb.AppendLine("            {");
+                sb.AppendLine("                ref var cameraComponent = ref this.GetComponent<CameraComponent>(camera);");
+                sb.AppendLine("                if (cameraComponent.IsActive)");
+                sb.AppendLine("                {");
+                sb.AppendLine("                    activeCamera = camera;");
+                sb.AppendLine("                    break;");
+                sb.AppendLine("                }");
+                sb.AppendLine("            }");
+                sb.AppendLine();
+                sb.AppendLine("            if (activeCamera == Entity.Null)");
+                sb.AppendLine("            {");
+                sb.AppendLine("                activeCamera = cameras[0];");
+                sb.AppendLine("            }");
+                sb.AppendLine();
+                sb.AppendLine("            ref var cameraTransform = ref this.GetComponent<TransformComponent>(activeCamera);");
+                sb.AppendLine("            ref var activeCameraComponent = ref this.GetComponent<CameraComponent>(activeCamera);");
+                sb.AppendLine();
+
+                if (matrixInfo.UsesViewMatrix || matrixInfo.UsesViewProjectionMatrix || matrixInfo.UsesModelViewProjectionMatrix)
+                {
+                    sb.AppendLine("            var viewMatrix = activeCameraComponent.ViewMatrix;");
+                }
+
+                if (matrixInfo.UsesProjectionMatrix || matrixInfo.UsesViewProjectionMatrix || matrixInfo.UsesModelViewProjectionMatrix)
+                {
+                    sb.AppendLine("            var projectionMatrix = activeCameraComponent.CreateProjectionMatrix();");
+                }
+
+                if (matrixInfo.UsesViewProjectionMatrix)
+                {
+                    sb.AppendLine("            var viewProjectionMatrix = viewMatrix * projectionMatrix;");
+                }
+
+                sb.AppendLine();
+            }
+
             sb.AppendLine("            Entity[] rendererEntities = queryRenderersEntity.Build();");
             sb.AppendLine("            foreach (var entity in rendererEntities)");
             sb.AppendLine("            {");
@@ -168,21 +252,71 @@ namespace Editor.Utils.Generator
             sb.AppendLine("                    continue;");
             sb.AppendLine("                }");
             sb.AppendLine();
-            sb.AppendLine($"                {shaderClassName} shader = ({shaderClassName})shaderComponent.Shader;");
-            sb.AppendLine("                shader.Use();");
+            sb.AppendLine("                shaderComponent.Shader.Use();");
             sb.AppendLine();
 
-            foreach (var (type, name) in properties)
+            // Устанавливаем матрицы, если они используются
+            if (matrixInfo.UsesModelMatrix && !string.IsNullOrEmpty(matrixInfo.ModelMatrixName))
             {
-                if (!type.Contains("Matrix"))
+                sb.AppendLine($"                shaderComponent.Shader.{matrixInfo.ModelMatrixName} = transform.GetModelMatrix().ToSilk();");
+            }
+
+            if (matrixInfo.NeedsCamera)
+            {
+                if (matrixInfo.UsesViewMatrix && !string.IsNullOrEmpty(matrixInfo.ViewMatrixName))
                 {
+                    sb.AppendLine($"                shaderComponent.Shader.{matrixInfo.ViewMatrixName} = viewMatrix.ToSilk();");
+                }
+
+                if (matrixInfo.UsesProjectionMatrix && !string.IsNullOrEmpty(matrixInfo.ProjectionMatrixName))
+                {
+                    sb.AppendLine($"                shaderComponent.Shader.{matrixInfo.ProjectionMatrixName} = projectionMatrix.ToSilk();");
+                }
+
+                if (matrixInfo.UsesViewProjectionMatrix && !string.IsNullOrEmpty(matrixInfo.ViewProjectionMatrixName))
+                {
+                    sb.AppendLine($"                shaderComponent.Shader.{matrixInfo.ViewProjectionMatrixName} = viewProjectionMatrix.ToSilk();");
+                }
+
+                if (matrixInfo.UsesModelViewProjectionMatrix && !string.IsNullOrEmpty(matrixInfo.ModelViewProjectionMatrixName))
+                {
+                    sb.AppendLine($"                var modelMatrix = transform.GetModelMatrix();");
+                    sb.AppendLine($"                shaderComponent.Shader.{matrixInfo.ModelViewProjectionMatrixName} = (modelMatrix * viewMatrix * projectionMatrix).ToSilk();");
+                }
+            }
+
+            // Устанавливаем остальные свойства
+            foreach (var (type, name, isTexture) in properties)
+            {
+                // Пропускаем матрицы, так как они уже обработаны выше
+                if (type.Contains("Matrix") ||
+                    (matrixInfo.UsesModelMatrix && name == matrixInfo.ModelMatrixName) ||
+                    (matrixInfo.UsesViewMatrix && name == matrixInfo.ViewMatrixName) ||
+                    (matrixInfo.UsesProjectionMatrix && name == matrixInfo.ProjectionMatrixName) ||
+                    (matrixInfo.UsesViewProjectionMatrix && name == matrixInfo.ViewProjectionMatrixName) ||
+                    (matrixInfo.UsesModelViewProjectionMatrix && name == matrixInfo.ModelViewProjectionMatrixName))
+                {
+                    continue;
+                }
+
+                if (isTexture)
+                {
+                    // Для текстурных типов устанавливаем текстуру
+                    sb.AppendLine($"                if (shaderComponent.{name}Texture != null)");
+                    sb.AppendLine($"                {{");
+                    sb.AppendLine($"                    shaderComponent.Shader.{name}_SetTexture(shaderComponent.{name}Texture);");
+                    sb.AppendLine($"                }}");
+                }
+                else
+                {
+                    // Для векторных типов добавляем ToSilk()
                     if (type.StartsWith("Vector"))
                     {
-                        sb.AppendLine($"                shader.{name} = shaderComponent.{name}.ToSilk();");
+                        sb.AppendLine($"                shaderComponent.Shader.{name} = shaderComponent.{name}.ToSilk();");
                     }
                     else
                     {
-                        sb.AppendLine($"                shader.{name} = shaderComponent.{name};");
+                        sb.AppendLine($"                shaderComponent.Shader.{name} = shaderComponent.{name};");
                     }
                 }
             }
@@ -193,14 +327,18 @@ namespace Editor.Utils.Generator
             sb.AppendLine("        }");
             sb.AppendLine();
 
+            // Методы Resize и Initialize
             sb.AppendLine("        public void Resize(Vector2 size) { }");
             sb.AppendLine();
             sb.AppendLine("        public void Initialize() { }");
             sb.AppendLine("    }");
 
+            // Закрываем пространство имен
             sb.AppendLine("}");
 
             return sb.ToString();
         }
     }
+
+
 }

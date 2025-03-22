@@ -146,7 +146,7 @@ namespace Editor
                 return;
             }
 
-            var metadataManager = ServiceHub.Get<MetadataManager>();
+            var metadataManager = ServiceHub.Get<EditorMetadataManager>();
             var metadata = metadataManager.GetMetadata(fileEvent.FileFullPath) as ModelMetadata;
 
             if (metadata == null || metadata.MeshesData.Count == 0)
@@ -186,7 +186,7 @@ namespace Editor
                     return;
                 }
 
-                var metadataManager = ServiceHub.Get<MetadataManager>();
+                var metadataManager = ServiceHub.Get<EditorMetadataManager>();
                 var metadata = metadataManager.GetMetadata(fileEvent.FileFullPath) as ModelMetadata;
 
                 if (metadata == null || metadata.MeshesData.Count == 0)

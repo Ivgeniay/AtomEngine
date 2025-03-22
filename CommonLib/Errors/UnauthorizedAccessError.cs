@@ -1,8 +1,6 @@
-﻿
-
-public class UnauthorizedAccessError : Error
+﻿public class UnauthorizedAccessError : Error
 {
-    public UnauthorizedAccessError(string message) : base(message)
+    public UnauthorizedAccessError(string message = "") : base(message)
     {
     }
 }

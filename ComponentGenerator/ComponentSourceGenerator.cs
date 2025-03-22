@@ -275,7 +275,7 @@ namespace ComponentGenerator
                 string memberName = member.Name;
                 string memberType = "Unknown";
                 string guidFieldName = $"{memberName}GUID";
-                string guidFieldNameIndex = $"{memberName}InternalIndex";
+                //string guidFieldNameIndex = $"{memberName}InternalIndex";
 
                 if (member is IFieldSymbol fieldSymbol)
                 {
@@ -294,13 +294,13 @@ namespace ComponentGenerator
                 sb.AppendLine($"{indent}    private string {guidFieldName};");
                 sb.AppendLine();
 
-                sb.AppendLine($"{indent}    /// <summary>");
-                sb.AppendLine($"{indent}    /// Indexator field for {memberName} typeof {memberType}");
-                sb.AppendLine($"{indent}    /// </summary>");
-                sb.AppendLine($"{indent}    [JsonProperty]");
-                sb.AppendLine($"{indent}    [ShowInInspector]");
-                sb.AppendLine($"{indent}    private string {guidFieldNameIndex};");
-                sb.AppendLine();
+                //sb.AppendLine($"{indent}    /// <summary>");
+                //sb.AppendLine($"{indent}    /// Indexator field for {memberName} typeof {memberType}");
+                //sb.AppendLine($"{indent}    /// </summary>");
+                //sb.AppendLine($"{indent}    [JsonProperty]");
+                //sb.AppendLine($"{indent}    [ShowInInspector]");
+                //sb.AppendLine($"{indent}    private string {guidFieldNameIndex};");
+                //sb.AppendLine();
             }
 
             sb.AppendLine($"{indent}}}");

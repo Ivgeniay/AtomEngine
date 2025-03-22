@@ -1,13 +1,5 @@
-﻿using AtomEngine;
-using AtomEngine.RenderEntity;
-using Avalonia.Controls;
-using Avalonia.Layout;
+﻿using Avalonia.Controls;
 using EngineLib;
-using Silk.NET.Core.Native;
-using System;
-using System.IO;
-using System.Reflection;
-using System.Xml.Linq;
 
 namespace Editor
 {
@@ -26,7 +18,7 @@ namespace Editor
             string? resourseGuid = GettingGUID();
             if (resourseGuid != null)
             {
-                objectField.ObjectPath = ServiceHub.Get<MetadataManager>().GetPathByGuid(resourseGuid);
+                objectField.ObjectPath = ServiceHub.Get<EditorMetadataManager>().GetPathByGuid(resourseGuid);
             }
             else
             {
@@ -42,7 +34,7 @@ namespace Editor
                     var fileEvent = Newtonsoft.Json.JsonConvert.DeserializeObject<DragDropEventArgs>(e);
                     if (fileEvent != null)
                     {
-                        var metaData = ServiceHub.Get<MetadataManager>().LoadMetadata(fileEvent.FileFullPath + ".meta");
+                        var metaData = ServiceHub.Get<EditorMetadataManager>().LoadMetadata(fileEvent.FileFullPath + ".meta");
                         descriptor.OnValueChanged?.Invoke(new GLValueRedirection()
                         {
                             GUID = metaData.Guid,

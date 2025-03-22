@@ -1,36 +1,27 @@
-﻿using AtomEngine;
-using System.Collections.Generic;
-using AtomEngine.RenderEntity;
-using System.Threading.Tasks;
-using System.Reflection;
+﻿using AtomEngine.RenderEntity;
 using Silk.NET.OpenGL;
-using OpenglLib;
+using AtomEngine;
 using EngineLib;
-using System;
+using System.Reflection;
 
-namespace Editor
+namespace OpenglLib
 {
-    internal class MaterialFactory : IService, IDisposable
+    public class MaterialFactory : IService, IDisposable
     {
-        private Dictionary<string, ShaderBase> _shaderInstanceCache = new Dictionary<string, ShaderBase>();
-        private Dictionary<ShaderBase, GL> _glShaderMap = new Dictionary<ShaderBase, GL>();
-        private EditorTextureFactory _textureFactory;
-        private EditorAssemblyManager _assemblyManager;
-        SceneViewController sceneViewController;
+        protected Dictionary<string, ShaderBase> _shaderInstanceCache = new Dictionary<string, ShaderBase>();
+        protected Dictionary<ShaderBase, GL> _glShaderMap = new Dictionary<ShaderBase, GL>();
+        protected TextureFactory _textureFactory;
+        protected AssemblyManager _assemblyManager;
 
-        public Task InitializeAsync()
+        public virtual Task InitializeAsync()
         {
-            _textureFactory = ServiceHub.Get<EditorTextureFactory>();
-            _assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
+            _textureFactory = ServiceHub.Get<TextureFactory>();
+            _assemblyManager = ServiceHub.Get<AssemblyManager>();
+
             return Task.CompletedTask;
         }
 
-        public void SetSceneViewController(SceneViewController instance)
-        {
-            this.sceneViewController = instance;
-        }
-
-        public ShaderBase CreateMaterialInstance(GL gl, MaterialAsset material)
+        public virtual ShaderBase CreateMaterialInstance(GL gl, MaterialAsset material)
         {
             if (material == null)
             {
@@ -63,11 +54,11 @@ namespace Editor
             }
         }
 
-        public ShaderBase CreateMaterialInstance(GL gl, string materialPath)
+        public virtual ShaderBase CreateMaterialInstance(GL gl, string materialPath)
         {
             try
             {
-                MaterialAsset material = ServiceHub.Get<MaterialManager>().LoadMaterial(materialPath);
+                MaterialAsset material = ServiceHub.Get<MaterialCacher>().LoadMaterial(materialPath);
                 if (material == null)
                 {
                     DebLogger.Error($"Не удалось загрузить материал из пути: {materialPath}");
@@ -83,7 +74,7 @@ namespace Editor
             }
         }
 
-        public ShaderBase CreateMaterialInstanceFromGuid(GL gl, string materialGuid)
+        public virtual ShaderBase CreateMaterialInstanceFromGuid(GL gl, string materialGuid)
         {
             try
             {
@@ -103,7 +94,7 @@ namespace Editor
             }
         }
 
-        private ShaderBase CreateShaderRepresentationInstance(GL gl, string typeName)
+        protected virtual ShaderBase CreateShaderRepresentationInstance(GL gl, string typeName)
         {
             try
             {
@@ -135,9 +126,9 @@ namespace Editor
             }
         }
 
-        private Type FindShaderRepresentationType(string typeName)
+        protected virtual Type FindShaderRepresentationType(string typeName)
         {
-            Type type = _assemblyManager.FindType(typeName, true);
+            Type type = _assemblyManager?.FindType(typeName, true);
             if (type != null)
             {
                 return type;
@@ -145,17 +136,12 @@ namespace Editor
             return null;
         }
 
-        internal void ApplyUniformValues(string materialGuid, Dictionary<string, object> uniformValues)
+        public virtual void ApplyUniformValues(string materialGuid, Dictionary<string, object> uniformValues)
         {
-            sceneViewController?.EnqueueGLCommand(gl => {
-                if (_shaderInstanceCache.TryGetValue(materialGuid, out var shader))
-                {
-                    ApplyUniformValues(shader, uniformValues);
-                }
-            });
+            throw new NotImplementedException();
         }
 
-        private void ApplyUniformValues(ShaderBase instance, Dictionary<string, object> uniformValues)
+        protected virtual void ApplyUniformValues(ShaderBase instance, Dictionary<string, object> uniformValues)
         {
             if (uniformValues == null || uniformValues.Count == 0)
             {
@@ -192,7 +178,7 @@ namespace Editor
             }
         }
 
-        private object ConvertValueToTargetType(object value, Type targetType)
+        protected virtual object ConvertValueToTargetType(object value, Type targetType)
         {
             if (value != null && targetType.IsAssignableFrom(value.GetType()))
                 return value;
@@ -276,18 +262,11 @@ namespace Editor
             return value;
         }
 
-        internal void ApplyTextures(string materialGuid, Dictionary<string, string> textureReferences)
+        public virtual void ApplyTextures(string materialGuid, Dictionary<string, string> textureReferences)
         {
-            if (_shaderInstanceCache.TryGetValue(materialGuid, out var shaderInstance)) 
-            {
-                sceneViewController?.EnqueueGLCommand( gl =>
-                {
-                    ApplyTextures(gl, shaderInstance, textureReferences);
-                });
-            }
+            throw new NotImplementedException();
         }
-
-        private void ApplyTextures(GL gl, ShaderBase instance, Dictionary<string, string> textureReferences)
+        public virtual void ApplyTextures(GL gl, ShaderBase instance, Dictionary<string, string> textureReferences)
         {
             if (textureReferences == null || textureReferences.Count == 0)
             {
@@ -335,12 +314,13 @@ namespace Editor
             }
         }
 
-        public void ClearCache()
+
+        public virtual void ClearCache()
         {
             Dispose();
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             foreach (var kvp in _shaderInstanceCache)
             {

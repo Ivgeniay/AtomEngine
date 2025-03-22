@@ -6,87 +6,39 @@ using System.Linq;
 using AtomEngine;
 using System.IO;
 using EngineLib;
+using OpenglLib;
 using System;
 
 namespace Editor
 {
     public delegate void RegenerateCodeEventHandler(string sourcePath, AssetMetadata metadata);
 
-    public class MetadataManager : IService
+    public class EditorMetadataManager : MetadataManager
     {
         public event RegenerateCodeEventHandler? RegenerateCodeNeeded;
-
-        private Dictionary<string, AssetMetadata> _metadataCache = new();
-        private Dictionary<string, string> _guidToPathMap = new();
-        private Dictionary<string, MetadataType> _extensionToTypeMap = new();
-
-        private bool _isInitialized = false;
         private string _assetsPath;
-        public const string META_EXTENSION = ".meta";
-        private EventHub eventHub;
 
-
-        private void InitializeExtensionMappings()
-        {
-            _extensionToTypeMap[".png"] = MetadataType.Texture;
-            _extensionToTypeMap[".jpg"] = MetadataType.Texture;
-            _extensionToTypeMap[".jpeg"] = MetadataType.Texture;
-            _extensionToTypeMap[".bmp"] = MetadataType.Texture;
-            _extensionToTypeMap[".tga"] = MetadataType.Texture;
-            _extensionToTypeMap[".gif"] = MetadataType.Texture;
-
-            _extensionToTypeMap[".fbx"] = MetadataType.Model;
-            _extensionToTypeMap[".obj"] = MetadataType.Model;
-            _extensionToTypeMap[".blend"] = MetadataType.Model;
-            _extensionToTypeMap[".3ds"] = MetadataType.Model;
-
-            _extensionToTypeMap[".wav"] = MetadataType.Audio;
-            _extensionToTypeMap[".mp3"] = MetadataType.Audio;
-            _extensionToTypeMap[".ogg"] = MetadataType.Audio;
-
-            _extensionToTypeMap[".shader"] = MetadataType.Shader;
-
-            _extensionToTypeMap[".glsl"] = MetadataType.ShaderSource;
-            _extensionToTypeMap[".hlsl"] = MetadataType.ShaderSource;
-
-            _extensionToTypeMap[".cs"] = MetadataType.Script;
-
-            _extensionToTypeMap[".scene"] = MetadataType.Scene;
-            _extensionToTypeMap[".prefab"] = MetadataType.Prefab;
-
-            _extensionToTypeMap[".mat"] = MetadataType.Material;
-
-            _extensionToTypeMap[".asset"] = MetadataType.Asset;
-
-            _extensionToTypeMap[".json"] = MetadataType.Data;
-            _extensionToTypeMap[".xml"] = MetadataType.Data;
-            _extensionToTypeMap[".txt"] = MetadataType.Text;
-        }
-
-        public Task InitializeAsync()
+        public override Task InitializeAsync()
         {
             if (_isInitialized)
                 return Task.CompletedTask;
 
-            eventHub = ServiceHub.Get<EventHub>();
-
-            return Task.Run(() =>
+            return Task.Run(async () =>
             {
-                _assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
-                InitializeExtensionMappings();
+                await base.InitializeAsync();
 
-                RegenerateCodeNeeded += (e, r) =>
-                {
-                    DebLogger.Debug($"Needed to generate: {e}");
-                    DebLogger.Debug(r);
-                };
+                _assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
+
+                //RegenerateCodeNeeded += (e, r) =>
+                //{
+                //    DebLogger.Debug($"Needed to generate: {e}");
+                //    DebLogger.Debug(r);
+                //};
 
                 try
                 {
-                    DebLogger.Info("Инициализация менеджера метаданных...");
                     ScanAssetsDirectory();
                     _isInitialized = true;
-                    DebLogger.Info($"Метаданные инициализированы. Найдено {_metadataCache.Count} ресурсов.");
                 }
                 catch (Exception ex)
                 {
@@ -95,79 +47,8 @@ namespace Editor
             });
         }
 
-        private void ScanAssetsDirectory()
-        {
-            if (!Directory.Exists(_assetsPath))
-            {
-                Directory.CreateDirectory(_assetsPath);
-                return;
-            }
-
-            var allFiles = Directory.GetFiles(_assetsPath, "*.*", SearchOption.AllDirectories)
-                .Where(file => !file.EndsWith(META_EXTENSION))
-                .ToList();
-
-            foreach (var filePath in allFiles)
-            {
-                string metaFilePath = filePath + META_EXTENSION;
-                AssetMetadata metadata;
-
-                if (File.Exists(metaFilePath))
-                {
-                    try
-                    {
-                        metadata = LoadMetadata(metaFilePath);
-                        string currentHash = CalculateFileHash(filePath);
-                        if (metadata.ContentHash != currentHash)
-                        {
-                            metadata.ContentHash = currentHash;
-                            metadata.LastModified = DateTime.UtcNow;
-                            metadata.Version++;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        DebLogger.Warn($"Ошибка при чтении метафайла {metaFilePath}: {ex.Message}. Создание нового метафайла.");
-                        metadata = CreateMetadata(filePath);
-                    }
-                }
-                else
-                {
-                    metadata = CreateMetadata(filePath);
-                    CacheMetadata(metadata, filePath);
-                }
-
-                SaveMetadata(filePath, metadata);
-                _metadataCache[filePath] = metadata;
-                _guidToPathMap[metadata.Guid] = filePath;
-            }
-
-            var allMetaFiles = Directory.GetFiles(_assetsPath, "*.meta", SearchOption.AllDirectories);
-            foreach (var metaFilePath in allMetaFiles)
-            {
-                string originalFilePath = metaFilePath.Substring(0, metaFilePath.Length - META_EXTENSION.Length);
-                if (!File.Exists(originalFilePath))
-                {
-                    DebLogger.Info($"Удаление осиротевшего метафайла: {metaFilePath}");
-                    File.Delete(metaFilePath);
-                }
-            }
-        }
-
-        internal void CacheMetadata(AssetMetadata metadata, string filePath, bool withInvoke = true)
-        {
-            SaveMetadata(filePath, metadata);
-            _metadataCache[filePath] = metadata;
-            _guidToPathMap[metadata.Guid] = filePath;
-
-            if (withInvoke)
-                eventHub.SendEvent<MetadataCreateEvent>(new MetadataCreateEvent
-                {
-                    Metadata = metadata,
-                });
-        }
-
-        public AssetMetadata CreateMetadata(string filePath)
+        
+        public override AssetMetadata CreateMetadata(string filePath)
         {
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
             MetadataType assetType = _extensionToTypeMap.TryGetValue(extension, out var type) ? type : MetadataType.Unknown;
@@ -216,8 +97,7 @@ namespace Editor
             }
             return metadata;
         }
-
-        public void SaveMetadata(string filePath, AssetMetadata metadata)
+        public override void SaveMetadata(string filePath, AssetMetadata metadata)
         {
             if (filePath == null)
                 DebLogger.Error($"Error safing metadata: file path is null or invalid");
@@ -233,13 +113,11 @@ namespace Editor
             string metaJson = JsonConvert.SerializeObject(metadata, settings);
             File.WriteAllText(metaFilePath, metaJson);
         }
-        
-        public void SaveMetadata(AssetMetadata metadata)
+        public override void SaveMetadata(AssetMetadata metadata)
         {
             SaveMetadata(_guidToPathMap[metadata.Guid], metadata);
         }
-
-        public AssetMetadata LoadMetadata(string metaFilePath)
+        public override AssetMetadata LoadMetadata(string metaFilePath)
         {
             string metaJson = File.ReadAllText(metaFilePath);
 
@@ -351,17 +229,6 @@ namespace Editor
                 SaveMetadata(filePath, metadata);
             }
         }
-
-        internal string CalculateFileHash(string filePath)
-        {
-            using (var md5 = MD5.Create())
-            using (var stream = File.OpenRead(filePath))
-            {
-                byte[] hash = md5.ComputeHash(stream);
-                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-            }
-        }
-
         internal void HandleFileCreated(string filePath)
         {
             if (filePath.EndsWith(META_EXTENSION))
@@ -370,7 +237,6 @@ namespace Editor
             var metadata = CreateMetadata(filePath);
             CacheMetadata(metadata, filePath);
         }
-
         internal void HandleFileDeleted(string filePath)
         {
             if (filePath.EndsWith(META_EXTENSION))
@@ -444,7 +310,6 @@ namespace Editor
 
             DebLogger.Info($"Удален метафайл для {filePath}");
         }
-
         internal void HandleFileRenamed(string oldPath, string newPath)
         {
             if (oldPath.EndsWith(META_EXTENSION) || newPath.EndsWith(META_EXTENSION))
@@ -468,8 +333,8 @@ namespace Editor
             DebLogger.Info($"Перемещен метафайл из {oldPath} в {newPath}");
         }
 
-        public AssetMetadata GetMetadataByGuid(string guid) => _metadataCache.Where(e => e.Value.Guid == guid).FirstOrDefault().Value;
-        public AssetMetadata GetMetadata(string filePath)
+        public override AssetMetadata GetMetadataByGuid(string guid) => _metadataCache.Where(e => e.Value.Guid == guid).FirstOrDefault().Value;
+        public override AssetMetadata GetMetadata(string filePath)
         {
             if (_metadataCache.TryGetValue(filePath, out var metadata))
                 return metadata;
@@ -496,8 +361,7 @@ namespace Editor
 
             return metadata;
         }
-
-        public string GetPathByGuid(string guid)
+        public override string GetPathByGuid(string guid)
         {
             if (_guidToPathMap.TryGetValue(guid, out var path))
                 return path;
@@ -505,116 +369,6 @@ namespace Editor
             return null;
         }
 
-        public void AddDependency(string filePath, string dependencyGuid)
-        {
-            var metadata = GetMetadata(filePath);
-
-            if (!metadata.Dependencies.Contains(dependencyGuid))
-            {
-                metadata.Dependencies.Add(dependencyGuid);
-                metadata.Version++;
-                metadata.LastModified = DateTime.UtcNow;
-                SaveMetadata(filePath, metadata);
-            }
-        }
-
-        public void RemoveDependency(string filePath, string dependencyGuid)
-        {
-            var metadata = GetMetadata(filePath);
-
-            if (metadata.Dependencies.Contains(dependencyGuid))
-            {
-                metadata.Dependencies.Remove(dependencyGuid);
-                metadata.Version++;
-                metadata.LastModified = DateTime.UtcNow;
-                SaveMetadata(filePath, metadata);
-            }
-        }
-
-        public void AddTag(string filePath, string tag)
-        {
-            var metadata = GetMetadata(filePath);
-
-            if (!metadata.Tags.Contains(tag))
-            {
-                metadata.Tags.Add(tag);
-                metadata.Version++;
-                metadata.LastModified = DateTime.UtcNow;
-                SaveMetadata(filePath, metadata);
-            }
-        }
-
-        public void RemoveTag(string filePath, string tag)
-        {
-            var metadata = GetMetadata(filePath);
-
-            if (metadata.Tags.Contains(tag))
-            {
-                metadata.Tags.Remove(tag);
-                metadata.Version++;
-                metadata.LastModified = DateTime.UtcNow;
-                SaveMetadata(filePath, metadata);
-            }
-        }
-
-        public void UpdateImportSettings(string filePath, Dictionary<string, object> settings)
-        {
-            var metadata = GetMetadata(filePath);
-
-            bool changed = false;
-            foreach (var setting in settings)
-            {
-                if (!metadata.ImportSettings.ContainsKey(setting.Key) ||
-                    !metadata.ImportSettings[setting.Key].Equals(setting.Value))
-                {
-                    metadata.ImportSettings[setting.Key] = setting.Value;
-                    changed = true;
-                }
-            }
-
-            if (changed)
-            {
-                metadata.Version++;
-                metadata.LastModified = DateTime.UtcNow;
-                SaveMetadata(filePath, metadata);
-            }
-        }
-
-        public List<string> FindDependentAssets(string guid)
-        {
-            var dependentAssets = new List<string>();
-
-            foreach (var entry in _metadataCache)
-            {
-                if (entry.Value.Dependencies.Contains(guid))
-                {
-                    dependentAssets.Add(entry.Key);
-                }
-            }
-
-            return dependentAssets;
-        }
-
-        public List<string> FindAssetsByType(MetadataType assetType)
-        {
-            return _metadataCache
-                .Where(kv => kv.Value.AssetType.Equals(assetType))
-                .Select(kv => kv.Key)
-                .ToList();
-        }
-        
-        public List<string> FindAssetsByTag(string tag)
-        {
-            return _metadataCache
-                .Where(kv => kv.Value.Tags.Contains(tag))
-                .Select(kv => kv.Key)
-                .ToList();
-        }
-
-        internal MetadataType GetTypeByExtension(string extension)
-        {
-            return _extensionToTypeMap[extension];
-        }
 
         private bool IsGeneratedCodeFile(string filePath, out string sourceGuid)
         {
@@ -666,7 +420,64 @@ namespace Editor
                 return false;
             }
         }
+        private void ScanAssetsDirectory()
+        {
+            if (!Directory.Exists(_assetsPath))
+            {
+                Directory.CreateDirectory(_assetsPath);
+                return;
+            }
 
+            var allFiles = Directory.GetFiles(_assetsPath, "*.*", SearchOption.AllDirectories)
+                .Where(file => !file.EndsWith(META_EXTENSION))
+                .ToList();
+
+            foreach (var filePath in allFiles)
+            {
+                string metaFilePath = filePath + META_EXTENSION;
+                AssetMetadata metadata;
+
+                if (File.Exists(metaFilePath))
+                {
+                    try
+                    {
+                        metadata = LoadMetadata(metaFilePath);
+                        string currentHash = CalculateFileHash(filePath);
+                        if (metadata.ContentHash != currentHash)
+                        {
+                            metadata.ContentHash = currentHash;
+                            metadata.LastModified = DateTime.UtcNow;
+                            metadata.Version++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Warn($"Ошибка при чтении метафайла {metaFilePath}: {ex.Message}. Создание нового метафайла.");
+                        metadata = CreateMetadata(filePath);
+                    }
+                }
+                else
+                {
+                    metadata = CreateMetadata(filePath);
+                    CacheMetadata(metadata, filePath);
+                }
+
+                SaveMetadata(filePath, metadata);
+                _metadataCache[filePath] = metadata;
+                _guidToPathMap[metadata.Guid] = filePath;
+            }
+
+            var allMetaFiles = Directory.GetFiles(_assetsPath, "*.meta", SearchOption.AllDirectories);
+            foreach (var metaFilePath in allMetaFiles)
+            {
+                string originalFilePath = metaFilePath.Substring(0, metaFilePath.Length - META_EXTENSION.Length);
+                if (!File.Exists(originalFilePath))
+                {
+                    DebLogger.Info($"Удаление осиротевшего метафайла: {metaFilePath}");
+                    File.Delete(metaFilePath);
+                }
+            }
+        }
     }
 
 }

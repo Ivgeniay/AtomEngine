@@ -8,11 +8,11 @@ namespace Editor
     internal class ModelWatcher : IService
     {
         private EventHub _eventHub;
-        private MetadataManager _metadataManager;
+        private EditorMetadataManager _metadataManager;
 
         public Task InitializeAsync()
         {
-            _metadataManager = ServiceHub.Get<MetadataManager>();
+            _metadataManager = ServiceHub.Get<EditorMetadataManager>();
 
             _eventHub = ServiceHub.Get<EventHub>();
             _eventHub.Subscribe<MetadataCreateEvent>(CreateMetadataEventHandler);

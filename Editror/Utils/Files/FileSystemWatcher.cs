@@ -11,7 +11,7 @@ namespace Editor
     public class FileSystemWatcher : IDisposable, IService
     {
         private string _assetsPath;
-        private MetadataManager _metadataManager;
+        private EditorMetadataManager _metadataManager;
         private System.IO.FileSystemWatcher _fileWatcher;
 
         private readonly List<string> _ignorePatterns = new()
@@ -50,7 +50,7 @@ namespace Editor
             return Task.Run(() =>
             {
                 _assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
-                _metadataManager = ServiceHub.Get<MetadataManager>();
+                _metadataManager = ServiceHub.Get<EditorMetadataManager>();
 
                 if (!Directory.Exists(_assetsPath))
                 {

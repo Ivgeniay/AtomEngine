@@ -16,7 +16,7 @@ namespace Editor
 
             if (!string.IsNullOrWhiteSpace(guid))
             {
-                path = ServiceHub.Get<MetadataManager>().GetPathByGuid(guid);
+                path = ServiceHub.Get<EditorMetadataManager>().GetPathByGuid(guid);
             }
 
             ImageField imageField = new ImageField();
@@ -29,7 +29,7 @@ namespace Editor
             imageField.ImageChanged += (sender, e) =>
             {
                 guid = string.Empty;
-                AssetMetadata asset = ServiceHub.Get<MetadataManager>().GetMetadata(e);
+                AssetMetadata asset = ServiceHub.Get<EditorMetadataManager>().GetMetadata(e);
                 if (asset != null)
                 {
                     guid = asset.Guid;

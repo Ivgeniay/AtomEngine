@@ -1,21 +1,17 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using AtomEngine.RenderEntity;
+﻿using AtomEngine.RenderEntity;
 using Silk.NET.Assimp;
-using Silk.NET.OpenGL;
 using AtomEngine;
-using OpenglLib;
 using EngineLib;
-using System;
+using Silk.NET.OpenGL;
 
-namespace Editor
+namespace OpenglLib
 {
-    internal class MeshFactory : IService, IDisposable
+    public class MeshFactory : IService
     {
-        private Dictionary<string, Model> _modelInstanceCache = new Dictionary<string, Model>();
-        private Assimp? _assimp;
+        protected Dictionary<string, Model> _modelInstanceCache = new Dictionary<string, Model>();
+        protected Assimp? _assimp;
 
-        public Task InitializeAsync()
+        public virtual Task InitializeAsync()
         {
             return Task.CompletedTask;
         }
@@ -67,7 +63,7 @@ namespace Editor
 
                 return CreateMeshInstanceFromPath(gl, materialPath, context);
             }
-            catch(Exception ex) 
+            catch (Exception ex)
             {
                 DebLogger.Error($"Ошибка создания экземпляра Mesh из GUID: {ex.Message}");
                 return null;
@@ -84,7 +80,7 @@ namespace Editor
             _assimp?.Dispose();
             _assimp = null;
 
-            foreach(var model in _modelInstanceCache.Values)
+            foreach (var model in _modelInstanceCache.Values)
             {
                 model.Dispose();
             }

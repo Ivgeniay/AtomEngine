@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace Editor
+namespace EngineLib
 {
     public abstract class Asset
     {

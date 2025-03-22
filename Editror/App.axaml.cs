@@ -51,7 +51,8 @@ namespace Editor
                 ServiceHub.RegisterService<EditorAssemblyManager>();
                 ServiceHub.AddMapping<AssemblyManager, EditorAssemblyManager>();
                 // Сканирование файлов в Assets
-                ServiceHub.RegisterService<MetadataManager>();
+                ServiceHub.RegisterService<EditorMetadataManager>();
+                ServiceHub.AddMapping<MetadataManager, EditorMetadataManager>();
                 // Вотчер событий в Assets
                 ServiceHub.RegisterService<FileSystemWatcher>();
                 // Вотчер событий отношений проекта пользовательских скриптов и папки Assets
@@ -64,18 +65,23 @@ namespace Editor
                 // Сервис синхронизации состояния между папками пользовательских скриптов и папкой Assets
                 ServiceHub.RegisterService<CodeFilesSynchronizer>();
                 // Менеджер загрузки и сохранения состояний ресурсов
-                ServiceHub.RegisterService<MaterialManager>();
-                ServiceHub.RegisterService<ModelManager>();
+                ServiceHub.RegisterService<EditorMaterialCacher>();
+                ServiceHub.AddMapping<MaterialCacher, EditorMaterialCacher>();
+                ServiceHub.RegisterService<EditorModelManager>();
+                ServiceHub.AddMapping<ModelManager, EditorModelManager>();
                 ServiceHub.RegisterService<BuildManager>();
                 
                 // Фабрики
-                ServiceHub.RegisterService<EditorTextureFactory>();
-                ServiceHub.AddMapping<TextureFactory, EditorTextureFactory>();
-                ServiceHub.RegisterService<MaterialFactory>();
+                ServiceHub.RegisterService<TextureFactory>();
+                ServiceHub.RegisterService<EditorMaterialFactory>();
+                ServiceHub.AddMapping<MaterialFactory, EditorMaterialFactory>();
                 ServiceHub.RegisterService<MeshFactory>();
 
                 ServiceHub.RegisterService<InspectorViewFactory>();
                 ServiceHub.RegisterService<EditorRuntimeResourceManager>();
+                ServiceHub.AddMapping<RuntimeResourceManager, EditorRuntimeResourceManager>();
+                ServiceHub.AddMapping<OpenGLRuntimeResourceManager, EditorRuntimeResourceManager>();
+
                 ServiceHub.RegisterService<ToolbarService>();
                 ServiceHub.RegisterService<DraggableWindowManagerService>();
                 ServiceHub.RegisterService<SceneManager>();

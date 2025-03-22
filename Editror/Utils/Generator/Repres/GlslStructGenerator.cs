@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text;
 using System.IO;
 using System;
+using OpenglLib;
 
 namespace Editor
 {

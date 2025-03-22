@@ -1,8 +1,6 @@
-﻿using System.Collections.Generic;
-using System;
-using EngineLib;
+﻿using EngineLib;
 
-namespace Editor
+namespace OpenglLib
 {
     public class MaterialAsset : Asset
     {
@@ -14,18 +12,18 @@ namespace Editor
         public override string Name { get; set; } = "New Material";
 
 
-        public void SetUniformValue(string name, object value)
+        public virtual void SetUniformValue(string name, object value)
         {
             object serializedValue = value;
             UniformValues[name] = serializedValue;
-            ServiceHub.Get<MaterialManager>().SaveMaterial(this);
+            ServiceHub.Get<MaterialCacher>().SaveMaterial(this);
             ServiceHub.Get<MaterialFactory>().ApplyUniformValues(Guid, UniformValues);
         }
 
-        public void SetTexture(string samplerName, string textureGuid)
+        public virtual void SetTexture(string samplerName, string textureGuid)
         {
             TextureReferences[samplerName] = textureGuid;
-            ServiceHub.Get<MaterialManager>().SaveMaterial(this);
+            ServiceHub.Get<MaterialCacher>().SaveMaterial(this);
             ServiceHub.Get<MaterialFactory>().ApplyTextures(Guid, TextureReferences);
         }
 

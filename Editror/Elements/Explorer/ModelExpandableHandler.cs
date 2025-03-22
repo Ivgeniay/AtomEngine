@@ -37,7 +37,7 @@ namespace Editor
 
         private IEnumerable<ExpandableFileItemChild> GetModelChildItems(string filePath)
         {
-            var metadataManager = ServiceHub.Get<MetadataManager>();
+            var metadataManager = ServiceHub.Get<EditorMetadataManager>();
             var metadata = metadataManager.GetMetadata(filePath) as ModelMetadata;
 
             if (metadata == null || metadata.MeshesData.Count == 0)
@@ -125,7 +125,7 @@ namespace Editor
                 string fileFullPath = data.FileFullPath;
                 string childName = data.ChildItem.Name;
 
-                var metadataManager = ServiceHub.Get<MetadataManager>();
+                var metadataManager = ServiceHub.Get<EditorMetadataManager>();
                 var metadata = metadataManager.GetMetadata(fileFullPath) as ModelMetadata;
 
                 if (metadata != null)

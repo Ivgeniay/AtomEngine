@@ -1,26 +1,18 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Linq;
-using AtomEngine;
-using System.IO;
-using System;
+﻿using AtomEngine;
 using EngineLib;
 
-namespace Editor
+namespace OpenglLib
 {
-    internal class MaterialManager : IService
+    public class MaterialCacher : IService
     {
-        private Dictionary<string, MaterialAsset> _cacheMaterials = new Dictionary<string, MaterialAsset>();
+        protected Dictionary<string, MaterialAsset> _cacheMaterials = new Dictionary<string, MaterialAsset>();
 
-        public Task InitializeAsync()
+        public virtual Task InitializeAsync()
         {
-            return Task.Run(() => {
-                string assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
-                CacheAllMaterials(assetsPath);
-            });
+            return Task.CompletedTask;
         }
 
-        internal MaterialAsset CreateMaterial(string shaderRepresentationGuid)
+        public MaterialAsset CreateMaterial(string shaderRepresentationGuid)
         {
             var material = new MaterialAsset
             {
@@ -65,7 +57,7 @@ namespace Editor
             _cacheMaterials.Add(filePath, material);
             return material;
         }
-        internal void SaveMaterial(MaterialAsset material)
+        public void SaveMaterial(MaterialAsset material)
         {
             string path = _cacheMaterials.Where(e => e.Value == material).FirstOrDefault().Key;
             if (path != null)
@@ -77,13 +69,13 @@ namespace Editor
                 DebLogger.Error($"Saving material {material.Name}. Unkown path to safe");
             }
         }
-        internal void SaveMaterial(MaterialAsset material, string path)
+        public virtual void SaveMaterial(MaterialAsset material, string path)
         {
             string json = MaterialSerializer.SerializeMaterial(material);
             File.WriteAllText(path, json);
         }
 
-        internal MaterialAsset LoadMaterial(string path)
+        public virtual MaterialAsset LoadMaterial(string path)
         {
             if (!File.Exists(path))
             {
@@ -104,14 +96,14 @@ namespace Editor
 
             return asset;
         }
-        internal MaterialAsset GetMaterial(string guid) => 
+        public virtual MaterialAsset GetMaterial(string guid) =>
             _cacheMaterials.FirstOrDefault(e => e.Value.Guid == guid).Value;
-        internal string GetPath(string guid) => 
+        public virtual string GetPath(string guid) =>
             _cacheMaterials.FirstOrDefault(e => e.Value.Guid == guid).Key;
-        internal string GetPath(MaterialAsset material) =>
+        public virtual string GetPath(MaterialAsset material) =>
             _cacheMaterials.Where(e => e.Value.Equals(material)).FirstOrDefault().Key;
 
-        internal void InitializeUniformsFromShaderRepresentation(MaterialAsset material, string shaderRepresentationPath)
+        public virtual void InitializeUniformsFromShaderRepresentation(MaterialAsset material, string shaderRepresentationPath)
         {
             if (!File.Exists(shaderRepresentationPath))
             {
@@ -147,7 +139,7 @@ namespace Editor
                 DebLogger.Error($"Error analyzing shader representation: {ex.Message}");
             }
         }
-        internal T GetUniformValue<T>(MaterialAsset material, string name)
+        public T GetUniformValue<T>(MaterialAsset material, string name)
         {
             if (material.UniformValues.TryGetValue(name, out var value))
             {
@@ -170,8 +162,8 @@ namespace Editor
 
             return default;
         }
-        
-        private object ConvertJObjectToTypedValue(object value, string typeName)
+
+        protected object ConvertJObjectToTypedValue(object value, string typeName)
         {
             if (value is Newtonsoft.Json.Linq.JObject jObject)
             {
@@ -203,15 +195,15 @@ namespace Editor
                 }
             }
 
-            return value; 
+            return value;
         }
-        private void DefaultGettingRepTymeName(MaterialAsset material, string filePath)
+        protected void DefaultGettingRepTymeName(MaterialAsset material, string filePath)
         {
             string fileName = Path.GetFileNameWithoutExtension(filePath);
             if (fileName.IndexOf(".") > -1) fileName = fileName.Substring(0, fileName.IndexOf("."));
             material.ShaderRepresentationTypeName = $"OpenglLib.{fileName}";
         }
-        private void CacheAllMaterials(string rootDirectory)
+        protected void CacheAllMaterials(string rootDirectory)
         {
             try
             {

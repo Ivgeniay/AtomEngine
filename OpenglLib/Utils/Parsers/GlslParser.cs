@@ -1,12 +1,9 @@
-﻿using System;
-using System.Text.RegularExpressions;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Text.RegularExpressions;
 using System.Text;
 
-namespace Editor
+namespace OpenglLib
 {
-    internal static class GlslParser
+    public static class GlslParser
     {
         private static readonly IReadOnlyList<char> AllowedCharacters = new[] {
             'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -15,17 +12,12 @@ namespace Editor
             'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
             '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_' };
 
-        /// <summary>
-        /// Проверяет наличие вершинного и фрагментного шейдера в файле
-        /// </summary>
+
         public static bool IsCompleteShaderFile(string source)
         {
             return source.Contains("#vertex") && source.Contains("#fragment");
         }
 
-        /// <summary>
-        /// Извлекает вершинный и фрагментный шейдер из исходного текста
-        /// </summary>
         public static (string vertex, string fragment) ExtractShaderSources(string source, Dictionary<string, string> includedFiles = null)
         {
             string vertexSource = "";
@@ -60,9 +52,6 @@ namespace Editor
             return (vertexSource, fragmentSource);
         }
 
-        /// <summary>
-        /// Обрабатывает директивы #include в коде шейдера
-        /// </summary>
         private static string ProcessIncludes(string source, Dictionary<string, string> includedFiles)
         {
             var includeRegex = new Regex(@"#include\s+""([^""]+)""");
@@ -80,9 +69,6 @@ namespace Editor
             });
         }
 
-        /// <summary>
-        /// Проверяет наличие main функций в вершинном и фрагментном шейдере
-        /// </summary>
         public static void ValidateMainFunctions(string vertexSource, string fragmentSource)
         {
             var mainRegex = new Regex(@"void\s+main\s*\(\s*\)\s*{");
@@ -101,9 +87,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Извлекает uniform переменные из шейдера
-        /// </summary>
         public static List<(string type, string name, int? arraySize)> ExtractUniforms(string source)
         {
             var uniforms = new List<(string type, string name, int? arraySize)>();
@@ -126,9 +109,6 @@ namespace Editor
             return uniforms;
         }
 
-        /// <summary>
-        /// Извлекает структуры из GLSL кода
-        /// </summary>
         public static List<GlslStructure> ParseGlslStructures(string sourceCode)
         {
             var structures = new List<GlslStructure>();
@@ -148,9 +128,6 @@ namespace Editor
             return structures;
         }
 
-        /// <summary>
-        /// Извлекает uniform блоки из шейдера
-        /// </summary>
         public static List<UniformBlockStructure> ParseUniformBlocks(string source)
         {
             var blocks = new List<UniformBlockStructure>();
@@ -166,11 +143,10 @@ namespace Editor
                 var instanceName = match.Groups[4].Success ? match.Groups[4].Value : null;
                 var fieldsText = match.Groups[3].Value;
 
-                // Используем имя блока или имя экземпляра
                 var name = blockName ?? instanceName;
                 if (string.IsNullOrEmpty(name))
                 {
-                    continue; // Пропускаем анонимные блоки
+                    continue;
                 }
 
                 blocks.Add(new UniformBlockStructure
@@ -185,14 +161,10 @@ namespace Editor
             return blocks;
         }
 
-        /// <summary>
-        /// Анализирует поля структуры
-        /// </summary>
         public static List<(string Type, string Name, int? ArraySize)> ParseFields(string fieldsText)
         {
             var fields = new List<(string Type, string Name, int? ArraySize)>();
 
-            // Удаляем комментарии
             fieldsText = Regex.Replace(fieldsText, @"//.*$", "", RegexOptions.Multiline);
             fieldsText = Regex.Replace(fieldsText, @"/\*[\s\S]*?\*/", "");
 
@@ -215,9 +187,6 @@ namespace Editor
             return fields;
         }
 
-        /// <summary>
-        /// Конвертирует строку в валидный C# идентификатор
-        /// </summary>
         public static string ConvertToValidCSharpIdentifier(string input)
         {
             if (string.IsNullOrEmpty(input))
@@ -242,9 +211,6 @@ namespace Editor
             return result.ToString();
         }
 
-        /// <summary>
-        /// Преобразует тип GLSL в соответствующий тип C#
-        /// </summary>
         public static string MapGlslTypeToCSharp(string glslType, HashSet<string> generatedTypes = null)
         {
             if (generatedTypes != null && generatedTypes.Contains(glslType))
@@ -344,9 +310,6 @@ namespace Editor
             };
         }
 
-        /// <summary>
-        /// Получает целевой тип текстуры по типу сэмплера
-        /// </summary>
         public static string GetTextureTarget(string samplerType)
         {
             return samplerType switch
@@ -401,22 +364,18 @@ namespace Editor
             };
         }
 
-        /// <summary>
-        /// Проверяет, является ли тип базовым типом GLSL
-        /// </summary>
         public static bool IsGlslBaseType(string type)
         {
             return type switch
             {
-                // Скалярные типы
                 "bool" or "int" or "uint" or "float" or "double" or
-                // Векторные типы
+
                 "bvec2" or "bvec3" or "bvec4" or
                 "ivec2" or "ivec3" or "ivec4" or
                 "uvec2" or "uvec3" or "uvec4" or
                 "vec2" or "vec3" or "vec4" or
                 "dvec2" or "dvec3" or "dvec4" or
-                // Матричные типы
+
                 "mat2" or "mat3" or "mat4" or
                 "mat2x2" or "mat2x3" or "mat2x4" or
                 "mat3x2" or "mat3x3" or "mat3x4" or
@@ -429,26 +388,17 @@ namespace Editor
             };
         }
 
-        /// <summary>
-        /// Проверяет, является ли тип пользовательским типом
-        /// </summary>
         public static bool IsCustomType(string csharpType, string type) =>
             csharpType == type && type != "float" && type != "bool" && type != "int" && type != "uint" && type != "float" && type != "double";
     }
 
-    /// <summary>
-    /// Представляет структуру в GLSL коде
-    /// </summary>
-    internal class GlslStructure
+    public class GlslStructure
     {
         public string Name { get; set; }
         public List<(string Type, string Name, int? ArraySize)> Fields { get; set; }
     }
 
-    /// <summary>
-    /// Представляет uniform блок в GLSL коде
-    /// </summary>
-    internal class UniformBlockStructure
+    public class UniformBlockStructure
     {
         public string Name { get; set; } = string.Empty;
         public int? Binding { get; set; } = null;

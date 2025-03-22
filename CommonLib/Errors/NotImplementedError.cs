@@ -1,7 +1,7 @@
 ﻿
     public class NotImplementedError : Error
     {
-        public NotImplementedError(string message) : base(message)
+        public NotImplementedError(string message = "") : base(message)
         {
         }
     }

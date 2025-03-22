@@ -1,7 +1,7 @@
 ﻿
 public class NullValueError : Error
 {
-    public NullValueError(string message) : base(message)
+    public NullValueError(string message = "") : base(message)
     {
     }
 }
