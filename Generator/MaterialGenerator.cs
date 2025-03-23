@@ -182,7 +182,10 @@ namespace OpenglLib.Generator
 
             foreach(var block in uniformBlocks)
             {
-                if (block.InstanceName != null && block.Binding != null)
+                if (block.InstanceName == null)
+                    block.InstanceName = GetBlockDefaultName(block);
+
+                if (block.Binding != null)
                 {
                     string refStruct = $"_{block.InstanceName}";
                     builder.AppendLine($"        private UniformBufferObject<{block.Name}_{materialName}> {block.InstanceName}Ubo;");
@@ -221,6 +224,11 @@ namespace OpenglLib.Generator
             return builder.ToString();
         }
 
+        private string GetBlockDefaultName(UniformBlockStructure block)
+        {
+            if (block.Binding.HasValue) return $"UniformBlockBinding{block.Binding.Value}";
+            return $"AnonymousBlock_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+        }
         private string MapGlslTypeToCSharp(string glslType) => GeneratorHelper.MapGlslTypeToCSharp(glslType); 
 
         public void Initialize(GeneratorInitializationContext context) { }

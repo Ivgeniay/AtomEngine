@@ -62,7 +62,7 @@ namespace SmokeTesting
                 world.AddComponent(cubeEntity, _cubeMeshComponent1);
                 world.AddComponent(cubeEntity, boudingComponent);
                 world.AddComponent(cubeEntity, boudingMovedComponent);
-                world.AddComponent(cubeEntity, new MaterialComponent(cubeEntity, shader));
+                //world.AddComponent(cubeEntity, new MaterialComponent(cubeEntity, shader));
                 world.AddComponent(cubeEntity, new CollisionComponent(cubeEntity));
                 world.AddComponent(cubeEntity, _physicsMaterialComponent);
             }
@@ -82,7 +82,7 @@ namespace SmokeTesting
             world.AddComponent(platformE, platformTransform);
             world.AddComponent(platformE, boudingComponentCube);
             world.AddComponent(platformE, new StaticComponent(platformE));
-            world.AddComponent(platformE, new MaterialComponent(platformE, shader));
+            //world.AddComponent(platformE, new MaterialComponent(platformE, shader));
             physicsSystem.CreateStaticBox(ref platformTransform, new Vector3(20, 2, 20));
 
             BoundingShaderMaterial boundingShader = new BoundingShaderMaterial(app.Gl);
@@ -369,23 +369,23 @@ namespace SmokeTesting
                 ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);
                 ref var shaderComponent = ref this.GetComponent<MaterialComponent>(entity);
 
-                TestMaterialMaterial shader = (TestMaterialMaterial)shaderComponent.Shader;
-                shader.Use();
+                //TestMaterialMaterial shader = (TestMaterialMaterial)shaderComponent.Shader;
+                //shader.Use();
 
-                shader.MODEL = transform.GetModelMatrix().ToSilk();
-                shader.VIEW = cameraComponent.ViewMatrix.ToSilk();
-                shader.PROJ = cameraComponent.CreateProjectionMatrix().ToSilk();
+                //shader.MODEL = transform.GetModelMatrix().ToSilk();
+                //shader.VIEW = cameraComponent.ViewMatrix.ToSilk();
+                //shader.PROJ = cameraComponent.CreateProjectionMatrix().ToSilk();
 
-                shader.col = new Vector3D<float>(1.0f, 1.0f, 1.0f);
-                shader.kek = new CameraData_TestMaterial()
-                {
-                    view = Matrix4X4<float>.Identity,
-                    projection = Matrix4X4<float>.Identity,
-                    cameraPos = Vector3D<float>.Zero,
-                    padding = 1.0f
-                };
+                //shader.col = new Vector3D<float>(1.0f, 1.0f, 1.0f);
+                //shader.kek = new CameraData_TestMaterial()
+                //{
+                //    view = Matrix4X4<float>.Identity,
+                //    projection = Matrix4X4<float>.Identity,
+                //    cameraPos = Vector3D<float>.Zero,
+                //    padding = 1.0f
+                //};
 
-                meshComponent.Mesh.Draw(shaderComponent.Shader);
+                //meshComponent.Mesh.Draw(shaderComponent.Shader);
             }
         }
 

@@ -14,17 +14,13 @@ namespace OpenglLib.Buffers
             _gl = gl;
             _bindingPoint = bindingPoint;
 
-            // Создаем буфер
             _handle = _gl.GenBuffer();
             Bind();
 
-            // Загружаем данные
             fixed (void* d = &data)
             {
                 _gl.BufferData(BufferTargetARB.UniformBuffer, (nuint)sizeof(TDataType), d, BufferUsageARB.DynamicDraw);
             }
-
-            // Привязываем к binding point
             _gl.BindBufferBase(BufferTargetARB.UniformBuffer, bindingPoint, _handle);
         }
 

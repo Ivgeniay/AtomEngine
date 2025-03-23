@@ -215,17 +215,17 @@ namespace Editor
                 }
             });
 
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
-            {
-                Extension = ".glsl",
-                Name = "Generate All",
-                Description = "Generate c sharp view glsl code",
-                Action = (e) =>
-                {
-                    //ShaderCodeGenerationManager.GenerateAllShadersAndComponents(e.FileFullPath, e.FilePath);
-                    ShaderCodeGenerationManager.GenerateShadersAndComponents(e.FilePath, e.FilePath);
-                }
-            });
+            //_explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            //{
+            //    Extension = ".glsl",
+            //    Name = "Generate All",
+            //    Description = "Generate c sharp view glsl code",
+            //    Action = (e) =>
+            //    {
+            //        //ShaderCodeGenerationManager.GenerateAllShadersAndComponents(e.FileFullPath, e.FilePath);
+            //        ShaderCodeGenerationManager.GenerateShadersAndComponents(e.FilePath, e.FilePath);
+            //    }
+            //});
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
             {
                 Extension = ".glsl",
@@ -245,16 +245,16 @@ namespace Editor
                 Description = "Create material from shader representation",
                 Action = (e) =>
                 {
-                    if (e.FileName.EndsWith("Representation.g.cs"))
+                    if (e.FileName.EndsWith($"{GlslCodeGenerator.LABLE}.cs"))
                     {
                         var metadata = ServiceHub.Get<EditorMetadataManager>().GetMetadata(e.FileFullPath);
 
-                        var materialController = new EditorMaterialAssetManager();
+                        var materialController = ServiceHub.Get<EditorMaterialAssetManager>();
                         var material = materialController.CreateMaterialAsset(metadata.Guid);
 
                         string materialPath = Path.Combine(
                             Path.GetDirectoryName(e.FileFullPath),
-                            $"{Path.GetFileNameWithoutExtension(e.FileName).Replace("Representation.g", "")}_Material.mat"
+                            $"{Path.GetFileNameWithoutExtension(e.FileName).Replace($"{GlslCodeGenerator.LABLE}", "")}_Material.mat"
                         );
 
                         materialController.SaveMaterialAsset(material, materialPath);

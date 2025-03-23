@@ -18,8 +18,48 @@ namespace OpenglLib
             return source.Contains("#vertex") && source.Contains("#fragment");
         }
 
-        public static (string vertex, string fragment) ExtractShaderSources(string source, Dictionary<string, string> includedFiles = null)
+        public static string ProcessIncludesRecursively(string source, string sourcePath, HashSet<string> processedPaths = null)
         {
+            processedPaths ??= new HashSet<string>();
+
+            if (processedPaths.Contains(sourcePath))
+                throw new CircularDependencyError($"Циклическая зависимость обнаружена: {sourcePath}");
+
+            processedPaths.Add(sourcePath);
+
+            var sourceDir = Path.GetDirectoryName(sourcePath);
+            var includeRegex = new Regex(@"#include\s+""([^""]+)""");
+
+            return includeRegex.Replace(source, match => {
+                var includePath = match.Groups[1].Value;
+                var fullPath = Path.GetFullPath(Path.Combine(sourceDir, includePath));
+
+                try
+                {
+                    if (!File.Exists(fullPath))
+                        throw new FileNotFoundException($"Включаемый файл не найден: {includePath}");
+
+                    var includeContent = File.ReadAllText(fullPath);
+                    return ProcessIncludesRecursively(includeContent, fullPath, new HashSet<string>(processedPaths));
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Ошибка при обработке включения '{includePath}': {ex.Message}", ex);
+                }
+            });
+        }
+        public static string CleanComments(string source)
+        {
+            string noSingleLineComments = Regex.Replace(source, @"//.*$", "", RegexOptions.Multiline);
+            return Regex.Replace(noSingleLineComments, @"/\*[\s\S]*?\*/", "");
+        }
+
+
+        public static (string vertex, string fragment) ExtractShaderSources(string source, string falepath = null)
+        {
+            if (falepath != null) source = ProcessIncludesRecursively(source, falepath);
+            source = CleanComments(source);
+
             string vertexSource = "";
             string fragmentSource = "";
             try
@@ -33,15 +73,11 @@ namespace OpenglLib
                 if (vertexMatch.Success)
                 {
                     vertexSource = vertexMatch.Groups[1].Value.Trim();
-                    if (includedFiles != null)
-                        vertexSource = ProcessIncludes(vertexSource, includedFiles);
                 }
 
                 if (fragmentMatch.Success)
                 {
                     fragmentSource = fragmentMatch.Groups[1].Value.Trim();
-                    if (includedFiles != null)
-                        fragmentSource = ProcessIncludes(fragmentSource, includedFiles);
                 }
             }
             catch (Exception ex)
@@ -90,7 +126,8 @@ namespace OpenglLib
         public static List<(string type, string name, int? arraySize)> ExtractUniforms(string source)
         {
             var uniforms = new List<(string type, string name, int? arraySize)>();
-            var uniformRegex = new Regex(@"uniform\s+(?!layout)(\w+)\s+(\w+)(?:\[(\d+)\])?\s*;");
+            //var uniformRegex = new Regex(@"uniform\s+(?!layout)(\w+)\s+(\w+)(?:\[(\d+)\])?\s*;");
+            var uniformRegex = new Regex(@"uniform\s+(?!layout)(?:highp|mediump|lowp)?\s*(\w+)\s+(\w+)(?:\[(\d+)\])?\s*;");
 
             foreach (Match match in uniformRegex.Matches(source))
             {
@@ -303,6 +340,13 @@ namespace OpenglLib
                 "image1D" => "int",
                 "image2D" => "int",
                 "image3D" => "int",
+                "image2DRect" => "int",
+                "imageCube" => "int",
+                "image1DArray" => "int",
+                "image2DArray" => "int",
+                "imageBuffer" => "int",
+                "image2DMS" => "int",
+                "image2DMSArray" => "int",
 
                 "void" => "void",
                 "struct" => "struct",

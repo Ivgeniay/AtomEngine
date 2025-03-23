@@ -170,7 +170,6 @@ namespace Editor
             builder.AppendLine();
         }
 
-        #region Helper Methods
 
         private static string GetSimpleGetter(string cashFieldName)
         {
@@ -181,7 +180,6 @@ namespace Editor
             builder.AppendLine("            }");
             return builder.ToString();
         }
-
         private static string GetPropertyForLocaleArray(string type, string fieldName, string locationFieldName)
         {
             StringBuilder builder = new StringBuilder();
@@ -194,7 +192,6 @@ namespace Editor
 
             return builder.ToString();
         }
-
         private static string GetSetter(string type, string locationFieldName, string cashFieldName)
         {
             StringBuilder builder = new StringBuilder();
@@ -342,7 +339,5 @@ namespace Editor
             builder.AppendLine("            }");
             return builder.ToString();
         }
-
-        #endregion
     }
 }

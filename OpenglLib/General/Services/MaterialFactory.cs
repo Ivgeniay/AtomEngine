@@ -316,7 +316,6 @@ namespace OpenglLib
             try
             {
                 material.MaterialAsset.UniformValues[name] = value;
-
                 if (material.IsValid)
                 {
                     //material.Shader.SetUniform(name, value);

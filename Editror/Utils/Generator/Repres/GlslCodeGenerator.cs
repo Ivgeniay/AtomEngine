@@ -3,31 +3,17 @@ using System.IO;
 using EngineLib;
 using System;
 using OpenglLib;
+using System.Text.RegularExpressions;
+using AtomEngine;
+using System.Text;
+using Silk.NET.OpenAL;
 
 namespace Editor.Utils.Generator
 {
     internal static class GlslCodeGenerator
     {
-        public const string LABLE = "rep.g";
-        private static Dictionary<string, string> _includedFiles = new Dictionary<string, string>();
+        public const string LABLE = "Rep.g";
 
-        public static void AddIncludeFile(string includePath, string content)
-        {
-            _includedFiles[includePath] = content;
-        }
-        public static void AddIncludeFilesFromDirectory(string directory, string searchPattern = "*.glsl")
-        {
-            foreach (var file in Directory.GetFiles(directory, searchPattern, SearchOption.AllDirectories))
-            {
-                var relativePath = Path.GetRelativePath(directory, file).Replace('\\', '/');
-                var content = File.ReadAllText(file);
-                AddIncludeFile(relativePath, content);
-            }
-        }
-        public static void ClearIncludeFiles()
-        {
-            _includedFiles.Clear();
-        }
         public static string GenerateCode(string glslFilePath, string outputDirectory, bool generateStructs = true)
         {
             if (!File.Exists(glslFilePath))
@@ -40,54 +26,66 @@ namespace Editor.Utils.Generator
                 Directory.CreateDirectory(outputDirectory);
             }
 
-            string shaderSource = File.ReadAllText(glslFilePath);
-
-            if (!GlslParser.IsCompleteShaderFile(shaderSource))
+            try
             {
-                throw new Exception($"The file {glslFilePath} is not a complete shader file (must contain #vertex and #fragment sections).");
-            }
+                string shaderSource = File.ReadAllText(glslFilePath);
 
-            string sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(glslFilePath)?.Guid;
-
-            var representationName = Path.GetFileNameWithoutExtension(glslFilePath);
-            var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, _includedFiles);
-            GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
-            var combinedSource = vertexSource + "\n" + fragmentSource;
-
-            if (generateStructs)
-            {
-                List<GlslStructure> structures = GlslParser.ParseGlslStructures(combinedSource);
-                if (structures.Count > 0)
+                if (!GlslParser.IsCompleteShaderFile(shaderSource))
                 {
-                    GlslStructGenerator.GenerateStructs(
-                        shaderSourceCode: combinedSource, 
-                        outputDirectory: outputDirectory, 
-                        sourceGuid: sourceGuid);
+                    throw new Exception($"The file {glslFilePath} is not a complete shader file (must contain #vertex and #fragment sections).");
                 }
-            }
 
-            List<UniformBlockStructure> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
-            foreach (var block in uniformBlocks)
+                string sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(glslFilePath)?.Guid;
+
+                var representationName = Path.GetFileNameWithoutExtension(glslFilePath);
+                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, glslFilePath);
+                GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
+                var combinedSource = vertexSource + "\n" + fragmentSource;
+
+                List<string> structuresText = new List<string>();
+                if (generateStructs)
+                {
+                    List<GlslStructure> structures = GlslParser.ParseGlslStructures(combinedSource);
+                    if (structures.Count > 0)
+                    {
+                        structuresText.AddRange(
+                            GlslStructGenerator.GenerateStructs(
+                            shaderSourceCode: combinedSource,
+                            outputDirectory: outputDirectory,
+                            sourceGuid: sourceGuid)
+                            );
+                    }
+                }
+
+                List<UniformBlockStructure> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
+                foreach (var block in uniformBlocks)
+                {
+                    var blockClassName = $"{block.Name}_{representationName}";
+                    ShaderCodeRepresentationGenerator.GenerateUniformBlockClass(
+                        block: block,
+                        className: blockClassName,
+                        outputDirectory: outputDirectory,
+                        representationName: representationName,
+                        sourceGuid: sourceGuid,
+                        structureTexts: structuresText);
+                }
+
+                string resultRepresentationName = ShaderCodeRepresentationGenerator.GenerateRepresentationFromSource(
+                    representationName: representationName,
+                    sourceText: shaderSource,
+                    outputDirectory: outputDirectory,
+                    sourceGuid: sourceGuid,
+                    sourcePath: glslFilePath);
+
+                return resultRepresentationName;
+            }
+            catch (Exception ex)
             {
-                var blockClassName = $"{block.Name}_{representationName}";
-                ShaderCodeRepresentationGenerator.GenerateUniformBlockClass(
-                    block: block, 
-                    className: blockClassName, 
-                    outputDirectory: outputDirectory, 
-                    representationName: representationName, 
-                    sourceGuid: sourceGuid);
+                DebLogger.Error($"{ex.Message}");
+                return null;
             }
-
-            string resultRepresentationName = ShaderCodeRepresentationGenerator.GenerateRepresentationFromSource(
-                representationName: representationName, 
-                sourceText: shaderSource, 
-                outputDirectory: outputDirectory, 
-                includedFiles: _includedFiles, 
-                sourceGuid: sourceGuid, 
-                sourcePath: glslFilePath);
-
-            return resultRepresentationName;
         }
+
         public static List<string> GenerateCodeFromDirectory(string directoryPath, string outputDirectory,
             string searchPattern = "*.glsl", bool generateStructs = true)
         {

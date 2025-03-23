@@ -39,7 +39,7 @@ namespace Editor
                 }
                 result.Log.AppendLine("full shader");
 
-                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
+                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, e.FileFullPath);
 
                 var options = WindowOptions.Default;
                 options.Size = new Silk.NET.Maths.Vector2D<int>(1, 1);

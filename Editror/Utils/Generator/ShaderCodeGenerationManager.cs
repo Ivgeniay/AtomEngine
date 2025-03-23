@@ -7,8 +7,6 @@ namespace Editor.Utils.Generator
     {
         public static void GenerateShadersAndComponents(string shaderDirectory, string outputDirectory)
         {
-            GlslCodeGenerator.ClearIncludeFiles();
-
             var getPath = Path.Combine(outputDirectory, "Generated");
 
             Directory.CreateDirectory(getPath);
