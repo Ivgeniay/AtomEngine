@@ -7,6 +7,7 @@ using OpenglLib;
 using Editor.Utils.Generator;
 using System.Xml.Linq;
 using AtomEngine;
+using System.Linq;
 
 namespace Editor
 {
@@ -27,10 +28,12 @@ namespace Editor
             }
         }
 
-        public static string GenerateRepresentationFromSource(string representationName, string sourceText, string outputDirectory,
+
+
+        public static string GenerateRepresentationFromSource(string representationName, string shaderSource, string outputDirectory,
             string sourceGuid = null, string sourcePath = null)
         {
-            if (!GlslParser.IsCompleteShaderFile(sourceText))
+            if (!GlslParser.IsCompleteShaderFile(shaderSource))
             {
                 throw new Exception("The shader file does not contain both vertex and fragment shaders.");
             }
@@ -38,20 +41,28 @@ namespace Editor
             if (string.IsNullOrEmpty(sourceGuid) && !string.IsNullOrEmpty(sourcePath))
                 sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(sourcePath)?.Guid;
 
-            var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(sourceText, sourcePath);
+            var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, sourcePath);
             GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
 
             var uniforms = GlslParser.ExtractUniforms(vertexSource + "\n" + fragmentSource);
             var uniformBlocks = GlslParser.ParseUniformBlocks(vertexSource + "\n" + fragmentSource);
 
-            var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid);
+            HashSet<int> usedBindings = GlslParser.ExtractUniformBlockBindings(shaderSource);
+            var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid, usedBindings);
             var representationFilePath = Path.Combine(outputDirectory, $"{representationName}{GlslCodeGenerator.LABLE}.cs");
             File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);
 
             return $"{representationName}Representation";
         }
-        public static void GenerateUniformBlockClass(UniformBlockStructure block, string className, string outputDirectory, string representationName, string sourceGuid, List<string> structureTexts)
+
+        public static void GenerateUniformBlockClass(UniformBlockStructure block, string className, string outputDirectory, string representationName, string sourceGuid, List<GlslStructure> structures)
         {
+            List<GlslStructure> usedStructures = GetUsedStructures(block, structures);
+            if (usedStructures.Count > 0)
+            {
+                GenerateStructsForUbo(usedStructures, outputDirectory, representationName, sourceGuid);
+            }
+
             var builder = new StringBuilder();
             WriteGeneratedCodeHeader(builder, sourceGuid);
             builder.AppendLine("using System.Runtime.InteropServices;");
@@ -61,11 +72,11 @@ namespace Editor
             builder.AppendLine("namespace OpenglLib");
             builder.AppendLine("{");
 
-            bool hasComplexTypes = HasComplexTypes(block, structureTexts);
+            bool hasComplexTypes = HasComplexTypes(block, structures);
 
             if (hasComplexTypes)
             {
-                int totalSize = CalculateTotalSize(block, structureTexts);
+                int totalSize = CalculateTotalSize(block, structures);
                 builder.AppendLine($"    [StructLayout(LayoutKind.Explicit, Size = {totalSize})]");
                 builder.AppendLine($"    public unsafe struct {className} : IDataSerializable");
                 builder.AppendLine("    {");
@@ -75,27 +86,34 @@ namespace Editor
                 foreach (var (type, name, arraySize) in block.Fields)
                 {
                     var csharpType = GlslParser.MapGlslTypeToCSharp(type);
-                    var isCustomType = GlslParser.IsCustomType(csharpType, type);
+                    bool isCustomType = GlslParser.IsCustomType(csharpType, type);
 
-                    int alignment = GetTypeAlignment(type, csharpType, structureTexts);
-                    int size = GetTypeSize(type, csharpType, arraySize, structureTexts);
+                    int alignment = GetTypeAlignment(type, csharpType, structures);
                     currentOffset = AlignOffset(currentOffset, alignment);
+                    int size = GetTypeSize(type, csharpType, arraySize, structures);
 
                     if (isCustomType)
                     {
+                        // Проверяем, является ли тип пользовательской структурой
+                        bool isUserStructure = structures.Any(s => s.Name == type);
+
+                        // Если это пользовательская структура, используем версию Std140
+                        string fieldType = isUserStructure ? $"{type}_Std140" : csharpType;
+
                         if (arraySize.HasValue)
                         {
-                            // Массив кастомных структур
                             for (int i = 0; i < arraySize.Value; i++)
                             {
-                                int elemOffset = currentOffset + i * AlignSize(GetTypeSize(type, csharpType, null, structureTexts), 16);
+                                int elementSize = GetTypeSize(type, csharpType, null, structures);
+                                int elementAlignedSize = AlignSize(elementSize, 16);
+                                int elemOffset = currentOffset + i * elementAlignedSize;
+
                                 builder.AppendLine($"        [FieldOffset({elemOffset})]");
-                                builder.AppendLine($"        public {csharpType} {name}_{i};");
+                                builder.AppendLine($"        public {fieldType} {name}_{i};");
                             }
 
-                            // Вспомогательный метод доступа
                             builder.AppendLine();
-                            builder.AppendLine($"        public {csharpType} Get{name}(int index)");
+                            builder.AppendLine($"        public {fieldType} Get{name}(int index)");
                             builder.AppendLine("        {");
                             builder.AppendLine($"            switch (index)");
                             builder.AppendLine("            {");
@@ -110,7 +128,7 @@ namespace Editor
                             builder.AppendLine("        }");
 
                             builder.AppendLine();
-                            builder.AppendLine($"        public void Set{name}(int index, {csharpType} value)");
+                            builder.AppendLine($"        public void Set{name}(int index, {fieldType} value)");
                             builder.AppendLine("        {");
                             builder.AppendLine($"            switch (index)");
                             builder.AppendLine("            {");
@@ -126,9 +144,8 @@ namespace Editor
                         }
                         else
                         {
-                            // Одиночная кастомная структура
                             builder.AppendLine($"        [FieldOffset({currentOffset})]");
-                            builder.AppendLine($"        public {csharpType} {name};");
+                            builder.AppendLine($"        public {fieldType} {name};");
                         }
                     }
                     else
@@ -144,7 +161,10 @@ namespace Editor
                             {
                                 for (int i = 0; i < arraySize.Value; i++)
                                 {
-                                    int elemOffset = currentOffset + i * AlignSize(GetTypeSize(type, csharpType, null, structureTexts), 16);
+                                    int elementSize = GetTypeSize(type, csharpType, null, structures);
+                                    int elementAlignedSize = AlignSize(elementSize, 16);
+                                    int elemOffset = currentOffset + i * elementAlignedSize;
+
                                     builder.AppendLine($"        [FieldOffset({elemOffset})]");
                                     builder.AppendLine($"        public {csharpType} {name}_{i};");
                                 }
@@ -182,13 +202,11 @@ namespace Editor
                         }
                         else
                         {
-                            // Одиночный нативный тип
                             builder.AppendLine($"        [FieldOffset({currentOffset})]");
                             builder.AppendLine($"        public {csharpType} {name};");
                         }
                     }
 
-                    // Инкрементируем смещение
                     currentOffset += size;
                     builder.AppendLine();
                 }
@@ -196,25 +214,21 @@ namespace Editor
             else
             {
                 builder.AppendLine("    [StructLayout(LayoutKind.Sequential)]");
-                builder.AppendLine($"    public struct {className} : IDataSerializable");
+                builder.AppendLine($"    public unsafe struct {className} : IDataSerializable");
                 builder.AppendLine("    {");
 
                 foreach (var (type, name, arraySize) in block.Fields)
                 {
                     var csharpType = GlslParser.MapGlslTypeToCSharp(type);
-                    var isCustomType = GlslParser.IsCustomType(csharpType, type);
 
-                    if (!isCustomType)
+                    if (arraySize.HasValue)
                     {
-                        if (arraySize.HasValue)
-                        {
-                            builder.AppendLine($"        [MarshalAs(UnmanagedType.ByValArray, SizeConst = {arraySize.Value})]");
-                            builder.AppendLine($"        public {csharpType}[] {name};");
-                        }
-                        else
-                        {
-                            builder.AppendLine($"        public {csharpType} {name};");
-                        }
+                        builder.AppendLine($"        [MarshalAs(UnmanagedType.ByValArray, SizeConst = {arraySize.Value})]");
+                        builder.AppendLine($"        public {csharpType}[] {name};");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"        public {csharpType} {name};");
                     }
                 }
             }
@@ -222,127 +236,180 @@ namespace Editor
             builder.AppendLine("    }");
             builder.AppendLine("}");
 
-            string blockClassName = $"{block.Name}_{representationName}";
-            string blockFilePath = Path.Combine(outputDirectory, $"UBO.{blockClassName}.g.cs");
+            string blockFilePath = Path.Combine(outputDirectory, $"UBO.{className}.g.cs");
             string blockCode = builder.ToString();
             File.WriteAllText(blockFilePath, blockCode, Encoding.UTF8);
         }
 
-        private static bool HasComplexTypes(UniformBlockStructure block, List<string> structureTexts)
+        private static List<GlslStructure> GetUsedStructures(UniformBlockStructure block, List<GlslStructure> allStructures)
+        {
+            var result = new List<GlslStructure>();
+            var processedTypes = new HashSet<string>();
+
+            void CollectStructureAndDependencies(string typeName)
+            {
+                if (processedTypes.Contains(typeName))
+                    return;
+
+                var structure = allStructures.FirstOrDefault(s => s.Name == typeName);
+                if (structure == null)
+                    return;
+
+                processedTypes.Add(typeName);
+                result.Add(structure);
+
+                foreach (var (fieldType, _, _) in structure.Fields)
+                {
+                    if (allStructures.Any(s => s.Name == fieldType))
+                    {
+                        CollectStructureAndDependencies(fieldType);
+                    }
+                }
+            }
+
+            foreach (var (type, _, _) in block.Fields)
+            {
+                if (allStructures.Any(s => s.Name == type))
+                {
+                    CollectStructureAndDependencies(type);
+                }
+            }
+
+            return result;
+        }
+
+        private static bool HasComplexTypes(UniformBlockStructure block, List<GlslStructure> structures)
         {
             foreach (var (type, _, arraySize) in block.Fields)
             {
                 var csharpType = GlslParser.MapGlslTypeToCSharp(type);
                 var isCustomType = GlslParser.IsCustomType(csharpType, type);
 
-                if (isCustomType || arraySize.HasValue)
+                if (isCustomType || arraySize.HasValue || structures.Any(s => s.Name == type))
                     return true;
             }
             return false;
         }
 
-        private static int GetTypeAlignment(string type, string csharpType, List<string> structureTexts)
+        private static int GetTypeAlignment(string type, string csharpType, List<GlslStructure> structures)
         {
+            if (type is "bool" or "int" or "uint" or "float")
+                return 4;
+
             return type switch
             {
-                "bool" or "int" or "uint" or "float" => 4,
                 "double" => 8,
                 "bvec2" or "ivec2" or "uvec2" or "vec2" => 8,
                 "bvec3" or "ivec3" or "uvec3" or "vec3" or
                 "bvec4" or "ivec4" or "uvec4" or "vec4" => 16,
-                "mat2" or "mat2x2" or "mat2x3" or "mat2x4" or
-                "mat3" or "mat3x2" or "mat3x3" or "mat3x4" or
-                "mat4" or "mat4x2" or "mat4x3" or "mat4x4" => 16,
-                _ when GlslParser.IsCustomType(csharpType, type) => 16,
+
+                var t when t.StartsWith("mat") => 16,
+
+                var t when structures.Any(s => s.Name == t) => CalculateStructureAlignment(t, structures),
                 _ => 4
             };
         }
 
-        private static int GetTypeSize(string type, string csharpType, int? arraySize, List<string> structureTexts)
+        private static int GetTypeSize(string type, string csharpType, int? arraySize, List<GlslStructure> structures)
         {
             int baseSize = type switch
             {
                 "bool" or "int" or "uint" or "float" => 4,
                 "double" => 8,
+
                 "bvec2" or "ivec2" or "uvec2" or "vec2" => 8,
                 "bvec3" or "ivec3" or "uvec3" or "vec3" => 12,
                 "bvec4" or "ivec4" or "uvec4" or "vec4" => 16,
-                "mat2" or "mat2x2" => 32,
-                "mat2x3" => 32, 
-                "mat2x4" => 32,
-                "mat3" or "mat3x3" => 48, 
-                "mat3x2" => 48, 
-                "mat3x4" => 48, 
-                "mat4" or "mat4x4" => 64, 
-                "mat4x2" => 64,
-                "mat4x3" => 64, 
-                _ when GlslParser.IsCustomType(csharpType, type) => EstimateStructureSize(type, structureTexts),
-                _ => 4 
+
+                "mat2" or "mat2x2" => 2 * 16, 
+                "mat2x3"           => 2 * 16, 
+                "mat2x4"           => 2 * 16, 
+                "mat3" or "mat3x3" => 3 * 16, 
+                "mat3x2"           => 3 * 16, 
+                "mat3x4"           => 3 * 16, 
+                "mat4" or "mat4x4" => 4 * 16, 
+                "mat4x2"           => 4 * 16, 
+                "mat4x3"           => 4 * 16, 
+
+                var t when structures.Any(s => s.Name == t) => EstimateStructureSize(t, structures),
+                _ => 4
             };
 
             if (arraySize.HasValue)
             {
-                if (baseSize < 16)
-                    baseSize = 16;
-                return baseSize * arraySize.Value;
+                int alignedElementSize = AlignSize(baseSize, 16);
+                return alignedElementSize * arraySize.Value;
             }
 
             return baseSize;
         }
 
-        private static int EstimateStructureSize(string structureName, List<string> structureTexts)
+        private static int EstimateStructureSize(string structureName, List<GlslStructure> structures)
         {
-            Type type = ServiceHub.Get<AssemblyManager>().FindType(structureName, false);
-            if (type != null)
+            var structure = structures.FirstOrDefault(s => s.Name == structureName);
+            if (structure == null)
             {
-                return System.Runtime.InteropServices.Marshal.SizeOf(type);
-            }
-            foreach (var structText in structureTexts)
-            {
-                if (structText == structureName)
+                Type type = ServiceHub.Get<AssemblyManager>().FindType(structureName, false);
+                if (type != null)
                 {
-                    // Анализируем текст структуры и примерно оцениваем размер
-                    // Это упрощенная реализация, для реального использования нужна
-                    // более сложная логика анализа текста структуры
-                    return 64;
+                    return System.Runtime.InteropServices.Marshal.SizeOf(type);
                 }
+                return 64;
             }
-            return 64;
-        }
 
-        private static bool IsGlslBaseType(string type)
-        {
-            return GlslParser.IsGlslBaseType(type);
+            int totalSize = 0;
+            int maxAlignment = 4;
+
+            foreach (var (fieldType, _, fieldArraySize) in structure.Fields)
+            {
+                var csharpType = GlslParser.MapGlslTypeToCSharp(fieldType);
+
+                int fieldAlignment = GetTypeAlignment(fieldType, csharpType, structures);
+                maxAlignment = Math.Max(maxAlignment, fieldAlignment);
+                totalSize = AlignOffset(totalSize, fieldAlignment);
+                totalSize += GetTypeSize(fieldType, csharpType, fieldArraySize, structures);
+            }
+            return AlignSize(totalSize, maxAlignment);
         }
 
         private static bool IsFixedArrayType(string type)
         {
-            // Типы, для которых можно использовать fixed-массивы в C#
             return type is "bool" or "int" or "uint" or "float" or "double";
         }
 
-        private static int CalculateTotalSize(UniformBlockStructure block, List<string> structureTexts)
+        private static int CalculateTotalSize(UniformBlockStructure block, List<GlslStructure> structures)
         {
             int totalSize = 0;
-            int maxAlignment = 1;
+            int maxAlignment = 4;
 
             foreach (var (type, _, arraySize) in block.Fields)
             {
                 var csharpType = GlslParser.MapGlslTypeToCSharp(type);
 
-                // Определяем выравнивание для типа
-                int alignment = GetTypeAlignment(type, csharpType, structureTexts);
+                int alignment = GetTypeAlignment(type, csharpType, structures);
                 maxAlignment = Math.Max(maxAlignment, alignment);
-
-                // Выравниваем текущее смещение
                 totalSize = AlignOffset(totalSize, alignment);
+                totalSize += GetTypeSize(type, csharpType, arraySize, structures);
+            }
+            return AlignSize(totalSize, maxAlignment);
+        }
 
-                // Прибавляем размер поля
-                totalSize += GetTypeSize(type, csharpType, arraySize, structureTexts);
+        private static int CalculateStructureAlignment(string structureName, List<GlslStructure> structures)
+        {
+            var structure = structures.FirstOrDefault(s => s.Name == structureName);
+            if (structure == null)
+                return 16;
+
+            int maxAlignment = 4;
+
+            foreach (var (fieldType, _, _) in structure.Fields)
+            {
+                var csharpType = GlslParser.MapGlslTypeToCSharp(fieldType);
+                int fieldAlignment = GetTypeAlignment(fieldType, csharpType, structures);
+                maxAlignment = Math.Max(maxAlignment, fieldAlignment);
             }
 
-            // Финальное выравнивание структуры до ее наибольшего элемента
-            return AlignOffset(totalSize, maxAlignment);
+            return maxAlignment;
         }
 
         private static int AlignOffset(int offset, int alignment)
@@ -354,14 +421,241 @@ namespace Editor
         {
             return (size + alignment - 1) / alignment * alignment;
         }
+
+        private static void GenerateStructsForUbo(List<GlslStructure> structures, string outputDirectory, string representationName, string sourceGuid)
+        {
+            foreach (var structure in structures)
+            {
+                var structName = $"{structure.Name}_Std140";
+                var builder = new StringBuilder();
+                WriteGeneratedCodeHeader(builder, sourceGuid);
+
+                builder.AppendLine("using System.Runtime.InteropServices;");
+                builder.AppendLine("using Silk.NET.Maths;");
+                builder.AppendLine();
+                builder.AppendLine("namespace OpenglLib");
+                builder.AppendLine("{");
+
+                int totalSize = CalculateStructureSize(structure.Name, structures);
+                builder.AppendLine($"    [StructLayout(LayoutKind.Explicit, Size = {totalSize})]");
+                builder.AppendLine($"    public struct {structName}");
+                builder.AppendLine("    {");
+
+                int currentOffset = 0;
+
+                foreach (var (type, name, arraySize) in structure.Fields)
+                {
+                    var csharpType = GlslParser.MapGlslTypeToCSharp(type);
+                    var isCustomType = GlslParser.IsCustomType(csharpType, type);
+
+                    int alignment = GetTypeAlignment(type, csharpType, structures);
+                    currentOffset = AlignOffset(currentOffset, alignment);
+
+                    if (isCustomType && structures.Any(s => s.Name == type))
+                    {
+                        if (arraySize.HasValue)
+                        {
+                            for (int i = 0; i < arraySize.Value; i++)
+                            {
+                                int elementSize = GetTypeSize(type, csharpType, null, structures);
+                                int elementAlignedSize = AlignSize(elementSize, 16);
+                                int elemOffset = currentOffset + i * elementAlignedSize;
+
+                                builder.AppendLine($"        [FieldOffset({elemOffset})]");
+                                builder.AppendLine($"        public {type}_Std140 {name}_{i};");
+                            }
+
+                            builder.AppendLine();
+                            builder.AppendLine($"        public {type}_Std140 Get{name}(int index)");
+                            builder.AppendLine("        {");
+                            builder.AppendLine($"            switch (index)");
+                            builder.AppendLine("            {");
+
+                            for (int i = 0; i < arraySize.Value; i++)
+                            {
+                                builder.AppendLine($"                case {i}: return {name}_{i};");
+                            }
+
+                            builder.AppendLine($"                default: throw new IndexOutOfRangeException($\"Index {{index}} is out of range for array of size {arraySize.Value}\");");
+                            builder.AppendLine("            }");
+                            builder.AppendLine("        }");
+
+                            builder.AppendLine();
+                            builder.AppendLine($"        public void Set{name}(int index, {type}_Std140 value)");
+                            builder.AppendLine("        {");
+                            builder.AppendLine($"            switch (index)");
+                            builder.AppendLine("            {");
+
+                            for (int i = 0; i < arraySize.Value; i++)
+                            {
+                                builder.AppendLine($"                case {i}: {name}_{i} = value; break;");
+                            }
+
+                            builder.AppendLine($"                default: throw new IndexOutOfRangeException($\"Index {{index}} is out of range for array of size {arraySize.Value}\");");
+                            builder.AppendLine("            }");
+                            builder.AppendLine("        }");
+                        }
+                        else
+                        {
+                            builder.AppendLine($"        [FieldOffset({currentOffset})]");
+                            builder.AppendLine($"        public {type}_Std140 {name};");
+                        }
+                    }
+                    else if (arraySize.HasValue)
+                    {
+                        if (IsFixedArrayType(type))
+                        {
+                            //builder.AppendLine($"        [FieldOffset({currentOffset})]");
+                            //builder.AppendLine($"        public fixed {csharpType} {name}[{arraySize.Value}];");
+                            for (int i = 0; i < arraySize.Value; i++)
+                            {
+                                // Каждый элемент массива базового типа должен быть выровнен по 16 байт в std140
+                                int elementOffset = currentOffset + i * 16;
+
+                                builder.AppendLine($"        [FieldOffset({elementOffset})]");
+                                builder.AppendLine($"        public {csharpType} {name}_{i};");
+                            }
+
+                            // Добавляем вспомогательные методы для доступа к элементам массива
+                            builder.AppendLine();
+                            builder.AppendLine($"        public {csharpType} Get{name}(int index)");
+                            builder.AppendLine("        {");
+                            builder.AppendLine($"            switch (index)");
+                            builder.AppendLine("            {");
+
+                            for (int i = 0; i < arraySize.Value; i++)
+                            {
+                                builder.AppendLine($"                case {i}: return {name}_{i};");
+                            }
+
+                            builder.AppendLine($"                default: throw new IndexOutOfRangeException($\"Index {{index}} is out of range for array of size {arraySize.Value}\");");
+                            builder.AppendLine("            }");
+                            builder.AppendLine("        }");
+
+                            builder.AppendLine();
+                            builder.AppendLine($"        public void Set{name}(int index, {csharpType} value)");
+                            builder.AppendLine("        {");
+                            builder.AppendLine($"            switch (index)");
+                            builder.AppendLine("            {");
+
+                            for (int i = 0; i < arraySize.Value; i++)
+                            {
+                                builder.AppendLine($"                case {i}: {name}_{i} = value; break;");
+                            }
+
+                            builder.AppendLine($"                default: throw new IndexOutOfRangeException($\"Index {{index}} is out of range for array of size {arraySize.Value}\");");
+                            builder.AppendLine("            }");
+                            builder.AppendLine("        }");
+                        }
+                        else
+                        {
+                            for (int i = 0; i < arraySize.Value; i++)
+                            {
+                                int elementSize = GetTypeSize(type, csharpType, null, structures);
+                                int elementAlignedSize = AlignSize(elementSize, 16);
+                                int elemOffset = currentOffset + i * elementAlignedSize;
+
+                                builder.AppendLine($"        [FieldOffset({elemOffset})]");
+                                builder.AppendLine($"        public {csharpType} {name}_{i};");
+                            }
+
+                            builder.AppendLine();
+                            builder.AppendLine($"        public {csharpType} Get{name}(int index)");
+                            builder.AppendLine("        {");
+                            builder.AppendLine($"            switch (index)");
+                            builder.AppendLine("            {");
+
+                            for (int i = 0; i < arraySize.Value; i++)
+                            {
+                                builder.AppendLine($"                case {i}: return {name}_{i};");
+                            }
+
+                            builder.AppendLine($"                default: throw new IndexOutOfRangeException($\"Index {{index}} is out of range for array of size {arraySize.Value}\");");
+                            builder.AppendLine("            }");
+                            builder.AppendLine("        }");
+
+                            builder.AppendLine();
+                            builder.AppendLine($"        public void Set{name}(int index, {csharpType} value)");
+                            builder.AppendLine("        {");
+                            builder.AppendLine($"            switch (index)");
+                            builder.AppendLine("            {");
+
+                            for (int i = 0; i < arraySize.Value; i++)
+                            {
+                                builder.AppendLine($"                case {i}: {name}_{i} = value; break;");
+                            }
+
+                            builder.AppendLine($"                default: throw new IndexOutOfRangeException($\"Index {{index}} is out of range for array of size {arraySize.Value}\");");
+                            builder.AppendLine("            }");
+                            builder.AppendLine("        }");
+                        }
+                    }
+                    else
+                    {
+                        builder.AppendLine($"        [FieldOffset({currentOffset})]");
+                        builder.AppendLine($"        public {csharpType} {name};");
+                    }
+
+                    int size = GetTypeSize(type, csharpType, arraySize, structures);
+                    currentOffset += size;
+                    builder.AppendLine();
+                }
+
+                builder.AppendLine("    }");
+                builder.AppendLine("}");
+
+                File.WriteAllText(Path.Combine(outputDirectory, $"UboStruct.{structName}.g.cs"),
+                    builder.ToString(), Encoding.UTF8);
+            }
+        }
+
+        private static int CalculateStructureSize(string structureName, List<GlslStructure> structures)
+        {
+            var structure = structures.FirstOrDefault(s => s.Name == structureName);
+            if (structure == null)
+            {
+                Type type = ServiceHub.Get<AssemblyManager>().FindType(structureName, false);
+                if (type != null)
+                {
+                    return System.Runtime.InteropServices.Marshal.SizeOf(type);
+                }
+                return 64;
+            }
+
+            int totalSize = 0;
+            int maxAlignment = 4;
+
+            foreach (var (fieldType, _, fieldArraySize) in structure.Fields)
+            {
+                var csharpType = GlslParser.MapGlslTypeToCSharp(fieldType);
+
+                int fieldAlignment = GetTypeAlignment(fieldType, csharpType, structures);
+                maxAlignment = Math.Max(maxAlignment, fieldAlignment);
+
+                totalSize = AlignOffset(totalSize, fieldAlignment);
+                totalSize += GetTypeSize(fieldType, csharpType, fieldArraySize, structures);
+            }
+
+            return AlignSize(totalSize, maxAlignment);
+        }
+
+
+
         private static string GenerateRepresentationClass(string materialName, string vertexSource,
             string fragmentSource, List<(string type, string name, int? arraySize)> uniforms,
-            List<UniformBlockStructure> uniformBlocks, string sourceGuid)
+            List<UniformBlockStructure> uniformBlocks, string sourceGuid, HashSet<int> usedBindings)
         {
-            var builder = new StringBuilder();
-            var construcBuilder = new StringBuilder();
+            StringBuilder builder = new StringBuilder();
+            StringBuilder construcBuilder = new StringBuilder();
+            StringBuilder disposeBuilder = new StringBuilder();
             List<string> constructor_lines = new List<string>();
             int samplers = 0;
+
+            bool isUseDispose = false;
+
+            disposeBuilder.AppendLine("        public override void Dispose()");
+            disposeBuilder.AppendLine("        {");
+            disposeBuilder.AppendLine("            base.Dispose();");
 
             WriteGeneratedCodeHeader(builder, sourceGuid);
 
@@ -389,7 +683,7 @@ namespace Editor
                 bool isCustomType = GlslParser.IsCustomType(csharpType, type);
 
                 string cashFieldName = $"_{name}";
-                string locationName = $"{name}Location";
+                string locationName = $"{name}{ShaderConst.LOCATION}";
                 var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
 
                 if (isCustomType)
@@ -444,29 +738,6 @@ namespace Editor
                 builder.AppendLine("");
             }
 
-            foreach (var block in uniformBlocks)
-            {
-                if (block.InstanceName != null && block.Binding != null)
-                {
-                    string refStruct = $"_{block.InstanceName}";
-                    builder.AppendLine($"        private UniformBufferObject<{block.Name}_{materialName}> {block.InstanceName}Ubo;");
-                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, {block.Binding.Value});");
-
-                    builder.AppendLine($"        private {block.Name}_{materialName} {refStruct} = new {block.Name}_{materialName}();");
-                    builder.AppendLine($"        public {block.Name}_{materialName} {block.InstanceName}");
-                    builder.AppendLine("        {");
-                    builder.AppendLine("            set");
-                    builder.AppendLine("            {");
-                    builder.AppendLine($"                {refStruct} = value;");
-                    builder.AppendLine($"                {block.InstanceName}Ubo.UpdateData(ref {refStruct});");
-                    builder.AppendLine("            }");
-                    builder.AppendLine("        }");
-
-                    builder.AppendLine("");
-                    builder.AppendLine("");
-                }
-            }
-
             if (constructor_lines.Count > 0)
             {
                 foreach (var line in constructor_lines)
@@ -479,12 +750,40 @@ namespace Editor
 
             foreach (var block in uniformBlocks)
             {
+                if (block.InstanceName != null && block.Binding != null)
+                {
+                    isUseDispose = true;
+
+                    string refStruct = $"_{block.InstanceName}";
+                    builder.AppendLine($"        private UniformBufferObject<{block.Name}_{materialName}> {block.InstanceName}Ubo;");
+                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, {ShaderConst.SHADER_PROGRAM}, {block.Binding.Value});");
+
+                    builder.AppendLine($"        private {block.Name}_{materialName} {refStruct} = new {block.Name}_{materialName}();");
+                    builder.AppendLine($"        public {block.Name}_{materialName} {block.InstanceName}");
+                    builder.AppendLine("        {");
+                    builder.AppendLine("            set");
+                    builder.AppendLine("            {");
+                    builder.AppendLine($"                {refStruct} = value;");
+                    builder.AppendLine($"                {block.InstanceName}Ubo.UpdateData(ref {refStruct});");
+                    builder.AppendLine("            }");
+                    builder.AppendLine("        }");
+
+                    builder.AppendLine("");
+
+                    disposeBuilder.AppendLine($"            {block.InstanceName}Ubo.Dispose();");
+                }
+            }
+
+            foreach (var block in uniformBlocks)
+            {
                 if (block.InstanceName != null && block.Binding == null)
                 {
-                    string refStruct = $"_{block.InstanceName}";
-                    string locationName = $"{block.InstanceName}Location";
+                    isUseDispose = true;
 
-                    builder.AppendLine($"        public int {locationName} {{ get; protected set; }} = -1;");
+                    string refStruct = $"_{block.InstanceName}";
+                    //construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, {ShaderConst.SHADER_PROGRAM}, \"{block.Name}\");");
+                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, GetBlockIndex(\"{block.Name}\"));");
+
                     builder.AppendLine($"        private UniformBufferObject<{block.Name}_{materialName}> {block.InstanceName}Ubo;");
                     builder.AppendLine($"        private {block.Name}_{materialName} {refStruct} = new {block.Name}_{materialName}();");
                     builder.AppendLine($"        public {block.Name}_{materialName} {block.InstanceName}");
@@ -497,9 +796,15 @@ namespace Editor
                     builder.AppendLine("            }");
                     builder.AppendLine("        }");
 
-                    construcBuilder.AppendLine($"            if ({locationName} != -1)");
-                    construcBuilder.AppendLine($"                {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, (uint){locationName});");
+                    disposeBuilder.AppendLine($"            {block.InstanceName}Ubo.Dispose();");
                 }
+            }
+
+            
+            if (isUseDispose)
+            {
+                disposeBuilder.AppendLine("        }");
+                builder.AppendLine(disposeBuilder.ToString());
             }
 
             builder.AppendLine("    }");
@@ -512,6 +817,17 @@ namespace Editor
             return builder.ToString();
         }
 
+        private static int GetFreeBinding(HashSet<int> usedBindings)
+        {
+            int nextBinding = 0;
+            while (usedBindings.Contains(nextBinding))
+            {
+                nextBinding++;
+            }
+            usedBindings.Add(nextBinding);
+            return nextBinding;
+        }
+
         private static void WriteGeneratedCodeHeader(StringBuilder builder, string sourceGuid)
         {
             builder.AppendLine("// <auto-generated>");
@@ -522,51 +838,6 @@ namespace Editor
             builder.AppendLine();
         }
 
-        private static int GetStd140Alignment(string glslType)
-        {
-            return glslType switch
-            {
-                "bool" or "int" or "uint" or "float" => 4,
-                "vec2" or "ivec2" or "uvec2" or "bvec2" => 8,
-                "vec3" or "ivec3" or "uvec3" or "bvec3" => 16,
-                "vec4" or "ivec4" or "uvec4" or "bvec4" => 16,
-                "mat2" or "mat2x2" => 16,
-                "mat2x3" or "mat2x4" => 16,
-                "mat3" or "mat3x3" => 16,
-                "mat3x2" or "mat3x4" => 16,
-                "mat4" or "mat4x4" => 16,
-                "mat4x2" or "mat4x3" => 16,
-                _ => 16 
-            };
-        }
-
-        private static int GetTypeSize(string glslType)
-        {
-            return glslType switch
-            {
-                "bool" or "int" or "uint" or "float" => 4,
-                "vec2" or "ivec2" or "uvec2" or "bvec2" => 8,
-                "vec3" or "ivec3" or "uvec3" or "bvec3" => 12,
-                "vec4" or "ivec4" or "uvec4" or "bvec4" => 16,
-                "mat2" or "mat2x2" => 32,
-                "mat2x3" => 48,
-                "mat2x4" => 64,
-                "mat3" or "mat3x3" => 48,
-                "mat3x2" => 48, 
-                "mat3x4" => 64, 
-                "mat4" or "mat4x4" => 64, 
-                "mat4x2" => 64,
-                "mat4x3" => 64,
-                _ => 16 
-            };
-        }
-
-
-        private static string GetBlockDefaultName(UniformBlockStructure block)
-        {
-            if (block.Binding.HasValue) return $"UniformBlockBinding{block.Binding.Value}";
-            return $"AnonymousBlock_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
-        }
 
         public static string GetSimpleGetter(string cashFieldName)
         {
@@ -583,8 +854,8 @@ namespace Editor
 
             builder.AppendLine($"        public int {locationFieldName}");
             builder.AppendLine($"        {{");
-            builder.AppendLine($"             get => {fieldName}.Location;");
-            builder.AppendLine($"             set => {fieldName}.Location = value;");
+            builder.AppendLine($"             get => {fieldName}.{ShaderConst.LOCATION};");
+            builder.AppendLine($"             set => {fieldName}.{ShaderConst.LOCATION} = value;");
             builder.AppendLine($"        }}");
 
             return builder.ToString();

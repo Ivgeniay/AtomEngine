@@ -55,6 +55,22 @@ namespace OpenglLib
         }
 
 
+        public static HashSet<int> ExtractUniformBlockBindings(string shaderSource)
+        {
+            var bindings = new HashSet<int>();
+            var bindingRegex = new Regex(@"layout\s*\(\s*std140\s*,\s*binding\s*=\s*(\d+)\s*\)", RegexOptions.Multiline);
+
+            foreach (Match match in bindingRegex.Matches(shaderSource))
+            {
+                if (match.Groups.Count > 1 && int.TryParse(match.Groups[1].Value, out int bindingPoint))
+                {
+                    bindings.Add(bindingPoint);
+                }
+            }
+
+            return bindings;
+        }
+
         public static (string vertex, string fragment) ExtractShaderSources(string source, string falepath = null)
         {
             if (falepath != null) source = ProcessIncludesRecursively(source, falepath);
@@ -86,23 +102,6 @@ namespace OpenglLib
             }
 
             return (vertexSource, fragmentSource);
-        }
-
-        private static string ProcessIncludes(string source, Dictionary<string, string> includedFiles)
-        {
-            var includeRegex = new Regex(@"#include\s+""([^""]+)""");
-
-            return includeRegex.Replace(source, match =>
-            {
-                var includePath = match.Groups[1].Value;
-
-                if (includedFiles.TryGetValue(includePath, out string content))
-                {
-                    return content;
-                }
-
-                throw new Exception($"Include file not found: {includePath}");
-            });
         }
 
         public static void ValidateMainFunctions(string vertexSource, string fragmentSource)

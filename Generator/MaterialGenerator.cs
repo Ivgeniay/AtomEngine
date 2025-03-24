@@ -182,14 +182,14 @@ namespace OpenglLib.Generator
 
             foreach(var block in uniformBlocks)
             {
-                if (block.InstanceName == null)
-                    block.InstanceName = GetBlockDefaultName(block);
+                //if (block.InstanceName == null)
+                //    block.InstanceName = GetBlockDefaultName(block);
 
-                if (block.Binding != null)
+                if (block.InstanceName != null && block.Binding != null)
                 {
                     string refStruct = $"_{block.InstanceName}";
                     builder.AppendLine($"        private UniformBufferObject<{block.Name}_{materialName}> {block.InstanceName}Ubo;");
-                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, {block.Binding.Value});");
+                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, handle, {block.Binding.Value});");
 
                     builder.AppendLine($"        private {block.Name}_{materialName} {refStruct} = new {block.Name}_{materialName}();");
                     builder.AppendLine($"        public {block.Name}_{materialName} {block.InstanceName}");

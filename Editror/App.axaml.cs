@@ -88,6 +88,7 @@ namespace Editor
                 ServiceHub.RegisterService<InspectorDistributor>();
                 ServiceHub.RegisterService<ComponentService>();
                 ServiceHub.RegisterService<LoadingManager>();
+                ServiceHub.RegisterService<BindingPointService>();
 
                 ServiceHub.RegisterService<OpenGlExcludeSerializationTypeService>();
                 ServiceHub.AddMapping<ExcludeSerializationTypeService, OpenGlExcludeSerializationTypeService>();

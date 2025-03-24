@@ -2,6 +2,7 @@
 using AtomEngine.RenderEntity;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+using System.Text;
 
 namespace OpenglLib
 {
@@ -11,6 +12,7 @@ namespace OpenglLib
         protected readonly Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
         protected readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
         protected readonly Dictionary<string, UniformInfo> _uniformInfo = new Dictionary<string, UniformInfo>();
+        protected readonly List<UniformBlockData> _uniformBlocks = new List<UniformBlockData>();
 
         protected string VertexSource;
         protected string FragmentSource;
@@ -47,11 +49,14 @@ namespace OpenglLib
 
             CacheAttributes();
             CacheUniforms();
+            CacheUniformBlocks();
 
             DebLogger.Info("==================SHADER_ATTRIBUTES=================");
             foreach (var item in _attributeLocations) DebLogger.Info(item.Key, " : ", item.Value);
             DebLogger.Info("===================SHADER_UNIFORMS==================");
             foreach (var item in _uniformLocations) DebLogger.Info(item.Key, " : ", item.Value);
+            DebLogger.Info("===================UNIFORM_BLOCKS==================");
+            foreach (var item in _uniformBlocks) DebLogger.Info(item);
         }
 
         public override void Use()
@@ -285,6 +290,31 @@ namespace OpenglLib
             }
         }
 
+        private unsafe void CacheUniformBlocks()
+        {
+            _gl.GetProgram(handle, GLEnum.ActiveUniformBlocks, out int uniformBlockCount);
+
+            for (uint i = 0; i < uniformBlockCount; i++)
+            {
+                byte[] nameBuffer = new byte[256];
+                uint nameLength = 0;
+
+                fixed (byte* namePtr = nameBuffer)
+                {
+                    _gl.GetActiveUniformBlockName(handle, i, (uint)nameBuffer.Length, &nameLength, namePtr);
+                    string name = Encoding.ASCII.GetString(nameBuffer, 0, (int)nameLength);
+                    uint blockIndex = _gl.GetUniformBlockIndex(handle, name);
+                    _uniformBlocks.Add(new UniformBlockData(name, blockIndex));
+                }
+            }
+        }
+
+        protected uint GetBlockIndex(string name)
+        {
+            var uniform = _uniformBlocks.FirstOrDefault(block => block.Name == name);
+            return uniform.BlockIndex;
+        }
+
         public override void Dispose()
         {
             _gl.DeleteProgram(handle);
@@ -292,5 +322,22 @@ namespace OpenglLib
 
         
         public static explicit operator uint(Shader shader) => shader.handle;
+    }
+
+    public struct UniformBlockData
+    {
+        public readonly string Name = string.Empty;
+        public readonly uint BlockIndex = uint.MaxValue;
+
+        public UniformBlockData(string name, uint blockIndex)
+        {
+            Name = name;
+            BlockIndex = blockIndex;
+        }
+
+        public override string ToString()
+        {
+            return $"{Name} BlockIndex:{BlockIndex}";
+        }
     }
 }

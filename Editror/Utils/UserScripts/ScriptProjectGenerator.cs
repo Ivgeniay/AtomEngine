@@ -103,7 +103,8 @@ namespace Editor
                     StartInfo = new ProcessStartInfo
                     {
                         FileName = "dotnet",
-                        Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental /p:DebugType=none /p:DebugSymbols=false",
+                        Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental /p:ShadowCopy=true",
+                        //Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental /p:DebugType=none /p:DebugSymbols=false",
                         //Arguments = $"build \"{Path.Combine(_scriptProjectPath, $"{projConfig.AssemblyName}.csproj")}\" -c {builtype} --no-incremental",
                         UseShellExecute = false,
                         RedirectStandardOutput = true,

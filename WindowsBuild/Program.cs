@@ -21,6 +21,7 @@ namespace WindowsBuild
             ServiceHub.RegisterService<DirectoryExplorer>(); //Нужно создать экземпляр для WindowsBuild, создать модели, зарегать все сраные пути из router
             ServiceHub.RegisterService<OpenGlExcludeSerializationTypeService>();
             ServiceHub.AddMapping<ExcludeSerializationTypeService, OpenGlExcludeSerializationTypeService>();
+            ServiceHub.RegisterService<BindingPointService>();
 
 
 

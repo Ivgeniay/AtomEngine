@@ -73,7 +73,7 @@ void main()
 }";
         public TestMaterialMaterial(GL gl) : base(gl)
         {
-            kekUbo = new UniformBufferObject<CameraData_TestMaterial>(_gl, ref _kek, 55);
+            kekUbo = new UniformBufferObject<CameraData_TestMaterial>(_gl, ref _kek, handle, 55);
             SetUpShader(VertexSource, FragmentSource);
             SetupUniformLocations();
         }

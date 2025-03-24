@@ -1,11 +1,13 @@
 ﻿using System.Text.RegularExpressions;
+using EngineLib;
 using Silk.NET.OpenGL;
 
 namespace OpenglLib
 {
     public class Mat : Shader
     {
-        public Mat(GL gl) : base(gl) { }
+        public Mat(GL gl) : base(gl) {
+        }
 
         protected void SetTexture(string textureUnit, string texTarget, int location, int index, Texture texture)
         {
@@ -24,6 +26,7 @@ namespace OpenglLib
             {
                 if (uniform.Value > -1) ProcessUniformLocation(uniform.Key, uniform.Value); 
             }
+            //ProcessUnbindedUniformBlocks();
         }
 
         private void ProcessUniformLocation(string path, int location)
@@ -88,5 +91,43 @@ namespace OpenglLib
             }
         }
 
+
+        //private void ProcessUnbindedUniformBlocks()
+        //{
+        //    var uboFields = this.GetType()
+        //        .GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+        //        .Where(f => f.Name.EndsWith("Ubo"))
+        //        .Where(f => f.GetCustomAttribute<BlockNameAttribute>() != null);
+
+        //    foreach (var field in uboFields)
+        //    {
+        //        string blockName = field.Name.Substring(0, field.Name.IndexOf("Ubo"));
+        //        BlockNameAttribute attribute = field.GetCustomAttribute<BlockNameAttribute>();
+        //        var locationProps = this.GetType()
+        //            .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+        //            .Where(p => p.Name.EndsWith($"{ShaderConst.LOCATION}") && p.Name.StartsWith(blockName));
+
+        //        foreach(var locationProp in locationProps)
+        //        {
+        //            var bindingPoint = SetupUniformBlockBinding(attribute.BlockName);
+        //            locationProp.SetValue(this, bindingPoint);
+        //        }
+        //    }
+        //}
+
+        //protected int SetupUniformBlockBinding(string blockName)
+        //{
+        //    uint blockIndex = _gl.GetUniformBlockIndex(handle, blockName);
+        //    if (blockIndex != uint.MaxValue)
+        //    {
+        //        var bindingService = ServiceHub.Get<BindingPointService>();
+        //        uint bindingPoint = bindingService.AllocateBindingPoint((int)handle);
+        //        //_gl.UniformBlockBinding(handle, blockIndex, bindingPoint);
+        //        return (int)bindingPoint;
+        //    }
+
+        //    return -1;
+        //}
     }
+
 }

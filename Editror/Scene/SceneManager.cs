@@ -509,7 +509,7 @@ namespace Editor
         }
 
         internal uint GetAndReserveId(uint worldId) => CurrentScene.GetAndReserveId(worldId);
-        internal void DisposeReservedId(uint worldId) => CurrentScene.DisposeReservedId(worldId);
-        internal void DisposeAllReservedId() => CurrentScene.DisposeAllReservedId();
+        internal void DisposeReservedId(uint worldId) => CurrentScene?.DisposeReservedId(worldId);
+        internal void DisposeAllReservedId() => CurrentScene?.DisposeAllReservedId();
     }
 }

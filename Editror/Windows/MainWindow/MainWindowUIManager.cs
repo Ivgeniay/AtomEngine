@@ -211,7 +211,7 @@ namespace Editor
                 Description = "Generate c sharp view glsl code",
                 Action = (e) =>
                 {
-                    GlslCodeGenerator.GenerateCode(e.FileFullPath, e.FilePath);
+                    GlslCodeGenerator.GenerateCode(e.FileFullPath, Path.Combine(e.FilePath, $"GeneratedFrom{e.FileName}"));
                 }
             });
 

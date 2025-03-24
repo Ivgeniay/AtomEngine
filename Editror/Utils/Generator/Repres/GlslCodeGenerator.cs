@@ -1,12 +1,9 @@
 ﻿using System.Collections.Generic;
+using AtomEngine;
 using System.IO;
 using EngineLib;
-using System;
 using OpenglLib;
-using System.Text.RegularExpressions;
-using AtomEngine;
-using System.Text;
-using Silk.NET.OpenAL;
+using System;
 
 namespace Editor.Utils.Generator
 {
@@ -16,9 +13,24 @@ namespace Editor.Utils.Generator
 
         public static string GenerateCode(string glslFilePath, string outputDirectory, bool generateStructs = true)
         {
+
             if (!File.Exists(glslFilePath))
             {
-                throw new FileNotFoundException($"Shader file not found: {glslFilePath}");
+                throw new FileNotFoundError($"Shader file not found: {glslFilePath}");
+            }
+            FileEvent fileEvent = new FileEvent();
+            fileEvent.FileExtension = Path.GetExtension(glslFilePath);
+            fileEvent.FileFullPath = glslFilePath;
+            var assetPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
+            fileEvent.FilePath = glslFilePath.Substring(glslFilePath.IndexOf(assetPath));
+            fileEvent.FileName = Path.GetFileNameWithoutExtension(glslFilePath);
+
+            var result = GlslCompiler.TryToCompile(fileEvent);
+            if (result.Success) DebLogger.Info(result);
+            else
+            {
+                DebLogger.Error(result);
+                return null;
             }
 
             if (!Directory.Exists(outputDirectory))
@@ -42,37 +54,34 @@ namespace Editor.Utils.Generator
                 GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
                 var combinedSource = vertexSource + "\n" + fragmentSource;
 
-                List<string> structuresText = new List<string>();
+                List<GlslStructure> structures = new List<GlslStructure>();
                 if (generateStructs)
                 {
-                    List<GlslStructure> structures = GlslParser.ParseGlslStructures(combinedSource);
+                    structures = GlslParser.ParseGlslStructures(combinedSource);
                     if (structures.Count > 0)
                     {
-                        structuresText.AddRange(
-                            GlslStructGenerator.GenerateStructs(
-                            shaderSourceCode: combinedSource,
-                            outputDirectory: outputDirectory,
-                            sourceGuid: sourceGuid)
-                            );
+                        GlslStructGenerator.GenerateStructs(
+                        shaderSourceCode: combinedSource,
+                        outputDirectory: outputDirectory,
+                        sourceGuid: sourceGuid);
                     }
                 }
-
                 List<UniformBlockStructure> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
                 foreach (var block in uniformBlocks)
                 {
-                    var blockClassName = $"{block.Name}_{representationName}";
+                    var blockClassName = $"{block.Name}_{representationName}"; 
                     ShaderCodeRepresentationGenerator.GenerateUniformBlockClass(
                         block: block,
                         className: blockClassName,
                         outputDirectory: outputDirectory,
                         representationName: representationName,
                         sourceGuid: sourceGuid,
-                        structureTexts: structuresText);
+                        structures: structures);
                 }
 
                 string resultRepresentationName = ShaderCodeRepresentationGenerator.GenerateRepresentationFromSource(
                     representationName: representationName,
-                    sourceText: shaderSource,
+                    shaderSource: shaderSource,
                     outputDirectory: outputDirectory,
                     sourceGuid: sourceGuid,
                     sourcePath: glslFilePath);
