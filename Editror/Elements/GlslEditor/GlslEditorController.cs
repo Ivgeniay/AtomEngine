@@ -29,6 +29,8 @@ namespace Editor
         private GlslAnalyzer _glslAnalyzer;
         private Button _saveButton;
         private StackPanel _toolbarPanel;
+        private List<SimpleTextMarker> _errorMarkers = new List<SimpleTextMarker>();
+        private List<IncludeFileInfo> _includedFiles = new List<IncludeFileInfo>();
 
         public Action<object> OnClose { get; set; }
 
@@ -38,14 +40,6 @@ namespace Editor
             _glslAnalyzer = new GlslAnalyzer();
             _glslAnalyzer.ErrorFound += OnErrorFound;
             _glslAnalyzer.IncludeFound += OnIncludeFound;
-
-            this.Loaded += OnControllerLoaded;
-        }
-
-        private void OnControllerLoaded(object? sender, RoutedEventArgs e)
-        {
-            _textEditor.Text = "// Редактор загружен";
-            _textEditor.InvalidateVisual();
         }
 
         private void InitializeUI()
@@ -53,7 +47,6 @@ namespace Editor
             RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
 
-            // Создаем панель инструментов
             _toolbarPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -69,7 +62,6 @@ namespace Editor
             Grid.SetRow(toolbarBackground, 0);
             Children.Add(toolbarBackground);
 
-            // Добавляем кнопку сохранения
             _saveButton = new Button
             {
                 Content = "Сохранить",
@@ -80,70 +72,82 @@ namespace Editor
             _saveButton.Click += OnSaveClick;
             _toolbarPanel.Children.Add(_saveButton);
 
-            // Создаем текстовый редактор
             _textEditor = new TextEditor
             {
-                FontFamily = new FontFamily("Consolas"),
+                FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
                 FontSize = 12,
                 ShowLineNumbers = true,
                 WordWrap = false,
                 Foreground = Brushes.White,
                 Background = new SolidColorBrush(Color.Parse("#1E1E1E")),
-                HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-                VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-                MinWidth = 300,
-                MinHeight = 200
+                Options = new TextEditorOptions
+                {
+                    ConvertTabsToSpaces = true,
+                    IndentationSize = 4
+                }
             };
 
-            // Проверяем наличие определений подсветки
-            var manager = HighlightingManager.Instance;
-            var definitions = manager.HighlightingDefinitions;
+            SetupSyntaxHighlighting();
 
-            // Устанавливаем доступную подсветку синтаксиса
-            try
-            {
-                _textEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
-            }
-            catch (Exception ex)
-            {
-                Status.SetStatus($"Ошибка при настройке подсветки: {ex.Message}");
-            }
-
-            // Устанавливаем обработчик изменений
             _textEditor.TextChanged += OnTextChanged;
 
-            // Добавляем начальный текст для проверки
-            _textEditor.Text = "// GLSL Editor\n// Редактор запущен успешно";
-
-            // Устанавливаем текстовый редактор как основной контент
             Grid.SetRow(_textEditor, 1);
             Children.Add(_textEditor);
         }
 
-        public void OpenFile(string filePath)
+        private void SetupSyntaxHighlighting()
         {
             try
             {
-                if (!File.Exists(filePath))
+                // Пытаемся загрузить подсветку GLSL из ресурсов
+                using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Editor.Resources.GLSL.xshd"))
                 {
-                    Status.SetStatus($"Файл не найден: {filePath}");
-                    return;
+                    if (s != null)
+                    {
+                        using (XmlReader reader = XmlReader.Create(s))
+                        {
+                            _textEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+                        }
+                    }
+                    else
+                    {
+                        // Если не нашли ресурс, используем подсветку C#
+                        _textEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Status.SetStatus($"Ошибка при установке подсветки синтаксиса: {ex.Message}");
 
+                // В случае ошибки используем подсветку C#
+                _textEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
+            }
+        }
+
+        public void OpenFile(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            {
+                Status.SetStatus("Файл не существует");
+                return;
+            }
+
+            try
+            {
+                _currentFilePath = filePath;
                 string content = File.ReadAllText(filePath);
+
+                // Отладочная информация
                 Status.SetStatus($"Файл прочитан. Размер: {content.Length} символов");
 
-                _currentFilePath = filePath;
+                _textEditor.Document.Text = content;
 
-                // Устанавливаем текст в редактор
-                _textEditor.Text = content;
-                
-
-                // Сбрасываем позицию курсора
-                _textEditor.CaretOffset = 0;
-
-                // Обновляем интерфейс
                 _textEditor.InvalidateVisual();
+                _textEditor.TextArea.TextView.InvalidateVisual();
+
+                _textEditor.CaretOffset = 0;
+                _glslAnalyzer.Analyze(content, filePath);
 
                 Status.SetStatus($"Файл открыт: {Path.GetFileName(filePath)}");
             }
@@ -163,7 +167,7 @@ namespace Editor
 
             try
             {
-                File.WriteAllText(_currentFilePath, _textEditor.Text);
+                File.WriteAllText(_currentFilePath, _textEditor.Document.Text);
                 Status.SetStatus($"Файл сохранен: {Path.GetFileName(_currentFilePath)}");
             }
             catch (Exception ex)
@@ -174,38 +178,106 @@ namespace Editor
 
         private void OnTextChanged(object sender, EventArgs e)
         {
-            if (!string.IsNullOrEmpty(_currentFilePath))
+            Dispatcher.UIThread.InvokeAsync(() =>
             {
-                _glslAnalyzer.Analyze(_textEditor.Text, _currentFilePath);
-            }
+                if (!string.IsNullOrEmpty(_currentFilePath))
+                {
+                    ClearErrorMarkers();
+                    _glslAnalyzer.Analyze(_textEditor.Document.Text, _currentFilePath);
+                }
+            }, DispatcherPriority.Background);
         }
 
         private void OnErrorFound(object sender, GlslErrorEventArgs e)
         {
-            // Здесь можно добавить логирование ошибок
-            Status.SetStatus($"Ошибка: строка {e.Line}, позиция {e.Column}: {e.Message}");
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                try
+                {
+                    var line = _textEditor.Document.GetLineByNumber(e.Line);
+                    int column = Math.Min(e.Column, line.Length + 1);
+
+                    var errorMarker = new SimpleTextMarker
+                    {
+                        Line = e.Line,
+                        Column = column,
+                        Length = e.Length > 0 ? e.Length : 1,
+                        Message = e.Message
+                    };
+
+                    // Применяем визуальное выделение ошибки в тексте
+                    _textEditor.TextArea.TextView.InvalidateVisual();
+
+                    _errorMarkers.Add(errorMarker);
+                }
+                catch (Exception ex)
+                {
+                    Status.SetStatus($"Ошибка при создании маркера: {ex.Message}");
+                }
+            });
         }
 
         private void OnIncludeFound(object sender, GlslIncludeEventArgs e)
         {
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                try
+                {
+                    string includeFilePath = Path.GetFullPath(Path.Combine(
+                        Path.GetDirectoryName(_currentFilePath), e.IncludePath));
+
+                    if (File.Exists(includeFilePath))
+                    {
+                        string includeContent = File.ReadAllText(includeFilePath);
+
+                        _includedFiles.Add(new IncludeFileInfo
+                        {
+                            DirectiveLine = e.Line,
+                            FilePath = includeFilePath,
+                            Content = includeContent,
+                            IsFolded = true
+                        });
+
+                        InsertIncludeContent(e.Line, includeFilePath, includeContent);
+                    }
+                    else
+                    {
+                        OnErrorFound(this, new GlslErrorEventArgs
+                        {
+                            Line = e.Line,
+                            Column = e.Column,
+                            Length = e.Length,
+                            Message = $"Включаемый файл не найден: {e.IncludePath}"
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Status.SetStatus($"Ошибка при обработке включения: {ex.Message}");
+                }
+            });
+        }
+
+        private void InsertIncludeContent(int line, string filePath, string content)
+        {
             try
             {
-                string includeFilePath = Path.GetFullPath(Path.Combine(
-                    Path.GetDirectoryName(_currentFilePath), e.IncludePath));
+                var document = _textEditor.Document;
+                var lineObj = document.GetLineByNumber(line);
 
-                if (File.Exists(includeFilePath))
-                {
-                    Status.SetStatus($"Найлено включение: {e.IncludePath}");
-                }
-                else
-                {
-                    Status.SetStatus($"Включаемый файл не найден: {e.IncludePath}");
-                }
+                // Вставляем содержимое включаемого файла как комментарий
+                document.Insert(lineObj.EndOffset, $"\n// Начало {Path.GetFileName(filePath)}\n{content}\n// Конец {Path.GetFileName(filePath)}");
             }
             catch (Exception ex)
             {
-                Status.SetStatus($"Ошибка при обработке включения: {ex.Message}");
+                Status.SetStatus($"Ошибка при вставке включаемого содержимого: {ex.Message}");
             }
+        }
+
+        private void ClearErrorMarkers()
+        {
+            _errorMarkers.Clear();
+            _textEditor.TextArea.TextView.InvalidateVisual();
         }
 
         public void Open()
@@ -225,7 +297,7 @@ namespace Editor
 
         public void Redraw()
         {
-            _textEditor?.InvalidateVisual();
+            _textEditor.TextArea.TextView.InvalidateVisual();
         }
 
         public void FreeCache()
@@ -233,299 +305,12 @@ namespace Editor
             Dispatcher.UIThread.Invoke(new Action(() =>
             {
                 _currentFilePath = null;
-                _textEditor.Text = string.Empty;
+                _textEditor.Document.Text = string.Empty;
+                ClearErrorMarkers();
+                _includedFiles.Clear();
             }));
         }
     }
-    //public class GlslEditorController : Grid, IWindowed, ICacheble
-    //{
-    //    private string _currentFilePath;
-    //    private TextEditor _textEditor;
-    //    private GlslAnalyzer _glslAnalyzer;
-    //    private Button _saveButton;
-    //    private StackPanel _toolbarPanel;
-    //    private List<SimpleTextMarker> _errorMarkers = new List<SimpleTextMarker>();
-    //    private List<IncludeFileInfo> _includedFiles = new List<IncludeFileInfo>();
-
-    //    public Action<object> OnClose { get; set; }
-
-    //    public GlslEditorController()
-    //    {
-    //        InitializeUI();
-    //        _glslAnalyzer = new GlslAnalyzer();
-    //        _glslAnalyzer.ErrorFound += OnErrorFound;
-    //        _glslAnalyzer.IncludeFound += OnIncludeFound;
-    //    }
-
-    //    private void InitializeUI()
-    //    {
-    //        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-    //        RowDefinitions.Add(new RowDefinition { Height = GridLength.Star });
-
-    //        _toolbarPanel = new StackPanel
-    //        {
-    //            Orientation = Orientation.Horizontal,
-    //            Classes = { "toolbarPanel" }
-    //        };
-
-    //        var toolbarBackground = new Border
-    //        {
-    //            Classes = { "toolbarBackground" },
-    //            Child = _toolbarPanel
-    //        };
-
-    //        Grid.SetRow(toolbarBackground, 0);
-    //        Children.Add(toolbarBackground);
-
-    //        _saveButton = new Button
-    //        {
-    //            Content = "Сохранить",
-    //            Classes = { "menuButton" },
-    //            Margin = new Avalonia.Thickness(5)
-    //        };
-
-    //        _saveButton.Click += OnSaveClick;
-    //        _toolbarPanel.Children.Add(_saveButton);
-
-    //        _textEditor = new TextEditor
-    //        {
-    //            FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
-    //            FontSize = 12,
-    //            ShowLineNumbers = true,
-    //            WordWrap = false,
-    //            Foreground = Brushes.White,
-    //            Background = new SolidColorBrush(Color.Parse("#1E1E1E")),
-    //            Options = new TextEditorOptions
-    //            {
-    //                ConvertTabsToSpaces = true,
-    //                IndentationSize = 4
-    //            }
-    //        };
-
-    //        SetupSyntaxHighlighting();
-
-    //        _textEditor.TextChanged += OnTextChanged;
-
-    //        Grid.SetRow(_textEditor, 1);
-    //        Children.Add(_textEditor);
-    //    }
-
-    //    private void SetupSyntaxHighlighting()
-    //    {
-    //        try
-    //        {
-    //            // Пытаемся загрузить подсветку GLSL из ресурсов
-    //            using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Editor.Resources.GLSL.xshd"))
-    //            {
-    //                if (s != null)
-    //                {
-    //                    using (XmlReader reader = XmlReader.Create(s))
-    //                    {
-    //                        _textEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
-    //                    }
-    //                }
-    //                else
-    //                {
-    //                    // Если не нашли ресурс, используем подсветку C#
-    //                    _textEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
-    //                }
-    //            }
-    //        }
-    //        catch (Exception ex)
-    //        {
-    //            Status.SetStatus($"Ошибка при установке подсветки синтаксиса: {ex.Message}");
-
-    //            // В случае ошибки используем подсветку C#
-    //            _textEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
-    //        }
-    //    }
-
-    //    public void OpenFile(string filePath)
-    //    {
-    //        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-    //        {
-    //            Status.SetStatus("Файл не существует");
-    //            return;
-    //        }
-
-    //        try
-    //        {
-    //            _currentFilePath = filePath;
-    //            string content = File.ReadAllText(filePath);
-
-    //            // Отладочная информация
-    //            Status.SetStatus($"Файл прочитан. Размер: {content.Length} символов");
-
-    //            _textEditor.Document.Text = content;
-
-    //            _textEditor.InvalidateVisual();
-    //            _textEditor.TextArea.TextView.InvalidateVisual();
-
-    //            _textEditor.CaretOffset = 0;
-    //            _glslAnalyzer.Analyze(content, filePath);
-
-    //            Status.SetStatus($"Файл открыт: {Path.GetFileName(filePath)}");
-    //        }
-    //        catch (Exception ex)
-    //        {
-    //            Status.SetStatus($"Ошибка при открытии файла: {ex.Message}");
-    //        }
-    //    }
-
-    //    private void OnSaveClick(object sender, RoutedEventArgs e)
-    //    {
-    //        if (string.IsNullOrEmpty(_currentFilePath))
-    //        {
-    //            Status.SetStatus("Нет открытого файла для сохранения");
-    //            return;
-    //        }
-
-    //        try
-    //        {
-    //            File.WriteAllText(_currentFilePath, _textEditor.Document.Text);
-    //            Status.SetStatus($"Файл сохранен: {Path.GetFileName(_currentFilePath)}");
-    //        }
-    //        catch (Exception ex)
-    //        {
-    //            Status.SetStatus($"Ошибка при сохранении файла: {ex.Message}");
-    //        }
-    //    }
-
-    //    private void OnTextChanged(object sender, EventArgs e)
-    //    {
-    //        Dispatcher.UIThread.InvokeAsync(() =>
-    //        {
-    //            if (!string.IsNullOrEmpty(_currentFilePath))
-    //            {
-    //                ClearErrorMarkers();
-    //                _glslAnalyzer.Analyze(_textEditor.Document.Text, _currentFilePath);
-    //            }
-    //        }, DispatcherPriority.Background);
-    //    }
-
-    //    private void OnErrorFound(object sender, GlslErrorEventArgs e)
-    //    {
-    //        Dispatcher.UIThread.InvokeAsync(() =>
-    //        {
-    //            try
-    //            {
-    //                var line = _textEditor.Document.GetLineByNumber(e.Line);
-    //                int column = Math.Min(e.Column, line.Length + 1);
-
-    //                var errorMarker = new SimpleTextMarker
-    //                {
-    //                    Line = e.Line,
-    //                    Column = column,
-    //                    Length = e.Length > 0 ? e.Length : 1,
-    //                    Message = e.Message
-    //                };
-
-    //                // Применяем визуальное выделение ошибки в тексте
-    //                _textEditor.TextArea.TextView.InvalidateVisual();
-
-    //                _errorMarkers.Add(errorMarker);
-    //            }
-    //            catch (Exception ex)
-    //            {
-    //                Status.SetStatus($"Ошибка при создании маркера: {ex.Message}");
-    //            }
-    //        });
-    //    }
-
-    //    private void OnIncludeFound(object sender, GlslIncludeEventArgs e)
-    //    {
-    //        Dispatcher.UIThread.InvokeAsync(() =>
-    //        {
-    //            try
-    //            {
-    //                string includeFilePath = Path.GetFullPath(Path.Combine(
-    //                    Path.GetDirectoryName(_currentFilePath), e.IncludePath));
-
-    //                if (File.Exists(includeFilePath))
-    //                {
-    //                    string includeContent = File.ReadAllText(includeFilePath);
-
-    //                    _includedFiles.Add(new IncludeFileInfo
-    //                    {
-    //                        DirectiveLine = e.Line,
-    //                        FilePath = includeFilePath,
-    //                        Content = includeContent,
-    //                        IsFolded = true
-    //                    });
-
-    //                    InsertIncludeContent(e.Line, includeFilePath, includeContent);
-    //                }
-    //                else
-    //                {
-    //                    OnErrorFound(this, new GlslErrorEventArgs
-    //                    {
-    //                        Line = e.Line,
-    //                        Column = e.Column,
-    //                        Length = e.Length,
-    //                        Message = $"Включаемый файл не найден: {e.IncludePath}"
-    //                    });
-    //                }
-    //            }
-    //            catch (Exception ex)
-    //            {
-    //                Status.SetStatus($"Ошибка при обработке включения: {ex.Message}");
-    //            }
-    //        });
-    //    }
-
-    //    private void InsertIncludeContent(int line, string filePath, string content)
-    //    {
-    //        try
-    //        {
-    //            var document = _textEditor.Document;
-    //            var lineObj = document.GetLineByNumber(line);
-
-    //            // Вставляем содержимое включаемого файла как комментарий
-    //            document.Insert(lineObj.EndOffset, $"\n// Начало {Path.GetFileName(filePath)}\n{content}\n// Конец {Path.GetFileName(filePath)}");
-    //        }
-    //        catch (Exception ex)
-    //        {
-    //            Status.SetStatus($"Ошибка при вставке включаемого содержимого: {ex.Message}");
-    //        }
-    //    }
-
-    //    private void ClearErrorMarkers()
-    //    {
-    //        _errorMarkers.Clear();
-    //        _textEditor.TextArea.TextView.InvalidateVisual();
-    //    }
-
-    //    public void Open()
-    //    {
-    //        // Метод вызывается при открытии окна
-    //    }
-
-    //    public void Close()
-    //    {
-    //        OnClose?.Invoke(this);
-    //    }
-
-    //    public void Dispose()
-    //    {
-    //        Close();
-    //    }
-
-    //    public void Redraw()
-    //    {
-    //        _textEditor.TextArea.TextView.InvalidateVisual();
-    //    }
-
-    //    public void FreeCache()
-    //    {
-    //        Dispatcher.UIThread.Invoke(new Action(() =>
-    //        {
-    //            _currentFilePath = null;
-    //            _textEditor.Document.Text = string.Empty;
-    //            ClearErrorMarkers();
-    //            _includedFiles.Clear();
-    //        }));
-    //    }
-    //}
 
     public class IncludeFileInfo
     {
