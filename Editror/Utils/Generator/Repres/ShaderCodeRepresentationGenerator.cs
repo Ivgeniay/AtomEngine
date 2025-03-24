@@ -1,66 +1,39 @@
 ﻿using System.Collections.Generic;
+using Editor.Utils.Generator;
+using System.Linq;
 using System.Text;
+using AtomEngine;
 using System.IO;
 using EngineLib;
-using System;
 using OpenglLib;
-using Editor.Utils.Generator;
-using System.Xml.Linq;
-using AtomEngine;
-using System.Linq;
+using System;
 
 namespace Editor
 {
     public static class ShaderCodeRepresentationGenerator
     {
-        public static void GenerateRepresentation(string filePath, string outputDirectory)
+        public static string GenerateRepresentationFromSource(string representationName, string vertexSource, string fragmentSource, 
+            string outputDirectory, List<UniformBlockStructure> uniformBlocks, List<RSFileInfo> rsFiles, string sourceGuid = null, 
+            string sourcePath = null)
         {
-            try
-            {
-                var sourceText = File.ReadAllText(filePath);
-                string sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(filePath)?.Guid;
-
-                GenerateRepresentationFromSource(Path.GetFileNameWithoutExtension(filePath), sourceText, outputDirectory, sourceGuid, filePath);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error processing {filePath}: {ex.Message}", ex);
-            }
-        }
-
-
-
-        public static string GenerateRepresentationFromSource(string representationName, string shaderSource, string outputDirectory,
-            string sourceGuid = null, string sourcePath = null)
-        {
-            if (!GlslParser.IsCompleteShaderFile(shaderSource))
-            {
-                throw new Exception("The shader file does not contain both vertex and fragment shaders.");
-            }
-
             if (string.IsNullOrEmpty(sourceGuid) && !string.IsNullOrEmpty(sourcePath))
                 sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(sourcePath)?.Guid;
 
-            var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, sourcePath);
             GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
-
             var uniforms = GlslParser.ExtractUniforms(vertexSource + "\n" + fragmentSource);
-            var uniformBlocks = GlslParser.ParseUniformBlocks(vertexSource + "\n" + fragmentSource);
-
-            HashSet<int> usedBindings = GlslParser.ExtractUniformBlockBindings(shaderSource);
-            var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid, usedBindings);
+            var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid, rsFiles);
             var representationFilePath = Path.Combine(outputDirectory, $"{representationName}{GlslCodeGenerator.LABLE}.cs");
             File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);
 
             return $"{representationName}Representation";
         }
 
-        public static void GenerateUniformBlockClass(UniformBlockStructure block, string className, string outputDirectory, string representationName, string sourceGuid, List<GlslStructure> structures)
+        public static void GenerateUniformBlockClass(UniformBlockStructure block, string outputDirectory, string sourceGuid, List<GlslStructure> structures)
         {
             List<GlslStructure> usedStructures = GetUsedStructures(block, structures);
             if (usedStructures.Count > 0)
             {
-                GenerateStructsForUbo(usedStructures, outputDirectory, representationName, sourceGuid);
+                GenerateStructsForUbo(usedStructures, outputDirectory, sourceGuid);
             }
 
             var builder = new StringBuilder();
@@ -78,7 +51,7 @@ namespace Editor
             {
                 int totalSize = CalculateTotalSize(block, structures);
                 builder.AppendLine($"    [StructLayout(LayoutKind.Explicit, Size = {totalSize})]");
-                builder.AppendLine($"    public unsafe struct {className} : IDataSerializable");
+                builder.AppendLine($"    public unsafe struct {block.CSharpTypeName} : IDataSerializable");
                 builder.AppendLine("    {");
 
                 int currentOffset = 0;
@@ -94,10 +67,7 @@ namespace Editor
 
                     if (isCustomType)
                     {
-                        // Проверяем, является ли тип пользовательской структурой
                         bool isUserStructure = structures.Any(s => s.Name == type);
-
-                        // Если это пользовательская структура, используем версию Std140
                         string fieldType = isUserStructure ? $"{type}_Std140" : csharpType;
 
                         if (arraySize.HasValue)
@@ -214,7 +184,7 @@ namespace Editor
             else
             {
                 builder.AppendLine("    [StructLayout(LayoutKind.Sequential)]");
-                builder.AppendLine($"    public unsafe struct {className} : IDataSerializable");
+                builder.AppendLine($"    public unsafe struct {block.CSharpTypeName} : IDataSerializable");
                 builder.AppendLine("    {");
 
                 foreach (var (type, name, arraySize) in block.Fields)
@@ -236,7 +206,7 @@ namespace Editor
             builder.AppendLine("    }");
             builder.AppendLine("}");
 
-            string blockFilePath = Path.Combine(outputDirectory, $"UBO.{className}.g.cs");
+            string blockFilePath = Path.Combine(outputDirectory, $"UBO.{block.CSharpTypeName}.g.cs");
             string blockCode = builder.ToString();
             File.WriteAllText(blockFilePath, blockCode, Encoding.UTF8);
         }
@@ -422,7 +392,7 @@ namespace Editor
             return (size + alignment - 1) / alignment * alignment;
         }
 
-        private static void GenerateStructsForUbo(List<GlslStructure> structures, string outputDirectory, string representationName, string sourceGuid)
+        private static void GenerateStructsForUbo(List<GlslStructure> structures, string outputDirectory, string sourceGuid)
         {
             foreach (var structure in structures)
             {
@@ -505,18 +475,13 @@ namespace Editor
                     {
                         if (IsFixedArrayType(type))
                         {
-                            //builder.AppendLine($"        [FieldOffset({currentOffset})]");
-                            //builder.AppendLine($"        public fixed {csharpType} {name}[{arraySize.Value}];");
                             for (int i = 0; i < arraySize.Value; i++)
                             {
-                                // Каждый элемент массива базового типа должен быть выровнен по 16 байт в std140
                                 int elementOffset = currentOffset + i * 16;
 
                                 builder.AppendLine($"        [FieldOffset({elementOffset})]");
                                 builder.AppendLine($"        public {csharpType} {name}_{i};");
                             }
-
-                            // Добавляем вспомогательные методы для доступа к элементам массива
                             builder.AppendLine();
                             builder.AppendLine($"        public {csharpType} Get{name}(int index)");
                             builder.AppendLine("        {");
@@ -643,9 +608,10 @@ namespace Editor
 
         private static string GenerateRepresentationClass(string materialName, string vertexSource,
             string fragmentSource, List<(string type, string name, int? arraySize)> uniforms,
-            List<UniformBlockStructure> uniformBlocks, string sourceGuid, HashSet<int> usedBindings)
+            List<UniformBlockStructure> uniformBlocks, string sourceGuid, List<RSFileInfo> rsFiles)
         {
             StringBuilder builder = new StringBuilder();
+            StringBuilder interfaces = new StringBuilder();
             StringBuilder construcBuilder = new StringBuilder();
             StringBuilder disposeBuilder = new StringBuilder();
             List<string> constructor_lines = new List<string>();
@@ -666,7 +632,7 @@ namespace Editor
             builder.AppendLine();
             builder.AppendLine("namespace OpenglLib");
             builder.AppendLine("{");
-            builder.AppendLine($"    public partial class {materialName}Representation : Mat");
+            builder.AppendLine($"    public partial class {materialName}Representation : Mat *interfaces*");
             builder.AppendLine("    {");
             builder.AppendLine($"        protected new string VertexSource = @\"{vertexSource.Replace("\"", "\"\"")}\";");
             builder.AppendLine($"        protected new string FragmentSource = @\"{fragmentSource.Replace("\"", "\"\"")}\";");
@@ -755,11 +721,11 @@ namespace Editor
                     isUseDispose = true;
 
                     string refStruct = $"_{block.InstanceName}";
-                    builder.AppendLine($"        private UniformBufferObject<{block.Name}_{materialName}> {block.InstanceName}Ubo;");
-                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, {ShaderConst.SHADER_PROGRAM}, {block.Binding.Value});");
+                    builder.AppendLine($"        private UniformBufferObject<{block.CSharpTypeName}> {block.InstanceName}Ubo;");
+                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.CSharpTypeName}>(_gl, ref {refStruct}, {ShaderConst.SHADER_PROGRAM}, {block.Binding.Value});");
 
-                    builder.AppendLine($"        private {block.Name}_{materialName} {refStruct} = new {block.Name}_{materialName}();");
-                    builder.AppendLine($"        public {block.Name}_{materialName} {block.InstanceName}");
+                    builder.AppendLine($"        private {block.CSharpTypeName} {refStruct} = new {block.CSharpTypeName}();");
+                    builder.AppendLine($"        public {block.CSharpTypeName} {block.InstanceName}");
                     builder.AppendLine("        {");
                     builder.AppendLine("            set");
                     builder.AppendLine("            {");
@@ -781,12 +747,11 @@ namespace Editor
                     isUseDispose = true;
 
                     string refStruct = $"_{block.InstanceName}";
-                    //construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, {ShaderConst.SHADER_PROGRAM}, \"{block.Name}\");");
-                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.Name}_{materialName}>(_gl, ref {refStruct}, GetBlockIndex(\"{block.Name}\"));");
+                    construcBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.CSharpTypeName}>(_gl, ref {refStruct}, GetBlockIndex(\"{block.Name}\"));");
 
-                    builder.AppendLine($"        private UniformBufferObject<{block.Name}_{materialName}> {block.InstanceName}Ubo;");
-                    builder.AppendLine($"        private {block.Name}_{materialName} {refStruct} = new {block.Name}_{materialName}();");
-                    builder.AppendLine($"        public {block.Name}_{materialName} {block.InstanceName}");
+                    builder.AppendLine($"        private UniformBufferObject<{block.CSharpTypeName}> {block.InstanceName}Ubo;");
+                    builder.AppendLine($"        private {block.CSharpTypeName} {refStruct} = new {block.CSharpTypeName}();");
+                    builder.AppendLine($"        public {block.CSharpTypeName} {block.InstanceName}");
                     builder.AppendLine("        {");
                     builder.AppendLine("            set");
                     builder.AppendLine("            {");
@@ -814,18 +779,11 @@ namespace Editor
             construcBuilder.AppendLine("        }");
             builder.Replace("*construct*", construcBuilder.ToString());
 
-            return builder.ToString();
-        }
+            foreach(var rs in rsFiles)
+                interfaces.Append(", " + rs.InterfaceName);
+            builder.Replace("*interfaces*", interfaces.ToString());
 
-        private static int GetFreeBinding(HashSet<int> usedBindings)
-        {
-            int nextBinding = 0;
-            while (usedBindings.Contains(nextBinding))
-            {
-                nextBinding++;
-            }
-            usedBindings.Add(nextBinding);
-            return nextBinding;
+            return builder.ToString();
         }
 
         private static void WriteGeneratedCodeHeader(StringBuilder builder, string sourceGuid)
@@ -837,7 +795,6 @@ namespace Editor
             builder.AppendLine("// </auto-generated>");
             builder.AppendLine();
         }
-
 
         public static string GetSimpleGetter(string cashFieldName)
         {

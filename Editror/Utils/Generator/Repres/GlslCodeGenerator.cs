@@ -4,6 +4,7 @@ using System.IO;
 using EngineLib;
 using OpenglLib;
 using System;
+using System.Linq;
 
 namespace Editor.Utils.Generator
 {
@@ -11,19 +12,18 @@ namespace Editor.Utils.Generator
     {
         public const string LABLE = "Rep.g";
 
-        public static string GenerateCode(string glslFilePath, string outputDirectory, bool generateStructs = true)
+        public static string GenerateCode(string sourcePath, string outputDirectory, bool generateStructs = true)
         {
-
-            if (!File.Exists(glslFilePath))
+            if (!File.Exists(sourcePath))
             {
-                throw new FileNotFoundError($"Shader file not found: {glslFilePath}");
+                throw new FileNotFoundError($"Shader file not found: {sourcePath}");
             }
             FileEvent fileEvent = new FileEvent();
-            fileEvent.FileExtension = Path.GetExtension(glslFilePath);
-            fileEvent.FileFullPath = glslFilePath;
+            fileEvent.FileExtension = Path.GetExtension(sourcePath);
+            fileEvent.FileFullPath = sourcePath;
             var assetPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
-            fileEvent.FilePath = glslFilePath.Substring(glslFilePath.IndexOf(assetPath));
-            fileEvent.FileName = Path.GetFileNameWithoutExtension(glslFilePath);
+            fileEvent.FilePath = sourcePath.Substring(sourcePath.IndexOf(assetPath));
+            fileEvent.FileName = Path.GetFileNameWithoutExtension(sourcePath);
 
             var result = GlslCompiler.TryToCompile(fileEvent);
             if (result.Success) DebLogger.Info(result);
@@ -40,17 +40,15 @@ namespace Editor.Utils.Generator
 
             try
             {
-                string shaderSource = File.ReadAllText(glslFilePath);
+                string shaderSource = File.ReadAllText(sourcePath);
 
-                if (!GlslParser.IsCompleteShaderFile(shaderSource))
-                {
-                    throw new Exception($"The file {glslFilePath} is not a complete shader file (must contain #vertex and #fragment sections).");
-                }
+                string sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(sourcePath)?.Guid;
+                string representationName = Path.GetFileNameWithoutExtension(sourcePath);
+                List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, sourcePath);
 
-                string sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(glslFilePath)?.Guid;
-
-                var representationName = Path.GetFileNameWithoutExtension(glslFilePath);
-                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, glslFilePath);
+                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, sourcePath);
+                vertexSource = RSParser.RemoveServiceMarkers(vertexSource);
+                fragmentSource = RSParser.RemoveServiceMarkers(fragmentSource);
                 GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
                 var combinedSource = vertexSource + "\n" + fragmentSource;
 
@@ -67,24 +65,46 @@ namespace Editor.Utils.Generator
                     }
                 }
                 List<UniformBlockStructure> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
+                uniformBlocks = FreeBlocks(rsFiles, uniformBlocks);
+
                 foreach (var block in uniformBlocks)
                 {
-                    var blockClassName = $"{block.Name}_{representationName}"; 
+                    block.CSharpTypeName = $"{block.Name}_{representationName}";
                     ShaderCodeRepresentationGenerator.GenerateUniformBlockClass(
                         block: block,
-                        className: blockClassName,
                         outputDirectory: outputDirectory,
-                        representationName: representationName,
                         sourceGuid: sourceGuid,
                         structures: structures);
                 }
+                foreach(var rs in rsFiles)
+                {
+                    foreach(var block in rs.UniformBlocks)
+                    {
+                        block.CSharpTypeName = $"{block.Name}_{block.UniformBlockType}";
+                        ShaderCodeRepresentationGenerator.GenerateUniformBlockClass(
+                            block: block,
+                            outputDirectory: rs.SourceFolder,
+                            sourceGuid: sourceGuid,
+                            structures: rs.Structures);
+                    }
+                }
+                foreach (var rs in rsFiles)
+                {
+                    var sourceCode = InterfaceGenerator.GenerateInterface(rs);
+                    var path = Path.Combine(rs.SourceFolder, rs.InterfaceName + ".cs");
+                    File.WriteAllText(path, sourceCode);
+                }
+                uniformBlocks = UnionBlocks(rsFiles, uniformBlocks);
 
                 string resultRepresentationName = ShaderCodeRepresentationGenerator.GenerateRepresentationFromSource(
                     representationName: representationName,
-                    shaderSource: shaderSource,
                     outputDirectory: outputDirectory,
+                    fragmentSource: fragmentSource,
+                    uniformBlocks: uniformBlocks,
+                    vertexSource: vertexSource,
                     sourceGuid: sourceGuid,
-                    sourcePath: glslFilePath);
+                    sourcePath: sourcePath,
+                    rsFiles: rsFiles);
 
                 return resultRepresentationName;
             }
@@ -93,6 +113,37 @@ namespace Editor.Utils.Generator
                 DebLogger.Error($"{ex.Message}");
                 return null;
             }
+        }
+
+        private static List<UniformBlockStructure> UnionBlocks(List<RSFileInfo> rsFiles, List<UniformBlockStructure> uniformBlocks)
+        {
+            var resultList = new List<UniformBlockStructure>();
+            foreach (var rs in rsFiles)
+            {
+                foreach(var uniformBlock in rs.UniformBlocks)
+                {
+                    resultList.Add(uniformBlock);
+                }
+            }
+            
+            foreach(var block in uniformBlocks)
+            {
+                resultList.Add(block);
+            }
+
+            return resultList;
+        }
+
+        private static List<UniformBlockStructure> FreeBlocks(List<RSFileInfo> rsFiles, List<UniformBlockStructure> uniformBlocks)
+        {
+            return uniformBlocks.Where(e =>
+            {
+                foreach (var rs in rsFiles)
+                {
+                    if (!rs.UniformBlocks.Contains(e)) return true;
+                }
+                return false;
+            }).ToList();
         }
 
         public static List<string> GenerateCodeFromDirectory(string directoryPath, string outputDirectory,

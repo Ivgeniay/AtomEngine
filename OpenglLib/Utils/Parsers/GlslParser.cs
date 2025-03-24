@@ -30,7 +30,8 @@ namespace OpenglLib
             var sourceDir = Path.GetDirectoryName(sourcePath);
             var includeRegex = new Regex(@"#include\s+""([^""]+)""");
 
-            return includeRegex.Replace(source, match => {
+            return includeRegex.Replace(source, match =>
+            {
                 var includePath = match.Groups[1].Value;
                 var fullPath = Path.GetFullPath(Path.Combine(sourceDir, includePath));
 
@@ -48,6 +49,8 @@ namespace OpenglLib
                 }
             });
         }
+
+
         public static string CleanComments(string source)
         {
             string noSingleLineComments = Regex.Replace(source, @"//.*$", "", RegexOptions.Multiline);
@@ -167,27 +170,32 @@ namespace OpenglLib
         public static List<UniformBlockStructure> ParseUniformBlocks(string source)
         {
             var blocks = new List<UniformBlockStructure>();
-            var blockRegex = new Regex(@"layout\s*\(std140(?:\s*,\s*binding\s*=\s*(\d+))?\)\s*uniform\s+(\w+)?\s*\{([^}]+)\}\s*(\w+)?;", RegexOptions.Multiline);
+            var blockRegex = new Regex(
+                @"(?:layout\s*\(\s*(std140|std430|packed|shared)(?:\s*,\s*binding\s*=\s*(\d+))?\)\s*)?" +
+                @"uniform\s+(\w+)?\s*\{([^}]+)\}\s*(\w+)?;",
+                RegexOptions.Multiline);
 
             foreach (Match match in blockRegex.Matches(source))
             {
-                var bindingStr = match.Groups[1].Success ? match.Groups[1].Value : null;
+                var layoutTypeStr = match.Groups[1].Success ? match.Groups[1].Value : null;
+                var bindingStr = match.Groups[2].Success ? match.Groups[2].Value : null;
                 int? binding = bindingStr != null ? int.Parse(bindingStr) : null;
-
-                var blockName = match.Groups[2].Success ? match.Groups[2].Value : null;
-
-                var instanceName = match.Groups[4].Success ? match.Groups[4].Value : null;
-                var fieldsText = match.Groups[3].Value;
-
+                var blockName = match.Groups[3].Success ? match.Groups[3].Value : null;
+                var fieldsText = match.Groups[4].Value;
+                var instanceName = match.Groups[5].Success ? match.Groups[5].Value : null;
                 var name = blockName ?? instanceName;
+
                 if (string.IsNullOrEmpty(name))
                 {
                     continue;
                 }
 
+                UniformBlockType blockType = GetUniformBlockType(layoutTypeStr);
+
                 blocks.Add(new UniformBlockStructure
                 {
                     Name = name,
+                    UniformBlockType = blockType,
                     Binding = binding,
                     Fields = ParseFields(fieldsText),
                     InstanceName = instanceName
@@ -196,6 +204,70 @@ namespace OpenglLib
 
             return blocks;
         }
+
+        //public static List<UniformBlockStructure> ParseUniformBlocks(string source)
+        //{
+        //    var blocks = new List<UniformBlockStructure>();
+        //    var blockRegex = new Regex(
+        //@"layout\s*\(\s*(std140|std430|packed|shared)(?:\s*,\s*binding\s*=\s*(\d+))?\)\s*uniform\s+(\w+)?\s*\{([^}]+)\}\s*(\w+)?;",
+        //RegexOptions.Multiline);
+
+
+        //    foreach (Match match in blockRegex.Matches(source))
+        //    {
+        //        var layoutTypeStr = match.Groups[1].Value;
+        //        var bindingStr = match.Groups[2].Success ? match.Groups[2].Value : null;
+        //        int? binding = bindingStr != null ? int.Parse(bindingStr) : null;
+        //        var blockName = match.Groups[3].Success ? match.Groups[3].Value : null;
+        //        var fieldsText = match.Groups[4].Value;
+        //        var instanceName = match.Groups[5].Success ? match.Groups[5].Value : null;
+        //        var name = blockName ?? instanceName;
+
+        //        if (string.IsNullOrEmpty(name))
+        //        {
+        //            continue;
+        //        }
+
+        //        UniformBlockType blockType = GetUniformBlockType(layoutTypeStr);
+
+        //        blocks.Add(new UniformBlockStructure
+        //        {
+        //            Name = name,
+        //            UniformBlockType = blockType,
+        //            Binding = binding,
+        //            Fields = ParseFields(fieldsText),
+        //            InstanceName = instanceName
+        //        });
+        //    }
+
+        //    var ordinaryBlockRegex = new Regex(
+        //        @"uniform\s+(\w+)?\s*\{([^}]+)\}\s*(\w+)?;",
+        //        RegexOptions.Multiline);
+
+        //    foreach (Match match in ordinaryBlockRegex.Matches(source))
+        //    {
+        //        var blockName = match.Groups[1].Success ? match.Groups[1].Value : null;
+        //        var fieldsText = match.Groups[2].Value;
+        //        var instanceName = match.Groups[3].Success ? match.Groups[3].Value : null;
+        //        var name = blockName ?? instanceName;
+
+        //        if (string.IsNullOrEmpty(name))
+        //        {
+        //            continue;
+        //        }
+
+        //        blocks.Add(new UniformBlockStructure
+        //        {
+        //            Name = name,
+        //            UniformBlockType = UniformBlockType.Ordinary,
+        //            Binding = null,
+        //            Fields = ParseFields(fieldsText),
+        //            InstanceName = instanceName
+        //        });
+        //    }
+
+        //    return blocks;
+        //}
 
         public static List<(string Type, string Name, int? ArraySize)> ParseFields(string fieldsText)
         {
@@ -433,6 +505,18 @@ namespace OpenglLib
 
         public static bool IsCustomType(string csharpType, string type) =>
             csharpType == type && type != "float" && type != "bool" && type != "int" && type != "uint" && type != "float" && type != "double";
+
+        private static UniformBlockType GetUniformBlockType(string layoutType)
+        {
+            return layoutType.ToLower() switch
+            {
+                "std140" => UniformBlockType.STD140,
+                "std430" => UniformBlockType.STD430,
+                "packed" => UniformBlockType.Packed,
+                "shared" => UniformBlockType.Shared,
+                _ => UniformBlockType.Ordinary
+            };
+        }
     }
 
     public class GlslStructure
@@ -441,11 +525,74 @@ namespace OpenglLib
         public List<(string Type, string Name, int? ArraySize)> Fields { get; set; }
     }
 
-    public class UniformBlockStructure
+    public class UniformBlockStructure : IEquatable<UniformBlockStructure>
     {
+        public UniformBlockType UniformBlockType { get; set; } = UniformBlockType.Ordinary;
+        public string CSharpTypeName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public int? Binding { get; set; } = null;
         public string? InstanceName { get; set; } = null;
         public List<(string Type, string Name, int? ArraySize)> Fields { get; set; } = new List<(string Type, string Name, int? ArraySize)>();
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is null) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != GetType()) return false;
+            return Equals(obj as UniformBlockStructure);
+        }
+
+        public bool Equals(UniformBlockStructure? other)
+        {
+            if (other is null) return false;
+            if (ReferenceEquals(this, other)) return true;
+            bool fieldsEqual = Fields.Count == other.Fields.Count &&
+                              !Fields.Except(other.Fields).Any();
+            return UniformBlockType == other.UniformBlockType &&
+                   //CSharpTypeName == other.CSharpTypeName &&
+                   Name == other.Name &&
+                   Binding == other.Binding &&
+                   InstanceName == other.InstanceName &&
+                   fieldsEqual;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + UniformBlockType.GetHashCode();
+                //hash = hash * 23 + (CSharpTypeName?.GetHashCode() ?? 0);
+                hash = hash * 23 + (Name?.GetHashCode() ?? 0);
+                hash = hash * 23 + (Binding?.GetHashCode() ?? 0);
+                hash = hash * 23 + (InstanceName?.GetHashCode() ?? 0);
+                foreach (var field in Fields)
+                {
+                    hash = hash * 23 + (field.Type?.GetHashCode() ?? 0);
+                    hash = hash * 23 + (field.Name?.GetHashCode() ?? 0);
+                    hash = hash * 23 + (field.ArraySize?.GetHashCode() ?? 0);
+                }
+
+                return hash;
+            }
+        }
+
+        public static bool operator ==(UniformBlockStructure? left, UniformBlockStructure? right)
+        {
+            if (left is null) return right is null;
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(UniformBlockStructure? left, UniformBlockStructure? right) =>
+            !(left == right);
+    }
+
+    public enum UniformBlockType
+    {
+        Ordinary,
+        STD140,     // layout(std140)
+        STD430,     // layout(std430) 
+        Packed,     // layout(packed)
+        Shared,     // layout(shared)
     }
 }

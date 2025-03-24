@@ -5,7 +5,7 @@ namespace OpenglLib
 {
     public class MaterialAssetManager : IService
     {
-        protected Dictionary<string, MaterialAsset> _cacheMaterials = new Dictionary<string, MaterialAsset>();
+        protected Dictionary<string, MaterialAsset> _cacheMaterialAssets = new Dictionary<string, MaterialAsset>();
 
         public virtual Task InitializeAsync()
         {
@@ -54,12 +54,12 @@ namespace OpenglLib
                 DebLogger.Warn($"Shader representation file not found: GUID={shaderRepresentationGuid}");
             }
 
-            _cacheMaterials.Add(filePath, material);
+            _cacheMaterialAssets.Add(filePath, material);
             return material;
         }
         public virtual void SaveMaterialAsset(MaterialAsset material)
         {
-            string path = _cacheMaterials.Where(e => e.Value == material).FirstOrDefault().Key;
+            string path = _cacheMaterialAssets.Where(e => e.Value == material).FirstOrDefault().Key;
             if (path != null)
             {
                 SaveMaterialAsset(material, path);
@@ -79,29 +79,29 @@ namespace OpenglLib
         {
             if (!File.Exists(path))
             {
-                if (_cacheMaterials.TryGetValue(path, out MaterialAsset mat)) _cacheMaterials.Remove(path);
+                if (_cacheMaterialAssets.TryGetValue(path, out MaterialAsset mat)) _cacheMaterialAssets.Remove(path);
 
                 DebLogger.Error($"File {path} is not exist");
                 return null;
             }
 
-            if (_cacheMaterials.TryGetValue(path, out MaterialAsset material))
+            if (_cacheMaterialAssets.TryGetValue(path, out MaterialAsset material))
             {
                 return material;
             }
 
             string json = File.ReadAllText(path);
             MaterialAsset asset = MaterialSerializer.DeserializeMaterial(json);
-            _cacheMaterials[path] = asset;
+            _cacheMaterialAssets[path] = asset;
 
             return asset;
         }
         public virtual MaterialAsset GetMaterialAsset(string guid) =>
-            _cacheMaterials.FirstOrDefault(e => e.Value.Guid == guid).Value;
+            _cacheMaterialAssets.FirstOrDefault(e => e.Value.Guid == guid).Value;
         public virtual string GetPathFromGUID(string guid) =>
-            _cacheMaterials.FirstOrDefault(e => e.Value.Guid == guid).Key;
+            _cacheMaterialAssets.FirstOrDefault(e => e.Value.Guid == guid).Key;
         public virtual string GetPathFromAsset(MaterialAsset material) =>
-            _cacheMaterials.Where(e => e.Value.Equals(material)).FirstOrDefault().Key;
+            _cacheMaterialAssets.Where(e => e.Value.Equals(material)).FirstOrDefault().Key;
 
         public virtual void InitializeUniformsFromShaderRepresentation(MaterialAsset material, string shaderRepresentationPath)
         {
@@ -161,6 +161,14 @@ namespace OpenglLib
             }
 
             return default;
+        }
+
+        public IEnumerable<(string, MaterialAsset)> GetMaterials()
+        {
+            foreach(var kvp in _cacheMaterialAssets)
+            {
+                yield return (kvp.Key, kvp.Value);
+            }
         }
 
         protected object ConvertJObjectToTypedValue(object value, string typeName)

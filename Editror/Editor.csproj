@@ -117,7 +117,6 @@
   <ItemGroup>
     <Folder Include="Progect\Meta\Data\Textures\" />
     <Folder Include="Utils\Events\" />
-    <Folder Include="Utils\OpenGL\" />
     <Folder Include="Utils\Parsers\" />
     <Folder Include="Utils\Serialization\JsonConvert\" />
   </ItemGroup>

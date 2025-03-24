@@ -203,6 +203,20 @@ namespace Editor
                 {
                     ServiceHub.Get<ScriptSyncSystem>().OpenProjectInIDE(e.FileFullPath);
                 },
+            }); 
+            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".rs",
+                Name = "Denerate Code",
+                Description = "Denerate Code",
+                Action = (e) =>
+                {
+                    var result = RSParser.ParseFile(e.FileFullPath);
+                    var sourceCode = InterfaceGenerator.GenerateInterface(result);
+                    var path = e.FileFullPath.Substring(0, e.FileFullPath.IndexOf(e.FileName));
+                    path = Path.Combine(path, result.InterfaceName + ".cs");
+                    File.WriteAllText(path, sourceCode);
+                },
             });
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
             {

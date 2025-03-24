@@ -40,6 +40,8 @@ namespace Editor
                 result.Log.AppendLine("full shader");
 
                 var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, e.FileFullPath);
+                vertexSource = RSParser.RemoveServiceMarkers(vertexSource);
+                fragmentSource = RSParser.RemoveServiceMarkers(fragmentSource);
 
                 var options = WindowOptions.Default;
                 options.Size = new Silk.NET.Maths.Vector2D<int>(1, 1);
