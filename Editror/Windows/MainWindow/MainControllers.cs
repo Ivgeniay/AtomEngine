@@ -12,6 +12,7 @@
         Systems,
         Chat,
         Graph,
-        Documentation
+        Documentation,
+        GlslEditor,
     }
 }

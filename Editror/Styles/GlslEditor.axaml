@@ -1,0 +1,107 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Editor="using:Editor"
+        xmlns:ae="using:AvaloniaEdit">
+
+  <Design.PreviewWith>
+    <Border Padding="20">
+      <Editor:GlslEditorController Width="400" Height="300" />
+    </Border>
+  </Design.PreviewWith>
+
+  <!-- Основные стили GlslEditorController -->
+  <Style Selector="Editor|GlslEditorController">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <!-- Стили для панели инструментов -->
+  <Style Selector="Editor|GlslEditorController StackPanel.toolbarPanel">
+    <Setter Property="Orientation" Value="Horizontal"/>
+    <Setter Property="Spacing" Value="5"/>
+    <Setter Property="Margin" Value="5"/>
+  </Style>
+
+  <Style Selector="Editor|GlslEditorController Border.toolbarBackground">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="0 0 0 1"/>
+    <Setter Property="Height" Value="36"/>
+  </Style>
+
+  <!-- Стили для кнопок -->
+  <Style Selector="Editor|GlslEditorController Button.menuButton">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#555555"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="8 4"/>
+    <Setter Property="CornerRadius" Value="2"/>
+    <Setter Property="MinWidth" Value="80"/>
+    <Setter Property="MinHeight" Value="26"/>
+  </Style>
+
+  <Style Selector="Editor|GlslEditorController Button.menuButton:pointerover">
+    <Setter Property="Background" Value="#44444A"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+
+  <Style Selector="Editor|GlslEditorController Button.menuButton:pressed">
+    <Setter Property="Background" Value="#2D2D30"/>
+  </Style>
+
+  <!-- Стили для TextEditor -->
+  <Style Selector="Editor|GlslEditorController ae|TextEditor">
+    <Setter Property="FontFamily" Value="Consolas, Menlo, Monospace"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Foreground" Value="#D4D4D4"/>
+    <Setter Property="Background" Value="#1E1E1E"/>
+    <Setter Property="LineNumbersForeground" Value="#858585"/>
+    <Setter Property="ShowLineNumbers" Value="True"/>
+    <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+  </Style>
+
+  <!-- Стили для текущей строки в TextEditor -->
+  <Style Selector="Editor|GlslEditorController ae|TextEditor /template/ Border#PART_CurrentLine">
+    <Setter Property="Background" Value="#282828"/>
+  </Style>
+
+  <!-- Стили для фона номеров строк -->
+  <Style Selector="Editor|GlslEditorController ae|TextEditor /template/ Border#PART_LineNumbersBackground">
+    <Setter Property="Background" Value="#1E1E1E"/>
+  </Style>
+
+  <!-- Общие стили для подсказок -->
+  <Style Selector="ToolTip">
+    <Setter Property="Background" Value="#2D2D30"/>
+    <Setter Property="Foreground" Value="#CCCCCC"/>
+    <Setter Property="BorderBrush" Value="#3F3F46"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="8"/>
+    <Setter Property="CornerRadius" Value="3"/>
+  </Style>
+
+  <!-- Стили для скроллбаров -->
+  <Style Selector="ScrollBar">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="#3E3E42"/>
+  </Style>
+
+  <Style Selector="ScrollBar:pointerover">
+    <Setter Property="Foreground" Value="#636363"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb">
+    <Setter Property="Background" Value="#3E3E42"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="4"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb:pointerover">
+    <Setter Property="Background" Value="#636363"/>
+  </Style>
+
+  <Style Selector="ScrollBar Thumb:pressed">
+    <Setter Property="Background" Value="#007ACC"/>
+  </Style>
+</Styles>

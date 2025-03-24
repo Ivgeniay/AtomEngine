@@ -632,7 +632,7 @@ namespace Editor
             builder.AppendLine();
             builder.AppendLine("namespace OpenglLib");
             builder.AppendLine("{");
-            builder.AppendLine($"    public partial class {materialName}Representation : Mat *interfaces*");
+            builder.AppendLine($"    public partial class {materialName}Representation : Mat*interfaces*");
             builder.AppendLine("    {");
             builder.AppendLine($"        protected new string VertexSource = @\"{vertexSource.Replace("\"", "\"\"")}\";");
             builder.AppendLine($"        protected new string FragmentSource = @\"{fragmentSource.Replace("\"", "\"\"")}\";");

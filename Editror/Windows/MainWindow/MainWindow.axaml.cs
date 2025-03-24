@@ -51,6 +51,7 @@ namespace Editor
             var systems = new SystemDependencyController();
             var nodeGraphController = new NodeGraphController();
             var docController = new DocumentationController();
+            var glslEditor = new GlslEditorController();
 
             _uIManager.RegisterController(MainControllers.Hierarchy, hierarhy);
             _uIManager.RegisterController(MainControllers.Inspector, inspector);
@@ -62,6 +63,7 @@ namespace Editor
             _uIManager.RegisterController(MainControllers.Systems, systems);
             _uIManager.RegisterController(MainControllers.Graph, nodeGraphController);
             _uIManager.RegisterController(MainControllers.Documentation, docController);
+            _uIManager.RegisterController(MainControllers.GlslEditor, glslEditor);
 
             _uIManager.Initialize();
 
@@ -250,6 +252,15 @@ namespace Editor
                         Action = () =>
                         {
                             _uIManager.OpenWindow(MainControllers.Graph);
+                        }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "GlslEditor",
+                        Description = "Glsl editor",
+                        Action = () =>
+                        {
+                            _uIManager.OpenWindow(MainControllers.GlslEditor);
                         }
                     }
 

@@ -7,6 +7,7 @@ using System.IO;
 using System;
 using System.Threading.Tasks;
 using EngineLib;
+using Avalonia.Threading;
 
 namespace Editor
 {
@@ -24,6 +25,7 @@ namespace Editor
         private InspectorController _inspectorController;
         private ExplorerController _explorerController;
         private SystemDependencyController _nodeGraphController;
+        private GlslEditorController _glslEditorController;
 
         public MainWindowUIManager(MainWindow mainWindow)
         {
@@ -83,6 +85,10 @@ namespace Editor
                 case MainControllers.Systems:
                     _nodeGraphController = (SystemDependencyController)controller;
                     _controls.Add(_nodeGraphController);
+                    break;
+                case MainControllers.GlslEditor:
+                    _glslEditorController = (GlslEditorController)controller;
+                    _controls.Add(_glslEditorController);
                     break;
             }
         }
@@ -282,6 +288,11 @@ namespace Editor
                 IInspectable inspectable = ServiceHub.Get<InspectorDistributor>().GetInspectable(fileData);
                 if (inspectable != null) _inspectorController.Inspect(inspectable);
                 else _inspectorController.CleanInspected();
+
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    _glslEditorController?.OpenFile(fileData.FileFullPath);
+                }, DispatcherPriority.Background);
             };
         }
         private void InitializrSceneView()

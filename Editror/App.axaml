@@ -20,6 +20,7 @@
         <StyleInclude Source="/Styles/Chat.axaml"/>
         <StyleInclude Source="/Styles/Systems.axaml"/>
         <StyleInclude Source="/Styles/Docs.axaml"/>
+        <StyleInclude Source="/Styles/GlslEditor.axaml"/>
       
         <StyleInclude Source="/Styles/VisualElements/ObjectField.axaml"/>
         <StyleInclude Source="/Styles/VisualElements/SearchPopup.axaml"/>

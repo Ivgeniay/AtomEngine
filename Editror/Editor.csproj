@@ -11,6 +11,7 @@
   
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.2.5" />
+    <PackageReference Include="Avalonia.AvaloniaEdit" Version="11.2.0" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.5" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.5" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.5" />
@@ -18,7 +19,9 @@
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="AvaloniaEdit.TextMate" Version="11.2.0" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
+    <PackageReference Include="TextMateSharp.Grammars" Version="1.0.66" />
   </ItemGroup>
 
   <ItemGroup>
@@ -31,6 +34,7 @@
     <AvaloniaXaml Remove="Styles\Dialogues.axaml" />
     <AvaloniaXaml Remove="Styles\DirectoryExplorer.axaml" />
     <AvaloniaXaml Remove="Styles\Docs.axaml" />
+    <AvaloniaXaml Remove="Styles\GlslEditor.axaml" />
     <AvaloniaXaml Remove="Styles\Hierarchy.axaml" />
     <AvaloniaXaml Remove="Styles\Inspector.axaml" />
     <AvaloniaXaml Remove="Styles\NodeGraph.axaml" />
@@ -74,6 +78,9 @@
       <SubType>Designer</SubType>
     </AvaloniaResource>
     <AvaloniaResource Update="Styles\Docs.axaml">
+      <SubType>Designer</SubType>
+    </AvaloniaResource>
+    <AvaloniaResource Update="Styles\GlslEditor.axaml">
       <SubType>Designer</SubType>
     </AvaloniaResource>
     <AvaloniaResource Update="Styles\Hierarchy.axaml">
