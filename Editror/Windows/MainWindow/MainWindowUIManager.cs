@@ -182,14 +182,7 @@ namespace Editor
         private void InitializeInspector() { }
         private void InitializeExplorer()
         {
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
-            {
-                Extension = ".txt",
-                Name = "Read",
-                Description = "sd",
-                Action = (e) => DebLogger.Debug($"{e}"),
-                SubCategory = new string[] { "sub1", "sub2" }
-            });
+            #region C#
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
             {
                 Extension = ".cs",
@@ -199,70 +192,13 @@ namespace Editor
                 {
                     ServiceHub.Get<ScriptSyncSystem>().OpenProjectInIDE(e.FileFullPath);
                 },
-            });
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
-            {
-                Extension = ".glsl",
-                Name = "Open in IDE",
-                Description = "Open file in IDE",
-                Action = (e) =>
-                {
-                    ServiceHub.Get<ScriptSyncSystem>().OpenProjectInIDE(e.FileFullPath);
-                },
-            }); 
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
-            {
-                Extension = ".rs",
-                Name = "Denerate Code",
-                Description = "Denerate Code",
-                Action = (e) =>
-                {
-                    var result = RSParser.ParseFile(e.FileFullPath);
-                    var sourceCode = InterfaceGenerator.GenerateInterface(result);
-                    var path = e.FileFullPath.Substring(0, e.FileFullPath.IndexOf(e.FileName));
-                    path = Path.Combine(path, result.InterfaceName + ".cs");
-                    File.WriteAllText(path, sourceCode);
-                },
-            });
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
-            {
-                Extension = ".glsl",
-                Name = "Generate C#",
-                Description = "Generate c sharp view glsl code",
-                Action = (e) =>
-                {
-                    GlslCodeGenerator.GenerateCode(e.FileFullPath, Path.Combine(e.FilePath, $"GeneratedFrom{e.FileName}"));
-                }
-            });
-
-            //_explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
-            //{
-            //    Extension = ".glsl",
-            //    Name = "Generate All",
-            //    Description = "Generate c sharp view glsl code",
-            //    Action = (e) =>
-            //    {
-            //        //ShaderCodeGenerationManager.GenerateAllShadersAndComponents(e.FileFullPath, e.FilePath);
-            //        ShaderCodeGenerationManager.GenerateShadersAndComponents(e.FilePath, e.FilePath);
-            //    }
-            //});
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
-            {
-                Extension = ".glsl",
-                Name = "Try To Compile",
-                Description = "Checking to compiling code",
-                Action = (e) =>
-                {
-                    var result = GlslCompiler.TryToCompile(e);
-                    if (result.Success) DebLogger.Info(result);
-                    else DebLogger.Error(result);
-                }
             });
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
             {
                 Extension = ".cs",
                 Name = "Create Material",
                 Description = "Create material from shader representation",
+                SubCategory = new string[] { "Generate" },
                 Action = (e) =>
                 {
                     if (e.FileName.EndsWith($"{GlslCodeGenerator.LABLE}.cs"))
@@ -282,6 +218,71 @@ namespace Editor
                     }
                 }
             });
+            #endregion
+            #region RC
+            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".rc",
+                Name = "Onep with GLSL editor",
+                Description = "Open with GLSL editor",
+                SubCategory = new string[] { "Shader" },
+                Action = (e) =>
+                {
+                    OpenWindow(MainControllers.GlslEditor);
+                    _glslEditorController.OpenFile(e.FileFullPath);
+                },
+            });
+            #endregion
+            #region GLSL
+            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".glsl",
+                Name = "Open with IDE",
+                Description = "Open file in IDE",
+                SubCategory = new string[] { "Shader" },
+                Action = (e) =>
+                {
+                    ServiceHub.Get<ScriptSyncSystem>().OpenProjectInIDE(e.FileFullPath);
+                },
+            });
+            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".glsl",
+                Name = "Generate C# ",
+                Description = "Generate C# Representation",
+                SubCategory = new string[] { "Shader" },
+                Action = (e) =>
+                {
+                    GlslCodeGenerator.GenerateCode(e.FileFullPath, Path.Combine(e.FilePath, $"GeneratedFrom{e.FileName}"), true);
+                }
+            });
+            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".glsl",
+                Name = "Try To Compile",
+                Description = "Checking to compiling code",
+                SubCategory = new string[] { "Shader" },
+                Action = (e) =>
+                {
+                    var result = GlslCompiler.TryToCompile(e);
+                    if (result.Success) DebLogger.Info(result);
+                    else DebLogger.Error(result);
+                }
+            });
+            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            {
+                Extension = ".glsl",
+                Name = "Onep with GLSL editor",
+                Description = "Open with GLSL editor",
+                SubCategory = new string[] { "Shader" },
+                Action = (e) =>
+                {
+                    OpenWindow(MainControllers.GlslEditor);
+                    _glslEditorController.OpenFile(e.FileFullPath);
+                }
+            });
+            #endregion
+            
 
             _explorerController.FileSelected += (fileData) =>
             {

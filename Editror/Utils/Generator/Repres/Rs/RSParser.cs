@@ -65,7 +65,7 @@ namespace Editor
 
                         var includeContent = File.ReadAllText(fullPath);
 
-                        if (Path.GetExtension(fullPath).ToLower() == ".rs")
+                        if (Path.GetExtension(fullPath).ToLower() == ".rc")
                         {
                             var rsInfo = ParseContent(includeContent, fullPath);
                             rsFiles.Add(rsInfo);

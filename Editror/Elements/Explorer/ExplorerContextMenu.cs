@@ -14,6 +14,9 @@ namespace Editor
         private readonly ContextMenu _directoryContextMenu;
         private readonly ContextMenu _fileContextMenu;
 
+        public ContextMenu DirectoryContextMenu => _directoryContextMenu;
+        public ContextMenu FileContextMenu => _fileContextMenu;
+
         public ExplorerContextMenu(ExplorerController controller, List<DescriptionCustomContextMenu> customContextMenus)
         {
             _controller = controller;
@@ -151,7 +154,6 @@ namespace Editor
         public ContextMenu CreateFileContextMenu(string filename, string path)
         {
             var contextMenu = CreateDefaultFileContextMenu();
-
             string extension = Path.GetExtension(filename);
             if (string.IsNullOrEmpty(extension))
                 return contextMenu;
@@ -168,44 +170,61 @@ namespace Editor
                     Classes = { "explorerMenuSeparator" }
                 });
 
+                Dictionary<string, MenuItem> categoryMenuItems = new Dictionary<string, MenuItem>();
+
                 foreach (var customMenu in customMenus)
                 {
                     if (customMenu.SubCategory != null && customMenu.SubCategory.Length > 0)
                     {
-                        MenuItem Item = new MenuItem
+                        var command = new Command(() => customMenu.Action?.Invoke(new FileSelectionEvent
+                        {
+                            FileName = filename,
+                            FileFullPath = path,
+                            FilePath = path.Substring(0, path.IndexOf(filename)),
+                            FileExtension = extension
+                        }));
+
+                        MenuItem finalItem = new MenuItem
                         {
                             Header = customMenu.Name,
                             Classes = { "explorerMenu", "explorerMenuItem" },
-                            Command = new Command(() => customMenu.Action?.Invoke(new FileSelectionEvent
-                            {
-                                FileName = filename,
-                                FileFullPath = path,
-                                FilePath = path.Substring(0, path.IndexOf(filename)),
-                                FileExtension = extension
-                            })),
+                            Command = command
                         };
 
-                        MenuItem root = new MenuItem
-                        {
-                            Header = customMenu.SubCategory[0],
-                            Classes = { "explorerMenuItem" },
-                        };
-                        contextMenu.Items.Insert(0, root);
+                        var parentCollection = contextMenu.Items;
+                        MenuItem currentParent = null;
+                        string categoryPath = string.Empty;
 
-                        var others = customMenu.SubCategory.Skip(1);
-                        foreach (var subCategory in others)
+                        foreach (var category in customMenu.SubCategory)
                         {
-                            var new_ = new MenuItem
+                            categoryPath = string.IsNullOrEmpty(categoryPath) ?
+                                category : $"{categoryPath}|{category}";
+
+                            if (!categoryMenuItems.TryGetValue(categoryPath, out MenuItem categoryItem))
                             {
-                                Header = subCategory,
-                                Classes = { "explorerMenu", "explorerMenuItem" },
-                            };
-
-                            root.Items.Add(new_);
-                            root = new_;
+                                categoryItem = new MenuItem
+                                {
+                                    Header = category,
+                                    Classes = { "explorerMenu", "explorerMenuItem" }
+                                };
+                                if (currentParent == null)
+                                {
+                                    parentCollection.Insert(0, categoryItem);
+                                }
+                                else
+                                {
+                                    currentParent.Items.Add(categoryItem);
+                                }
+                                categoryMenuItems[categoryPath] = categoryItem;
+                            }
+                            currentParent = categoryItem;
+                            parentCollection = categoryItem.Items;
                         }
 
-                        root.Items.Add(Item);
+                        if (currentParent != null)
+                        {
+                            currentParent.Items.Add(finalItem);
+                        }
                     }
                     else
                     {
@@ -250,6 +269,7 @@ namespace Editor
 
             return menu;
         }
+        
         public void ShowDirectoryContextMenu(Control target)
         {
             _directoryContextMenu.PlacementTarget = target;
@@ -293,8 +313,5 @@ namespace Editor
                 _customContextMenus.Add(description);
         }
 
-        public ContextMenu DirectoryContextMenu => _directoryContextMenu;
-
-        public ContextMenu FileContextMenu => _fileContextMenu;
     }
 }
