@@ -23,8 +23,11 @@ namespace Editor
             Environment.SetEnvironmentVariable("AVALONIA_DISABLE_ANGLE", "1");
         }
 
+
         public override void OnFrameworkInitializationCompleted()
         {
+            //AvaloniaXamlLoader.Load(new AvaloniaEdit.AvaloniaEditTheme());
+
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 loadingWindow = new LoadingWindow();

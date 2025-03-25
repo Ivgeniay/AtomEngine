@@ -19,18 +19,35 @@ using TextMateSharp.Grammars;
 using AvaloniaEdit.Highlighting.Xshd;
 using System.Reflection;
 using System.Xml;
+using AtomEngine;
+using Avalonia.Data;
+using OpenglLib;
+using System.Xml.Linq;
+using Avalonia.Input;
+using AvaloniaEdit.Editing;
+using static System.Collections.Specialized.BitVector32;
 
 namespace Editor
 {
     public class GlslEditorController : Grid, IWindowed, ICacheble
     {
+        public event Action<string>? OnFileChange;
+        public event Action? OnPrepareFileChange;
+
         private string _currentFilePath;
         private TextEditor _textEditor;
         private GlslAnalyzer _glslAnalyzer;
         private Button _saveButton;
         private StackPanel _toolbarPanel;
+        private TextMarkerService _textMarkerService;
         private List<SimpleTextMarker> _errorMarkers = new List<SimpleTextMarker>();
+        private List<SimpleTextMarker> _readOnlyMarkers = new List<SimpleTextMarker>();
         private List<IncludeFileInfo> _includedFiles = new List<IncludeFileInfo>();
+
+        private List<GlslIncludeEventArgs> _processedInclude = new List<GlslIncludeEventArgs>();
+
+        private ReadOnlySections _readOnlySections;
+        private ReadOnlySectionEditingBehavior _readOnlyBehavior;
 
         public Action<object> OnClose { get; set; }
 
@@ -40,6 +57,11 @@ namespace Editor
             _glslAnalyzer = new GlslAnalyzer();
             _glslAnalyzer.ErrorFound += OnErrorFound;
             _glslAnalyzer.IncludeFound += OnIncludeFound;
+
+            OnPrepareFileChange += () =>
+            {
+                _processedInclude.Clear();
+            };
         }
 
         private void InitializeUI()
@@ -93,13 +115,19 @@ namespace Editor
 
             Grid.SetRow(_textEditor, 1);
             Children.Add(_textEditor);
+
+            _textMarkerService = new TextMarkerService(_textEditor.Document);
+            _textEditor.TextArea.TextView.BackgroundRenderers.Add(_textMarkerService);
+            _textEditor.TextArea.TextView.LineTransformers.Add(_textMarkerService);
+
+            _readOnlySections = new ReadOnlySections();
+            _readOnlyBehavior = new ReadOnlySectionEditingBehavior(_textEditor, offset => _readOnlySections.IsReadOnly(offset));
         }
 
         private void SetupSyntaxHighlighting()
         {
             try
             {
-                // Пытаемся загрузить подсветку GLSL из ресурсов
                 using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Editor.Resources.GLSL.xshd"))
                 {
                     if (s != null)
@@ -111,7 +139,6 @@ namespace Editor
                     }
                     else
                     {
-                        // Если не нашли ресурс, используем подсветку C#
                         _textEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
                     }
                 }
@@ -119,8 +146,6 @@ namespace Editor
             catch (Exception ex)
             {
                 Status.SetStatus($"Ошибка при установке подсветки синтаксиса: {ex.Message}");
-
-                // В случае ошибки используем подсветку C#
                 _textEditor.SyntaxHighlighting = HighlightingManager.Instance.GetDefinition("C#");
             }
         }
@@ -135,11 +160,10 @@ namespace Editor
 
             try
             {
+                OnPrepareFileChange?.Invoke();
+
                 _currentFilePath = filePath;
                 string content = File.ReadAllText(filePath);
-
-                // Отладочная информация
-                Status.SetStatus($"Файл прочитан. Размер: {content.Length} символов");
 
                 _textEditor.Document.Text = content;
 
@@ -148,6 +172,8 @@ namespace Editor
 
                 _textEditor.CaretOffset = 0;
                 _glslAnalyzer.Analyze(content, filePath);
+
+                OnFileChange?.Invoke(_currentFilePath);
 
                 Status.SetStatus($"Файл открыт: {Path.GetFileName(filePath)}");
             }
@@ -167,7 +193,10 @@ namespace Editor
 
             try
             {
-                File.WriteAllText(_currentFilePath, _textEditor.Document.Text);
+                DebLogger.Debug($"Save {_currentFilePath}");
+                DebLogger.Debug($"{_textEditor.Document.Text}");
+
+                //File.WriteAllText(_currentFilePath, _textEditor.Document.Text);
                 Status.SetStatus($"Файл сохранен: {Path.GetFileName(_currentFilePath)}");
             }
             catch (Exception ex)
@@ -184,11 +213,13 @@ namespace Editor
                 {
                     ClearErrorMarkers();
                     _glslAnalyzer.Analyze(_textEditor.Document.Text, _currentFilePath);
+
+                    UpdateReadOnlySections();
                 }
             }, DispatcherPriority.Background);
         }
 
-        private void OnErrorFound(object sender, GlslErrorEventArgs e)
+        private void OnErrorFound(object? sender, GlslErrorEventArgs e)
         {
             Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -205,9 +236,7 @@ namespace Editor
                         Message = e.Message
                     };
 
-                    // Применяем визуальное выделение ошибки в тексте
                     _textEditor.TextArea.TextView.InvalidateVisual();
-
                     _errorMarkers.Add(errorMarker);
                 }
                 catch (Exception ex)
@@ -217,12 +246,15 @@ namespace Editor
             });
         }
 
-        private void OnIncludeFound(object sender, GlslIncludeEventArgs e)
+        private void OnIncludeFound(object? sender, GlslIncludeEventArgs e)
         {
             Dispatcher.UIThread.InvokeAsync(() =>
             {
                 try
                 {
+                    if (_processedInclude.Contains(e)) return;
+                    _processedInclude.Add(e);
+
                     string includeFilePath = Path.GetFullPath(Path.Combine(
                         Path.GetDirectoryName(_currentFilePath), e.IncludePath));
 
@@ -265,8 +297,15 @@ namespace Editor
                 var document = _textEditor.Document;
                 var lineObj = document.GetLineByNumber(line);
 
-                // Вставляем содержимое включаемого файла как комментарий
-                document.Insert(lineObj.EndOffset, $"\n// Начало {Path.GetFileName(filePath)}\n{content}\n// Конец {Path.GetFileName(filePath)}");
+                int insertPosition = lineObj.EndOffset + 1;
+                string includedContent = $"\n{content}";
+                document.Insert(insertPosition, includedContent);
+
+                DocumentLine startLine = document.GetLineByOffset(insertPosition);
+                int contentLines = content.Split('\n').Length;
+                DocumentLine endLine = document.GetLineByNumber(startLine.LineNumber + contentLines + 1);
+
+                AddReadOnlySection(startLine.Offset, endLine.EndOffset);
             }
             catch (Exception ex)
             {
@@ -274,15 +313,85 @@ namespace Editor
             }
         }
 
-        private void ClearErrorMarkers()
+        #region ReadOnly
+        public void AddReadOnlySection(int startOffset, int endOffset)
         {
-            _errorMarkers.Clear();
+            _readOnlySections.AddSection(startOffset, endOffset);
+            UpdateReadOnlySections();
+        }
+
+        private void UpdateReadOnlySections()
+        {
+            ClearMarkers(_readOnlyMarkers);
+
+            foreach (var section in _readOnlySections.GetSections())
+            {
+                var marker = new SimpleTextMarker
+                {
+                    StartOffset = section.Start,
+                    Length = section.End - section.Start,
+                    BackgroundColor = new SolidColorBrush(Color.Parse("#1C2834")),
+                    MarkerType = TextMarkerType.Highlight,
+                    Message = "Нередактируемая область"
+                };
+
+                AddTextMarker(marker);
+                _readOnlyMarkers.Add(marker);
+            }
+        }
+        #endregion
+
+        #region Markers
+        private void AddTextMarker(SimpleTextMarker marker)
+        {
+            var textMarker = _textMarkerService.Create(marker.StartOffset, marker.Length);
+
+            if (marker.BackgroundColor != null)
+            {
+                textMarker.BackgroundColor = marker.BackgroundColor;
+            }
+
+            if (marker.MarkerType != TextMarkerType.None)
+            {
+                textMarker.MarkerType = marker.MarkerType;
+                switch (marker.MarkerType)
+                {
+                    case TextMarkerType.SquigglyUnderline:
+                        textMarker.MarkerColor = Color.Parse("#FF2222");
+                        break;
+                    case TextMarkerType.Highlight:
+                        textMarker.MarkerColor = Color.Parse("#1C2834");
+                        break;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(marker.Message))
+                textMarker.ToolTip = marker.Message;
+
+            textMarker.Redraw();
+        }
+
+        private void ClearMarkers(List<SimpleTextMarker> markers)
+        {
+            _textMarkerService.RemoveAll(); 
+            markers.Clear();
             _textEditor.TextArea.TextView.InvalidateVisual();
         }
 
+        private void ClearErrorMarkers()
+        {
+            ClearMarkers(_errorMarkers);
+        }
+        #endregion
+
+        //private void ClearErrorMarkers()
+        //{
+        //    _errorMarkers.Clear();
+        //    _textEditor.TextArea.TextView.InvalidateVisual();
+        //}
+
         public void Open()
         {
-            // Метод вызывается при открытии окна
         }
 
         public void Close()
@@ -308,6 +417,7 @@ namespace Editor
                 _textEditor.Document.Text = string.Empty;
                 ClearErrorMarkers();
                 _includedFiles.Clear();
+                _processedInclude.Clear();
             }));
         }
     }
@@ -324,10 +434,132 @@ namespace Editor
     {
         public int Line { get; set; }
         public int Column { get; set; }
+        public int StartOffset { get; set; }
         public int Length { get; set; }
         public string Message { get; set; }
+        public IBrush BackgroundColor { get; set; }
+        public TextMarkerType MarkerType { get; set; } = TextMarkerType.None;
     }
 
+
+
+    public class ReadOnlySectionEditingBehavior : IReadOnlySectionProvider
+    {
+        private readonly TextEditor _editor;
+        private readonly Func<int, bool> _isReadOnlyFunc;
+
+        public ReadOnlySectionEditingBehavior(TextEditor editor, Func<int, bool> isReadOnlyFunc)
+        {
+            _editor = editor ?? throw new ArgumentNullException(nameof(editor));
+            _isReadOnlyFunc = isReadOnlyFunc ?? throw new ArgumentNullException(nameof(isReadOnlyFunc));
+
+            _editor.TextArea.ReadOnlySectionProvider = this;
+            _editor.TextArea.TextEntering += TextArea_TextEntering;
+        }
+
+        private void TextArea_TextEntering(object sender, TextInputEventArgs e)
+        {
+            int offset = _editor.CaretOffset;
+            if (_isReadOnlyFunc(offset))
+            {
+                e.Handled = true; 
+            }
+        }
+
+        public bool CanInsert(int offset)
+        {
+            return !_isReadOnlyFunc(offset);
+        }
+
+        public bool IsReadOnly(int offset)
+        {
+            return _isReadOnlyFunc(offset);
+        }
+
+        public void Detach()
+        {
+            _editor.TextArea.ReadOnlySectionProvider = null;
+            _editor.TextArea.TextEntering -= TextArea_TextEntering;
+        }
+
+        public IEnumerable<ISegment> GetDeletableSegments(ISegment segment)
+        {
+            int startOffset = segment.Offset;
+            int endOffset = segment.EndOffset;
+
+            if (!_isReadOnlyFunc(startOffset) && !_isReadOnlyFunc(endOffset - 1))
+            {
+                bool hasReadOnlyParts = false;
+                for (int i = startOffset; i < endOffset; i++)
+                {
+                    if (_isReadOnlyFunc(i))
+                    {
+                        hasReadOnlyParts = true;
+                        break;
+                    }
+                }
+
+                if (!hasReadOnlyParts)
+                {
+                    yield return segment;
+                    yield break;
+                }
+            }
+
+            int currentStart = -1;
+            for (int i = startOffset; i < endOffset; i++)
+            {
+                if (!_isReadOnlyFunc(i))
+                {
+                    if (currentStart == -1)
+                        currentStart = i;
+                }
+                else
+                {
+                    if (currentStart != -1)
+                    {
+                        yield return new TextSegment { StartOffset = currentStart, EndOffset = i };
+                        currentStart = -1;
+                    }
+                }
+            }
+
+            if (currentStart != -1)
+            {
+                yield return new TextSegment { StartOffset = currentStart, EndOffset = endOffset };
+            }
+        }
+    }
+    public class ReadOnlySections
+    {
+        public List<(int Start, int End)> Sections = new List<(int Start, int End)>();
+
+        public void AddSection(int startOffset, int endOffset)
+        {
+            Sections.Add((startOffset, endOffset));
+        }
+
+        public void ClearSections()
+        {
+            Sections.Clear();
+        }
+
+        public bool IsReadOnly(int offset)
+        {
+            foreach (var section in Sections)
+            {
+                if (offset >= section.Start && offset < section.End)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        public IEnumerable<(int Start, int End)> GetSections()
+        {
+            return Sections;
+        }
+    }
 
 
 
@@ -588,8 +820,44 @@ namespace Editor
         public int Line { get; set; }
         public int Column { get; set; }
         public int Length { get; set; }
-        public string IncludePath { get; set; }
-        public string FullPath { get; set; }
+        public string IncludePath { get; set; } = string.Empty;
+        public string FullPath { get; set; } = string.Empty;
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is null) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != GetType()) return false;
+            return Equals(obj as GlslIncludeEventArgs);
+        }
+
+        public bool Equals(GlslIncludeEventArgs? other)
+        {
+            if (other is null) return false;
+            if (ReferenceEquals(this, other)) return true;
+            return IncludePath == other.IncludePath &&
+                   FullPath == other.FullPath;
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + IncludePath.GetHashCode(); 
+                hash = hash * 23 + FullPath.GetHashCode();
+                return hash;
+            }
+        }
+
+        public static bool operator ==(GlslIncludeEventArgs? left, GlslIncludeEventArgs? right)
+        {
+            if (left is null) return right is null;
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(GlslIncludeEventArgs? left, GlslIncludeEventArgs? right) =>
+            !(left == right);
     }
 
 
@@ -818,7 +1086,7 @@ namespace Editor
             return _markers.Where(m => m.StartOffset <= offset && offset <= (m.StartOffset + m.Length));
         }
 
-        private void DocumentChanged(object sender, DocumentChangeEventArgs e)
+        private void DocumentChanged(object? sender, DocumentChangeEventArgs e)
         {
             foreach (TextMarker marker in _markers.ToList())
             {

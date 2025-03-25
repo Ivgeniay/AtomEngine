@@ -6,6 +6,7 @@
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
         <StyleInclude Source="/Styles/Dialogues.axaml"/>
         <StyleInclude Source="/Styles/Comon.axaml"/>
         <StyleInclude Source="/Styles/Console.axaml"/>
