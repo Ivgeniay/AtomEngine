@@ -11,22 +11,17 @@ using System.Linq;
 using AvaloniaEdit.Rendering;
 using AvaloniaEdit.Document;
 using AvaloniaEdit;
-using AvaloniaEdit.Search;
 using AvaloniaEdit.Folding;
-using AvaloniaEdit.TextMate;
 using AvaloniaEdit.Highlighting;
-using TextMateSharp.Grammars;
 using AvaloniaEdit.Highlighting.Xshd;
 using System.Reflection;
 using System.Xml;
 using AtomEngine;
-using Avalonia.Data;
-using OpenglLib;
-using System.Xml.Linq;
 using Avalonia.Input;
 using AvaloniaEdit.Editing;
-using static System.Collections.Specialized.BitVector32;
-using static AvaloniaEdit.Rendering.TextViewWeakEventManager;
+using TextMateSharp.Grammars;
+using AvaloniaEdit.Indentation;
+using AvaloniaEdit.TextMate;
 
 namespace Editor
 {
@@ -36,6 +31,7 @@ namespace Editor
         public event Action? OnPrepareFileChange;
 
         private string _currentFilePath;
+        private ComboBox _syntaxModeCombo;
         private TextEditor _textEditor;
         private GlslAnalyzer _glslAnalyzer;
         private Button _saveButton;
@@ -47,13 +43,51 @@ namespace Editor
         private ReadOnlySections _readOnlySections;
         private ReadOnlySectionEditingBehavior _readOnlyBehavior;
 
+        // Флаг для отслеживания внутренних изменений документа
+        private bool _internalChanging = false;
+
         public Action<object> OnClose { get; set; }
+
+        private RegistryOptions _registryOptions;
+        private int _currentTheme = (int)ThemeName.DarkPlus;
+        private readonly TextMate.Installation _textMateInstallation;
 
         public GlslEditorController()
         {
             InitializeUI();
 
-            // Инициализируем провайдер состояний
+            _textEditor.HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Visible;
+            _textEditor.Background = Brushes.Transparent;
+            _textEditor.ShowLineNumbers = true;
+            _textEditor.TextArea.Background = this.Background;
+            //_textEditor.TextArea.TextEntered += textEditor_TextArea_TextEntered;
+            //_textEditor.TextArea.TextEntering += textEditor_TextArea_TextEntering;
+            _textEditor.Options.AllowToggleOverstrikeMode = true;
+            _textEditor.Options.EnableTextDragDrop = true;
+            _textEditor.Options.ShowBoxForControlCharacters = true;
+            _textEditor.Options.ColumnRulerPositions = new List<int>() { 80, 100 };
+            _textEditor.TextArea.IndentationStrategy = new GlslFoldingStrategy();
+            _textEditor.TextArea.Caret.PositionChanged += Caret_PositionChanged;
+            _textEditor.TextArea.RightClickMovesCaret = true;
+            _textEditor.Options.HighlightCurrentLine = true;
+            _textEditor.TextArea.TextView.LineTransformers.Add(new UnderlineAndStrikeThroughTransformer());
+
+
+            _registryOptions = new RegistryOptions((ThemeName)_currentTheme);
+            _textMateInstallation = _textEditor.InstallTextMate(_registryOptions);
+            Language csharpLanguage = _registryOptions.GetLanguageByExtension(".c");
+            string scopeName = _registryOptions.GetScopeByLanguageId(csharpLanguage.Id);
+            _textMateInstallation.SetGrammar(_registryOptions.GetScopeByLanguageId(csharpLanguage.Id));
+            _textMateInstallation.AppliedTheme += TextMateInstallationOnAppliedTheme;
+
+            this.AddHandler(PointerWheelChangedEvent, (o, i) =>
+            {
+                if (i.KeyModifiers != KeyModifiers.Control) return;
+                if (i.Delta.Y > 0) _textEditor.FontSize++;
+                else _textEditor.FontSize = _textEditor.FontSize > 1 ? _textEditor.FontSize - 1 : 1;
+            }, RoutingStrategies.Bubble, true);
+
+
             _stateProvider = new GlslEditorStateProvider();
 
             _readOnlySections = new ReadOnlySections();
@@ -65,6 +99,7 @@ namespace Editor
 
             _includeManager = new GlslIncludeManager(_textEditor, _textMarkerService, _readOnlySections, _stateProvider);
             _includeManager.OnIncludeFileOpen += OnIncludeFileOpen;
+            _includeManager.OnDocumentChanging += (isChanging) => _internalChanging = isChanging;
 
             _glslAnalyzer = new GlslAnalyzer();
             _glslAnalyzer.ErrorFound += OnErrorFound;
@@ -174,6 +209,8 @@ namespace Editor
                 var loadingState = new GlslFileLoadingState();
                 _stateProvider.RegisterState(loadingState);
 
+                // Устанавливаем флаг внутреннего изменения
+                _internalChanging = true;
                 try
                 {
                     _textEditor.Document.Text = content;
@@ -195,11 +232,13 @@ namespace Editor
                 }
                 finally
                 {
+                    _internalChanging = false;
                     _stateProvider.RemoveState<GlslFileLoadingState>();
                 }
             }
             catch (Exception ex)
             {
+                _internalChanging = false;
                 Status.SetStatus($"Ошибка при открытии файла: {ex.Message}");
             }
         }
@@ -230,8 +269,8 @@ namespace Editor
 
         private void OnTextChanged(object sender, EventArgs e)
         {
-            // Проверяем, не находимся ли мы в состоянии загрузки файла
-            if (_stateProvider.HasState<GlslFileLoadingState>())
+            // Если изменение внутреннее или идет загрузка файла, игнорируем
+            if (_internalChanging || _stateProvider.HasState<GlslFileLoadingState>())
                 return;
 
             Dispatcher.UIThread.InvokeAsync(() =>
@@ -308,6 +347,90 @@ namespace Editor
             _errorMarkers.Clear();
         }
 
+        private void RemoveUnderlineAndStrikethroughTransformer()
+        {
+            for (int i = _textEditor.TextArea.TextView.LineTransformers.Count - 1; i >= 0; i--)
+            {
+                if (_textEditor.TextArea.TextView.LineTransformers[i] is UnderlineAndStrikeThroughTransformer)
+                {
+                    _textEditor.TextArea.TextView.LineTransformers.RemoveAt(i);
+                }
+            }
+        }
+
+        private void TextMateInstallationOnAppliedTheme(object sender, TextMate.Installation e)
+        {
+            ApplyThemeColorsToEditor(e);
+            ApplyThemeColorsToWindow(e);
+        }
+
+        void ApplyThemeColorsToEditor(TextMate.Installation e)
+        {
+            ApplyBrushAction(e, "editor.background", brush => _textEditor.Background = brush);
+            ApplyBrushAction(e, "editor.foreground", brush => _textEditor.Foreground = brush);
+
+            if (!ApplyBrushAction(e, "editor.selectionBackground",
+                    brush => _textEditor.TextArea.SelectionBrush = brush))
+            {
+                //if (Application.Current!.TryGetResource("TextAreaSelectionBrush", out var resourceObject))
+                //{
+                //    if (resourceObject is IBrush brush)
+                //    {
+                //        _textEditor.TextArea.SelectionBrush = brush;
+                //    }
+                //}
+            }
+
+            if (!ApplyBrushAction(e, "editor.lineHighlightBackground",
+                    brush =>
+                    {
+                        _textEditor.TextArea.TextView.CurrentLineBackground = brush;
+                        _textEditor.TextArea.TextView.CurrentLineBorder = new Pen(brush); // Todo: VS Code didn't seem to have a border but it might be nice to have that option. For now just make it the same..
+                    }))
+            {
+                _textEditor.TextArea.TextView.SetDefaultHighlightLineColors();
+            }
+
+            //Todo: looks like the margin doesn't have a active line highlight, would be a nice addition
+            if (!ApplyBrushAction(e, "editorLineNumber.foreground",
+                    brush => _textEditor.LineNumbersForeground = brush))
+            {
+                _textEditor.LineNumbersForeground = _textEditor.Foreground;
+            }
+        }
+
+        private void ApplyThemeColorsToWindow(TextMate.Installation e)
+        {
+            var panel = this.Find<StackPanel>("StatusBar");
+            if (panel == null)
+            {
+                return;
+            }
+
+            ApplyBrushAction(e, "editor.background", brush => Background = brush);
+            //ApplyBrushAction(e, "editor.foreground", brush => Foreground = brush);
+        }
+
+        bool ApplyBrushAction(TextMate.Installation e, string colorKeyNameFromJson, Action<Avalonia.Media.IBrush> applyColorAction)
+        {
+            if (!e.TryGetThemeColor(colorKeyNameFromJson, out var colorString))
+                return false;
+
+            if (!Color.TryParse(colorString, out Color color))
+                return false;
+
+            var colorBrush = new SolidColorBrush(color);
+            applyColorAction(colorBrush);
+            return true;
+        }
+
+        private void Caret_PositionChanged(object? sender, EventArgs e)
+        {
+            Status.SetStatus(string.Format("Line {0} Column {1}",
+                _textEditor.TextArea.Caret.Line,
+                _textEditor.TextArea.Caret.Column));
+        }
+
         public void Open()
         {
         }
@@ -335,10 +458,18 @@ namespace Editor
         {
             Dispatcher.UIThread.Invoke(new Action(() =>
             {
-                _currentFilePath = null;
-                _textEditor.Document.Text = string.Empty;
-                ClearErrorMarkers();
-                _includeManager.Reset();
+                _internalChanging = true;
+                try
+                {
+                    _currentFilePath = null;
+                    _textEditor.Document.Text = string.Empty;
+                    ClearErrorMarkers();
+                    _includeManager.Reset();
+                }
+                finally
+                {
+                    _internalChanging = false;
+                }
             }));
         }
     }
@@ -530,7 +661,9 @@ namespace Editor
         private DispatcherTimer _changesProcessingTimer;
 
         private string _currentFilePath;
+        private bool _internalChanging = false;
 
+        public event Action<bool> OnDocumentChanging;
         public event Action<string, string> OnIncludeFileOpen;
 
         public GlslIncludeManager(TextEditor textEditor, TextMarkerService textMarkerService,
@@ -544,23 +677,15 @@ namespace Editor
             _textEditor.Document.Changed += Document_Changed;
         }
 
-        public void SetCurrentFile(string filePath)
+        private void SetInternalChanging(bool value)
         {
-            _currentFilePath = filePath;
-            Reset();
-        }
-
-        public void Reset()
-        {
-            ClearAllIncludes();
-            _dirtyLines.Clear();
-
-            StopProcessingTimer();
+            _internalChanging = value;
+            OnDocumentChanging?.Invoke(value);
         }
 
         private void Document_Changed(object sender, DocumentChangeEventArgs e)
         {
-            if (string.IsNullOrEmpty(_currentFilePath))
+            if (string.IsNullOrEmpty(_currentFilePath) || _internalChanging)
                 return;
 
             // Если изменения производятся в рамках обработки директив include, игнорируем их
@@ -596,6 +721,322 @@ namespace Editor
             if (_dirtyLines.Count > 0)
             {
                 ResetAndStartProcessingTimer();
+            }
+        }
+
+        private void RemoveIncludedContent(IncludeFileInfo include)
+        {
+            // Проверяем, что у нас есть информация о начале и конце включенного содержимого
+            if (include.ContentSectionStart > 0 && include.ContentSectionEnd > 0)
+            {
+                try
+                {
+                    // Получаем строки, соответствующие включенному содержимому
+                    var startLine = _textEditor.Document.GetLineByOffset(include.ContentSectionStart);
+                    var endLine = _textEditor.Document.GetLineByOffset(include.ContentSectionEnd);
+
+                    // Удаляем нередактируемую секцию
+                    _readOnlySections.RemoveSection(include.ContentSectionStart, include.ContentSectionEnd);
+
+                    // Находим и удаляем соответствующие маркеры
+                    for (int i = _includeMarkers.Count - 1; i >= 0; i--)
+                    {
+                        var marker = _includeMarkers[i];
+                        if (marker.StartOffset >= include.ContentSectionStart &&
+                            marker.StartOffset < include.ContentSectionEnd)
+                        {
+                            marker.Delete();
+                            _includeMarkers.RemoveAt(i);
+                        }
+                    }
+
+                    // Устанавливаем флаг внутреннего изменения перед изменением документа
+                    SetInternalChanging(true);
+                    try
+                    {
+                        // Удаляем текст из документа
+                        int removeLength = include.ContentSectionEnd - include.ContentSectionStart;
+                        if (removeLength > 0)
+                        {
+                            _textEditor.Document.Remove(include.ContentSectionStart, removeLength);
+                        }
+                    }
+                    finally
+                    {
+                        // Сбрасываем флаг внутреннего изменения
+                        SetInternalChanging(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Status.SetStatus($"Ошибка при удалении включенного содержимого: {ex.Message}");
+                    SetInternalChanging(false); // на всякий случай сбрасываем флаг при ошибке
+                }
+            }
+        }
+        private const string FILE_NOT_FOUND = "File not found: ";
+        private void InsertFileNotFoundMessage(int line, string path)
+        {
+            try
+            {
+                var document = _textEditor.Document;
+                var lineObj = document.GetLineByNumber(line);
+
+                int insertPosition = lineObj.EndOffset;
+                string errorMessage = $"\n{FILE_NOT_FOUND}" + path;
+
+                // Проверяем следующую строку
+                if (line < document.LineCount)
+                {
+                    var currentLine = document.GetLineByNumber(line);
+                    string currentLineText = document.GetText(currentLine.Offset, currentLine.Length);
+
+                    var nextLine = document.GetLineByNumber(line + 1);
+                    string nextLineText = document.GetText(nextLine.Offset, nextLine.Length);
+
+                    DebLogger.Debug($"Текущая строка: '{currentLine}', Длина: {currentLine.Length}");
+                    DebLogger.Debug($"Следующая строка: '{nextLineText}', Длина: {nextLineText.Length}");
+
+                    if (nextLineText.TrimStart().StartsWith($"{FILE_NOT_FOUND}"))
+                    {
+                        SetInternalChanging(true);
+                        try
+                        {
+                            document.Replace(nextLine.Offset, nextLine.Length, $"{FILE_NOT_FOUND}" + path);
+                        }
+                        finally
+                        {
+                            SetInternalChanging(false);
+                        }
+
+                        // Обновляем информацию в списке
+                        var includeInfo = _includedFiles.FirstOrDefault(f => f.DirectiveLine == line);
+                        if (includeInfo != null)
+                        {
+                            includeInfo.ContentSectionStart = nextLine.Offset;
+                            includeInfo.ContentSectionEnd = nextLine.EndOffset;
+                        }
+
+                        // Обновляем нередактируемую секцию
+                        _readOnlySections.RemoveSection(nextLine.Offset, nextLine.EndOffset);
+                        _readOnlySections.AddSection(nextLine.Offset, nextLine.EndOffset);
+
+                        // Обновляем маркер
+                        foreach (var marker_ in _includeMarkers.ToList())
+                        {
+                            if (marker_.StartOffset == nextLine.Offset)
+                            {
+                                marker_.Delete();
+                                _includeMarkers.Remove(marker_);
+                                break;
+                            }
+                        }
+
+                        var newMarker = _textMarkerService.Create(nextLine.Offset, nextLine.Length);
+                        newMarker.BackgroundColor = new SolidColorBrush(Color.Parse("#3A2222"));
+                        newMarker.MarkerType = TextMarkerType.Highlight;
+                        //newMarker.ToolTip = "Включаемый файл не найден";
+                        newMarker.Redraw();
+
+                        _includeMarkers.Add(newMarker);
+
+                        return;
+                    }
+                }
+
+                // Вставляем новое сообщение
+                SetInternalChanging(true);
+                try
+                {
+                    document.Insert(insertPosition, errorMessage);
+                }
+                finally
+                {
+                    SetInternalChanging(false);
+                }
+
+                DocumentLine errorLine = document.GetLineByNumber(line + 1);
+                int startOffset = errorLine.Offset;
+                int endOffset = errorLine.EndOffset;
+
+                // Создаем маркер для выделения сообщения об ошибке
+                var marker = _textMarkerService.Create(startOffset, endOffset - startOffset);
+                marker.BackgroundColor = new SolidColorBrush(Color.Parse("#3A2222"));
+                marker.MarkerType = TextMarkerType.Highlight;
+                marker.ToolTip = "Включаемый файл не найден";
+                marker.Redraw();
+
+                _includeMarkers.Add(marker);
+
+                // Добавляем нередактируемую секцию
+                _readOnlySections.AddSection(startOffset, endOffset);
+
+                // Обновляем информацию о секции в списке включенных файлов
+                var includeInfoNew = _includedFiles.FirstOrDefault(f => f.DirectiveLine == line);
+                if (includeInfoNew != null)
+                {
+                    includeInfoNew.ContentSectionStart = startOffset;
+                    includeInfoNew.ContentSectionEnd = endOffset;
+                }
+            }
+            catch (Exception ex)
+            {
+                Status.SetStatus($"Ошибка при вставке сообщения о ненайденном файле: {ex.Message}");
+                SetInternalChanging(false); // на всякий случай сбрасываем флаг при ошибке
+            }
+        }
+
+        private void InsertIncludeContent(int line, string filePath, string relativePath, string content)
+        {
+            try
+            {
+                var document = _textEditor.Document;
+
+                // Получаем строку с директивой include
+                var lineObj = document.GetLineByNumber(line);
+                int insertPosition = lineObj.EndOffset;
+                string includedContent = $"\n{content}";
+
+                // Проверяем следующую строку
+                if (line < document.LineCount)
+                {
+                    var nextLine = document.GetLineByNumber(line + 1);
+                    string nextLineText = document.GetText(nextLine);
+
+                    // Если следующая строка содержит сообщение об ошибке или включенный контент
+                    if (nextLineText.TrimStart().StartsWith("// Файл не найден:") ||
+                        IsLinePartOfIncludedContent(line + 1))
+                    {
+                        // Находим все строки, которые нужно заменить
+                        int existingStartLine = line + 1;
+                        int existingEndLine = FindEndOfIncludedContent(existingStartLine);
+
+                        // Удаляем старый контент
+                        int existingStartOffset = document.GetLineByNumber(existingStartLine).Offset;
+                        int existingEndOffset = document.GetLineByNumber(existingEndLine).EndOffset;
+
+                        // Удаляем нередактируемые секции для этих строк
+                        _readOnlySections.RemoveSection(existingStartOffset, existingEndOffset);
+
+                        // Удаляем соответствующие маркеры
+                        for (int i = _includeMarkers.Count - 1; i >= 0; i--)
+                        {
+                            var existingMarker = _includeMarkers[i];
+                            if (existingMarker.StartOffset >= existingStartOffset && existingMarker.StartOffset < existingEndOffset)
+                            {
+                                existingMarker.Delete();
+                                _includeMarkers.RemoveAt(i);
+                            }
+                        }
+
+                        // Устанавливаем флаг внутреннего изменения перед изменениями документа
+                        SetInternalChanging(true);
+                        try
+                        {
+                            // Удаляем текст из документа
+                            document.Remove(existingStartOffset, existingEndOffset - existingStartOffset);
+
+                            // Вставляем новый контент
+                            document.Insert(existingStartOffset, content);
+                        }
+                        finally
+                        {
+                            SetInternalChanging(false);
+                        }
+
+                        // Обновляем информацию о секции
+                        int newContentLines = content.Split('\n').Length;
+                        int newEndLine_ = existingStartLine + newContentLines - 1;
+                        int newEndOffset = document.GetLineByNumber(newEndLine_).EndOffset;
+
+                        // Добавляем новую нередактируемую секцию
+                        _readOnlySections.AddSection(existingStartOffset, newEndOffset);
+
+                        // Создаем маркер для выделения включенного содержимого
+                        var newMarker = _textMarkerService.Create(existingStartOffset, newEndOffset - existingStartOffset);
+                        newMarker.BackgroundColor = new SolidColorBrush(Color.Parse("#1C2834"));
+                        newMarker.MarkerType = TextMarkerType.Highlight;
+                        newMarker.ToolTip = $"Включенный файл: {Path.GetFileName(filePath)}";
+                        newMarker.Redraw();
+
+                        _includeMarkers.Add(newMarker);
+
+                        // Обновляем информацию в списке включенных файлов
+                        var existingIncludeInfo = _includedFiles.FirstOrDefault(f => f.DirectiveLine == line);
+                        if (existingIncludeInfo != null)
+                        {
+                            existingIncludeInfo.ContentSectionStart = existingStartOffset;
+                            existingIncludeInfo.ContentSectionEnd = newEndOffset;
+                        }
+
+                        return;
+                    }
+                }
+
+                // Если это новое включение, просто вставляем контент
+                SetInternalChanging(true);
+                try
+                {
+                    document.Insert(insertPosition, includedContent);
+                }
+                finally
+                {
+                    SetInternalChanging(false);
+                }
+
+                DocumentLine newStartLine = document.GetLineByNumber(line + 1);
+                int insertedContentLines = content.Split('\n').Length;
+                DocumentLine newEndLine = document.GetLineByNumber(line + insertedContentLines);
+
+                int insertedStartOffset = newStartLine.Offset;
+                int insertedEndOffset = newEndLine.EndOffset;
+
+                // Добавляем нередактируемую секцию
+                _readOnlySections.AddSection(insertedStartOffset, insertedEndOffset);
+
+                // Создаем маркер для выделения включенного содержимого
+                var insertedMarker = _textMarkerService.Create(insertedStartOffset, insertedEndOffset - insertedStartOffset);
+                insertedMarker.BackgroundColor = new SolidColorBrush(Color.Parse("#1C2834"));
+                insertedMarker.MarkerType = TextMarkerType.Highlight;
+                insertedMarker.ToolTip = $"Включенный файл: {Path.GetFileName(filePath)}";
+                insertedMarker.Redraw();
+
+                _includeMarkers.Add(insertedMarker);
+
+                // Обновляем информацию о секции контента в списке включенных файлов
+                var newIncludeInfo = _includedFiles.FirstOrDefault(f => f.DirectiveLine == line);
+                if (newIncludeInfo != null)
+                {
+                    newIncludeInfo.ContentSectionStart = insertedStartOffset;
+                    newIncludeInfo.ContentSectionEnd = insertedEndOffset;
+                }
+            }
+            catch (Exception ex)
+            {
+                Status.SetStatus($"Ошибка при вставке включаемого содержимого: {ex.Message}");
+                SetInternalChanging(false); // на всякий случай сбрасываем флаг при ошибке
+            }
+        }
+
+        public void SetCurrentFile(string filePath)
+        {
+            _currentFilePath = filePath;
+            Reset();
+        }
+
+        public void Reset()
+        {
+            SetInternalChanging(true);
+            try
+            {
+                ClearAllIncludes();
+                _dirtyLines.Clear();
+
+                StopProcessingTimer();
+            }
+            finally
+            {
+                SetInternalChanging(false);
             }
         }
 
@@ -710,33 +1151,6 @@ namespace Editor
             }
         }
 
-        private void ProcessIncludeDirectiveWithState(int line, string relativePath, int startOffset, int length)
-        {
-            // Создаем состояние обработки для этой строки
-            var processingState = new GlslIncludeProcessingState();
-            processingState.ProcessingLines.Add(line);
-
-            // Также добавляем следующую строку, где будет содержимое
-            if (line < _textEditor.Document.LineCount)
-            {
-                processingState.ProcessingLines.Add(line + 1);
-            }
-
-            // Регистрируем состояние
-            _stateProvider.RegisterState(processingState);
-
-            try
-            {
-                // Обрабатываем директиву include
-                ProcessIncludeDirective(line, relativePath, startOffset, length);
-            }
-            finally
-            {
-                // Удаляем состояние обработки
-                _stateProvider.RemoveState<GlslIncludeProcessingState>();
-            }
-        }
-
         private void ProcessIncludeRemoval(IncludeFileInfo includeInfo, int line)
         {
             // Создаем состояние обработки для этой строки
@@ -768,242 +1182,6 @@ namespace Editor
             {
                 // Удаляем состояние обработки
                 _stateProvider.RemoveState<GlslIncludeProcessingState>();
-            }
-        }
-
-        public void ClearAllIncludes()
-        {
-            // Удаляем все включенные содержимые и маркеры
-            foreach (var include in _includedFiles.ToList())
-            {
-                RemoveIncludedContent(include);
-            }
-
-            _includedFiles.Clear();
-
-            // Удаляем все оставшиеся маркеры
-            foreach (var marker in _includeMarkers.ToList())
-            {
-                marker.Delete();
-            }
-
-            _includeMarkers.Clear();
-        }
-
-        public void ProcessIncludeDirective(int line, string relativePath, int startOffset, int length)
-        {
-            ProcessIncludeDirectiveWithState(line, relativePath, startOffset, length);
-        }
-
-        private string GetAbsoluteIncludePath(string relativePath)
-        {
-            if (string.IsNullOrEmpty(_currentFilePath))
-                return relativePath;
-
-            string baseDirectory = Path.GetDirectoryName(_currentFilePath);
-            return Path.GetFullPath(Path.Combine(baseDirectory, relativePath));
-        }
-        
-        private void InsertFileNotFoundMessage(int line, string path)
-        {
-            try
-            {
-                var document = _textEditor.Document;
-                var lineObj = document.GetLineByNumber(line);
-
-                int insertPosition = lineObj.EndOffset;
-                string errorMessage = "\n// Файл не найден: " + path;
-
-                // Проверяем следующую строку
-                if (line < document.LineCount)
-                {
-                    var nextLine = document.GetLineByNumber(line + 1);
-                    string nextLineText = document.GetText(nextLine);
-
-                    // Если следующая строка уже содержит сообщение об ошибке - заменяем его
-                    if (nextLineText.TrimStart().StartsWith("// Файл не найден:"))
-                    {
-                        document.Replace(nextLine.Offset, nextLine.Length, "// Файл не найден: " + path);
-
-                        // Обновляем информацию в списке
-                        var includeInfo = _includedFiles.FirstOrDefault(f => f.DirectiveLine == line);
-                        if (includeInfo != null)
-                        {
-                            includeInfo.ContentSectionStart = nextLine.Offset;
-                            includeInfo.ContentSectionEnd = nextLine.EndOffset;
-                        }
-
-                        // Обновляем нередактируемую секцию
-                        _readOnlySections.RemoveSection(nextLine.Offset, nextLine.EndOffset);
-                        _readOnlySections.AddSection(nextLine.Offset, nextLine.EndOffset);
-
-                        // Обновляем маркер
-                        foreach (var marker_ in _includeMarkers.ToList())
-                        {
-                            if (marker_.StartOffset == nextLine.Offset)
-                            {
-                                marker_.Delete();
-                                _includeMarkers.Remove(marker_);
-                                break;
-                            }
-                        }
-
-                        var newMarker = _textMarkerService.Create(nextLine.Offset, nextLine.Length);
-                        newMarker.BackgroundColor = new SolidColorBrush(Color.Parse("#3A2222"));
-                        newMarker.MarkerType = TextMarkerType.Highlight;
-                        newMarker.ToolTip = "Включаемый файл не найден";
-                        newMarker.Redraw();
-
-                        _includeMarkers.Add(newMarker);
-
-                        return;
-                    }
-                }
-
-                // Вставляем новое сообщение
-                document.Insert(insertPosition, errorMessage);
-
-                DocumentLine errorLine = document.GetLineByNumber(line + 1);
-                int startOffset = errorLine.Offset;
-                int endOffset = errorLine.EndOffset;
-
-                // Создаем маркер для выделения сообщения об ошибке
-                var marker = _textMarkerService.Create(startOffset, endOffset - startOffset);
-                marker.BackgroundColor = new SolidColorBrush(Color.Parse("#3A2222"));
-                marker.MarkerType = TextMarkerType.Highlight;
-                marker.ToolTip = "Включаемый файл не найден";
-                marker.Redraw();
-
-                _includeMarkers.Add(marker);
-
-                // Добавляем нередактируемую секцию
-                _readOnlySections.AddSection(startOffset, endOffset);
-
-                // Обновляем информацию о секции в списке включенных файлов
-                var includeInfoNew = _includedFiles.FirstOrDefault(f => f.DirectiveLine == line);
-                if (includeInfoNew != null)
-                {
-                    includeInfoNew.ContentSectionStart = startOffset;
-                    includeInfoNew.ContentSectionEnd = endOffset;
-                }
-            }
-            catch (Exception ex)
-            {
-                Status.SetStatus($"Ошибка при вставке сообщения о ненайденном файле: {ex.Message}");
-            }
-        }
-
-        private void InsertIncludeContent(int line, string filePath, string relativePath, string content)
-        {
-            try
-            {
-                var document = _textEditor.Document;
-
-                // Получаем строку с директивой include
-                var lineObj = document.GetLineByNumber(line);
-                int insertPosition = lineObj.EndOffset;
-                string includedContent = $"\n{content}";
-
-                // Проверяем следующую строку
-                if (line < document.LineCount)
-                {
-                    var nextLine = document.GetLineByNumber(line + 1);
-                    string nextLineText = document.GetText(nextLine);
-
-                    // Если следующая строка содержит сообщение об ошибке или включенный контент
-                    if (nextLineText.TrimStart().StartsWith("// Файл не найден:") ||
-                        IsLinePartOfIncludedContent(line + 1))
-                    {
-                        // Находим все строки, которые нужно заменить
-                        int existingStartLine = line + 1;
-                        int existingEndLine = FindEndOfIncludedContent(existingStartLine);
-
-                        // Удаляем старый контент
-                        int existingStartOffset = document.GetLineByNumber(existingStartLine).Offset;
-                        int existingEndOffset = document.GetLineByNumber(existingEndLine).EndOffset;
-
-                        // Удаляем нередактируемые секции для этих строк
-                        _readOnlySections.RemoveSection(existingStartOffset, existingEndOffset);
-
-                        // Удаляем соответствующие маркеры
-                        for (int i = _includeMarkers.Count - 1; i >= 0; i--)
-                        {
-                            var existingMarker = _includeMarkers[i];
-                            if (existingMarker.StartOffset >= existingStartOffset && existingMarker.StartOffset < existingEndOffset)
-                            {
-                                existingMarker.Delete();
-                                _includeMarkers.RemoveAt(i);
-                            }
-                        }
-
-                        // Удаляем текст из документа
-                        document.Remove(existingStartOffset, existingEndOffset - existingStartOffset);
-
-                        // Вставляем новый контент
-                        document.Insert(existingStartOffset, content);
-
-                        // Обновляем информацию о секции
-                        int newContentLines = content.Split('\n').Length;
-                        int newEndLine_ = existingStartLine + newContentLines - 1;
-                        int newEndOffset = document.GetLineByNumber(newEndLine_).EndOffset;
-
-                        // Добавляем новую нередактируемую секцию
-                        _readOnlySections.AddSection(existingStartOffset, newEndOffset);
-
-                        // Создаем маркер для выделения включенного содержимого
-                        var newMarker = _textMarkerService.Create(existingStartOffset, newEndOffset - existingStartOffset);
-                        newMarker.BackgroundColor = new SolidColorBrush(Color.Parse("#1C2834"));
-                        newMarker.MarkerType = TextMarkerType.Highlight;
-                        newMarker.ToolTip = $"Включенный файл: {Path.GetFileName(filePath)}";
-                        newMarker.Redraw();
-
-                        _includeMarkers.Add(newMarker);
-
-                        // Обновляем информацию в списке включенных файлов
-                        var existingIncludeInfo = _includedFiles.FirstOrDefault(f => f.DirectiveLine == line);
-                        if (existingIncludeInfo != null)
-                        {
-                            existingIncludeInfo.ContentSectionStart = existingStartOffset;
-                            existingIncludeInfo.ContentSectionEnd = newEndOffset;
-                        }
-
-                        return;
-                    }
-                }
-
-                // Если это новое включение, просто вставляем контент
-                document.Insert(insertPosition, includedContent);
-
-                DocumentLine newStartLine = document.GetLineByNumber(line + 1);
-                int insertedContentLines = content.Split('\n').Length;
-                DocumentLine newEndLine = document.GetLineByNumber(line + insertedContentLines);
-
-                int insertedStartOffset = newStartLine.Offset;
-                int insertedEndOffset = newEndLine.EndOffset;
-
-                // Добавляем нередактируемую секцию
-                _readOnlySections.AddSection(insertedStartOffset, insertedEndOffset);
-
-                // Создаем маркер для выделения включенного содержимого
-                var insertedMarker = _textMarkerService.Create(insertedStartOffset, insertedEndOffset - insertedStartOffset);
-                insertedMarker.BackgroundColor = new SolidColorBrush(Color.Parse("#1C2834"));
-                insertedMarker.MarkerType = TextMarkerType.Highlight;
-                insertedMarker.ToolTip = $"Включенный файл: {Path.GetFileName(filePath)}";
-                insertedMarker.Redraw();
-
-                _includeMarkers.Add(insertedMarker);
-
-                // Обновляем информацию о секции контента в списке включенных файлов
-                var newIncludeInfo = _includedFiles.FirstOrDefault(f => f.DirectiveLine == line);
-                if (newIncludeInfo != null)
-                {
-                    newIncludeInfo.ContentSectionStart = insertedStartOffset;
-                    newIncludeInfo.ContentSectionEnd = insertedEndOffset;
-                }
-            }
-            catch (Exception ex)
-            {
-                Status.SetStatus($"Ошибка при вставке включаемого содержимого: {ex.Message}");
             }
         }
 
@@ -1039,44 +1217,14 @@ namespace Editor
             return startLineNumber;
         }
 
-        private void RemoveIncludedContent(IncludeFileInfo include)
+        private string GetAbsoluteIncludePath(string relativePath)
         {
-            // Проверяем, что у нас есть информация о начале и конце включенного содержимого
-            if (include.ContentSectionStart > 0 && include.ContentSectionEnd > 0)
-            {
-                try
-                {
-                    // Получаем строки, соответствующие включенному содержимому
-                    var startLine = _textEditor.Document.GetLineByOffset(include.ContentSectionStart);
-                    var endLine = _textEditor.Document.GetLineByOffset(include.ContentSectionEnd);
+            // Обработка относительных путей
+            if (string.IsNullOrEmpty(_currentFilePath))
+                return relativePath;
 
-                    // Удаляем нередактируемую секцию
-                    _readOnlySections.RemoveSection(include.ContentSectionStart, include.ContentSectionEnd);
-
-                    // Находим и удаляем соответствующие маркеры
-                    for (int i = _includeMarkers.Count - 1; i >= 0; i--)
-                    {
-                        var marker = _includeMarkers[i];
-                        if (marker.StartOffset >= include.ContentSectionStart &&
-                            marker.StartOffset < include.ContentSectionEnd)
-                        {
-                            marker.Delete();
-                            _includeMarkers.RemoveAt(i);
-                        }
-                    }
-
-                    // Удаляем текст из документа
-                    int removeLength = include.ContentSectionEnd - include.ContentSectionStart;
-                    if (removeLength > 0)
-                    {
-                        _textEditor.Document.Remove(include.ContentSectionStart, removeLength);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Status.SetStatus($"Ошибка при удалении включенного содержимого: {ex.Message}");
-                }
-            }
+            string baseDirectory = Path.GetDirectoryName(_currentFilePath);
+            return Path.GetFullPath(Path.Combine(baseDirectory, relativePath));
         }
 
         private void AddOpenIncludeButton(int line, string filePath)
@@ -1104,6 +1252,21 @@ namespace Editor
                     marker.Redraw();
 
                     _includeMarkers.Add(marker);
+
+                    // Добавляем обработчик клика по маркеру
+                    _textEditor.TextArea.PointerPressed += (s, e) => {
+                        var position = e.GetPosition(_textEditor.TextArea);
+                        var pos = _textEditor.GetPositionFromPoint(position);
+                        if (pos.HasValue)
+                        {
+                            int clickOffset = _textEditor.Document.GetOffset(pos.Value.Line, pos.Value.Column);
+                            if (clickOffset >= offset && clickOffset <= offset + 1)
+                            {
+                                OpenIncludeFile(filePath);
+                                e.Handled = true;
+                            }
+                        }
+                    };
                 }
             }
             catch (Exception ex)
@@ -1123,6 +1286,151 @@ namespace Editor
 
             // Вызываем событие для открытия файла
             OnIncludeFileOpen?.Invoke(_currentFilePath, filePath);
+        }
+
+        public void ProcessIncludeDirective(int line, string relativePath, int startOffset, int length)
+        {
+            // Делегируем обработку методу с управлением состоянием
+            ProcessIncludeDirectiveWithState(line, relativePath, startOffset, length);
+        }
+
+        private void ProcessIncludeDirectiveWithState(int line, string relativePath, int startOffset, int length)
+        {
+            // Создаем состояние обработки для этой строки
+            var processingState = new GlslIncludeProcessingState();
+            processingState.ProcessingLines.Add(line);
+
+            // Также добавляем следующую строку, где будет содержимое
+            if (line < _textEditor.Document.LineCount)
+            {
+                processingState.ProcessingLines.Add(line + 1);
+            }
+
+            // Регистрируем состояние
+            _stateProvider.RegisterState(processingState);
+
+            try
+            {
+                // Получаем полный путь к включаемому файлу
+                string includeFilePath = GetAbsoluteIncludePath(relativePath);
+
+                // Проверяем, существует ли файл
+                if (File.Exists(includeFilePath))
+                {
+                    string includeContent = File.ReadAllText(includeFilePath);
+
+                    // Проверяем, есть ли уже этот включенный файл в списке
+                    var existingInclude = _includedFiles.FirstOrDefault(
+                        f => f.DirectiveLine == line && f.FilePath == includeFilePath);
+
+                    if (existingInclude != null)
+                    {
+                        // Обновляем содержимое, если оно изменилось
+                        if (existingInclude.Content != includeContent)
+                        {
+                            // Удаляем старый контент и вставляем новый
+                            RemoveIncludedContent(existingInclude);
+                            InsertIncludeContent(line, includeFilePath, relativePath, includeContent);
+
+                            // Обновляем информацию в списке
+                            existingInclude.Content = includeContent;
+                            existingInclude.HasError = false;
+                        }
+                    }
+                    else
+                    {
+                        // Добавляем новый включенный файл в список
+                        var includeInfo = new IncludeFileInfo
+                        {
+                            DirectiveLine = line,
+                            FilePath = includeFilePath,
+                            RelativePath = relativePath,
+                            Content = includeContent,
+                            DirectiveOffset = startOffset,
+                            DirectiveLength = length,
+                            HasError = false
+                        };
+                        _includedFiles.Add(includeInfo);
+
+                        // Вставляем содержимое в документ
+                        InsertIncludeContent(line, includeFilePath, relativePath, includeContent);
+                    }
+
+                    // Добавляем кнопку для открытия файла
+                    AddOpenIncludeButton(line, includeFilePath);
+                }
+                else
+                {
+                    // Файл не найден - показываем сообщение об ошибке
+                    var existingInclude = _includedFiles.FirstOrDefault(f => f.DirectiveLine == line);
+                    if (existingInclude != null)
+                    {
+                        // Если уже был включенный файл - удаляем его содержимое
+                        RemoveIncludedContent(existingInclude);
+
+                        // Обновляем информацию
+                        existingInclude.FilePath = includeFilePath;
+                        existingInclude.RelativePath = relativePath;
+                        existingInclude.Content = null;
+                        existingInclude.HasError = true;
+                    }
+                    else
+                    {
+                        // Добавляем новую запись с ошибкой
+                        var includeInfo = new IncludeFileInfo
+                        {
+                            DirectiveLine = line,
+                            FilePath = includeFilePath,
+                            RelativePath = relativePath,
+                            Content = null,
+                            DirectiveOffset = startOffset,
+                            DirectiveLength = length,
+                            HasError = true
+                        };
+                        _includedFiles.Add(includeInfo);
+                    }
+
+                    // Вставляем сообщение об ошибке
+                    InsertFileNotFoundMessage(line, relativePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Status.SetStatus($"Ошибка при обработке директивы include: {ex.Message}");
+            }
+            finally
+            {
+                // Удаляем состояние обработки
+                _stateProvider.RemoveState<GlslIncludeProcessingState>();
+            }
+        }
+
+        public void ClearAllIncludes()
+        {
+            // Устанавливаем флаг внутреннего изменения
+            SetInternalChanging(true);
+            try
+            {
+                // Удаляем все включенные содержимые и маркеры
+                foreach (var include in _includedFiles.ToList())
+                {
+                    RemoveIncludedContent(include);
+                }
+
+                _includedFiles.Clear();
+
+                // Удаляем все оставшиеся маркеры
+                foreach (var marker in _includeMarkers.ToList())
+                {
+                    marker.Delete();
+                }
+
+                _includeMarkers.Clear();
+            }
+            finally
+            {
+                SetInternalChanging(false);
+            }
         }
 
         public string GetTextWithoutIncludes()
@@ -1166,19 +1474,72 @@ namespace Editor
             return result.ToString();
         }
 
-
-
-
-
-
         public void Dispose()
         {
             StopProcessingTimer();
             _textEditor.Document.Changed -= Document_Changed;
             ClearAllIncludes();
         }
+
+
     }
 
+
+    public class UnderlineAndStrikeThroughTransformer : DocumentColorizingTransformer
+    {
+        protected override void ColorizeLine(DocumentLine line)
+        {
+            if (line.LineNumber == 2)
+            {
+                string lineText = this.CurrentContext.Document.GetText(line);
+
+                int indexOfUnderline = lineText.IndexOf("underline");
+                int indexOfStrikeThrough = lineText.IndexOf("strikethrough");
+
+                if (indexOfUnderline != -1)
+                {
+                    ChangeLinePart(
+                        line.Offset + indexOfUnderline,
+                        line.Offset + indexOfUnderline + "underline".Length,
+                        visualLine =>
+                        {
+                            if (visualLine.TextRunProperties.TextDecorations != null)
+                            {
+                                var textDecorations = new TextDecorationCollection(visualLine.TextRunProperties.TextDecorations) { TextDecorations.Underline[0] };
+
+                                visualLine.TextRunProperties.SetTextDecorations(textDecorations);
+                            }
+                            else
+                            {
+                                visualLine.TextRunProperties.SetTextDecorations(TextDecorations.Underline);
+                            }
+                        }
+                    );
+                }
+
+                if (indexOfStrikeThrough != -1)
+                {
+                    ChangeLinePart(
+                        line.Offset + indexOfStrikeThrough,
+                        line.Offset + indexOfStrikeThrough + "strikethrough".Length,
+                        visualLine =>
+                        {
+                            if (visualLine.TextRunProperties.TextDecorations != null)
+                            {
+                                var textDecorations = new TextDecorationCollection(visualLine.TextRunProperties.TextDecorations) { TextDecorations.Strikethrough[0] };
+
+                                visualLine.TextRunProperties.SetTextDecorations(textDecorations);
+                            }
+                            else
+                            {
+                                visualLine.TextRunProperties.SetTextDecorations(TextDecorations.Strikethrough);
+                            }
+                        }
+                    );
+                }
+            }
+        }
+    }
 
 
 
@@ -1565,7 +1926,7 @@ namespace Editor
 
 
 
-    public class GlslFoldingStrategy
+    public class GlslFoldingStrategy : DefaultIndentationStrategy
     {
         public void UpdateFoldings(FoldingManager foldingManager, TextDocument document)
         {
