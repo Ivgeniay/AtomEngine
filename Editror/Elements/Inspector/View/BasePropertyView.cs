@@ -1,6 +1,8 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using EngineLib;
+using System.Reflection;
 
 namespace Editor
 {
@@ -37,5 +39,16 @@ namespace Editor
 
             return grid;
         }
+
+
+        protected bool IsSupportDirtyField(object context)
+        {
+            if (context is FieldInfo field) return IsSupportDirtyField((FieldInfo)context);
+            return false;
+        }
+        protected bool IsSupportDirtyField(FieldInfo fieldInfo) =>
+            fieldInfo.GetCustomAttribute<SupportDirtyAttribute>() == null;
+
+
     }
 }

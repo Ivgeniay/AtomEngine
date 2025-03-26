@@ -12,42 +12,14 @@ namespace OpenglLib
         public static string ProcessIncludesRecursively(string source, string sourcePath, HashSet<string> processedPaths = null)
         {
             processedPaths ??= new HashSet<string>();
-
-            if (processedPaths.Contains(sourcePath))
-                throw new CircularDependencyError($"Cyclic dependency detected: {sourcePath}");
-
-            processedPaths.Add(sourcePath);
-
-            var sourceDir = Path.GetDirectoryName(sourcePath);
-            var includeRegex = new Regex(@"#include\s+""([^""]+)""");
-
-            return includeRegex.Replace(source, match =>
-            {
-                var includePath = match.Groups[1].Value;
-                var fullPath = Path.GetFullPath(Path.Combine(sourceDir, includePath));
-
-                try
-                {
-                    if (!File.Exists(fullPath))
-                        throw new FileNotFoundError($"Includ file not founded: {includePath}");
-
-                    var includeContent = File.ReadAllText(fullPath);
-                    return ProcessIncludesRecursively(includeContent, fullPath, new HashSet<string>(processedPaths));
-                }
-                catch (Exception ex)
-                {
-                    throw new ShaderError($"Error processing include: '{includePath}': {ex.Message} {ex}");
-                }
-            });
+            return IncludeProcessor.ProcessIncludes(source, sourcePath, processedPaths);
         }
-
 
         public static string CleanComments(string source)
         {
             string noSingleLineComments = Regex.Replace(source, @"//.*$", "", RegexOptions.Multiline);
             return Regex.Replace(noSingleLineComments, @"/\*[\s\S]*?\*/", "");
         }
-
 
         public static HashSet<int> ExtractUniformBlockBindings(string shaderSource)
         {

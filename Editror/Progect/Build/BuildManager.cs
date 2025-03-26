@@ -226,11 +226,16 @@ namespace Editor
             List<string> assemblyPaths = new List<string>();
 
             var assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
-            var assamblyTypes = Enum.GetValues<TAssembly>();
-            foreach(var assemblyType in assamblyTypes)
+            //var assamblyTypes = Enum.GetValues<TAssembly>();
+            //foreach(var assemblyType in assamblyTypes)
+            //{
+            //    var assembly = assemblyManager.GetAssembly(assemblyType);
+            //    assemblyPaths.Add(assembly.Location);
+            //}
+            var userScrAssembly = assemblyManager.GetAssembly<UserScriptAssembly>();
+            if (userScrAssembly != null)
             {
-                var assembly = assemblyManager.GetAssembly(assemblyType);
-                assemblyPaths.Add(assembly.Location);
+                assemblyPaths.Add(userScrAssembly.Location);
             }
 
             string targetLibsPath = _fileConfiguration.AssembliesPath;

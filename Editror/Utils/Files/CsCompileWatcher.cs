@@ -17,11 +17,16 @@ namespace Editor
 
         private async void FileCreatedHandler(FileChangedEvent @event)
         {
+            if (!_isWatchngProcess) return;
+
             if (@event.FileExtension == ".cs")
             {
                 ProjectConfigurations pConf = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
                 await scriptSyncSystem.RebuildProject(pConf.BuildType);
             }
         }
+
+        private bool _isWatchngProcess;
+        public void EnableWatching(bool value) => _isWatchngProcess = value;
     }
 }

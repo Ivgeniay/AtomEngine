@@ -14,6 +14,7 @@ namespace OpenglLib
         public const string TORUS_OBJ = "Resources.Geometry.Standart.Models.torus.obj";
         public const string ICON_LIGHT_BULB_PNG = "Resources.Geometry.Standart.Textures.icon-light-bulb.png";
         public const string WOOD_JPG = "Resources.Geometry.Standart.Textures.wood.jpg";
+        public const string VIEW_RS = "Resources.Graphics.RS.view.rs";
         public const string COMMON_GLSL = "Resources.ShaderSource.BaseParts.Common.glsl";
         public const string LIGHTFUNCTIONS_GLSL = "Resources.ShaderSource.BaseParts.LightFunctions.glsl";
         public const string LIGHTUNIFORM_GLSL = "Resources.ShaderSource.BaseParts.LightUniform.glsl";

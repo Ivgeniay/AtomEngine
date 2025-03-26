@@ -1,5 +1,5 @@
-﻿using OpenglLib;
-using System.Text;
+﻿using System.Text;
+using OpenglLib;
 
 namespace Editor
 {

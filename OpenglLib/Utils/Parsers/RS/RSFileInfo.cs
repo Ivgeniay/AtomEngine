@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using OpenglLib;
-
-namespace Editor
+﻿namespace OpenglLib
 {
     public class RSFileInfo
     {

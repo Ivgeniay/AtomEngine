@@ -1,6 +1,7 @@
 ﻿using AtomEngine;
 using EngineLib;
 using OpenglLib;
+using System.Reflection;
 
 namespace WindowsBuild
 {
@@ -24,8 +25,16 @@ namespace WindowsBuild
             ServiceHub.RegisterService<BindingPointService>();
 
 
-
             ServiceHub.Initialize().Wait();
+
+            IncludeProcessor.RegisterContentProvider(new FileSystemContentProvider());
+            IncludeProcessor.RegisterContentProvider(new EmbeddedContentProvider(
+                new Assembly[]
+                {
+                        ServiceHub.Get<AssemblyManager>().GetAssembly<CoreAssembly>(),
+                        ServiceHub.Get<AssemblyManager>().GetAssembly<CommonAssembly>(),
+                        ServiceHub.Get<AssemblyManager>().GetAssembly<OpenGlLibAssembly>()
+                }));
 
             AssemblyManager assemblyManager = ServiceHub.Get<AssemblyManager>();
             assemblyManager.InitializeAddDomainAssemblies();

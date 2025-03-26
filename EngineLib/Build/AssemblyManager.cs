@@ -1,17 +1,23 @@
-﻿using EngineLib;
-using System.Reflection;
+﻿using System.Reflection;
+using EngineLib;
 
 namespace AtomEngine
 {
     public class AssemblyManager : IService
     {
         public static AssemblyManager Instance { get; private set; }
+        protected Dictionary<Type, Assembly> _assemblyDict = new Dictionary<Type, Assembly>();
         protected readonly HashSet<Assembly> _assemblies = new();
 
         public AssemblyManager() { 
             Instance = this;
         }
 
+        public virtual Assembly GetAssembly<T>() where T : AssemblyType 
+        { 
+            Type type = typeof(T);
+            return _assemblyDict[type];
+        }
 
         public void InitializeAddDomainAssemblies()
         {
@@ -139,4 +145,15 @@ namespace AtomEngine
 
         public virtual Task InitializeAsync() => Task.CompletedTask;
     }
+
+    public class AssemblyType;
+    public class CoreAssembly : AssemblyType;
+    public class CommonAssembly : AssemblyType;
+    public class OpenGlLibAssembly : AssemblyType;
+    public class SilkNetCoreAssembly : AssemblyType;
+    public class SilkNetMathAssembly : AssemblyType;
+    public class SilkNetOpenGlAssembly : AssemblyType;
+    public class NewtonJsonAssembly : AssemblyType;
+    public class ComponentGenAssembly : AssemblyType;
+    public class UserScriptAssembly : AssemblyType;
 }

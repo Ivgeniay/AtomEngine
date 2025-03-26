@@ -1,10 +1,6 @@
 ﻿using System.Text.RegularExpressions;
-using System.Collections.Generic;
-using OpenglLib;
-using System.IO;
-using System;
 
-namespace Editor
+namespace OpenglLib
 {
     public static class RSParser
     {
@@ -48,52 +44,69 @@ namespace Editor
 
         public static List<RSFileInfo> ProcessIncludes(string shaderSource, string sourcePath)
         {
-            var rsFiles = new List<RSFileInfo>();
             var processedPaths = new HashSet<string>();
-
-            string ProcessIncludesRecursively(string source, string path)
-            {
-                if (processedPaths.Contains(path))
-                    throw new CircularDependencyError($"Cyclic dependency detected: {path}");
-
-                processedPaths.Add(path);
-
-                var sourceDir = Path.GetDirectoryName(path);
-                var includeRegex = new Regex(@"#include\s+""([^""]+)""");
-
-                return includeRegex.Replace(source, match => {
-                    var includePath = match.Groups[1].Value;
-                    var fullPath = Path.GetFullPath(Path.Combine(sourceDir, includePath));
-
-                    try
-                    {
-                        if (!File.Exists(fullPath))
-                            throw new FileNotFoundError($"Включаемый файл не найден: {includePath}");
-
-                        var includeContent = File.ReadAllText(fullPath);
-
-                        if (Path.GetExtension(fullPath).ToLower() == ".rs")
-                        {
-                            var rsInfo = ParseContent(includeContent, fullPath);
-                            rsFiles.Add(rsInfo);
-                            return rsInfo.ProcessedCode;
-                        }
-                        return ProcessIncludesRecursively(includeContent, fullPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new ShaderError($"Error processing include: '{includePath}': {ex.Message} {ex}");
-                    }
-                });
-            }
+            List<RSFileInfo> rsFiles;
 
             if (!string.IsNullOrEmpty(sourcePath))
             {
-                shaderSource = ProcessIncludesRecursively(shaderSource, sourcePath);
+                shaderSource = IncludeProcessor.ProcessIncludes(shaderSource, sourcePath, processedPaths, out rsFiles);
+            }
+            else
+            {
+                rsFiles = new List<RSFileInfo>();
             }
 
             return rsFiles;
         }
+
+        //public static List<RSFileInfo> ProcessIncludes(string shaderSource, string sourcePath)
+        //{
+        //    var rsFiles = new List<RSFileInfo>();
+        //    var processedPaths = new HashSet<string>();
+
+        //    string ProcessIncludesRecursively(string source, string path)
+        //    {
+        //        if (processedPaths.Contains(path))
+        //            throw new CircularDependencyError($"Cyclic dependency detected: {path}");
+
+        //        processedPaths.Add(path);
+
+        //        var sourceDir = Path.GetDirectoryName(path);
+        //        var includeRegex = new Regex(@"#include\s+""([^""]+)""");
+
+        //        return includeRegex.Replace(source, match => {
+        //            var includePath = match.Groups[1].Value;
+        //            var fullPath = Path.GetFullPath(Path.Combine(sourceDir, includePath));
+
+        //            try
+        //            {
+        //                if (!File.Exists(fullPath))
+        //                    throw new FileNotFoundError($"Includ file not founded: {includePath}");
+
+        //                var includeContent = File.ReadAllText(fullPath);
+
+        //                if (Path.GetExtension(fullPath).ToLower() == ".rs")
+        //                {
+        //                    var rsInfo = ParseContent(includeContent, fullPath);
+        //                    rsFiles.Add(rsInfo);
+        //                    return rsInfo.ProcessedCode;
+        //                }
+        //                return ProcessIncludesRecursively(includeContent, fullPath);
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                throw new ShaderError($"Error processing include: '{includePath}': {ex.Message} {ex}");
+        //            }
+        //        });
+        //    }
+
+        //    if (!string.IsNullOrEmpty(sourcePath))
+        //    {
+        //        shaderSource = ProcessIncludesRecursively(shaderSource, sourcePath);
+        //    }
+
+        //    return rsFiles;
+        //}
 
         private static List<string> ExtractRequiredComponents(string sourceCode)
         {

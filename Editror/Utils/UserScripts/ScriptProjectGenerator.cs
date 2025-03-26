@@ -69,14 +69,14 @@ namespace Editor
 
                 var assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
 
-                _coreAssembly = assemblyManager.GetAssembly(TAssembly.Core);
-                _renderAssembly = assemblyManager.GetAssembly(TAssembly.Render);
-                _silkMathAssembly = assemblyManager.GetAssembly(TAssembly.SilkMath);
-                _silkOpenGlAssembly = assemblyManager.GetAssembly(TAssembly.SilkOpenGL);
-                _silkCoreGlAssembly = assemblyManager.GetAssembly(TAssembly.SilkNetCore);
-                _newtonsoftJsonAssembly = assemblyManager.GetAssembly(TAssembly.NewtonsoftJson);
-                _componentGeneratorAssembly = assemblyManager.GetAssembly(TAssembly.ComponentGenerator);
-                _commonLib = assemblyManager.GetAssembly(TAssembly.CommonLib);
+                _coreAssembly = assemblyManager.GetAssembly<CoreAssembly>();
+                _renderAssembly = assemblyManager.GetAssembly<OpenGlLibAssembly>();
+                _silkMathAssembly = assemblyManager.GetAssembly<SilkNetMathAssembly>();
+                _silkOpenGlAssembly = assemblyManager.GetAssembly<SilkNetOpenGlAssembly>();
+                _silkCoreGlAssembly = assemblyManager.GetAssembly<SilkNetCoreAssembly>();
+                _newtonsoftJsonAssembly = assemblyManager.GetAssembly<NewtonJsonAssembly>();
+                _componentGeneratorAssembly = assemblyManager.GetAssembly<ComponentGenAssembly>();
+                _commonLib = assemblyManager.GetAssembly<CommonAssembly>();
 
                 GenerateProjectFile();
 

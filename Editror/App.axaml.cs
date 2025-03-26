@@ -9,6 +9,7 @@ using Application = Avalonia.Application;
 using System.Threading;
 using EngineLib;
 using OpenglLib;
+using System.Reflection;
 
 namespace Editor
 {
@@ -142,6 +143,15 @@ namespace Editor
                     var exception = (Exception)args.ExceptionObject;
                     DebLogger.Fatal($"Необработанное исключение AppDomain: {exception.Message}\n{exception.StackTrace}");
                 };
+
+                IncludeProcessor.RegisterContentProvider(new FileSystemContentProvider());
+                IncludeProcessor.RegisterContentProvider(new EmbeddedContentProvider(
+                    new Assembly[]
+                    {
+                        ServiceHub.Get<AssemblyManager>().GetAssembly<CoreAssembly>(),
+                        ServiceHub.Get<AssemblyManager>().GetAssembly<CommonAssembly>(),
+                        ServiceHub.Get<AssemblyManager>().GetAssembly<OpenGlLibAssembly>()
+                    }));
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {

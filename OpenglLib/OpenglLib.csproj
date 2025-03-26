@@ -26,6 +26,10 @@
   </ItemGroup>
   
   <ItemGroup>
+    <AdditionalFiles Remove="Resources\Graphics\RS\view.rs" />
+  </ItemGroup>
+  
+  <ItemGroup>
     <EmbeddedResource Remove="Resources\ShaderSource\StandartShader\BoundingShader.glsl" />
   </ItemGroup> 
 

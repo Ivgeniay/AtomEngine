@@ -5,6 +5,7 @@ using EngineLib;
 using OpenglLib;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Editor.Utils.Generator
 {
@@ -12,132 +13,153 @@ namespace Editor.Utils.Generator
     {
         public const string LABLE = "Rep.g";
 
-        public static string GenerateCode(string sourcePath, string outputDirectory, bool generateStructs = true)
+        public async static Task<string> GenerateCode(string sourcePath, string outputDirectory, bool generateStructs = true)
         {
-            if (!File.Exists(sourcePath))
-            {
-                throw new FileNotFoundError($"Shader file not found: {sourcePath}");
-            }
-            FileEvent fileEvent = new FileEvent();
-            fileEvent.FileExtension = Path.GetExtension(sourcePath);
-            fileEvent.FileFullPath = sourcePath;
-            var assetPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
-            fileEvent.FilePath = sourcePath.Substring(sourcePath.IndexOf(assetPath));
-            fileEvent.FileName = Path.GetFileNameWithoutExtension(sourcePath);
-
-            var result = GlslCompiler.TryToCompile(fileEvent);
-            if (result.Success) DebLogger.Info(result);
-            else
-            {
-                DebLogger.Error(result);
-                return null;
-            }
-
-            if (!Directory.Exists(outputDirectory))
-            {
-                Directory.CreateDirectory(outputDirectory);
-            }
+            var loadingManager = ServiceHub.Get<LoadingManager>();
+            string finalResult = null;
+            CsCompileWatcher watcher = ServiceHub.Get<CsCompileWatcher>();
 
             try
             {
-                string shaderSource = File.ReadAllText(sourcePath);
-
-                string sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(sourcePath)?.Guid;
-                string representationName = Path.GetFileNameWithoutExtension(sourcePath);
-                List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, sourcePath);
-
-                shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, sourcePath);
-                shaderSource = RSParser.RemoveServiceMarkers(shaderSource);
-
-                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
-                GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
-                var combinedSource = vertexSource + "\n" + fragmentSource;
-
-                List<GlslStructure> structures = new List<GlslStructure>();
-                if (generateStructs)
+                watcher.EnableWatching(false);
+                await loadingManager.RunWithLoading(async (progress) =>
+            {
+                if (!File.Exists(sourcePath))
                 {
-                    structures = GlslParser.ParseGlslStructures(combinedSource);
-                    if (structures.Count > 0)
+                    throw new FileNotFoundError($"Shader file not found: {sourcePath}");
+                }
+                FileEvent fileEvent = new FileEvent();
+                fileEvent.FileExtension = Path.GetExtension(sourcePath);
+                fileEvent.FileFullPath = sourcePath;
+                var assetPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
+                fileEvent.FilePath = sourcePath.Substring(sourcePath.IndexOf(assetPath));
+                fileEvent.FileName = Path.GetFileNameWithoutExtension(sourcePath);
+
+                var result = GlslCompiler.TryToCompile(fileEvent);
+                if (result.Success) DebLogger.Info(result);
+                else
+                {
+                    DebLogger.Error(result);
+                    return;
+                }
+
+                if (!Directory.Exists(outputDirectory))
+                {
+                    Directory.CreateDirectory(outputDirectory);
+                }
+
+                try
+                {
+                    string shaderSource = File.ReadAllText(sourcePath);
+
+                    string sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(sourcePath)?.Guid;
+                    string representationName = Path.GetFileNameWithoutExtension(sourcePath);
+                    List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, sourcePath);
+
+                    shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, sourcePath);
+                    shaderSource = RSParser.RemoveServiceMarkers(shaderSource);
+
+                    var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
+                    GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
+                    var combinedSource = vertexSource + "\n" + fragmentSource;
+
+                    List<GlslStructure> structures = new List<GlslStructure>();
+                    if (generateStructs)
                     {
-                        GlslStructGenerator.GenerateStructs(
-                        shaderSourceCode: combinedSource,
-                        outputDirectory: outputDirectory,
-                        sourceGuid: sourceGuid);
+                        structures = GlslParser.ParseGlslStructures(combinedSource);
+                        if (structures.Count > 0)
+                        {
+                            GlslStructGenerator.GenerateStructs(
+                            shaderSourceCode: combinedSource,
+                            outputDirectory: outputDirectory,
+                            sourceGuid: sourceGuid);
+                        }
                     }
-                }
 
-                List<UniformBlockStructure> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
-                uniformBlocks = SeparateBlocks(rsFiles, uniformBlocks);
+                    List<UniformBlockStructure> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
+                    uniformBlocks = SeparateBlocks(rsFiles, uniformBlocks);
 
-                foreach (var block in uniformBlocks)
-                {
-                    block.CSharpTypeName = $"{block.Name}_{representationName}";
-                    GlslsUBOGenerator.GenerateUniformBlockClass(
-                        block: block,
-                        outputDirectory: outputDirectory,
-                        sourceGuid: sourceGuid,
-                        structures: structures);
-                }
-
-                foreach(var rs in rsFiles)
-                {
-                    foreach(var block in rs.UniformBlocks)
+                    foreach (var block in uniformBlocks)
                     {
-                        block.CSharpTypeName = $"{block.Name}_{block.UniformBlockType}";
+                        block.CSharpTypeName = $"{block.Name}_{representationName}";
                         GlslsUBOGenerator.GenerateUniformBlockClass(
                             block: block,
-                            outputDirectory: rs.SourceFolder,
+                            outputDirectory: outputDirectory,
                             sourceGuid: sourceGuid,
-                            structures: rs.Structures);
+                            structures: structures);
                     }
-                }
 
-                foreach (var rs in rsFiles)
+                    foreach (var rs in rsFiles)
+                    {
+                        foreach (var block in rs.UniformBlocks)
+                        {
+                            string path = rs.SourcePath.Contains(":") ? outputDirectory : rs.SourceFolder;
+                            block.CSharpTypeName = $"{block.Name}_{block.UniformBlockType}";
+                            GlslsUBOGenerator.GenerateUniformBlockClass(
+                                block: block,
+                                outputDirectory: path,
+                                sourceGuid: sourceGuid,
+                                structures: rs.Structures);
+                        }
+                    }
+
+                    foreach (var rs in rsFiles)
+                    {
+                        var sourceCode = InterfaceGenerator.GenerateInterface(rs);
+                        string path = rs.SourcePath.Contains(":") ? outputDirectory : rs.SourceFolder;
+                        path = Path.Combine(path, rs.InterfaceName + ".cs");
+                        File.WriteAllText(path, sourceCode);
+                    }
+
+                    List<ComponentGeneratorInfo> compList = new List<ComponentGeneratorInfo>();
+                    foreach (var rs in rsFiles)
+                    {
+                        ComponentGeneratorInfo componentInfo;
+                        var sourceCode = ComponentGenerator.GenerateComponentTemplate(rs, out componentInfo);
+                        string componentFileName = ComponentGenerator.GetComponentNameFromInterface(rs.InterfaceName);
+                        string path = rs.SourcePath.Contains(":") ? outputDirectory : rs.SourceFolder;
+                        path = Path.Combine(path, componentFileName + ".cs");
+                        compList.Add(componentInfo);
+                        File.WriteAllText(path, sourceCode);
+                    }
+
+                    foreach (var rs in rsFiles)
+                    {
+                        var sourceCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rs, compList);
+                        string systemFileName = RenderSystemGenerator.GetSystemNameFromInterface(rs.InterfaceName);
+                        string path = rs.SourcePath.Contains(":") ? outputDirectory : rs.SourceFolder;
+                        path = Path.Combine(path, systemFileName + ".cs");
+                        File.WriteAllText(path, sourceCode);
+                    }
+
+
+                    uniformBlocks = UnionBlocks(rsFiles, uniformBlocks);
+
+                    string resultRepresentationName = ShaderCodeRepresentationGenerator.GenerateRepresentationFromSource(
+                        representationName: representationName,
+                        outputDirectory: outputDirectory,
+                        fragmentSource: fragmentSource,
+                        uniformBlocks: uniformBlocks,
+                        vertexSource: vertexSource,
+                        sourceGuid: sourceGuid,
+                        sourcePath: sourcePath,
+                        rsFiles: rsFiles);
+
+                    finalResult = resultRepresentationName;
+                }
+                catch (Exception ex)
                 {
-                    var sourceCode = InterfaceGenerator.GenerateInterface(rs);
-                    var path = Path.Combine(rs.SourceFolder, rs.InterfaceName + ".cs");
-                    File.WriteAllText(path, sourceCode);
+                    DebLogger.Error($"{ex.Message}");
+                    return;
                 }
-
-                List<ComponentGeneratorInfo>compList = new List<ComponentGeneratorInfo>();
-                foreach (var rs in rsFiles)
-                {
-                    ComponentGeneratorInfo componentInfo;
-                    var sourceCode = ComponentGenerator.GenerateComponentTemplate(rs, out componentInfo);
-                    string componentFileName = ComponentGenerator.GetComponentNameFromInterface(rs.InterfaceName);
-                    var path = Path.Combine(rs.SourceFolder, componentFileName + ".cs");
-                    compList.Add(componentInfo);
-                    File.WriteAllText(path, sourceCode);
-                }
-
-                foreach (var rs in rsFiles)
-                {
-                    var sourceCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rs, compList);
-                    string systemFileName = RenderSystemGenerator.GetSystemNameFromInterface(rs.InterfaceName);
-                    var path = Path.Combine(rs.SourceFolder, systemFileName + ".cs");
-                    File.WriteAllText(path, sourceCode);
-                }
-
-
-                uniformBlocks = UnionBlocks(rsFiles, uniformBlocks);
-
-                string resultRepresentationName = ShaderCodeRepresentationGenerator.GenerateRepresentationFromSource(
-                    representationName: representationName,
-                    outputDirectory: outputDirectory,
-                    fragmentSource: fragmentSource,
-                    uniformBlocks: uniformBlocks,
-                    vertexSource: vertexSource,
-                    sourceGuid: sourceGuid,
-                    sourcePath: sourcePath,
-                    rsFiles: rsFiles);
-
-                return resultRepresentationName;
+            });
+                await Task.Delay(200);
             }
-            catch (Exception ex)
+            finally
             {
-                DebLogger.Error($"{ex.Message}");
-                return null;
+                watcher.EnableWatching(true);
             }
+            return finalResult;
         }
 
         private static List<UniformBlockStructure> UnionBlocks(List<RSFileInfo> rsFiles, List<UniformBlockStructure> uniformBlocks)
@@ -169,42 +191,5 @@ namespace Editor.Utils.Generator
                 return false;
             }).ToList();
         }
-
-        public static List<string> GenerateCodeFromDirectory(string directoryPath, string outputDirectory,
-            string searchPattern = "*.glsl", bool generateStructs = true)
-        {
-            if (!Directory.Exists(directoryPath))
-            {
-                throw new DirectoryNotFoundException($"Directory not found: {directoryPath}");
-            }
-
-            if (!Directory.Exists(outputDirectory))
-            {
-                Directory.CreateDirectory(outputDirectory);
-            }
-
-            var generatedMaterials = new List<string>();
-            var shaderFiles = Directory.GetFiles(directoryPath, searchPattern, SearchOption.TopDirectoryOnly);
-
-            foreach (var shaderFile in shaderFiles)
-            {
-                try
-                {
-                    var shaderSource = File.ReadAllText(shaderFile);
-                    if (GlslParser.IsCompleteShaderFile(shaderSource))
-                    {
-                        var fileName = GenerateCode(shaderFile, outputDirectory, generateStructs);
-                        generatedMaterials.Add(fileName);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error processing {shaderFile}: {ex.Message}");
-                }
-            }
-
-            return generatedMaterials;
-        }
-
     }
 }

@@ -131,7 +131,6 @@ namespace Editor
 
             if (!ShouldProcessEvent(e.FullPath, "Created"))
             {
-                DebLogger.Debug($"Пропуск дублирующего события создания: {e.FullPath}");
                 return;
             }
 
@@ -227,7 +226,6 @@ namespace Editor
                     var metadata = _metadataManager.GetMetadata(e.FullPath);
                     if (metadata != null)
                     {
-                        DebLogger.Debug($"Обнаружено переименование из временного файла: {e.OldFullPath} -> {e.FullPath}. Обрабатываем как изменение.");
                         OnFileChanged(sender, e);
                     }
                 }
@@ -236,7 +234,6 @@ namespace Editor
 
             if (!ShouldProcessEvent(e.FullPath, "Renamed"))
             {
-                DebLogger.Debug($"Пропуск дублирующего события переименования: {e.OldFullPath} -> {e.FullPath}");
                 return;
             }
 
@@ -271,8 +268,6 @@ namespace Editor
 
                 _metadataManager.HandleFileRenamed(e.OldFullPath, e.FullPath);
                 AssetRenamed?.Invoke(e.OldFullPath, e.FullPath);
-
-                DebLogger.Info($"Переименован ресурс: {e.OldFullPath} -> {e.FullPath}");
             }
             catch (Exception ex)
             {
@@ -287,7 +282,6 @@ namespace Editor
 
             if (!ShouldProcessEvent(e.FullPath, "Changed"))
             {
-                DebLogger.Debug($"Пропуск дублирующего события изменения: {e.FullPath}");
                 return;
             }
 
@@ -348,8 +342,6 @@ namespace Editor
                         command.Command.Execute(eventData);
                     }
                 }
-
-                DebLogger.Info($"Изменен ресурс: {e.FullPath}");
             }
             catch (Exception ex)
             {

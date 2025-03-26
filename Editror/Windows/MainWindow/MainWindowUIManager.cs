@@ -251,9 +251,11 @@ namespace Editor
                 Name = "Generate C# ",
                 Description = "Generate C# Representation",
                 SubCategory = new string[] { "Shader" },
-                Action = (e) =>
+                Action = async (e) =>
                 {
-                    GlslCodeGenerator.GenerateCode(e.FileFullPath, Path.Combine(e.FilePath, $"GeneratedFrom{e.FileName}"), true);
+                    string outputDirectoryName = e.FileName.Contains(".") ? e.FileName.Substring(0, e.FileName.IndexOf(".")) : e.FileName;
+                    outputDirectoryName = Path.Combine(e.FilePath, outputDirectoryName);
+                    await GlslCodeGenerator.GenerateCode(e.FileFullPath, outputDirectoryName, true);
                 }
             });
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu

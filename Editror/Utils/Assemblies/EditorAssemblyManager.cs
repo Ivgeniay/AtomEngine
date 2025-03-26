@@ -11,17 +11,16 @@ namespace Editor
 {
     public class EditorAssemblyManager : AssemblyManager, IService
     {
-        private Dictionary<TAssembly, Assembly> _assemblyDict = new Dictionary<TAssembly, Assembly>();
-        private Dictionary<TAssembly, string> _assemblyMap = new Dictionary<TAssembly, string>
+        private Dictionary<Type, string> _assemblyMap = new Dictionary<Type, string>
                 {
-                    { TAssembly.Core, "EngineLib"},
-                    { TAssembly.Render, "OpenglLib" },
-                    { TAssembly.SilkOpenGL, "Silk.NET.OpenGL" },
-                    { TAssembly.SilkMath, "Silk.NET.Maths" },
-                    { TAssembly.ComponentGenerator, "ComponentGenerator" },
-                    { TAssembly.NewtonsoftJson, "Newtonsoft.Json" },
-                    { TAssembly.SilkNetCore, "Silk.NET.Core"},
-                    { TAssembly.CommonLib, "CommonLib"}
+                    { typeof(CoreAssembly), "EngineLib"},
+                    { typeof(OpenGlLibAssembly), "OpenglLib" },
+                    { typeof(SilkNetOpenGlAssembly), "Silk.NET.OpenGL" },
+                    { typeof(SilkNetMathAssembly), "Silk.NET.Maths" },
+                    { typeof(ComponentGenAssembly), "ComponentGenerator" },
+                    { typeof(NewtonJsonAssembly), "Newtonsoft.Json" },
+                    { typeof(SilkNetCoreAssembly), "Silk.NET.Core"},
+                    { typeof(CommonAssembly), "CommonLib"}
                 };
 
         private bool _isInitialized = false;
@@ -32,6 +31,8 @@ namespace Editor
 
             return Task.Run(() => {
                 IEnumerable<Assembly> initialAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+
 
                 foreach (var assembly in initialAssemblies)
                     _assemblies.Add(assembly);
@@ -83,8 +84,8 @@ namespace Editor
         public Type? FindTypeInUserAssembly(string typeName, bool isFullName = false)
         {
             Type type = null;
-            if (isFullName) type = _assemblyDict[TAssembly.UserScript].GetTypes().FirstOrDefault(t => t.FullName == typeName);
-            else type = _assemblyDict[TAssembly.UserScript].GetTypes().FirstOrDefault(t => t.Name == typeName);
+            if (isFullName) type = _assemblyDict[typeof(UserScriptAssembly)].GetTypes().FirstOrDefault(t => t.FullName == typeName);
+            else type = _assemblyDict[typeof(UserScriptAssembly)].GetTypes().FirstOrDefault(t => t.Name == typeName);
 
             return type;
         }
@@ -126,14 +127,11 @@ namespace Editor
             }
             return null;
         }
-
-        public Assembly GetAssembly(TAssembly assembly) => _assemblyDict[assembly];
-
         public override IEnumerable<Type> FindTypesByInterface<T>(bool isAssignableFrom = true)
         {
             IEnumerable<Type> ts;
 
-            foreach (var type in FindTypesInAssembly<T>(_assemblyDict[TAssembly.UserScript], isAssignableFrom))
+            foreach (var type in FindTypesInAssembly<T>(_assemblyDict[typeof(UserScriptAssembly)], isAssignableFrom))
             {
                 yield return type;
             }
@@ -166,11 +164,11 @@ namespace Editor
 
         internal void UpdateScriptAssembly(Assembly assembly)
         {
-            _assemblyDict[TAssembly.UserScript] = assembly;
+            _assemblyDict[typeof(UserScriptAssembly)] = assembly;
         }
         internal Assembly GetUserScriptAssembly()
         {
-            if (_assemblyDict[TAssembly.UserScript] == null)
+            if (_assemblyDict[typeof(UserScriptAssembly)] == null)
             {
                 try
                 {
@@ -183,26 +181,26 @@ namespace Editor
                             .Get<ScriptProjectGenerator>()
                             .LoadCompiledAssembly(pConf.BuildType)
                         );
-                    return _assemblyDict[TAssembly.UserScript];
+                    return _assemblyDict[typeof(UserScriptAssembly)];
                 }
                 catch
                 {
                     throw;
                 }
             }
-            return _assemblyDict[TAssembly.UserScript];
+            return _assemblyDict[typeof(UserScriptAssembly)];
         }
 
         internal void FreeCache()
         {
-            _assemblyDict[TAssembly.UserScript] = null;
+            _assemblyDict[typeof(UserScriptAssembly)] = null;
         }
 
         internal IEnumerable<Type> GetTypesByAttribute<T>() where T : Attribute
         {
             foreach (var assembly in _assemblyDict)
             {
-                if (assembly.Key == TAssembly.ComponentGenerator) continue;
+                if (assembly.Key == typeof(UserScriptAssembly)) continue;
 
                 var types = assembly.Value.GetTypes();
                 foreach(Type t in types)
