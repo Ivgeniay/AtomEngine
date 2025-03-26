@@ -1,11 +1,9 @@
-﻿using System.Collections.Generic;
-using EngineLib;
-
-namespace Editor
+﻿namespace EngineLib
 {
-    internal class ScriptMetadata : AssetMetadata
+    public class ScriptMetadata : AssetMetadata
     {
-        public ScriptMetadata() { 
+        public ScriptMetadata()
+        {
             AssetType = MetadataType.Script;
         }
 

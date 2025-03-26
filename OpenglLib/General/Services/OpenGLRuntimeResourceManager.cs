@@ -1,4 +1,5 @@
-﻿using AtomEngine.RenderEntity;
+﻿using AtomEngine;
+using AtomEngine.RenderEntity;
 using EngineLib;
 using Silk.NET.OpenGL;
 
@@ -10,11 +11,13 @@ namespace OpenglLib
         protected bool _isGLInitialized = false;
         protected TextureFactory _textureFactory;
         protected MeshFactory _meshFactory;
+        protected MaterialFactory _materialFactory;
 
         public override Task InitializeAsync()
         {
             _textureFactory = ServiceHub.Get<TextureFactory>();
             _meshFactory = ServiceHub.Get<MeshFactory>();
+            _materialFactory = ServiceHub.Get<MaterialFactory>();
 
             return base.InitializeAsync();
         }
@@ -43,6 +46,10 @@ namespace OpenglLib
             {
                 return LoadMeshResource(guid, context);
             }
+            else if (meta.AssetType == MetadataType.Shader)
+            {
+                return LoadShaderResource(guid, context);
+            }
 
             return null;
         }
@@ -56,9 +63,22 @@ namespace OpenglLib
             return texture;
         }
 
-        protected virtual ShaderBase LoadMaterialResource(string guid)
+        protected virtual Material LoadMaterialResource(string guid)
         {
-            throw new NotFiniteNumberException();
+            if (!_isGLInitialized || _gl == null)
+                return null;
+
+            var material = _materialFactory.GetMaterialInstanceFromAssetGuid(_gl, guid);
+            return material;
+        }
+
+        protected virtual ShaderBase LoadShaderResource(string guid, object context)
+        {
+            if (!_isGLInitialized || _gl == null)
+                return null;
+
+            var shader = _materialFactory.GetShaderFormMaterialAssetGUID(_gl, guid);
+            return shader;
         }
 
         protected virtual MeshBase LoadMeshResource(string guid, object context)
@@ -75,11 +95,41 @@ namespace OpenglLib
         {
             _textureFactory.Dispose();
             _meshFactory.Dispose();
+            _materialFactory.Dispose();
 
             _resourceCache.Clear();
             _objectToGuidCache.Clear();
 
             _isGLInitialized = false;
+        }
+    }
+
+    public class ShaderFactory : IService
+    {
+        protected List<ShaderData> _shaderInstanceCache = new List<ShaderData>();
+        protected AssemblyManager _assemblyManager;
+
+        public virtual Task InitializeAsync()
+        {
+            _assemblyManager = ServiceHub.Get<AssemblyManager>();
+            return Task.CompletedTask;
+        }
+
+        //public ShaderBase GetShaderBySAID(string SAID, string entityId)
+        //{
+            
+        //}
+
+        public virtual void Dispose() { 
+        
+        }
+
+
+        protected class ShaderData
+        {
+            public ShaderBase Shader;
+            public string EntityGuid;
+            public ScriptMetadata Metadata;
         }
     }
 }

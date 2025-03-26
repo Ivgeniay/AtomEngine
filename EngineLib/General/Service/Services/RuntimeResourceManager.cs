@@ -15,6 +15,9 @@
 
         public virtual T GetResource<T>(string guid, object context = null) where T : class
         {
+            if (string.IsNullOrEmpty(guid))
+                return null;
+
             return GetResource(guid, context) as T;
         }
 

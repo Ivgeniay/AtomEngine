@@ -13,5 +13,6 @@ namespace Editor
         public List<(string type, string name, int? arraySize)> Uniforms { get; set; } = new List<(string type, string name, int? arraySize)>();
         public List<GlslStructure> Structures { get; set; } = new List<GlslStructure>();
         public List<string> Methods { get; set; } = new List<string>();
+        public List<string> RequiredComponent { get; set; } = new List<string>();
     }
 }

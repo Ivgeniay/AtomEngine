@@ -39,9 +39,9 @@ namespace Editor
                 }
                 result.Log.AppendLine("full shader");
 
-                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, e.FileFullPath);
-                vertexSource = RSParser.RemoveServiceMarkers(vertexSource);
-                fragmentSource = RSParser.RemoveServiceMarkers(fragmentSource);
+                shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, e.FileFullPath);
+                shaderSource = RSParser.RemoveServiceMarkers(shaderSource);
+                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
 
                 var options = WindowOptions.Default;
                 options.Size = new Silk.NET.Maths.Vector2D<int>(1, 1);

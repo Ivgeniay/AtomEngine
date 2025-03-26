@@ -105,8 +105,11 @@ namespace Editor
 
     public class ProjectConfigurations
     {
+        public string ProjectName { get; set; } = "NewProject";
         public string AssemblyName { get; set; } = "CSharp_Assembly";
         public BuildType BuildType { get; set; } = BuildType.Debug;
+
+        public string RootNamespace { get; set; } = "NewProject";
     }
     public class ExplorerConfigurations
     {

@@ -748,35 +748,34 @@ namespace Editor
             
             if (IsGLDependableComponent(component))
             {
-                var shaderFields = FindFieldsByBaseType(componentType, typeof(ShaderBase));
-                foreach (var shaderField in shaderFields)
-                {
-                    var shaderGuidField = componentType.GetField(shaderField.Name + "GUID",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
+                //var shaderFields = FindFieldsByBaseType(componentType, typeof(ShaderBase));
+                //foreach (var shaderField in shaderFields)
+                //{
+                //    var shaderGuidField = componentType.GetField(shaderField.Name + "GUID",
+                //        BindingFlags.NonPublic | BindingFlags.Instance);
 
-                    if (shaderGuidField != null)
-                    {
-                        string shaderGuid = (string)shaderGuidField.GetValue(component);
-                        if (!string.IsNullOrEmpty(shaderGuid))
-                        {
-                            var shader = _resourceManager.GetResource<ShaderBase>(shaderGuid);
-                            if (shader != null)
-                            {
-                                world.ModifyComponent(entity.Id, componentType, (e) =>
-                                {
-                                    shaderField.SetValue(e, shader);
-                                    return e;
-                                });
-                            }
-                        }
-                    }
-                }
+                //    if (shaderGuidField != null)
+                //    {
+                //        string shaderGuid = (string)shaderGuidField.GetValue(component);
+                //        if (!string.IsNullOrEmpty(shaderGuid))
+                //        {
+                //            var shader = _resourceManager.GetResource<ShaderBase>(shaderGuid);
+                //            if (shader != null)
+                //            {
+                //                world.ModifyComponent(entity.Id, componentType, (e) =>
+                //                {
+                //                    shaderField.SetValue(e, shader);
+                //                    return e;
+                //                });
+                //            }
+                //        }
+                //    }
+                //}
 
-                // Обработка мешей
+
                 var meshFields = FindFieldsByBaseType(componentType, typeof(MeshBase));
                 foreach (var meshField in meshFields)
                 {
-                    // Получаем GUID и индекс меша
                     var meshGuidField = componentType.GetField(meshField.Name + "GUID",
                         BindingFlags.NonPublic | BindingFlags.Instance);
                     var meshIndexatorField = componentType.GetField(meshField.Name + "InternalIndex",
@@ -809,7 +808,30 @@ namespace Editor
                     }
                 }
 
-                // Здесь можно добавить обработку текстур по аналогии
+                var materialFields = FindFieldsByBaseType(componentType, typeof(Material));
+                foreach (var materialField in materialFields)
+                {
+                    var materialGuidField = componentType.GetField(materialField.Name + "GUID",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+
+                    if (materialGuidField != null)
+                    {
+                        string materialGuid = (string)materialGuidField.GetValue(component);
+                        if (!string.IsNullOrEmpty(materialGuid))
+                        {
+                            var material = _resourceManager.GetResource<Material>(materialGuid);
+                            if (material != null)
+                            {
+                                world.ModifyComponent(entity.Id, componentType, (e) =>
+                                {
+                                    materialField.SetValue(e, material);
+                                    return e;
+                                });
+                            }
+                        }
+                    }
+                }
+
             }
         }
 

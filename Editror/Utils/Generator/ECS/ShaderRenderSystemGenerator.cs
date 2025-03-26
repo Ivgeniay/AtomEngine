@@ -81,8 +81,6 @@ namespace Editor.Utils.Generator
         private static List<(string type, string name, bool isTexture)> ExtractShaderProperties(string sourceCode)
         {
             var properties = new List<(string type, string name, bool isTexture)>();
-
-            // Ищем все публичные свойства, кроме тех, что с "Location" в имени
             var matches = Regex.Matches(sourceCode, @"public\s+(?:unsafe\s+)?(\w+(?:<\w+>)?)\s+(\w+)(?!\s*Location)(?:\s*\{(?:[^{}]*|(?<brace>\{)|(?<-brace>\}))*\})");
 
             foreach (Match match in matches)
@@ -90,15 +88,11 @@ namespace Editor.Utils.Generator
                 string type = match.Groups[1].Value;
                 string name = match.Groups[2].Value;
 
-                // Исключаем поля с "Location" в имени и проверяем, что это не метод
                 if (!name.Contains("Location") && !sourceCode.Contains($"public {type} {name}("))
                 {
-                    // Если тип - не массив или коллекция, добавляем
                     if (!type.Contains("Array") && !type.Contains("List"))
                     {
                         bool isTexture = ShaderCodeAnalyzer.IsTextureType(type);
-
-                        // Преобразуем типы из Silk.NET в System.Numerics
                         var mappedType = MapToSystemNumerics(type);
                         properties.Add((mappedType, name, isTexture));
                     }
@@ -110,7 +104,6 @@ namespace Editor.Utils.Generator
 
         private static string MapToSystemNumerics(string type)
         {
-            // Преобразование типов из Silk.NET в System.Numerics
             switch (type)
             {
                 case "Vector2D<float>":
@@ -135,13 +128,11 @@ namespace Editor.Utils.Generator
         {
             var sb = new StringBuilder();
 
-            // Если matrixInfo не передан, создаем по умолчанию
             if (matrixInfo == null)
             {
                 matrixInfo = new ShaderMatrixInfo();
             }
 
-            // Добавляем необходимые using
             sb.AppendLine("using System;");
             sb.AppendLine("using System.Numerics;");
             sb.AppendLine("using AtomEngine;");
@@ -150,19 +141,12 @@ namespace Editor.Utils.Generator
             sb.AppendLine("using Silk.NET.Maths;");
             sb.AppendLine();
 
-            // Открываем пространство имен
             sb.AppendLine("namespace AtomEngine");
             sb.AppendLine("{");
-
-            // Объявление класса системы
             sb.AppendLine($"    public class {systemName} : IRenderSystem");
             sb.AppendLine("    {");
-
-            // Свойство World
             sb.AppendLine("        public IWorld World { get; set; }");
             sb.AppendLine();
-
-            // Запросы
             sb.AppendLine("        private QueryEntity queryRenderersEntity;");
             if (matrixInfo.NeedsCamera)
             {
@@ -170,7 +154,6 @@ namespace Editor.Utils.Generator
             }
             sb.AppendLine();
 
-            // Конструктор
             sb.AppendLine($"        public {systemName}(IWorld world)");
             sb.AppendLine("        {");
             sb.AppendLine("            World = world;");
@@ -188,12 +171,8 @@ namespace Editor.Utils.Generator
             sb.AppendLine($"                .With<{componentName}>();");
             sb.AppendLine("        }");
             sb.AppendLine();
-
-            // Метод Render
             sb.AppendLine("        public void Render(double deltaTime)");
             sb.AppendLine("        {");
-
-            // Код для работы с камерой, если она нужна
             if (matrixInfo.NeedsCamera)
             {
                 sb.AppendLine("            Entity[] cameras = queryCameraEntity.Build();");
@@ -255,7 +234,6 @@ namespace Editor.Utils.Generator
             sb.AppendLine("                shaderComponent.Shader.Use();");
             sb.AppendLine();
 
-            // Устанавливаем матрицы, если они используются
             if (matrixInfo.UsesModelMatrix && !string.IsNullOrEmpty(matrixInfo.ModelMatrixName))
             {
                 sb.AppendLine($"                shaderComponent.Shader.{matrixInfo.ModelMatrixName} = transform.GetModelMatrix().ToSilk();");
@@ -284,11 +262,8 @@ namespace Editor.Utils.Generator
                     sb.AppendLine($"                shaderComponent.Shader.{matrixInfo.ModelViewProjectionMatrixName} = (modelMatrix * viewMatrix * projectionMatrix).ToSilk();");
                 }
             }
-
-            // Устанавливаем остальные свойства
             foreach (var (type, name, isTexture) in properties)
             {
-                // Пропускаем матрицы, так как они уже обработаны выше
                 if (type.Contains("Matrix") ||
                     (matrixInfo.UsesModelMatrix && name == matrixInfo.ModelMatrixName) ||
                     (matrixInfo.UsesViewMatrix && name == matrixInfo.ViewMatrixName) ||
@@ -301,7 +276,6 @@ namespace Editor.Utils.Generator
 
                 if (isTexture)
                 {
-                    // Для текстурных типов устанавливаем текстуру
                     sb.AppendLine($"                if (shaderComponent.{name}Texture != null)");
                     sb.AppendLine($"                {{");
                     sb.AppendLine($"                    shaderComponent.Shader.{name}_SetTexture(shaderComponent.{name}Texture);");
@@ -309,7 +283,6 @@ namespace Editor.Utils.Generator
                 }
                 else
                 {
-                    // Для векторных типов добавляем ToSilk()
                     if (type.StartsWith("Vector"))
                     {
                         sb.AppendLine($"                shaderComponent.Shader.{name} = shaderComponent.{name}.ToSilk();");
@@ -327,13 +300,11 @@ namespace Editor.Utils.Generator
             sb.AppendLine("        }");
             sb.AppendLine();
 
-            // Методы Resize и Initialize
             sb.AppendLine("        public void Resize(Vector2 size) { }");
             sb.AppendLine();
             sb.AppendLine("        public void Initialize() { }");
             sb.AppendLine("    }");
 
-            // Закрываем пространство имен
             sb.AppendLine("}");
 
             return sb.ToString();

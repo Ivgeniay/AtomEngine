@@ -8,7 +8,7 @@ namespace OpenglLib
 {
     public class Material
     {
-        internal readonly Shader Shader;
+        public readonly Shader Shader;
         internal readonly MaterialAsset MaterialAsset;
         internal GL GLContext;
         internal MaterialFactory factory;
@@ -45,7 +45,6 @@ namespace OpenglLib
     public class MaterialFactory : IService, IDisposable
     {
         protected List<Material> _materials = new List<Material>();
-        protected Dictionary<string, ShaderBase> _shaderInstanceCache = new Dictionary<string, ShaderBase>();
         protected TextureFactory _textureFactory;
         protected AssemblyManager _assemblyManager;
 
@@ -104,17 +103,17 @@ namespace OpenglLib
 
         }
 
-        public virtual ShaderBase GetShaderFormMaterialAssetGUID(GL gl, string guid)
+        public virtual ShaderBase GetShaderFormMaterialAssetGUID(GL gl, string materislGuid)
         {
             try
             {
                 Material? material = _materials.FirstOrDefault(e =>
-                        e.MaterialAsset.Guid == guid &&
+                        e.MaterialAsset.Guid == materislGuid &&
                         e.GLContext == gl
                         );
 
                 if (material != null) return material.Shader;
-                return GetMaterialInstanceFromAssetGuid(gl, guid).Shader;
+                return GetMaterialInstanceFromAssetGuid(gl, materislGuid).Shader;
             }
             catch(Exception e)
             {
@@ -275,7 +274,6 @@ namespace OpenglLib
             }
 
             var materials = _materials.Where(e => e.Shader == instance);
-
             foreach (var material in materials)
             {
                 foreach (var kvp in uniformValues)
@@ -556,14 +554,12 @@ namespace OpenglLib
 
         public virtual void Dispose()
         {
-            foreach (var kvp in _shaderInstanceCache)
-            {
-                kvp.Value.Dispose();
-            }
-            _shaderInstanceCache.Clear();
             _materials.ForEach(e => e.Dispose());
             _materials.Clear();
         }
+
+
+
     }
 
 

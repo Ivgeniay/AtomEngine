@@ -1,18 +1,9 @@
 ﻿using System.Text.RegularExpressions;
-using System.Text;
 
 namespace OpenglLib
 {
     public static class GlslParser
     {
-        private static readonly IReadOnlyList<char> AllowedCharacters = new[] {
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-            'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-            '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_' };
-
-
         public static bool IsCompleteShaderFile(string source)
         {
             return source.Contains("#vertex") && source.Contains("#fragment");
@@ -23,7 +14,7 @@ namespace OpenglLib
             processedPaths ??= new HashSet<string>();
 
             if (processedPaths.Contains(sourcePath))
-                throw new CircularDependencyError($"Циклическая зависимость обнаружена: {sourcePath}");
+                throw new CircularDependencyError($"Cyclic dependency detected: {sourcePath}");
 
             processedPaths.Add(sourcePath);
 
@@ -38,14 +29,14 @@ namespace OpenglLib
                 try
                 {
                     if (!File.Exists(fullPath))
-                        throw new FileNotFoundException($"Включаемый файл не найден: {includePath}");
+                        throw new FileNotFoundError($"Includ file not founded: {includePath}");
 
                     var includeContent = File.ReadAllText(fullPath);
                     return ProcessIncludesRecursively(includeContent, fullPath, new HashSet<string>(processedPaths));
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception($"Ошибка при обработке включения '{includePath}': {ex.Message}", ex);
+                    throw new ShaderError($"Error processing include: '{includePath}': {ex.Message} {ex}");
                 }
             });
         }
@@ -74,9 +65,8 @@ namespace OpenglLib
             return bindings;
         }
 
-        public static (string vertex, string fragment) ExtractShaderSources(string source, string falepath = null)
+        public static (string vertex, string fragment) ExtractShaderSources(string source)
         {
-            if (falepath != null) source = ProcessIncludesRecursively(source, falepath);
             source = CleanComments(source);
 
             string vertexSource = "";
@@ -205,70 +195,6 @@ namespace OpenglLib
             return blocks;
         }
 
-        //public static List<UniformBlockStructure> ParseUniformBlocks(string source)
-        //{
-        //    var blocks = new List<UniformBlockStructure>();
-        //    var blockRegex = new Regex(
-        //@"layout\s*\(\s*(std140|std430|packed|shared)(?:\s*,\s*binding\s*=\s*(\d+))?\)\s*uniform\s+(\w+)?\s*\{([^}]+)\}\s*(\w+)?;",
-        //RegexOptions.Multiline);
-
-
-        //    foreach (Match match in blockRegex.Matches(source))
-        //    {
-        //        var layoutTypeStr = match.Groups[1].Value;
-        //        var bindingStr = match.Groups[2].Success ? match.Groups[2].Value : null;
-        //        int? binding = bindingStr != null ? int.Parse(bindingStr) : null;
-        //        var blockName = match.Groups[3].Success ? match.Groups[3].Value : null;
-        //        var fieldsText = match.Groups[4].Value;
-        //        var instanceName = match.Groups[5].Success ? match.Groups[5].Value : null;
-        //        var name = blockName ?? instanceName;
-
-        //        if (string.IsNullOrEmpty(name))
-        //        {
-        //            continue;
-        //        }
-
-        //        UniformBlockType blockType = GetUniformBlockType(layoutTypeStr);
-
-        //        blocks.Add(new UniformBlockStructure
-        //        {
-        //            Name = name,
-        //            UniformBlockType = blockType,
-        //            Binding = binding,
-        //            Fields = ParseFields(fieldsText),
-        //            InstanceName = instanceName
-        //        });
-        //    }
-
-        //    var ordinaryBlockRegex = new Regex(
-        //        @"uniform\s+(\w+)?\s*\{([^}]+)\}\s*(\w+)?;",
-        //        RegexOptions.Multiline);
-
-        //    foreach (Match match in ordinaryBlockRegex.Matches(source))
-        //    {
-        //        var blockName = match.Groups[1].Success ? match.Groups[1].Value : null;
-        //        var fieldsText = match.Groups[2].Value;
-        //        var instanceName = match.Groups[3].Success ? match.Groups[3].Value : null;
-        //        var name = blockName ?? instanceName;
-
-        //        if (string.IsNullOrEmpty(name))
-        //        {
-        //            continue;
-        //        }
-
-        //        blocks.Add(new UniformBlockStructure
-        //        {
-        //            Name = name,
-        //            UniformBlockType = UniformBlockType.Ordinary,
-        //            Binding = null,
-        //            Fields = ParseFields(fieldsText),
-        //            InstanceName = instanceName
-        //        });
-        //    }
-
-        //    return blocks;
-        //}
-
         public static List<(string Type, string Name, int? ArraySize)> ParseFields(string fieldsText)
         {
             var fields = new List<(string Type, string Name, int? ArraySize)>();
@@ -293,30 +219,6 @@ namespace OpenglLib
             }
 
             return fields;
-        }
-
-        public static string ConvertToValidCSharpIdentifier(string input)
-        {
-            if (string.IsNullOrEmpty(input))
-                return "_";
-
-            var result = new StringBuilder();
-            if (char.IsDigit(input[0]))
-                result.Append('_');
-
-            foreach (char c in input)
-            {
-                if (AllowedCharacters.Contains(c))
-                {
-                    result.Append(c);
-                }
-                else
-                {
-                    result.Append('_');
-                }
-            }
-
-            return result.ToString();
         }
 
         public static string MapGlslTypeToCSharp(string glslType, HashSet<string> generatedTypes = null)
@@ -541,7 +443,6 @@ namespace OpenglLib
             if (obj.GetType() != GetType()) return false;
             return Equals(obj as UniformBlockStructure);
         }
-
         public bool Equals(UniformBlockStructure? other)
         {
             if (other is null) return false;
@@ -555,7 +456,6 @@ namespace OpenglLib
                    InstanceName == other.InstanceName &&
                    fieldsEqual;
         }
-
         public override int GetHashCode()
         {
             unchecked
@@ -576,13 +476,11 @@ namespace OpenglLib
                 return hash;
             }
         }
-
         public static bool operator ==(UniformBlockStructure? left, UniformBlockStructure? right)
         {
             if (left is null) return right is null;
             return left.Equals(right);
         }
-
         public static bool operator !=(UniformBlockStructure? left, UniformBlockStructure? right) =>
             !(left == right);
     }

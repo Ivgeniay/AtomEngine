@@ -46,9 +46,10 @@ namespace Editor.Utils.Generator
                 string representationName = Path.GetFileNameWithoutExtension(sourcePath);
                 List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, sourcePath);
 
-                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource, sourcePath);
-                vertexSource = RSParser.RemoveServiceMarkers(vertexSource);
-                fragmentSource = RSParser.RemoveServiceMarkers(fragmentSource);
+                shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, sourcePath);
+                shaderSource = RSParser.RemoveServiceMarkers(shaderSource);
+
+                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
                 GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
                 var combinedSource = vertexSource + "\n" + fragmentSource;
 
@@ -64,36 +65,60 @@ namespace Editor.Utils.Generator
                         sourceGuid: sourceGuid);
                     }
                 }
+
                 List<UniformBlockStructure> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
-                uniformBlocks = FreeBlocks(rsFiles, uniformBlocks);
+                uniformBlocks = SeparateBlocks(rsFiles, uniformBlocks);
 
                 foreach (var block in uniformBlocks)
                 {
                     block.CSharpTypeName = $"{block.Name}_{representationName}";
-                    ShaderCodeRepresentationGenerator.GenerateUniformBlockClass(
+                    GlslsUBOGenerator.GenerateUniformBlockClass(
                         block: block,
                         outputDirectory: outputDirectory,
                         sourceGuid: sourceGuid,
                         structures: structures);
                 }
+
                 foreach(var rs in rsFiles)
                 {
                     foreach(var block in rs.UniformBlocks)
                     {
                         block.CSharpTypeName = $"{block.Name}_{block.UniformBlockType}";
-                        ShaderCodeRepresentationGenerator.GenerateUniformBlockClass(
+                        GlslsUBOGenerator.GenerateUniformBlockClass(
                             block: block,
                             outputDirectory: rs.SourceFolder,
                             sourceGuid: sourceGuid,
                             structures: rs.Structures);
                     }
                 }
+
                 foreach (var rs in rsFiles)
                 {
                     var sourceCode = InterfaceGenerator.GenerateInterface(rs);
                     var path = Path.Combine(rs.SourceFolder, rs.InterfaceName + ".cs");
                     File.WriteAllText(path, sourceCode);
                 }
+
+                List<ComponentGeneratorInfo>compList = new List<ComponentGeneratorInfo>();
+                foreach (var rs in rsFiles)
+                {
+                    ComponentGeneratorInfo componentInfo;
+                    var sourceCode = ComponentGenerator.GenerateComponentTemplate(rs, out componentInfo);
+                    string componentFileName = ComponentGenerator.GetComponentNameFromInterface(rs.InterfaceName);
+                    var path = Path.Combine(rs.SourceFolder, componentFileName + ".cs");
+                    compList.Add(componentInfo);
+                    File.WriteAllText(path, sourceCode);
+                }
+
+                foreach (var rs in rsFiles)
+                {
+                    var sourceCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rs, compList);
+                    string systemFileName = RenderSystemGenerator.GetSystemNameFromInterface(rs.InterfaceName);
+                    var path = Path.Combine(rs.SourceFolder, systemFileName + ".cs");
+                    File.WriteAllText(path, sourceCode);
+                }
+
+
                 uniformBlocks = UnionBlocks(rsFiles, uniformBlocks);
 
                 string resultRepresentationName = ShaderCodeRepresentationGenerator.GenerateRepresentationFromSource(
@@ -133,8 +158,7 @@ namespace Editor.Utils.Generator
 
             return resultList;
         }
-
-        private static List<UniformBlockStructure> FreeBlocks(List<RSFileInfo> rsFiles, List<UniformBlockStructure> uniformBlocks)
+        private static List<UniformBlockStructure> SeparateBlocks(List<RSFileInfo> rsFiles, List<UniformBlockStructure> uniformBlocks)
         {
             return uniformBlocks.Where(e =>
             {

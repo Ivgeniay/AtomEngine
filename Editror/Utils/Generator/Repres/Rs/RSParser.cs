@@ -8,6 +8,12 @@ namespace Editor
 {
     public static class RSParser
     {
+        private static Dictionary<string, string> masks = new Dictionary<string, string>()
+        {
+            { "InterfaceName", @"\[InterfaceName:[^\]]+\]" },
+            { "RequiredComponent", @"\[RequiredComponent:[^\]]+\]" }
+        };
+
         public static RSFileInfo ParseFile(string filePath)
         {
             if (!File.Exists(filePath))
@@ -28,6 +34,7 @@ namespace Editor
                 InterfaceName = ExtractInterfaceName(sourceCode, Path.GetFileNameWithoutExtension(filePath))
             };
 
+            fileInfo.RequiredComponent = ExtractRequiredComponents(sourceCode);
             fileInfo.ProcessedCode = RemoveServiceMarkers(sourceCode);
 
             fileInfo.UniformBlocks = GlslParser.ParseUniformBlocks(fileInfo.ProcessedCode);
@@ -47,7 +54,7 @@ namespace Editor
             string ProcessIncludesRecursively(string source, string path)
             {
                 if (processedPaths.Contains(path))
-                    throw new CircularDependencyError($"Циклическая зависимость обнаружена: {path}");
+                    throw new CircularDependencyError($"Cyclic dependency detected: {path}");
 
                 processedPaths.Add(path);
 
@@ -61,11 +68,11 @@ namespace Editor
                     try
                     {
                         if (!File.Exists(fullPath))
-                            throw new FileNotFoundException($"Включаемый файл не найден: {includePath}");
+                            throw new FileNotFoundError($"Включаемый файл не найден: {includePath}");
 
                         var includeContent = File.ReadAllText(fullPath);
 
-                        if (Path.GetExtension(fullPath).ToLower() == ".rc")
+                        if (Path.GetExtension(fullPath).ToLower() == ".rs")
                         {
                             var rsInfo = ParseContent(includeContent, fullPath);
                             rsFiles.Add(rsInfo);
@@ -75,7 +82,7 @@ namespace Editor
                     }
                     catch (Exception ex)
                     {
-                        throw new Exception($"Ошибка при обработке включения '{includePath}': {ex.Message}", ex);
+                        throw new ShaderError($"Error processing include: '{includePath}': {ex.Message} {ex}");
                     }
                 });
             }
@@ -88,6 +95,22 @@ namespace Editor
             return rsFiles;
         }
 
+        private static List<string> ExtractRequiredComponents(string sourceCode)
+        {
+            var components = new List<string>();
+            var regex = new Regex(@"\[RequiredComponent:([^\]]+)\]");
+
+            foreach (Match match in regex.Matches(sourceCode))
+            {
+                if (match.Success && match.Groups.Count > 1)
+                {
+                    string componentName = match.Groups[1].Value.Trim();
+                    components.Add(componentName);
+                }
+            }
+
+            return components;
+        }
         private static string ExtractInterfaceName(string sourceCode, string defaultName)
         {
             var match = Regex.Match(sourceCode, @"\[InterfaceName:([^\]]+)\]");
@@ -99,8 +122,13 @@ namespace Editor
 
         public static string RemoveServiceMarkers(string sourceCode)
         {
-            return Regex.Replace(sourceCode, @"\[InterfaceName:[^\]]+\]", "");
+            foreach(var mask in masks.Values)
+            {
+                sourceCode = Regex.Replace(sourceCode, mask, "");
+            }
+            return sourceCode;
         }
+        
 
         private static List<string> ExtractMethods(string sourceCode)
         {

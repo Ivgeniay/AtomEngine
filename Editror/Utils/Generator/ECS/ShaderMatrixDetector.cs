@@ -5,30 +5,22 @@ namespace Editor.Utils.Generator
 {
     internal static class ShaderCodeAnalyzer
     {
-        // Анализирует исходный код шейдера для поиска используемых матриц в gl_Position
         public static ShaderMatrixInfo AnalyzeShaderMatrices(string shaderCode)
         {
             var matrixInfo = new ShaderMatrixInfo();
-
-            // Извлекаем вертексный шейдер
             string vertexShader = ExtractVertexShader(shaderCode);
 
             if (string.IsNullOrEmpty(vertexShader))
             {
                 return matrixInfo;
             }
-
-            // Ищем строку, где назначается gl_Position
             var positionMatch = Regex.Match(vertexShader, @"gl_Position\s*=\s*([^;]+);");
             if (!positionMatch.Success)
             {
                 return matrixInfo;
             }
-
-            // Получаем выражение из gl_Position
             string positionExpression = positionMatch.Groups[1].Value.Trim();
 
-            // Ищем uniform mat4 в вертексном шейдере
             var matrixMatches = Regex.Matches(vertexShader, @"uniform\s+mat4\s+(\w+);");
             var matrices = new HashSet<string>();
 
@@ -36,13 +28,10 @@ namespace Editor.Utils.Generator
             {
                 matrices.Add(match.Groups[1].Value);
             }
-
-            // Проверяем, какие матрицы используются в выражении gl_Position
             foreach (string matrix in matrices)
             {
                 if (Regex.IsMatch(positionExpression, $@"\b{matrix}\b"))
                 {
-                    // Определяем тип матрицы на основе имени
                     DetermineMatrixType(matrix, matrixInfo);
                 }
             }
@@ -50,7 +39,6 @@ namespace Editor.Utils.Generator
             return matrixInfo;
         }
 
-        // Извлекает вертексный шейдер из полного кода
         private static string ExtractVertexShader(string shaderCode)
         {
             var match = Regex.Match(shaderCode, @"protected new string VertexSource = @""([^""]+)""");
@@ -61,32 +49,27 @@ namespace Editor.Utils.Generator
             return string.Empty;
         }
 
-        // Определяет тип матрицы на основе её имени
         private static void DetermineMatrixType(string matrixName, ShaderMatrixInfo matrixInfo)
         {
             string normalizedName = matrixName.ToLowerInvariant();
 
-            // Проверяем на матрицу модели
             if (normalizedName.Contains("model") || normalizedName == "m" || normalizedName == "world")
             {
                 matrixInfo.UsesModelMatrix = true;
                 matrixInfo.ModelMatrixName = matrixName;
             }
-            // Проверяем на матрицу вида
             else if (normalizedName.Contains("view") || normalizedName == "v" || normalizedName.Contains("camera"))
             {
                 matrixInfo.UsesViewMatrix = true;
                 matrixInfo.ViewMatrixName = matrixName;
                 matrixInfo.NeedsCamera = true;
             }
-            // Проверяем на матрицу проекции
             else if (normalizedName.Contains("proj") || normalizedName == "p")
             {
                 matrixInfo.UsesProjectionMatrix = true;
                 matrixInfo.ProjectionMatrixName = matrixName;
                 matrixInfo.NeedsCamera = true;
             }
-            // Проверяем на комбинированную матрицу VP
             else if (normalizedName.Contains("viewproj") || normalizedName.Contains("projview") || normalizedName == "vp" || normalizedName == "pv")
             {
                 matrixInfo.UsesViewProjectionMatrix = true;

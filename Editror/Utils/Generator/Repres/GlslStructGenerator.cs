@@ -76,11 +76,9 @@ namespace Editor
 
             WriteGeneratedCodeHeader(builder, sourceGuid);
 
-            builder.AppendLine("using Silk.NET.Maths;");
-            builder.AppendLine("using Silk.NET.OpenGL;");
-            builder.AppendLine("using AtomEngine;");
+            builder.AppendLine($"{GeneratorConst.GetDefaultNamespaces()}");
             builder.AppendLine();
-            builder.AppendLine("namespace OpenglLib");
+            builder.AppendLine($"{GeneratorConst.GetUserScriptNamespace()}");
             builder.AppendLine("{");
             builder.AppendLine("    //");
             builder.AppendLine($"    public class {structure.Name} : CustomStruct");

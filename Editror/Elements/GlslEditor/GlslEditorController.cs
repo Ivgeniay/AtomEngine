@@ -1271,42 +1271,31 @@ namespace Editor
 
         private void ProcessIncludeDirectiveWithState(int line, string relativePath, int startOffset, int length)
         {
-            
             var processingState = new GlslIncludeProcessingState();
             processingState.ProcessingLines.Add(line);
-
             
             if (line < _textEditor.Document.LineCount)
             {
                 processingState.ProcessingLines.Add(line + 1);
             }
-
             
             _stateProvider.RegisterState(processingState);
-
             try
             {
-                
                 string includeFilePath = GetAbsoluteIncludePath(relativePath);
-
                 
                 if (File.Exists(includeFilePath))
                 {
                     string includeContent = File.ReadAllText(includeFilePath);
-
-                    
                     var existingInclude = _includedFiles.FirstOrDefault(
                         f => f.DirectiveLine == line && f.FilePath == includeFilePath);
 
                     if (existingInclude != null)
                     {
-                        
                         if (existingInclude.Content != includeContent)
                         {
-                            
                             RemoveIncludedContent(existingInclude);
                             InsertIncludeContent(line, includeFilePath, relativePath, includeContent);
-
                             
                             existingInclude.Content = includeContent;
                             existingInclude.HasError = false;
@@ -1314,7 +1303,6 @@ namespace Editor
                     }
                     else
                     {
-                        
                         var includeInfo = new IncludeFileInfo
                         {
                             DirectiveLine = line,
@@ -1326,24 +1314,17 @@ namespace Editor
                             HasError = false
                         };
                         _includedFiles.Add(includeInfo);
-
-                        
                         InsertIncludeContent(line, includeFilePath, relativePath, includeContent);
                     }
-
-                    
                     AddOpenIncludeButton(line, includeFilePath);
                 }
                 else
                 {
-                    
                     var existingInclude = _includedFiles.FirstOrDefault(f => f.DirectiveLine == line);
                     if (existingInclude != null)
                     {
-                        
                         RemoveIncludedContent(existingInclude);
 
-                        
                         existingInclude.FilePath = includeFilePath;
                         existingInclude.RelativePath = relativePath;
                         existingInclude.Content = null;
@@ -1351,7 +1332,6 @@ namespace Editor
                     }
                     else
                     {
-                        
                         var includeInfo = new IncludeFileInfo
                         {
                             DirectiveLine = line,
@@ -1364,8 +1344,6 @@ namespace Editor
                         };
                         _includedFiles.Add(includeInfo);
                     }
-
-                    
                     InsertFileNotFoundMessage(line, relativePath);
                 }
             }

@@ -79,6 +79,7 @@ namespace Editor
                 ServiceHub.RegisterService<EditorMaterialFactory>();
                 ServiceHub.AddMapping<MaterialFactory, EditorMaterialFactory>();
                 ServiceHub.RegisterService<MeshFactory>();
+                ServiceHub.RegisterService<ShaderFactory>();
 
                 ServiceHub.RegisterService<InspectorViewFactory>();
                 ServiceHub.RegisterService<EditorRuntimeResourceManager>();

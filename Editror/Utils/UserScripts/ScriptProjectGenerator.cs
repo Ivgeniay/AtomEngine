@@ -27,7 +27,6 @@ namespace Editor
         private Assembly _componentGeneratorAssembly;
         private Assembly _commonLib;
         private bool _isInitialized = false;
-        private string RootNamespace = "UserScripts";
 
         private Dictionary<string, ScriptAssemblyLoadContext> _loadContexts = new Dictionary<string, ScriptAssemblyLoadContext>();
         private int cacheCounter = 0;
@@ -151,7 +150,7 @@ namespace Editor
     <Nullable>enable</Nullable>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>{RootNamespace}</RootNamespace>
+    <RootNamespace>{projConfig.RootNamespace}</RootNamespace>
   </PropertyGroup>
 
   <!-- Analizator Settings -->

@@ -219,10 +219,10 @@ namespace Editor
                 }
             });
             #endregion
-            #region RC
+            #region RS
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
             {
-                Extension = ".rc",
+                Extension = ".rs",
                 Name = "Onep with GLSL editor",
                 Description = "Open with GLSL editor",
                 SubCategory = new string[] { "Shader" },
