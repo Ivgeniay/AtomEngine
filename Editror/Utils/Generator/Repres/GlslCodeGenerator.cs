@@ -199,15 +199,6 @@ namespace Editor.Utils.Generator
 
                 return true;
             }).ToList();
-
-            //return uniformBlocks.Where(e =>
-            //{
-            //    foreach (var rs in rsFiles)
-            //    {
-            //        if (!rs.UniformBlocks.Contains(e)) return true;
-            //    }
-            //    return false;
-            //}).ToList();
         }
     }
 }

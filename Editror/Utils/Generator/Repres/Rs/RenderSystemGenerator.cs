@@ -2,6 +2,7 @@
 using System.Text;
 using System.Linq;
 using OpenglLib;
+using AtomEngine;
 
 namespace Editor
 {
@@ -165,82 +166,102 @@ namespace Editor
 
                 foreach (var field in componentInfo.Fields)
                 {
-                    if (field.IsArray)
+                    if (field.IsUniform)
                     {
-                        for (var i = 0; i < field.ArraySize; i++)
+                        if (field.IsArray)
                         {
-                            builder.AppendLine($"                    renderer.{field.FieldName}[{i}] = {componentVar}.{field.FieldName}[{i}];");
+                            UniformArrayCase(builder, field, componentVar);
+                        }
+                        else
+                        {
+                            UniformCase(builder, field, componentVar);
+                        }
+
+                    }
+
+                    if (field.IsCustomStruct) 
+                    {
+                        if (field.IsArray)
+                        {
+                            CustomStructArrayCase(builder, field, componentVar);
+                        }
+                        else
+                        {
+                            CustomStructCase(builder, field, componentVar);
                         }
                     }
-                    else if (field.IsDirtySupport)
-                    {
-                        builder.AppendLine($"                    if ({componentVar}.IsDirty{field.FieldName})");
-                        builder.AppendLine("                    {");
-                        builder.AppendLine($"                        renderer.{field.FieldName} = {componentVar}.{field.FieldName};");
-                        builder.AppendLine("                    }");
-                    }
-                    else
-                    {
-                        builder.AppendLine($"                    renderer.{field.FieldName} = {componentVar}.{field.FieldName};");
-                    }
-                }
 
-                if (componentInfo.Fields.Any(f => f.IsDirtySupport))
-                {
-                    builder.AppendLine($"                    {componentVar}.MakeClean();");
+                    if (field.IsUniformBlock)
+                    {
+                        UniformBlockCase(builder, field, componentVar);
+                    }
                 }
             }
-
-            builder.AppendLine();
             builder.AppendLine();
             builder.AppendLine("                    meshComponent.Mesh.Draw(materialComponent.Material.Shader);");
             builder.AppendLine("                }");
         }
 
-        private static void GenerateComponentFields(StringBuilder builder, ComponentGeneratorInfo componentInfo, string componentVar)
+        private static void UniformArrayCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, string componentVar)
         {
-            foreach (var field in componentInfo.Fields)
+            if (fieldInfo.IsDirtySupport)
             {
-                if (field.IsArray)
+                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldInfo.FieldName})");
+                builder.AppendLine("                    {");
+                for (var i = 0; i < fieldInfo.ArraySize; i++)
                 {
-                    ArrayFieldCase(builder, field, componentVar);
+                    builder.AppendLine($"                        renderer.{fieldInfo.FieldName}[{i}] = {componentVar}.{fieldInfo.FieldName}[{i}];");
                 }
-                else if (field.IsDirtySupport)
+                builder.AppendLine($"                        {componentVar}.MakeClean();");
+                builder.AppendLine("                    }");
+            }
+            else
+            {
+                for (var i = 0; i < fieldInfo.ArraySize; i++)
                 {
-                    DirtyFieldCase(builder, field, componentVar);
-                }
-                else
-                {
-                    SimpleFieldCase(builder, field, componentVar);
+                    builder.AppendLine($"                    renderer.{fieldInfo.FieldName}[{i}] = {componentVar}.{fieldInfo.FieldName}[{i}];");
                 }
             }
-
-            if (componentInfo.Fields.Any(f => f.IsDirtySupport))
+        }
+        private static void UniformCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, string componentVar)
+        {
+            if (fieldInfo.IsDirtySupport)
             {
-                builder.AppendLine($"                    {componentVar}.MakeClean();");
+                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldInfo.FieldName})");
+                builder.AppendLine("                    {");
+                builder.AppendLine($"                        renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
+                builder.AppendLine($"                        {componentVar}.MakeClean();");
+                builder.AppendLine("                    }");
+            }
+            else
+            {
+                builder.AppendLine($"                    renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
+            }
+        }
+        private static void CustomStructArrayCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, string componentVar)
+        {
+            DebLogger.Warn($"{nameof(CustomStructArrayCase)} not implemented");
+        }
+        private static void CustomStructCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, string componentVar)
+        {
+            DebLogger.Warn($"{nameof(CustomStructCase)} not implemented");
+        }
+        private static void UniformBlockCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, string componentVar)
+        {
+            if (fieldInfo.IsDirtySupport)
+            {
+                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldInfo.FieldName})");
+                builder.AppendLine("                    {");
+                builder.AppendLine($"                        renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
+                builder.AppendLine($"                        {componentVar}.MakeClean();");
+                builder.AppendLine("                    }");
+            }
+            else
+            {
+                builder.AppendLine($"                    renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
             }
         }
 
-        private static void SimpleFieldCase(StringBuilder builder, ComponentGeneratorFieldInfo field, string componentVar)
-        {
-            builder.AppendLine($"                    renderer.{field.FieldName} = {componentVar}.{field.FieldName};");
-        }
-
-        private static void DirtyFieldCase(StringBuilder builder, ComponentGeneratorFieldInfo field, string componentVar)
-        {
-            builder.AppendLine($"                    if ({componentVar}.IsDirty{field.FieldName})");
-            builder.AppendLine("                    {");
-            builder.AppendLine($"                        renderer.{field.FieldName} = {componentVar}.{field.FieldName};");
-            builder.AppendLine("                    }");
-        }
-
-        private static void ArrayFieldCase(StringBuilder builder, ComponentGeneratorFieldInfo field, string componentVar)
-        {
-            for (var i = 0; i < field.ArraySize; i++)
-            {
-                builder.AppendLine($"                    renderer.{field.FieldName}[{i}] = {componentVar}.{field.FieldName}[{i}];");
-            }
-        }
 
         private static void GenerateOtherMethods(StringBuilder builder)
         {

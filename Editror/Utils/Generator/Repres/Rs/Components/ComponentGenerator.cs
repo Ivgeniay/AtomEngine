@@ -162,9 +162,9 @@ namespace Editor
 
         private static void UniformCustomStructCase(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, ComponentGeneratorFieldInfo fieldInfo)
         {
-
+            //public DirectionalLight Lights  = new DirectionalLight();
         }
-        
+
         private static void UniformCase(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, ComponentGeneratorFieldInfo fieldInfo)
         {
             foreach (var attr in fieldInfo.Attributes)

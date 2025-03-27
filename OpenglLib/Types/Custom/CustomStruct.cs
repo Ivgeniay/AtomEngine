@@ -6,8 +6,13 @@ namespace OpenglLib
 {
     public abstract class CustomStruct
     {
+        protected bool _isDirty = true;
         protected GL _gl;
         public CustomStruct(GL gl) => this._gl = gl;
 
+        public virtual void SetClean()
+        {
+            _isDirty = false;
+        }
     }
 }
