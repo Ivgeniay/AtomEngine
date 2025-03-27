@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using AtomEngine;
+using System.Text.RegularExpressions;
 
 namespace OpenglLib
 {
@@ -90,8 +91,7 @@ namespace OpenglLib
         public static List<(string type, string name, int? arraySize)> ExtractUniforms(string source)
         {
             var uniforms = new List<(string type, string name, int? arraySize)>();
-            //var uniformRegex = new Regex(@"uniform\s+(?!layout)(\w+)\s+(\w+)(?:\[(\d+)\])?\s*;");
-            var uniformRegex = new Regex(@"uniform\s+(?!layout)(?:highp|mediump|lowp)?\s*(\w+)\s+(\w+)(?:\[(\d+)\])?\s*;");
+            var uniformRegex = new Regex(@"uniform\s+(?!layout)(?:highp|mediump|lowp)?\s*(\w+)\s+(\w+)(?:\[(\w+|\d+)\])?\s*;");
 
             foreach (Match match in uniformRegex.Matches(source))
             {
@@ -101,7 +101,15 @@ namespace OpenglLib
 
                 if (match.Groups[3].Success)
                 {
-                    arraySize = int.Parse(match.Groups[3].Value);
+                    var sizeValue = match.Groups[3].Value;
+                    if (int.TryParse(sizeValue, out int size))
+                    {
+                        arraySize = size;
+                    }
+                    else
+                    {
+                        arraySize = ResolveArraySizeIdentifier(source, sizeValue);
+                    }
                 }
 
                 uniforms.Add((type, name, arraySize));
@@ -173,8 +181,7 @@ namespace OpenglLib
 
             fieldsText = Regex.Replace(fieldsText, @"//.*$", "", RegexOptions.Multiline);
             fieldsText = Regex.Replace(fieldsText, @"/\*[\s\S]*?\*/", "");
-
-            var fieldRegex = new Regex(@"(?<type>\w+)\s+(?<name>\w+)(?:\[(?<size>\d+)\])?\s*;", RegexOptions.Multiline);
+            var fieldRegex = new Regex(@"(?<type>\w+)\s+(?<name>\w+)(?:\[(?<size>\w+|\d+)\])?\s*;", RegexOptions.Multiline);
 
             foreach (Match match in fieldRegex.Matches(fieldsText))
             {
@@ -184,7 +191,15 @@ namespace OpenglLib
 
                 if (match.Groups["size"].Success)
                 {
-                    arraySize = int.Parse(match.Groups["size"].Value);
+                    var sizeValue = match.Groups["size"].Value;
+                    if (int.TryParse(sizeValue, out int size))
+                    {
+                        arraySize = size;
+                    }
+                    else
+                    {
+                        arraySize = ResolveArraySizeIdentifier(fieldsText, sizeValue);
+                    }
                 }
 
                 fields.Add((type, name, arraySize));
@@ -391,6 +406,41 @@ namespace OpenglLib
                 _ => UniformBlockType.Ordinary
             };
         }
+
+        public static int? ResolveArraySizeIdentifier(string sourceCode, string identifier)
+        {
+            var defineRegex = new Regex($@"#define\s+{Regex.Escape(identifier)}\s+(\d+)");
+            var defineMatch = defineRegex.Match(sourceCode);
+            if (defineMatch.Success && defineMatch.Groups.Count > 1)
+            {
+                if (int.TryParse(defineMatch.Groups[1].Value, out int size))
+                {
+                    return size;
+                }
+            }
+
+            var constRegex = new Regex($@"const\s+(int|uint)\s+{Regex.Escape(identifier)}\s*=\s*(\d+)\s*;");
+            var constMatch = constRegex.Match(sourceCode);
+            if (constMatch.Success && constMatch.Groups.Count > 2)
+            {
+                if (int.TryParse(constMatch.Groups[2].Value, out int size))
+                {
+                    return size;
+                }
+            }
+
+            var constRefRegex = new Regex($@"const\s+(int|uint)\s+{Regex.Escape(identifier)}\s*=\s*(\w+)\s*;");
+            var constRefMatch = constRefRegex.Match(sourceCode);
+            if (constRefMatch.Success && constRefMatch.Groups.Count > 2)
+            {
+                var refIdentifier = constRefMatch.Groups[2].Value;
+                return ResolveArraySizeIdentifier(sourceCode, refIdentifier);
+            }
+
+            DebLogger.Warn($"Unable to resolve array size identifier: {identifier}");
+            return null;
+        }
+
     }
 
     public class GlslStructure

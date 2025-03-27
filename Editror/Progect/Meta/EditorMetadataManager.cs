@@ -11,7 +11,7 @@ using System;
 
 namespace Editor
 {
-    public delegate void RegenerateCodeEventHandler(string sourcePath, AssetMetadata metadata);
+    public delegate void RegenerateCodeEventHandler(string sourcePath, FileMetadata metadata);
 
     public class EditorMetadataManager : MetadataManager
     {
@@ -47,20 +47,20 @@ namespace Editor
             });
         }
 
-        
-        public override AssetMetadata CreateMetadata(string filePath)
+
+        public override FileMetadata CreateMetadata(string filePath)
         {
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
             MetadataType assetType = _extensionToTypeMap.TryGetValue(extension, out var type) ? type : MetadataType.Unknown;
 
-            AssetMetadata metadata = assetType switch
+            FileMetadata metadata = assetType switch
             {
                 MetadataType.Texture => new TextureMetadata(),
                 MetadataType.Model => new ModelMetadata(),
                 MetadataType.Audio => new AudioMetadata(),
                 MetadataType.ShaderSource => new ShaderSourceMetadata(),
                 MetadataType.Script => new ScriptMetadata(),
-                _ => new AssetMetadata()
+                _ => new FileMetadata()
             };
 
             metadata.Guid = Guid.NewGuid().ToString();
@@ -97,7 +97,7 @@ namespace Editor
             }
             return metadata;
         }
-        public override void SaveMetadata(string filePath, AssetMetadata metadata)
+        public override void SaveMetadata(string filePath, FileMetadata metadata)
         {
             if (filePath == null)
                 DebLogger.Error($"Error safing metadata: file path is null or invalid");
@@ -113,11 +113,11 @@ namespace Editor
             string metaJson = JsonConvert.SerializeObject(metadata, settings);
             File.WriteAllText(metaFilePath, metaJson);
         }
-        public override void SaveMetadata(AssetMetadata metadata)
+        public override void SaveMetadata(FileMetadata metadata)
         {
             SaveMetadata(_guidToPathMap[metadata.Guid], metadata);
         }
-        public override AssetMetadata LoadMetadata(string metaFilePath)
+        public override FileMetadata LoadMetadata(string metaFilePath)
         {
             string metaJson = File.ReadAllText(metaFilePath);
 
@@ -128,7 +128,7 @@ namespace Editor
                     TypeNameHandling = TypeNameHandling.Auto
                 };
 
-                var baseMetadata = JsonConvert.DeserializeObject<AssetMetadata>(metaJson);
+                var baseMetadata = JsonConvert.DeserializeObject<FileMetadata>(metaJson);
 
                 return baseMetadata.AssetType switch
                 {
@@ -147,7 +147,7 @@ namespace Editor
                 try
                 {
                     var basicData = JsonConvert.DeserializeObject<Dictionary<string, object>>(metaJson);
-                    var newMetadata = new AssetMetadata();
+                    var newMetadata = new FileMetadata();
 
                     if (basicData.TryGetValue("Guid", out var guidObj) && guidObj is string guid)
                         newMetadata.Guid = guid;
@@ -173,7 +173,7 @@ namespace Editor
                 catch (Exception ex)
                 {
                     DebLogger.Error($"Не удалось мигрировать метаданные: {ex.Message}. Создаются новые метаданные");
-                    return new AssetMetadata
+                    return new FileMetadata
                     {
                         Guid = Guid.NewGuid().ToString(),
                         Version = 1
@@ -195,7 +195,7 @@ namespace Editor
 
             if (metadata.AssetType != currentAssetType)
             {
-                DebLogger.Info($"Тип файла изменился с {metadata.AssetType} на {currentAssetType}: {filePath}");
+                DebLogger.Info($"File type was changed {metadata.AssetType} to {currentAssetType}: {filePath}");
 
                 string guid = metadata.Guid;
                 var tags = new List<string>(metadata.Tags);
@@ -228,6 +228,11 @@ namespace Editor
 
                 SaveMetadata(filePath, metadata);
             }
+
+            commands.ForEach(e =>
+            {
+                if (e.EventType == FileEventType.FileChanged) e.Action?.Invoke(metadata);
+            });
         }
         internal void HandleFileCreated(string filePath)
         {
@@ -236,6 +241,11 @@ namespace Editor
 
             var metadata = CreateMetadata(filePath);
             CacheMetadata(metadata, filePath);
+
+            commands.ForEach(e =>
+            {
+                if (e.EventType == FileEventType.FileCreate) e.Action?.Invoke(metadata);
+            });
         }
         internal void HandleFileDeleted(string filePath)
         {
@@ -309,11 +319,15 @@ namespace Editor
             }
 
             DebLogger.Info($"Удален метафайл для {filePath}");
+            commands.ForEach(e =>
+            {
+                if (e.EventType == FileEventType.FileDelete) e.Action?.Invoke(metadata);
+            });
         }
         internal void HandleFileRenamed(string oldPath, string newPath)
         {
             if (oldPath.EndsWith(META_EXTENSION) || newPath.EndsWith(META_EXTENSION))
-                return; 
+                return;
 
             string oldMetaPath = oldPath + META_EXTENSION;
             string newMetaPath = newPath + META_EXTENSION;
@@ -331,10 +345,14 @@ namespace Editor
             }
 
             DebLogger.Info($"Перемещен метафайл из {oldPath} в {newPath}");
+            commands.ForEach(e =>
+            {
+                if (e.EventType == FileEventType.FileChanged) e.Action?.Invoke(metadata);
+            });
         }
 
-        public override AssetMetadata GetMetadataByGuid(string guid) => _metadataCache.Where(e => e.Value.Guid == guid).FirstOrDefault().Value;
-        public override AssetMetadata GetMetadata(string filePath)
+        public override FileMetadata GetMetadataByGuid(string guid) => _metadataCache.Where(e => e.Value.Guid == guid).FirstOrDefault().Value;
+        public override FileMetadata GetMetadata(string filePath)
         {
             if (_metadataCache.TryGetValue(filePath, out var metadata))
                 return metadata;
@@ -345,7 +363,7 @@ namespace Editor
                 try
                 {
                     string metaJson = File.ReadAllText(metaFilePath);
-                    metadata = JsonConvert.DeserializeObject<AssetMetadata>(metaJson);
+                    metadata = JsonConvert.DeserializeObject<FileMetadata>(metaJson);
                     _metadataCache[filePath] = metadata;
                     _guidToPathMap[metadata.Guid] = filePath;
                     return metadata;
@@ -369,6 +387,12 @@ namespace Editor
             return null;
         }
 
+
+        private List<MetadataManagerCommandModel> commands = new List<MetadataManagerCommandModel>();
+        public void RegisterCommand(MetadataManagerCommandModel command)
+        {
+
+        }
 
         private bool IsGeneratedCodeFile(string filePath, out string sourceGuid)
         {
@@ -435,7 +459,7 @@ namespace Editor
             foreach (var filePath in allFiles)
             {
                 string metaFilePath = filePath + META_EXTENSION;
-                AssetMetadata metadata;
+                FileMetadata metadata;
 
                 if (File.Exists(metaFilePath))
                 {
@@ -478,6 +502,13 @@ namespace Editor
                 }
             }
         }
+    }
+
+    public class MetadataManagerCommandModel
+    {
+        public Action<FileMetadata?>? Action { get; set; }
+        public FileEventType EventType { get; set; }
+
     }
 
 }

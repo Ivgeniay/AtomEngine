@@ -80,7 +80,6 @@ namespace Editor
             builder.AppendLine();
             builder.AppendLine($"{GeneratorConst.GetUserScriptNamespace()}");
             builder.AppendLine("{");
-            builder.AppendLine("    //");
             builder.AppendLine($"    public class {structure.Name} : CustomStruct");
             builder.AppendLine("    {");
             builder.AppendLine("*construct*");
@@ -95,6 +94,7 @@ namespace Editor
                 string cashFieldName = $"_{name}";
                 string locationName = $"{name}Location";
 
+                var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
                 if (!isCustomType)
                 {
                     if (arraySize.HasValue)
@@ -112,7 +112,7 @@ namespace Editor
                     {
                         builder.AppendLine($"        public int {locationName} " + "{" + " get ; set; } = -1;");
                         builder.AppendLine($"        private {csharpType} {cashFieldName};");
-                        builder.AppendLine($"        public {csharpType} {name}");
+                        builder.AppendLine($"        public {_unsafe}{csharpType} {name}");
                         builder.AppendLine("        {");
                         builder.Append(GetSetter(type, locationName, cashFieldName));
                         builder.AppendLine("        }");
@@ -132,7 +132,7 @@ namespace Editor
                     else
                     {
                         builder.AppendLine($"        private {csharpType} {cashFieldName};");
-                        builder.AppendLine($"        public {csharpType} {name}");
+                        builder.AppendLine($"        public {_unsafe}{csharpType} {name}");
                         builder.AppendLine("        {");
                         builder.Append(GetSimpleGetter(cashFieldName));
                         builder.AppendLine("        }");

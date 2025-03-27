@@ -11,10 +11,10 @@ namespace Editor
 {
     public class AssetMetadataInspectable : IInspectable
     {
-        protected AssetMetadata _metadata;
+        protected FileMetadata _metadata;
         protected string _filePath;
 
-        public AssetMetadataInspectable(AssetMetadata metaData)
+        public AssetMetadataInspectable(FileMetadata metaData)
         {
             _metadata = metaData;
             Update();

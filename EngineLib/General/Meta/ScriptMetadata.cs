@@ -1,6 +1,6 @@
 ﻿namespace EngineLib
 {
-    public class ScriptMetadata : AssetMetadata
+    public class ScriptMetadata : FileMetadata
     {
         public ScriptMetadata()
         {

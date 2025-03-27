@@ -29,7 +29,7 @@ namespace Editor
             imageField.ImageChanged += (sender, e) =>
             {
                 guid = string.Empty;
-                AssetMetadata asset = ServiceHub.Get<EditorMetadataManager>().GetMetadata(e);
+                FileMetadata asset = ServiceHub.Get<EditorMetadataManager>().GetMetadata(e);
                 if (asset != null)
                 {
                     guid = asset.Guid;

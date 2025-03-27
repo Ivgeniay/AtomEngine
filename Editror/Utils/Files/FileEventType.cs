@@ -3,7 +3,9 @@
     public enum FileEventType
     {
         FileChanged,
-        FileCreate
+        FileCreate,
+        FileDelete,
+        FileRename,
     }
 
 

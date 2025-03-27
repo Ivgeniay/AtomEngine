@@ -6,7 +6,7 @@ namespace EngineLib
     {
         public const string META_EXTENSION = ".meta";
 
-        protected Dictionary<string, AssetMetadata> _metadataCache = new();
+        protected Dictionary<string, FileMetadata> _metadataCache = new();
         protected Dictionary<string, string> _guidToPathMap = new();
         protected Dictionary<string, MetadataType> _extensionToTypeMap = new();
 
@@ -60,17 +60,17 @@ namespace EngineLib
             return Task.CompletedTask;
         }
 
-        public abstract AssetMetadata GetMetadataByGuid(string guid);
-        public abstract AssetMetadata GetMetadata(string filePath);
+        public abstract FileMetadata GetMetadataByGuid(string guid);
+        public abstract FileMetadata GetMetadata(string filePath);
         public abstract string GetPathByGuid(string guid);
 
-        public abstract AssetMetadata CreateMetadata(string filePath);
-        public abstract void SaveMetadata(string filePath, AssetMetadata metadata);
-        public abstract void SaveMetadata(AssetMetadata metadata);
-        public abstract AssetMetadata LoadMetadata(string metaFilePath);
+        public abstract FileMetadata CreateMetadata(string filePath);
+        public abstract void SaveMetadata(string filePath, FileMetadata metadata);
+        public abstract void SaveMetadata(FileMetadata metadata);
+        public abstract FileMetadata LoadMetadata(string metaFilePath);
 
 
-        public virtual void CacheMetadata(AssetMetadata metadata, string filePath, bool withInvoke = true)
+        public virtual void CacheMetadata(FileMetadata metadata, string filePath, bool withInvoke = true)
         {
             SaveMetadata(filePath, metadata);
             _metadataCache[filePath] = metadata;

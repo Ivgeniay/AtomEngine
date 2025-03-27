@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis; 
 using System.Text;
+using System.Runtime.CompilerServices;
 
 namespace OpenglLib.Generator
 {
@@ -147,6 +148,7 @@ namespace OpenglLib.Generator
 
                 if (!isCustomType)
                 {
+                    var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
                     if (arraySize.HasValue)
                     {
                         var localeProperty = GeneratorHelper.GetPropertyForLocaleArray(csharpType, name, locationName);
@@ -163,7 +165,7 @@ namespace OpenglLib.Generator
                     {
                         builder.AppendLine($"        public int {locationName} " + "{" + " get ; set; } = -1;");
                         builder.AppendLine($"        private {csharpType} {cashFieldName};");
-                        builder.AppendLine($"        public {csharpType} {name}");
+                        builder.AppendLine($"        public {_unsafe}{csharpType} {name}");
                         builder.AppendLine("        {");
                         builder.Append(GeneratorHelper.GetSetter(type, locationName, cashFieldName));
                         //builder.Append(ShaderTypes.GetSimpleGetter(cashFieldName));
@@ -172,9 +174,9 @@ namespace OpenglLib.Generator
                 }
                 else
                 {
+                    var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
                     if (arraySize.HasValue)
                     {
-                        //builder.AppendLine($"        public StructArray<{csharpType}> {name};");
                         builder.AppendLine($"        private StructArray<{csharpType}> {cashFieldName};");
                         builder.AppendLine($"        public StructArray<{csharpType}> {name}");
                         builder.AppendLine("        {");
@@ -185,7 +187,7 @@ namespace OpenglLib.Generator
                     else
                     {
                         builder.AppendLine($"        private {csharpType} {cashFieldName};");
-                        builder.AppendLine($"        public {csharpType} {name}");
+                        builder.AppendLine($"        public {_unsafe}{csharpType} {name}");
                         builder.AppendLine("        {");
                         builder.Append(GeneratorHelper.GetSimpleGetter(cashFieldName));
                         builder.AppendLine("        }");

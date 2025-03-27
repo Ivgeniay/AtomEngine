@@ -74,6 +74,7 @@ namespace Editor
                     {
                         result.Success = false;
                         result.Message = "Fail compiling #vertex shader";
+                        result.Log.AppendLine(vertexSource);
                         return result;
                     }
 
@@ -84,6 +85,7 @@ namespace Editor
 
                         result.Success = false;
                         result.Message = "Fail compiling #fragment shader";
+                        result.Log.AppendLine(fragmentSource);
                         return result;
                     }
 

@@ -15,15 +15,13 @@ namespace Editor
         public static Canvas MainCanvas_ { get; private set; }
         private MainWindowUIManager _uIManager;
         private SceneManager _sceneManager;
-        ReloaderAssemblyData _reloader;
+        private ReloaderAssemblyData _reloader;
 
         private EditorToolbar _toolbar;
         private EditorStatusBar _statusBar;
         public MainWindow()
         {
             SystemDecorations = SystemDecorations.Full;
-            //ExtendClientAreaToDecorationsHint = true;
-            //ExtendClientAreaTitleBarHeightHint = 30;
 #if DEBUG
             this.AttachDevTools();
 #endif
@@ -359,7 +357,6 @@ namespace Editor
                         Description = "",
                         Action = () => {
                             _uIManager.OpenWindow(MainControllers.Documentation);
-                            //DebLogger.Debug("Documentation"); 
                         }
                     },
                     new EditorToolbarButton()
@@ -398,20 +395,6 @@ namespace Editor
                     else DebLogger.Error(result);
                 })
             });
-
-            //Select.OnSelectChange += (e, t) =>
-            //{
-            //    var selected = Select.Selected;
-            //    string r = string.Empty;
-            //    if (selected != null)
-            //    {
-            //        foreach (var item in selected)
-            //        {
-            //            r += $" {item}";
-            //        }
-            //    }
-            //    DebLogger.Debug($"Selected {selected.Count()}: {r}");
-            //};
         }
 
         private void InitializeComponent()

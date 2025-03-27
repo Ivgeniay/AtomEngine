@@ -1,23 +1,24 @@
 ﻿using AtomEngine;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+using System;
 using System.Collections;
 
 namespace OpenglLib
 {
     public class LocaleArray<T> : IEnumerable<T> where T : struct
     {
+        public bool IsDirty { get; private set; }
+
         public int Location = -1;
         private T[] array;
         private GL _gl;
             
-        public LocaleArray(int size, GL gL)
+        public LocaleArray(int size, GL gL = null)
         {
             array = new T[size];
             _gl = gL;
         }
-
-
         public T this[int index]
         {
             get
@@ -43,7 +44,8 @@ namespace OpenglLib
                 }
 
                 array[index] = value;
-                SetUniform(Location + index, value);
+                if (_gl != null) SetUniform(Location + index, value);
+                IsDirty = true;
             }
         }
 
@@ -58,7 +60,7 @@ namespace OpenglLib
         }
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        public void SetUniform(int location, object value)
+        public unsafe void SetUniform(int location, object value)
         {
             Type type = value.GetType();
 
@@ -119,100 +121,55 @@ namespace OpenglLib
                 case Type t when t == typeof(Matrix2X2<float>):
                     {
                         var matrix = (Matrix2X2<float>)value;
-                        var span = new ReadOnlySpan<float>(new[] {
-                            matrix.M11, matrix.M12,
-                            matrix.M21, matrix.M22
-                        });
-                        _gl.UniformMatrix2(location, 1, false, span);
+                        _gl.UniformMatrix2(location, 1, false, (float*)&matrix);
                     }
                     break;
                 case Type t when t == typeof(Matrix3X3<float>):
                     {
                         var matrix = (Matrix3X3<float>)value;
-                        var span = new ReadOnlySpan<float>(new[] {
-                            matrix.M11, matrix.M12, matrix.M13,
-                            matrix.M21, matrix.M22, matrix.M23,
-                            matrix.M31, matrix.M32, matrix.M33
-                        });
-                        _gl.UniformMatrix3(location, 1, false, span);
+                        _gl.UniformMatrix3(location, 1, false, (float*)&matrix);
                     }
                     break;
                 case Type t when t == typeof(Matrix4X4<float>):
                     {
                         var matrix = (Matrix4X4<float>)value;
-                        var span = new ReadOnlySpan<float>(new[] {
-                            matrix.M11, matrix.M12, matrix.M13, matrix.M14,
-                            matrix.M21, matrix.M22, matrix.M23, matrix.M24,
-                            matrix.M31, matrix.M32, matrix.M33, matrix.M34,
-                            matrix.M41, matrix.M42, matrix.M43, matrix.M44
-                        });
-                        _gl.UniformMatrix4(location, 1, false, span);
+                        _gl.UniformMatrix4(location, 1, false, (float*)&matrix);
                     }
                     break;
                 case Type t when t == typeof(Matrix2X3<float>):
                     {
                         var matrix = (Matrix2X3<float>)value;
-                        var span = new ReadOnlySpan<float>(new[] {
-                            matrix.M11, matrix.M12, matrix.M13,
-                            matrix.M21, matrix.M22, matrix.M23
-                        });
-                        _gl.UniformMatrix2x3(location, 1, false, span);
+                        _gl.UniformMatrix2x3(location, 1, false, (float*)&matrix);
                     }
                     break;
                 case Type t when t == typeof(Matrix2X4<float>):
                     {
                         var matrix = (Matrix2X4<float>)value;
-                        var span = new ReadOnlySpan<float>(new[] {
-                            matrix.M11, matrix.M12, matrix.M13, matrix.M14,
-                            matrix.M21, matrix.M22, matrix.M23, matrix.M24
-                        });
-                        _gl.UniformMatrix2x4(location, 1, false, span);
+                        _gl.UniformMatrix2x4(location, 1, false, (float*)&matrix);
                     }
                     break;
                 case Type t when t == typeof(Matrix3X2<float>):
                     {
                         var matrix = (Matrix3X2<float>)value;
-                        var span = new ReadOnlySpan<float>(new[] {
-                            matrix.M11, matrix.M12,
-                            matrix.M21, matrix.M22,
-                            matrix.M31, matrix.M32
-                        });
-                        _gl.UniformMatrix3x2(location, 1, false, span);
+                        _gl.UniformMatrix3x2(location, 1, false, (float*)&matrix);
                     }
                     break;
                 case Type t when t == typeof(Matrix3X4<float>):
                     {
                         var matrix = (Matrix3X4<float>)value;
-                        var span = new ReadOnlySpan<float>(new[] {
-                            matrix.M11, matrix.M12, matrix.M13, matrix.M14,
-                            matrix.M21, matrix.M22, matrix.M23, matrix.M24,
-                            matrix.M31, matrix.M32, matrix.M33, matrix.M34
-                        });
-                        _gl.UniformMatrix3x4(location, 1, false, span);
+                        _gl.UniformMatrix3x4(location, 1, false, (float*)&matrix);
                     }
                     break;
                 case Type t when t == typeof(Matrix4X2<float>):
                     {
                         var matrix = (Matrix4X2<float>)value;
-                        var span = new ReadOnlySpan<float>(new[] {
-                            matrix.M11, matrix.M12,
-                            matrix.M21, matrix.M22,
-                            matrix.M31, matrix.M32,
-                            matrix.M41, matrix.M42
-                        });
-                        _gl.UniformMatrix4x2(location, 1, false, span);
+                        _gl.UniformMatrix4x2(location, 1, false, (float*)&matrix);
                     }
                     break;
                 case Type t when t == typeof(Matrix4X3<float>):
                     {
                         var matrix = (Matrix4X3<float>)value;
-                        var span = new ReadOnlySpan<float>(new[] {
-                            matrix.M11, matrix.M12, matrix.M13,
-                            matrix.M21, matrix.M22, matrix.M23,
-                            matrix.M31, matrix.M32, matrix.M33,
-                            matrix.M41, matrix.M42, matrix.M43
-                        });
-                        _gl.UniformMatrix4x3(location, 1, false, span);
+                        _gl.UniformMatrix4x3(location, 1, false, (float*)&matrix);
                     }
                     break;
 
@@ -224,6 +181,9 @@ namespace OpenglLib
                     throw new ArgumentException($"Unsupported uniform type: {type}");
             }
         }
-
+        public void MakeClean()
+        {
+            IsDirty = false;
+        }
     }
 }

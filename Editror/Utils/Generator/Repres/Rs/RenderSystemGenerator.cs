@@ -7,7 +7,7 @@ namespace Editor
 {
     public static class RenderSystemGenerator
     {
-        public static string GenerateRenderSystemTemplate(RSFileInfo rsFileInfo, List<ComponentGeneratorInfo> generatorInfos = null)
+        public static string GenerateRenderSystemTemplate(RSFileInfo rsFileInfo, ComponentGeneratorInfo componentInfo = null)
         {
             string interfaceName = rsFileInfo.InterfaceName;
             string systemName = GetSystemNameFromInterface(interfaceName);
@@ -41,12 +41,9 @@ namespace Editor
                 builder.AppendLine($"                .With<{component}>()");
             }
 
-            if (generatorInfos != null && generatorInfos.Count > 0)
+            if (componentInfo != null)
             {
-                foreach (var componentInfo in generatorInfos)
-                {
-                    builder.AppendLine($"                .With<{componentInfo.ComponentName}>()");
-                }
+                builder.AppendLine($"                .With<{componentInfo.ComponentName}>()");
             }
 
             builder.AppendLine("                ;");
@@ -68,43 +65,46 @@ namespace Editor
             builder.AppendLine("                    continue;");
             builder.AppendLine();
 
-            if (generatorInfos != null && generatorInfos.Count > 0)
+            if (componentInfo != null )
             {
-                foreach (var componentInfo in generatorInfos)
-                {
-                    builder.AppendLine($"                ref var {GetComponentVariableName(componentInfo.ComponentName)} = ref this.GetComponent<{componentInfo.ComponentName}>(entity);");
-                }
+                builder.AppendLine($"                ref var {GetComponentVariableName(componentInfo.ComponentName)} = ref this.GetComponent<{componentInfo.ComponentName}>(entity);");
             }
 
             builder.AppendLine();
             builder.AppendLine($"                if (materialComponent.Material.Shader is {interfaceName} renderer)");
             builder.AppendLine("                {");
 
-            if (generatorInfos != null && generatorInfos.Count > 0)
+            if (componentInfo != null)
             {
-                foreach (var componentInfo in generatorInfos)
+                string componentVar = GetComponentVariableName(componentInfo.ComponentName);
+
+                foreach (var field in componentInfo.Fields)
                 {
-                    string componentVar = GetComponentVariableName(componentInfo.ComponentName);
-
-                    foreach (var field in componentInfo.Fields)
+                    if (field.IsArray)
                     {
-                        if (field.IsDirtySupport)
+                        for(var i = 0; i < field.ArraySize; i++)
                         {
-                            builder.AppendLine($"                    if ({componentVar}.IsDirty{field.FieldName})");
-                            builder.AppendLine("                    {");
-                            builder.AppendLine($"                        renderer.{field.FieldName} = {componentVar}.{field.FieldName};");
-                            builder.AppendLine("                    }");
+                            builder.AppendLine($"                    renderer.{field.FieldName}[{i}] = {componentVar}.{field.FieldName}[{i}];");
                         }
-                        else
-                        {
-                            builder.AppendLine($"                    renderer.{field.FieldName} = {componentVar}.{field.FieldName};");
-                        }
+                        continue;
                     }
 
-                    if (componentInfo.Fields.Any(f => f.IsDirtySupport))
+                    if (field.IsDirtySupport)
                     {
-                        builder.AppendLine($"                    {componentVar}.MakeClean();");
+                        builder.AppendLine($"                    if ({componentVar}.IsDirty{field.FieldName})");
+                        builder.AppendLine("                    {");
+                        builder.AppendLine($"                        renderer.{field.FieldName} = {componentVar}.{field.FieldName};");
+                        builder.AppendLine("                    }");
                     }
+                    else
+                    {
+                        builder.AppendLine($"                    renderer.{field.FieldName} = {componentVar}.{field.FieldName};");
+                    }
+                }
+
+                if (componentInfo.Fields.Any(f => f.IsDirtySupport))
+                {
+                    builder.AppendLine($"                    {componentVar}.MakeClean();");
                 }
             }
             builder.AppendLine();

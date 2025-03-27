@@ -2,7 +2,7 @@
 
 namespace EngineLib
 {
-    public class AssetMetadata
+    public class FileMetadata
     {
         public string Guid { get; set; } = System.Guid.NewGuid().ToString();
         public MetadataType AssetType { get; set; } = MetadataType.Unknown;

@@ -5,7 +5,7 @@ using EngineLib;
 
 namespace Editor
 {
-    public class ModelMetadata : AssetMetadata
+    public class ModelMetadata : FileMetadata
     {
         public ModelMetadata()
         {

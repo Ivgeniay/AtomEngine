@@ -3,7 +3,7 @@ using EngineLib;
 
 namespace OpenglLib
 {
-    public class TextureMetadata : AssetMetadata
+    public class TextureMetadata : FileMetadata
     {
         public TextureMetadata()
         {

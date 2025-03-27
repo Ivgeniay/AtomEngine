@@ -2,6 +2,6 @@
 {
     public class MetadataCreateEvent : EventHubEvent
     {
-        public AssetMetadata Metadata;
+        public FileMetadata Metadata;
     }
 }

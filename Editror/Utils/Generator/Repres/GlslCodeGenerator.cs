@@ -111,7 +111,7 @@ namespace Editor.Utils.Generator
                         File.WriteAllText(path, sourceCode);
                     }
 
-                    List<ComponentGeneratorInfo> compList = new List<ComponentGeneratorInfo>();
+                    Dictionary<RSFileInfo, ComponentGeneratorInfo> compListsMap = new();
                     foreach (var rs in rsFiles)
                     {
                         ComponentGeneratorInfo componentInfo;
@@ -119,13 +119,15 @@ namespace Editor.Utils.Generator
                         string componentFileName = ComponentGenerator.GetComponentNameFromInterface(rs.InterfaceName);
                         string path = rs.SourcePath.Contains(":") ? outputDirectory : rs.SourceFolder;
                         path = Path.Combine(path, componentFileName + ".cs");
-                        compList.Add(componentInfo);
+                        compListsMap[rs] = componentInfo;
                         File.WriteAllText(path, sourceCode);
                     }
 
                     foreach (var rs in rsFiles)
                     {
-                        var sourceCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rs, compList);
+                        ComponentGeneratorInfo component = null;
+                        if (compListsMap.TryGetValue(rs, out component)) { }
+                        var sourceCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rs, component);
                         string systemFileName = RenderSystemGenerator.GetSystemNameFromInterface(rs.InterfaceName);
                         string path = rs.SourcePath.Contains(":") ? outputDirectory : rs.SourceFolder;
                         path = Path.Combine(path, systemFileName + ".cs");
@@ -153,7 +155,10 @@ namespace Editor.Utils.Generator
                     return;
                 }
             });
-                await Task.Delay(200);
+                await Task.Delay(1500);
+                ProjectConfigurations pConf = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                await ServiceHub.Get<ScriptSyncSystem>().RebuildProject(pConf.BuildType);
+                await Task.Delay(1000);
             }
             finally
             {

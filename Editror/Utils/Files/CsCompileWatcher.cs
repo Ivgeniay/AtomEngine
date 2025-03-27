@@ -7,6 +7,8 @@ namespace Editor
     {
         private FileSystemWatcher watcher;
         private ScriptSyncSystem scriptSyncSystem;
+        private bool _isWatchngProcess =true;
+
         public Task InitializeAsync()
         {
             scriptSyncSystem = ServiceHub.Get<ScriptSyncSystem>();
@@ -26,7 +28,6 @@ namespace Editor
             }
         }
 
-        private bool _isWatchngProcess;
         public void EnableWatching(bool value) => _isWatchngProcess = value;
     }
 }

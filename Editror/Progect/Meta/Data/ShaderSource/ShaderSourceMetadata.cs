@@ -3,7 +3,7 @@ using EngineLib;
 
 namespace Editor
 {
-    internal class ShaderSourceMetadata : AssetMetadata
+    internal class ShaderSourceMetadata : FileMetadata
     {
         public ShaderSourceMetadata() {
             AssetType = MetadataType.ShaderSource;

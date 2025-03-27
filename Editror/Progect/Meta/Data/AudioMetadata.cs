@@ -3,7 +3,7 @@
 namespace Editor
 {
 
-    public class AudioMetadata : AssetMetadata
+    public class AudioMetadata : FileMetadata
     {
         public AudioMetadata()
         {

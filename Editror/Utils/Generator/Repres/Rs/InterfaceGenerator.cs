@@ -33,7 +33,7 @@ namespace Editor
 
                 if (arraySize.HasValue)
                 {
-                    builder.AppendLine($"        public {csharpType} {name} {{ set; }}");
+                    builder.AppendLine($"        public LocaleArray<{csharpType}> {name} {{ get; }}");
                 }
                 else
                 {

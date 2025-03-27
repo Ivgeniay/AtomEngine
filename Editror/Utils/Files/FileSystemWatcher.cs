@@ -56,11 +56,7 @@ namespace Editor
                 {
                     Directory.CreateDirectory(_assetsPath);
                 }
-
-                _metadataManager.InitializeAsync();
                 StartFileWatcher();
-
-                DebLogger.Info("Файловая система ресурсов инициализирована");
                 _isInitialized = true;
             });
         }

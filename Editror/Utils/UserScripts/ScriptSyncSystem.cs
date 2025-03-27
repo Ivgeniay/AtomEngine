@@ -62,114 +62,57 @@ namespace Editor
                 await loadingManager.RunWithLoading(async (progress) =>
                 {
                     await Task.Delay(100);
-                    progress.Report((0, "Генерация проекта скриптов..."));
+                    progress.Report((0, "Start compiling..."));
                     await Task.Delay(100);
 
                     success = await Task.Run(() => ServiceHub.Get<ScriptProjectGenerator>().GenerateProject());
                     if (!success)
-                    {
-                        DebLogger.Error("Не удалось перегенерировать проект скриптов");
-                        progress.Report((100, "Ошибка: Не удалось перегенерировать проект"));
+                    { 
+                        progress.Report((100, "Failed"));
                         await Task.Delay(1000);
                         return;
                     }
 
-                    progress.Report((30, "Компиляция проекта..."));
+                    progress.Report((30, "Compile..."));
 
                     success = await ServiceHub.Get<ScriptProjectGenerator>().BuildProject(buildType);
                     if (!success)
-                    {
-                        DebLogger.Error("Не удалось скомпилировать проект скриптов");
-                        progress.Report((100, "Ошибка: Не удалось скомпилировать проект"));
+                    { 
+                        progress.Report((100, "Failed"));
                         await Task.Delay(1000);
                         return;
                     }
 
-                    progress.Report((70, "Загрузка скомпилированной сборки..."));
+                    progress.Report((70, "Loading assembly..."));
 
                     var assembly = await Task.Run(() =>
                         ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly(buildType));
 
                     if (assembly == null)
                     {
-                        DebLogger.Error("Не удалось загрузить скомпилированную сборку");
-                        progress.Report((100, "Ошибка: Не удалось загрузить сборку"));
+                        progress.Report((100, "Failed"));
                         await Task.Delay(1000);
                         success = false;
                         return;
                     }
 
-                    progress.Report((90, "Обновление ссылок..."));
+                    progress.Report((90, "Refresh links..."));
 
                     await Task.Run(() => ServiceHub.Get<EditorAssemblyManager>().UpdateScriptAssembly(assembly));
 
-                    progress.Report((100, "Проект успешно скомпилирован"));
+                    progress.Report((100, "Done."));
                     await Task.Delay(500);
 
-                }, "Подготовка к компиляции...");
+                }, "Preparing to compile...");
             }
             catch (Exception ex)
             {
-                DebLogger.Error($"Ошибка при компиляции проекта: {ex.Message}");
+                DebLogger.Error($"Faited to compile project: {ex.Message}");
                 success = false;
             }
 
             return success;
         }
-
-        //public async Task<bool> RebuildProject(BuildType buildType = BuildType.Debug)
-        //{
-        //    if (!_isInitialized)
-        //    {
-        //        DebLogger.Error("Система синхронизации скриптов не инициализирована");
-        //        return false;
-        //    }
-
-        //    bool success = false;
-
-        //    try
-        //    {
-        //        DebLogger.Info("Перегенерация проекта скриптов...");
-
-        //        await Task.Run(async () => {
-
-
-        //            success = ServiceHub.Get<ScriptProjectGenerator>().GenerateProject();
-        //            if (!success)
-        //            {
-        //                DebLogger.Error("Не удалось перегенерировать проект скриптов");
-        //                return;
-        //            }
-
-        //            success = await ServiceHub.Get<ScriptProjectGenerator>().BuildProject(buildType);
-        //            if (!success)
-        //            {
-        //                DebLogger.Error("Не удалось скомпилировать проект скриптов");
-        //                return;
-        //            }
-
-
-        //            var assembly = ServiceHub.Get<ScriptProjectGenerator>().LoadCompiledAssembly(buildType);
-        //            if (assembly == null)
-        //            {
-        //                DebLogger.Error("Не удалось загрузить скомпилированную сборку");
-        //                success = false;
-        //                return;
-        //            }
-
-        //            ServiceHub.Get<EditorAssemblyManager>().UpdateScriptAssembly(assembly);
-
-        //            DebLogger.Info("Проект скриптов успешно перекомпилирован и загружен");
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        DebLogger.Error($"Ошибка при перекомпиляции проекта скриптов: {ex.Message}");
-        //        success = false;
-        //    }
-
-        //    return success;
-        //}
 
         public void OpenProjectInIDE(string filepath = null)
         {
