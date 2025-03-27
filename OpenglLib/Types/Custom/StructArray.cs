@@ -6,11 +6,12 @@ namespace OpenglLib
 {
     public class StructArray<T> : IEnumerable<T> where T : CustomStruct
     {
+        public bool IsDirty { get; set; } = false;
         public int Location = -1;
         private T[] array;
         private GL _gl;
 
-        public StructArray(int size, GL gL)
+        public StructArray(int size, GL gL = null)
         {
             array = new T[size];
             Type t = typeof(T);

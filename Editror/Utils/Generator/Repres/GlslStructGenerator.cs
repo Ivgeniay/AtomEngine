@@ -9,7 +9,13 @@ namespace Editor
 {
     internal static class GlslStructGenerator
     {
+        private const string CONTENT_PLACEHOLDER = "/*CONTENT*/";
+        private const string FIELDS_PLACEHOLDER = "/*FIELDS*/";
+        private const string CONSTRUCTOR_PLACEHOLDER = "/*CONSTRUCTOR*/";
+        private const string CONSTRUCTOR_BODY_PLACEHOLDER = "/*CONSTRUCTOR_BODY*/";
+
         private static HashSet<string> _generatedTypes = new HashSet<string>();
+
         public static List<string> GenerateStructs(string shaderSourceCode, string outputDirectory, string sourceGuid = null)
         {
             _generatedTypes = new HashSet<string>();
@@ -57,6 +63,7 @@ namespace Editor
 
             return result;
         }
+
         private static bool CanProcessStructure(GlslStructure structure, HashSet<string> generatedTypes)
         {
             foreach (var (type, _, _) in structure.Fields)
@@ -68,96 +75,89 @@ namespace Editor
             }
             return true;
         }
+
         private static string GenerateModelClass(GlslStructure structure, string sourceGuid)
         {
-            var builder = new StringBuilder();
-            var construcBuilder = new StringBuilder();
-            List<string> constructor_lines = new List<string>();
+            var mainBuilder = new StringBuilder();
+            var contentBuilder = new StringBuilder();
+            var fieldsBuilder = new StringBuilder();
+            var constructorBuilder = new StringBuilder();
+            var constructorBodyBuilder = new StringBuilder();
 
+            GenerateClassStructure(mainBuilder, structure.Name, sourceGuid);
+            GenerateContentStructure(contentBuilder);
+            GenerateConstructor(constructorBuilder, structure.Name);
+
+            foreach (var (type, name, arraySize) in structure.Fields)
+            {
+                var csharpType = GlslParser.MapGlslTypeToCSharp(type, _generatedTypes);
+                bool isCustomType = GlslParser.IsCustomType(csharpType, type);
+
+                if (arraySize.HasValue)
+                {
+                    if (isCustomType)
+                    {
+                        CustomTypeArrayCase(fieldsBuilder, constructorBodyBuilder, csharpType, name, arraySize.Value);
+                    }
+                    else
+                    {
+                        SimpleTypeArrayCase(fieldsBuilder, constructorBodyBuilder, csharpType, type, name, arraySize.Value);
+                    }
+                }
+                else
+                {
+                    if (isCustomType)
+                    {
+                        CustomTypeCase(fieldsBuilder, constructorBodyBuilder, csharpType, name);
+                    }
+                    else
+                    {
+                        SimpleTypeCase(fieldsBuilder, constructorBodyBuilder, csharpType, type, name);
+                    }
+                }
+            }
+
+            string constructorText = constructorBuilder.ToString()
+                .Replace(CONSTRUCTOR_BODY_PLACEHOLDER, constructorBodyBuilder.ToString().TrimEnd());
+
+            string contentText = contentBuilder.ToString()
+                .Replace(FIELDS_PLACEHOLDER, fieldsBuilder.ToString())
+                .Replace(CONSTRUCTOR_PLACEHOLDER, constructorText);
+
+            string result = mainBuilder.ToString().Replace(CONTENT_PLACEHOLDER, contentText);
+
+            return result;
+        }
+
+        private static void GenerateClassStructure(StringBuilder builder, string className, string sourceGuid)
+        {
             WriteGeneratedCodeHeader(builder, sourceGuid);
 
             builder.AppendLine($"{GeneratorConst.GetDefaultNamespaces()}");
             builder.AppendLine();
             builder.AppendLine($"{GeneratorConst.GetUserScriptNamespace()}");
             builder.AppendLine("{");
-            builder.AppendLine($"    public class {structure.Name} : CustomStruct");
+            builder.AppendLine($"    public class {className} : CustomStruct");
             builder.AppendLine("    {");
-            builder.AppendLine("*construct*");
-            builder.AppendLine($"");
-
-            construcBuilder.AppendLine($"        public {structure.Name}(Silk.NET.OpenGL.GL gl) : base(gl) {{");
-
-            foreach (var (type, name, arraySize) in structure.Fields)
-            {
-                var csharpType = GlslParser.MapGlslTypeToCSharp(type, _generatedTypes);
-                bool isCustomType = GlslParser.IsCustomType(csharpType, type);
-                string cashFieldName = $"_{name}";
-                string locationName = $"{name}Location";
-
-                var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
-                if (!isCustomType)
-                {
-                    if (arraySize.HasValue)
-                    {
-                        var localeProperty = GetPropertyForLocaleArray(csharpType, name, locationName);
-                        builder.Append(localeProperty);
-                        builder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
-                        builder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
-                        builder.AppendLine("        {");
-                        builder.Append(GetSimpleGetter(cashFieldName));
-                        builder.AppendLine("        }");
-                        constructor_lines.Add($"            {cashFieldName}  = new LocaleArray<{csharpType}>({arraySize.Value}, _gl);");
-                    }
-                    else
-                    {
-                        builder.AppendLine($"        public int {locationName} " + "{" + " get ; set; } = -1;");
-                        builder.AppendLine($"        private {csharpType} {cashFieldName};");
-                        builder.AppendLine($"        public {_unsafe}{csharpType} {name}");
-                        builder.AppendLine("        {");
-                        builder.Append(GetSetter(type, locationName, cashFieldName));
-                        builder.AppendLine("        }");
-                    }
-                }
-                else
-                {
-                    if (arraySize.HasValue)
-                    {
-                        builder.AppendLine($"        private StructArray<{csharpType}> {cashFieldName};");
-                        builder.AppendLine($"        public StructArray<{csharpType}> {name}");
-                        builder.AppendLine("        {");
-                        builder.Append(GetSimpleGetter(cashFieldName));
-                        builder.AppendLine("        }");
-                        constructor_lines.Add($"            {cashFieldName}  = new StructArray<{csharpType}>({arraySize.Value}, _gl);");
-                    }
-                    else
-                    {
-                        builder.AppendLine($"        private {csharpType} {cashFieldName};");
-                        builder.AppendLine($"        public {_unsafe}{csharpType} {name}");
-                        builder.AppendLine("        {");
-                        builder.Append(GetSimpleGetter(cashFieldName));
-                        builder.AppendLine("        }");
-                        constructor_lines.Add($"            {cashFieldName} = new {csharpType}(_gl);");
-                    }
-                }
-                builder.AppendLine("");
-                builder.AppendLine("");
-            }
-
+            builder.AppendLine(CONTENT_PLACEHOLDER);
             builder.AppendLine("    }");
             builder.AppendLine("}");
-
-            if (constructor_lines.Count > 0)
-            {
-                foreach (var line in constructor_lines)
-                {
-                    construcBuilder.AppendLine(line);
-                }
-            }
-            construcBuilder.AppendLine("        }");
-            builder.Replace("*construct*", construcBuilder.ToString());
-
-            return builder.ToString();
         }
+
+        private static void GenerateContentStructure(StringBuilder builder)
+        {
+            builder.AppendLine(FIELDS_PLACEHOLDER);
+            builder.AppendLine(CONSTRUCTOR_PLACEHOLDER);
+        }
+
+        private static void GenerateConstructor(StringBuilder builder, string className)
+        {
+            builder.AppendLine($"        public {className}(Silk.NET.OpenGL.GL gl) : base(gl)");
+            builder.AppendLine("        {");
+            builder.AppendLine(CONSTRUCTOR_BODY_PLACEHOLDER);
+            builder.AppendLine("        }");
+        }
+
         private static void WriteGeneratedCodeHeader(StringBuilder builder, string sourceGuid)
         {
             builder.AppendLine("// <auto-generated>");
@@ -168,6 +168,94 @@ namespace Editor
             builder.AppendLine();
         }
 
+        private static void SimpleTypeCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string csharpType, string glslType, string name)
+        {
+            string cashFieldName = $"_{name}";
+            string locationName = $"{name}Location";
+            var _unsafe = glslType.StartsWith("mat") ? "unsafe " : "";
+
+            // Добавляем поле location
+            fieldsBuilder.AppendLine($"        public int {locationName} " + "{" + " get ; set; } = -1;");
+
+            // Добавляем приватное поле
+            fieldsBuilder.AppendLine($"        private {csharpType} {cashFieldName};");
+
+            // Добавляем свойство
+            fieldsBuilder.AppendLine($"        public {_unsafe}{csharpType} {name}");
+            fieldsBuilder.AppendLine("        {");
+
+            // Получаем геттер и сеттер
+            fieldsBuilder.Append(GetSetter(glslType, locationName, cashFieldName));
+            fieldsBuilder.AppendLine("        }");
+            fieldsBuilder.AppendLine();
+            fieldsBuilder.AppendLine();
+        }
+
+        private static void SimpleTypeArrayCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string csharpType, string glslType, string name, int arraySize)
+        {
+            string cashFieldName = $"_{name}";
+            string locationName = $"{name}Location";
+
+            // Добавляем свойство location
+            var localeProperty = GetPropertyForLocaleArray(csharpType, name, locationName);
+            fieldsBuilder.Append(localeProperty);
+
+            // Добавляем приватное поле
+            fieldsBuilder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
+
+            // Добавляем свойство
+            fieldsBuilder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
+            fieldsBuilder.AppendLine("        {");
+            fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
+            fieldsBuilder.AppendLine("        }");
+
+            // Добавляем инициализацию в конструктор
+            constructorBodyBuilder.AppendLine($"            {cashFieldName}  = new LocaleArray<{csharpType}>({arraySize}, _gl);");
+
+            fieldsBuilder.AppendLine();
+            fieldsBuilder.AppendLine();
+        }
+
+        private static void CustomTypeCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string csharpType, string name)
+        {
+            string cashFieldName = $"_{name}";
+            string _unsafe = ""; // Пользовательские типы не требуют unsafe
+
+            // Добавляем приватное поле
+            fieldsBuilder.AppendLine($"        private {csharpType} {cashFieldName};");
+
+            // Добавляем свойство
+            fieldsBuilder.AppendLine($"        public {_unsafe}{csharpType} {name}");
+            fieldsBuilder.AppendLine("        {");
+            fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
+            fieldsBuilder.AppendLine("        }");
+
+            // Добавляем инициализацию в конструктор
+            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new {csharpType}(_gl);");
+
+            fieldsBuilder.AppendLine();
+            fieldsBuilder.AppendLine();
+        }
+
+        private static void CustomTypeArrayCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string csharpType, string name, int arraySize)
+        {
+            string cashFieldName = $"_{name}";
+
+            // Добавляем приватное поле
+            fieldsBuilder.AppendLine($"        private StructArray<{csharpType}> {cashFieldName};");
+
+            // Добавляем свойство
+            fieldsBuilder.AppendLine($"        public StructArray<{csharpType}> {name}");
+            fieldsBuilder.AppendLine("        {");
+            fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
+            fieldsBuilder.AppendLine("        }");
+
+            // Добавляем инициализацию в конструктор
+            constructorBodyBuilder.AppendLine($"            {cashFieldName}  = new StructArray<{csharpType}>({arraySize}, _gl);");
+
+            fieldsBuilder.AppendLine();
+            fieldsBuilder.AppendLine();
+        }
 
         private static string GetSimpleGetter(string cashFieldName)
         {
@@ -178,6 +266,7 @@ namespace Editor
             builder.AppendLine("            }");
             return builder.ToString();
         }
+
         private static string GetPropertyForLocaleArray(string type, string fieldName, string locationFieldName)
         {
             StringBuilder builder = new StringBuilder();
@@ -190,6 +279,7 @@ namespace Editor
 
             return builder.ToString();
         }
+
         private static string GetSetter(string type, string locationFieldName, string cashFieldName)
         {
             StringBuilder builder = new StringBuilder();
@@ -338,4 +428,347 @@ namespace Editor
             return builder.ToString();
         }
     }
+
+
+
+
+
+
+
+
+
+
+
+    //internal static class GlslStructGenerator
+    //{
+    //    private static HashSet<string> _generatedTypes = new HashSet<string>();
+    //    public static List<string> GenerateStructs(string shaderSourceCode, string outputDirectory, string sourceGuid = null)
+    //    {
+    //        _generatedTypes = new HashSet<string>();
+    //        var pendingStructures = new List<GlslStructure>();
+    //        var result = new List<string>();
+
+    //        var structures = GlslParser.ParseGlslStructures(shaderSourceCode);
+    //        pendingStructures.AddRange(structures);
+
+    //        while (pendingStructures.Count > 0)
+    //        {
+    //            bool processedAny = false;
+    //            var remainingStructures = new List<GlslStructure>();
+
+    //            foreach (var structure in pendingStructures)
+    //            {
+    //                if (CanProcessStructure(structure, _generatedTypes))
+    //                {
+    //                    if (!_generatedTypes.Add(structure.Name))
+    //                    {
+    //                        continue;
+    //                    }
+
+    //                    var modelCode = GenerateModelClass(structure, sourceGuid);
+    //                    var filePath = Path.Combine(outputDirectory, $"GlslStruct.{structure.Name}.g.cs");
+    //                    File.WriteAllText(filePath, modelCode, Encoding.UTF8);
+
+    //                    result.Add(structure.Name);
+    //                    processedAny = true;
+    //                }
+    //                else
+    //                {
+    //                    remainingStructures.Add(structure);
+    //                }
+    //            }
+
+    //            if (!processedAny && remainingStructures.Count > 0)
+    //            {
+    //                var circularDeps = string.Join(", ", remainingStructures.Select(s => s.Name));
+    //                throw new Exception($"Circular dependencies detected between structures: {circularDeps}");
+    //            }
+
+    //            pendingStructures = remainingStructures;
+    //        }
+
+    //        return result;
+    //    }
+    //    private static bool CanProcessStructure(GlslStructure structure, HashSet<string> generatedTypes)
+    //    {
+    //        foreach (var (type, _, _) in structure.Fields)
+    //        {
+    //            if (!GlslParser.IsGlslBaseType(type) && !generatedTypes.Contains(type))
+    //            {
+    //                return false;
+    //            }
+    //        }
+    //        return true;
+    //    }
+    //    private static string GenerateModelClass(GlslStructure structure, string sourceGuid)
+    //    {
+    //        var builder = new StringBuilder();
+    //        var construcBuilder = new StringBuilder();
+    //        List<string> constructor_lines = new List<string>();
+
+    //        WriteGeneratedCodeHeader(builder, sourceGuid);
+
+    //        builder.AppendLine($"{GeneratorConst.GetDefaultNamespaces()}");
+    //        builder.AppendLine();
+    //        builder.AppendLine($"{GeneratorConst.GetUserScriptNamespace()}");
+    //        builder.AppendLine("{");
+    //        builder.AppendLine($"    public class {structure.Name} : CustomStruct");
+    //        builder.AppendLine("    {");
+    //        builder.AppendLine("*construct*");
+    //        builder.AppendLine($"");
+
+    //        construcBuilder.AppendLine($"        public {structure.Name}(Silk.NET.OpenGL.GL gl) : base(gl) {{");
+
+    //        foreach (var (type, name, arraySize) in structure.Fields)
+    //        {
+    //            var csharpType = GlslParser.MapGlslTypeToCSharp(type, _generatedTypes);
+    //            bool isCustomType = GlslParser.IsCustomType(csharpType, type);
+    //            string cashFieldName = $"_{name}";
+    //            string locationName = $"{name}Location";
+
+    //            var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
+    //            if (!isCustomType)
+    //            {
+    //                if (arraySize.HasValue)
+    //                {
+    //                    var localeProperty = GetPropertyForLocaleArray(csharpType, name, locationName);
+    //                    builder.Append(localeProperty);
+    //                    builder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
+    //                    builder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
+    //                    builder.AppendLine("        {");
+    //                    builder.Append(GetSimpleGetter(cashFieldName));
+    //                    builder.AppendLine("        }");
+    //                    constructor_lines.Add($"            {cashFieldName}  = new LocaleArray<{csharpType}>({arraySize.Value}, _gl);");
+    //                }
+    //                else
+    //                {
+    //                    builder.AppendLine($"        public int {locationName} " + "{" + " get ; set; } = -1;");
+    //                    builder.AppendLine($"        private {csharpType} {cashFieldName};");
+    //                    builder.AppendLine($"        public {_unsafe}{csharpType} {name}");
+    //                    builder.AppendLine("        {");
+    //                    builder.Append(GetSetter(type, locationName, cashFieldName));
+    //                    builder.AppendLine("        }");
+    //                }
+    //            }
+    //            else
+    //            {
+    //                if (arraySize.HasValue)
+    //                {
+    //                    builder.AppendLine($"        private StructArray<{csharpType}> {cashFieldName};");
+    //                    builder.AppendLine($"        public StructArray<{csharpType}> {name}");
+    //                    builder.AppendLine("        {");
+    //                    builder.Append(GetSimpleGetter(cashFieldName));
+    //                    builder.AppendLine("        }");
+    //                    constructor_lines.Add($"            {cashFieldName}  = new StructArray<{csharpType}>({arraySize.Value}, _gl);");
+    //                }
+    //                else
+    //                {
+    //                    builder.AppendLine($"        private {csharpType} {cashFieldName};");
+    //                    builder.AppendLine($"        public {_unsafe}{csharpType} {name}");
+    //                    builder.AppendLine("        {");
+    //                    builder.Append(GetSimpleGetter(cashFieldName));
+    //                    builder.AppendLine("        }");
+    //                    constructor_lines.Add($"            {cashFieldName} = new {csharpType}(_gl);");
+    //                }
+    //            }
+    //            builder.AppendLine("");
+    //            builder.AppendLine("");
+    //        }
+
+    //        builder.AppendLine("    }");
+    //        builder.AppendLine("}");
+
+    //        if (constructor_lines.Count > 0)
+    //        {
+    //            foreach (var line in constructor_lines)
+    //            {
+    //                construcBuilder.AppendLine(line);
+    //            }
+    //        }
+    //        construcBuilder.AppendLine("        }");
+    //        builder.Replace("*construct*", construcBuilder.ToString());
+
+    //        return builder.ToString();
+    //    }
+    //    private static void WriteGeneratedCodeHeader(StringBuilder builder, string sourceGuid)
+    //    {
+    //        builder.AppendLine("// <auto-generated>");
+    //        builder.AppendLine("// This code was generated. Dont change this code.");
+    //        builder.AppendLine($"// SourceGuid: {sourceGuid ?? "Unknown"}");
+    //        builder.AppendLine($"// GeneratedAt: {DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss")} UTC");
+    //        builder.AppendLine("// </auto-generated>");
+    //        builder.AppendLine();
+    //    }
+
+
+    //    private static string GetSimpleGetter(string cashFieldName)
+    //    {
+    //        StringBuilder builder = new StringBuilder();
+    //        builder.AppendLine("            get");
+    //        builder.AppendLine("            {");
+    //        builder.AppendLine($"                return {cashFieldName};");
+    //        builder.AppendLine("            }");
+    //        return builder.ToString();
+    //    }
+    //    private static string GetPropertyForLocaleArray(string type, string fieldName, string locationFieldName)
+    //    {
+    //        StringBuilder builder = new StringBuilder();
+
+    //        builder.AppendLine($"        public int {locationFieldName}");
+    //        builder.AppendLine($"        {{");
+    //        builder.AppendLine($"             get => {fieldName}.Location;");
+    //        builder.AppendLine($"             set => {fieldName}.Location = value;");
+    //        builder.AppendLine($"        }}");
+
+    //        return builder.ToString();
+    //    }
+    //    private static string GetSetter(string type, string locationFieldName, string cashFieldName)
+    //    {
+    //        StringBuilder builder = new StringBuilder();
+
+    //        builder.AppendLine("            get");
+    //        builder.AppendLine("            {");
+    //        builder.AppendLine($"                return {cashFieldName};");
+    //        builder.AppendLine("            }");
+    //        builder.AppendLine("            set");
+    //        builder.AppendLine("            {");
+    //        builder.AppendLine($"                if ({locationFieldName} == -1)");
+    //        builder.AppendLine($"                {{");
+    //        builder.AppendLine($"                   DebLogger.Warn(\"You try to set value to -1 lcation field\");");
+    //        builder.AppendLine($"                   return;");
+    //        builder.AppendLine($"                }}");
+    //        builder.AppendLine($"                {cashFieldName} = value;");
+
+    //        switch (type)
+    //        {
+    //            // Скалярные типы
+    //            case "bool":
+    //                builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value ? 1 : 0);");
+    //                break;
+    //            case "int":
+    //                builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+    //                break;
+    //            case "uint":
+    //                builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+    //                break;
+    //            case "float":
+    //                builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+    //                break;
+    //            case "double":
+    //                builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+    //                break;
+
+    //            // Векторные типы bool
+    //            case "bvec2":
+    //                builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X ? 1 : 0, value.Y ? 1 : 0);");
+    //                break;
+    //            case "bvec3":
+    //                builder.AppendLine($"                _gl.Uniform3({locationFieldName}, value.X ? 1 : 0, value.Y ? 1 : 0, value.Z ? 1 : 0);");
+    //                break;
+    //            case "bvec4":
+    //                builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X ? 1 : 0, value.Y ? 1 : 0, value.Z ? 1 : 0, value.W ? 1 : 0);");
+    //                break;
+
+    //            // Векторные типы int
+    //            case "ivec2":
+    //                builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
+    //                break;
+    //            case "ivec3":
+    //                builder.AppendLine($"                _gl.Uniform3({locationFieldName}, value.X, value.Y, value.Z);");
+    //                break;
+    //            case "ivec4":
+    //                builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
+    //                break;
+
+    //            // Векторные типы uint
+    //            case "uvec2":
+    //                builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
+    //                break;
+    //            case "uvec3":
+    //                builder.AppendLine($"                _gl.Uniform3({locationFieldName}, value.X, value.Y, value.Z);");
+    //                break;
+    //            case "uvec4":
+    //                builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
+    //                break;
+
+    //            // Векторные типы float
+    //            case "vec2":
+    //                builder.AppendLine($"                _gl.Uniform2({locationFieldName}, value.X, value.Y);");
+    //                break;
+    //            case "vec3":
+    //                builder.AppendLine($"                _gl.Uniform3({locationFieldName}, value.X, value.Y, value.Z);");
+    //                break;
+    //            case "vec4":
+    //                builder.AppendLine($"                _gl.Uniform4({locationFieldName}, value.X, value.Y, value.Z, value.W);");
+    //                break;
+
+    //            // Матричные типы float
+    //            case "mat2":
+    //            case "mat2x2":
+    //                builder.AppendLine($"                var mat2 = (Matrix2X2<float>)value;");
+    //                builder.AppendLine($"                _gl.UniformMatrix2({locationFieldName}, 1, false, (float*)&mat2);");
+    //                break;
+
+    //            case "mat2x3":
+    //                builder.AppendLine($"                var mat2x3 = (Matrix2X3<float>)value;");
+    //                builder.AppendLine($"                _gl.UniformMatrix2x3({locationFieldName}, 1, false, (float*)&mat2x3);");
+    //                break;
+
+    //            case "mat2x4":
+    //                builder.AppendLine($"                var mat2x4 = (Matrix2X4<float>)value;");
+    //                builder.AppendLine($"                _gl.UniformMatrix2x4({locationFieldName}, 1, false, (float*)&mat2x4);");
+    //                break;
+
+    //            case "mat3":
+    //            case "mat3x3":
+    //                builder.AppendLine($"                var mat3 = (Matrix3X3<float>)value;");
+    //                builder.AppendLine($"                _gl.UniformMatrix3({locationFieldName}, 1, false, (float*)&mat3);");
+    //                break;
+
+    //            case "mat3x2":
+    //                builder.AppendLine($"                var mat3x2 = (Matrix3X2<float>)value;");
+    //                builder.AppendLine($"                _gl.UniformMatrix3x2({locationFieldName}, 1, false, (float*)&mat3x2);");
+    //                break;
+
+    //            case "mat3x4":
+    //                builder.AppendLine($"                var mat3x4 = (Matrix3X4<float>)value;");
+    //                builder.AppendLine($"                _gl.UniformMatrix3x4({locationFieldName}, 1, false, (float*)&mat3x4);");
+    //                break;
+
+    //            case "mat4":
+    //            case "mat4x4":
+    //                builder.AppendLine($"                var mat4 = (Matrix4X4<float>)value;");
+    //                builder.AppendLine($"                _gl.UniformMatrix4({locationFieldName}, 1, false, (float*)&mat4);");
+    //                break;
+
+    //            case "mat4x2":
+    //                builder.AppendLine($"                var mat4x2 = (Matrix4X2<float>)value;");
+    //                builder.AppendLine($"                _gl.UniformMatrix4x2({locationFieldName}, 1, false, (float*)&mat4x2);");
+    //                break;
+
+    //            case "mat4x3":
+    //                builder.AppendLine($"                var mat4x3 = (Matrix4X3<float>)value;");
+    //                builder.AppendLine($"                _gl.UniformMatrix4x3({locationFieldName}, 1, false, (float*)&mat4x3);");
+    //                break;
+
+    //            case string s when s.StartsWith("sampler"):
+    //                builder.AppendLine($"                _gl.Uniform1({locationFieldName}, value);");
+    //                break;
+    //            case string s when s.StartsWith("isampler"):
+    //                builder.AppendLine($"                _gl.Uniform1i({locationFieldName}, value);");
+    //                break;
+    //            case string s when s.StartsWith("usampler"):
+    //                builder.AppendLine($"                _gl.Uniform1ui({locationFieldName}, value);");
+    //                break;
+
+    //            default:
+    //                builder.AppendLine($"                throw new NotSupportedException(\"Unsupported uniform type: {type}\");");
+    //                break;
+    //        }
+
+    //        builder.AppendLine("            }");
+    //        return builder.ToString();
+    //    }
+    //}
+
 }

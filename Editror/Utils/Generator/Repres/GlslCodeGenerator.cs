@@ -191,10 +191,23 @@ namespace Editor.Utils.Generator
             {
                 foreach (var rs in rsFiles)
                 {
-                    if (!rs.UniformBlocks.Contains(e)) return true;
+                    foreach (var ubo in rs.UniformBlocks)
+                    {
+                        if (ubo.Name == e.Name) return false;
+                    }
                 }
-                return false;
+
+                return true;
             }).ToList();
+
+            //return uniformBlocks.Where(e =>
+            //{
+            //    foreach (var rs in rsFiles)
+            //    {
+            //        if (!rs.UniformBlocks.Contains(e)) return true;
+            //    }
+            //    return false;
+            //}).ToList();
         }
     }
 }

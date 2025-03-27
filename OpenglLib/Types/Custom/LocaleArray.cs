@@ -8,7 +8,7 @@ namespace OpenglLib
 {
     public class LocaleArray<T> : IEnumerable<T> where T : struct
     {
-        public bool IsDirty { get; private set; }
+        public bool IsDirty { get; set; } = false;
 
         public int Location = -1;
         private T[] array;
@@ -180,10 +180,6 @@ namespace OpenglLib
                 default:
                     throw new ArgumentException($"Unsupported uniform type: {type}");
             }
-        }
-        public void MakeClean()
-        {
-            IsDirty = false;
         }
     }
 }
