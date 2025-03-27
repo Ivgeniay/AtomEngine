@@ -51,7 +51,6 @@
   <ItemGroup>
     <ProjectReference Include="..\CommonLib\CommonLib.csproj" />
     <ProjectReference Include="..\EngineLib\EngineLib.csproj" />
-    <ProjectReference Include="..\Generator\OpenglLib.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

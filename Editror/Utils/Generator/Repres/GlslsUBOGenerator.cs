@@ -83,8 +83,12 @@ namespace Editor
         {
             int currentOffset = 0;
 
-            foreach (var (type, name, arraySize) in block.Fields)
+            foreach (var field in block.Fields)
             {
+                var type = field.Type;
+                var name = field.Name;
+                var arraySize = field.ArraySize;
+
                 var csharpType = GlslParser.MapGlslTypeToCSharp(type);
                 bool isCustomType = GlslParser.IsCustomType(csharpType, type);
 
@@ -108,8 +112,12 @@ namespace Editor
 
         private static void GenerateSequentialLayoutFields(StringBuilder builder, UniformBlockStructure block)
         {
-            foreach (var (type, name, arraySize) in block.Fields)
+            foreach (var field in block.Fields)
             {
+                var type = field.Type;
+                var name = field.Name;
+                var arraySize = field.ArraySize;
+
                 var csharpType = GlslParser.MapGlslTypeToCSharp(type);
 
                 if (arraySize.HasValue)
@@ -273,8 +281,12 @@ namespace Editor
                 contentBuilder.AppendLine("    }");
 
                 int currentOffset = 0;
-                foreach (var (type, name, arraySize) in structure.Fields)
+                foreach (var field in structure.Fields)
                 {
+                    var type = field.Type;
+                    var name = field.Name;
+                    var arraySize = field.ArraySize;
+
                     var csharpType = GlslParser.MapGlslTypeToCSharp(type);
                     var isCustomType = GlslParser.IsCustomType(csharpType, type);
 
@@ -459,8 +471,11 @@ namespace Editor
 
         private static bool HasComplexTypes(UniformBlockStructure block, List<GlslStructure> structures)
         {
-            foreach (var (type, _, arraySize) in block.Fields)
+            foreach (var field in block.Fields)
             {
+                var type = field.Type;
+                var arraySize = field.ArraySize;
+
                 var csharpType = GlslParser.MapGlslTypeToCSharp(type);
                 var isCustomType = GlslParser.IsCustomType(csharpType, type);
 
@@ -475,8 +490,12 @@ namespace Editor
             int totalSize = 0;
             int maxAlignment = 4;
 
-            foreach (var (type, _, arraySize) in block.Fields)
+            foreach (var field in block.Fields)
             {
+                var type = field.Type;
+                var name = field.Name;
+                var arraySize = field.ArraySize;
+
                 var csharpType = GlslParser.MapGlslTypeToCSharp(type);
 
                 int alignment = GetTypeAlignment(type, csharpType, structures);
@@ -524,10 +543,14 @@ namespace Editor
 
             int maxAlignment = 4;
 
-            foreach (var (fieldType, _, _) in structure.Fields)
+            foreach (var field in structure.Fields)
             {
-                var csharpType = GlslParser.MapGlslTypeToCSharp(fieldType);
-                int fieldAlignment = GetTypeAlignment(fieldType, csharpType, structures);
+                var type = field.Type;
+                var name = field.Name;
+                var arraySize = field.ArraySize;
+
+                var csharpType = GlslParser.MapGlslTypeToCSharp(type);
+                int fieldAlignment = GetTypeAlignment(type, csharpType, structures);
                 maxAlignment = Math.Max(maxAlignment, fieldAlignment);
             }
 
@@ -585,17 +608,20 @@ namespace Editor
                 processedTypes.Add(typeName);
                 result.Add(structure);
 
-                foreach (var (fieldType, _, _) in structure.Fields)
+                foreach (var field in structure.Fields)
                 {
-                    if (allStructures.Any(s => s.Name == fieldType))
+                    var type = field.Type;
+                    if (allStructures.Any(s => s.Name == type))
                     {
-                        CollectStructureAndDependencies(fieldType);
+                        CollectStructureAndDependencies(type);
                     }
                 }
             }
 
-            foreach (var (type, _, _) in block.Fields)
+            foreach (var field in block.Fields)
             {
+                var type = field.Type;
+
                 if (allStructures.Any(s => s.Name == type))
                 {
                     CollectStructureAndDependencies(type);
@@ -626,15 +652,19 @@ namespace Editor
             int totalSize = 0;
             int maxAlignment = 4;
 
-            foreach (var (fieldType, _, fieldArraySize) in structure.Fields)
+            foreach (var field in structure.Fields)
             {
-                var csharpType = GlslParser.MapGlslTypeToCSharp(fieldType);
+                var type = field.Type;
+                var name = field.Name;
+                var arraySize = field.ArraySize;
 
-                int fieldAlignment = GetTypeAlignment(fieldType, csharpType, structures);
+                var csharpType = GlslParser.MapGlslTypeToCSharp(type);
+
+                int fieldAlignment = GetTypeAlignment(type, csharpType, structures);
                 maxAlignment = Math.Max(maxAlignment, fieldAlignment);
 
                 totalSize = AlignOffset(totalSize, fieldAlignment);
-                totalSize += GetTypeSize(fieldType, csharpType, fieldArraySize, structures);
+                totalSize += GetTypeSize(type, csharpType, arraySize, structures);
             }
 
             return AlignSize(totalSize, maxAlignment);
@@ -656,14 +686,17 @@ namespace Editor
             int totalSize = 0;
             int maxAlignment = 4;
 
-            foreach (var (fieldType, _, fieldArraySize) in structure.Fields)
+            foreach (var field in structure.Fields)
             {
-                var csharpType = GlslParser.MapGlslTypeToCSharp(fieldType);
+                var type = field.Type;
+                var arraySize = field.ArraySize;
 
-                int fieldAlignment = GetTypeAlignment(fieldType, csharpType, structures);
+                var csharpType = GlslParser.MapGlslTypeToCSharp(type);
+
+                int fieldAlignment = GetTypeAlignment(type, csharpType, structures);
                 maxAlignment = Math.Max(maxAlignment, fieldAlignment);
                 totalSize = AlignOffset(totalSize, fieldAlignment);
-                totalSize += GetTypeSize(fieldType, csharpType, fieldArraySize, structures);
+                totalSize += GetTypeSize(type, csharpType, arraySize, structures);
             }
             return AlignSize(totalSize, maxAlignment);
         }

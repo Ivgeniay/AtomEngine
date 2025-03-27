@@ -88,9 +88,9 @@ namespace OpenglLib
             }
         }
 
-        public static List<(string type, string name, int? arraySize)> ExtractUniforms(string source)
+        public static List<UniformField> ExtractUniforms(string source)
         {
-            var uniforms = new List<(string type, string name, int? arraySize)>();
+            List<UniformField> uniforms = new List<UniformField>();
             var uniformRegex = new Regex(@"uniform\s+(?!layout)(?:highp|mediump|lowp)?\s*(\w+)\s+(\w+)(?:\[(\w+|\d+)\])?\s*;");
 
             foreach (Match match in uniformRegex.Matches(source))
@@ -111,11 +111,114 @@ namespace OpenglLib
                         arraySize = ResolveArraySizeIdentifier(source, sizeValue);
                     }
                 }
+                var uniformField = new UniformField
+                {
+                    Type = type,
+                    Name = name,
+                    ArraySize = arraySize
+                };
 
-                uniforms.Add((type, name, arraySize));
+                uniformField.Attributes = ExtractAttributesAbove(source, match.Index);
+                uniforms.Add(uniformField);
+            }
+            return uniforms;
+        }
+
+        private static List<ShaderAttribute> ExtractAttributesAbove(string source, int uniformPosition)
+        {
+            List<ShaderAttribute> attributes = new List<ShaderAttribute>();
+
+            int lineStartPosition = source.LastIndexOf('\n', uniformPosition);
+            if (lineStartPosition == -1)
+                lineStartPosition = 0;
+            else
+                lineStartPosition++;
+
+            var attributeRegex = new Regex(@"\[(\w+):([^\]]*)\]");
+
+            int currentLineEnd = lineStartPosition;
+            while (currentLineEnd > 0)
+            {
+                int prevLineStart = source.LastIndexOf('\n', currentLineEnd - 2);
+                if (prevLineStart == -1)
+                    prevLineStart = 0;
+                else
+                    prevLineStart++; 
+
+                string line = source.Substring(prevLineStart, currentLineEnd - prevLineStart).Trim();
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//"))
+                {
+                    currentLineEnd = prevLineStart;
+                    continue;
+                }
+                bool hasOnlyAttributes = true;
+                string remainingLine = line;
+
+                MatchCollection matches = attributeRegex.Matches(line);
+                if (matches.Count == 0)
+                {
+                    break;
+                }
+                foreach (Match match in matches)
+                {
+                    remainingLine = remainingLine.Replace(match.Value, "");
+                    attributes.Add(new ShaderAttribute
+                    {
+                        Name = match.Groups[1].Value,
+                        Value = match.Groups[2].Value.Trim()
+                    });
+                }
+
+                if (!string.IsNullOrWhiteSpace(remainingLine))
+                {
+                    break;
+                }
+                currentLineEnd = prevLineStart;
+            }
+            return attributes.Reverse<ShaderAttribute>().ToList();
+        }
+
+        public static string RemoveAllAttributes(string source)
+        {
+            return Regex.Replace(source, @"\[\w+:[^\]]*\]", string.Empty);
+        }
+
+        public static List<GlslStructField> ParseStructFields(string fieldsText)
+        {
+            List<GlslStructField> fields = new List<GlslStructField>();
+
+            fieldsText = Regex.Replace(fieldsText, @"//.*$", "", RegexOptions.Multiline);
+            fieldsText = Regex.Replace(fieldsText, @"/\*[\s\S]*?\*/", "");
+            var fieldRegex = new Regex(@"(?<type>\w+)\s+(?<name>\w+)(?:\[(?<size>\w+|\d+)\])?\s*;", RegexOptions.Multiline);
+
+            foreach (Match match in fieldRegex.Matches(fieldsText))
+            {
+                var type = match.Groups["type"].Value;
+                var name = match.Groups["name"].Value;
+                int? arraySize = null;
+
+                if (match.Groups["size"].Success)
+                {
+                    var sizeValue = match.Groups["size"].Value;
+                    if (int.TryParse(sizeValue, out int size))
+                    {
+                        arraySize = size;
+                    }
+                    else
+                    {
+                        arraySize = ResolveArraySizeIdentifier(fieldsText, sizeValue);
+                    }
+                }
+                var field = new GlslStructField
+                {
+                    Type = type,
+                    Name = name,
+                    ArraySize = arraySize
+                };
+                fields.Add(field);
             }
 
-            return uniforms;
+            return fields;
         }
 
         public static List<GlslStructure> ParseGlslStructures(string sourceCode)
@@ -129,8 +232,10 @@ namespace OpenglLib
                 var structure = new GlslStructure
                 {
                     Name = match.Groups[1].Value,
-                    Fields = ParseFields(match.Groups[2].Value)
+                    Fields = ParseStructFields(match.Groups[2].Value),
                 };
+
+                structure.Attributes = ExtractAttributesAbove(sourceCode, match.Index);
                 structures.Add(structure);
             }
 
@@ -162,22 +267,24 @@ namespace OpenglLib
 
                 UniformBlockType blockType = GetUniformBlockType(layoutTypeStr);
 
-                blocks.Add(new UniformBlockStructure
+                var uniblock = new UniformBlockStructure
                 {
                     Name = name,
                     UniformBlockType = blockType,
                     Binding = binding,
                     Fields = ParseFields(fieldsText),
                     InstanceName = instanceName
-                });
+                };
+                uniblock.Attributes = ExtractAttributesAbove(source, match.Index);
+                blocks.Add(uniblock);
             }
 
             return blocks;
         }
 
-        public static List<(string Type, string Name, int? ArraySize)> ParseFields(string fieldsText)
+        public static List<UniformBlockField> ParseFields(string fieldsText)
         {
-            var fields = new List<(string Type, string Name, int? ArraySize)>();
+            List<UniformBlockField> fields = new List<UniformBlockField>();
 
             fieldsText = Regex.Replace(fieldsText, @"//.*$", "", RegexOptions.Multiline);
             fieldsText = Regex.Replace(fieldsText, @"/\*[\s\S]*?\*/", "");
@@ -201,10 +308,14 @@ namespace OpenglLib
                         arraySize = ResolveArraySizeIdentifier(fieldsText, sizeValue);
                     }
                 }
-
-                fields.Add((type, name, arraySize));
+                UniformBlockField field = new UniformBlockField()
+                {
+                    Type = type,
+                    Name = name,
+                    ArraySize = arraySize,
+                };
+                fields.Add(field);
             }
-
             return fields;
         }
 
@@ -445,26 +556,59 @@ namespace OpenglLib
 
     public class GlslStructure
     {
-        public string Name { get; set; }
-        public List<(string Type, string Name, int? ArraySize)> Fields { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public List<GlslStructField> Fields { get; set; } = new List<GlslStructField>();
+        public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
     }
+
+    public class GlslStructField
+    {
+        public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
+        public string Type { get; set; } = string.Empty;
+        public string Name {  set; get; } = string.Empty;
+        public int? ArraySize { get; set; }
+    }
+
+    public class UniformField
+    {
+        public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
+        public string Type { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public int? ArraySize { get; set; }
+    }
+
+    public class ShaderAttribute
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+    }
+
 
     public class UniformBlockStructure
     {
+        public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
         public UniformBlockType UniformBlockType { get; set; } = UniformBlockType.Ordinary;
         public string CSharpTypeName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public int? Binding { get; set; } = null;
         public string? InstanceName { get; set; } = null;
-        public List<(string Type, string Name, int? ArraySize)> Fields { get; set; } = new List<(string Type, string Name, int? ArraySize)>();
+        public List<UniformBlockField> Fields { get; set; } = new List<UniformBlockField>();
+    }
+
+    public class UniformBlockField
+    {
+        public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
+        public string Type { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public int? ArraySize { get; set; }
     }
 
     public enum UniformBlockType
     {
         Ordinary,
-        STD140,     // layout(std140)
-        STD430,     // layout(std430) 
-        Packed,     // layout(packed)
-        Shared,     // layout(shared)
+        STD140, 
+        STD430, 
+        Packed, 
+        Shared, 
     }
 }

@@ -4,9 +4,22 @@ using System.Collections;
 
 namespace OpenglLib
 {
-    public class StructArray<T> : IEnumerable<T> where T : CustomStruct
+    public class StructArray<T> : IEnumerable<T> where T : CustomStruct, IDirty
     {
-        public bool IsDirty { get; set; } = false;
+        private bool _isDirty = true;
+        public bool IsDirty { get
+            {
+                if (_isDirty) return _isDirty;
+                return this.Any(e => e.IsDirty == true);
+            }
+            set
+            {
+                _isDirty = value;
+                foreach (var item in this)
+                    item.IsDirty = value;
+            }
+        }
+
         public int Location = -1;
         private T[] array;
         private GL _gl;
@@ -19,7 +32,6 @@ namespace OpenglLib
             {
                 array[i] = (T)Activator.CreateInstance(t, gL);
             }
-
             _gl = gL;
         }
 
@@ -41,12 +53,12 @@ namespace OpenglLib
                     DebLogger.Error("Index out of Range");
                     return;
                 }
-                if (Location == -1)
+                if (Location == -1 && _gl != null)
                 {
                     DebLogger.Warn("You try to set value to -1 lcation field");
                     return;
                 }
-
+                IsDirty = true;
                 array[index] = value;
             }
         }
@@ -61,5 +73,14 @@ namespace OpenglLib
                 yield return array[i];
         }
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public void SetClean()
+        {
+            _isDirty = false;
+            foreach(var e in this)
+            {
+                e.SetClean();
+            }
+        }
     }
 }

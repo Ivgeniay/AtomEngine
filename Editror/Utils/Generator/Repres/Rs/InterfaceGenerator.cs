@@ -27,9 +27,9 @@ namespace Editor
 
             foreach (var uniform in fileInfo.Uniforms)
             {
-                string type = uniform.type;
-                string name = uniform.name;
-                int? arraySize = uniform.arraySize;
+                string type = uniform.Type;
+                string name = uniform.Name;
+                int? arraySize = uniform.ArraySize;
                 string csharpType = GlslParser.MapGlslTypeToCSharp(type);
                 bool isCustomStruct = GlslParser.IsCustomType(csharpType, type);
 

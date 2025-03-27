@@ -150,8 +150,29 @@ namespace Editor
        
         internal object AddComponent(uint entityId, Type typeComponent)
         {
+            object instanceComponent = null;
+
             var entityData = _currentWorldData.Entities.First(e => e.Id == entityId);
-            var instanceComponent = Activator.CreateInstance(typeComponent);
+            var entityConstructor = typeComponent.GetConstructor(new[] { typeof(AtomEngine.Entity) });
+            if (entityConstructor != null)
+            {
+                var entity = new AtomEngine.Entity(entityId, 0);
+                instanceComponent = entityConstructor.Invoke(new object[] { entity });
+            }
+
+            if (instanceComponent == null)
+            {
+                var parameterlessConstructor = typeComponent.GetConstructor(Type.EmptyTypes);
+                if (parameterlessConstructor != null)
+                {
+                    instanceComponent = parameterlessConstructor.Invoke(null);
+                }
+            }
+
+            if (instanceComponent == null)
+            {
+                instanceComponent = Activator.CreateInstance(typeComponent);
+            }
 
             var fields = typeComponent.GetFields();
             AddComponentValidation(typeComponent, entityData, instanceComponent, fields);

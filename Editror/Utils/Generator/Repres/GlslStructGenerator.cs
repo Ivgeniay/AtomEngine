@@ -66,9 +66,9 @@ namespace Editor
 
         private static bool CanProcessStructure(GlslStructure structure, HashSet<string> generatedTypes)
         {
-            foreach (var (type, _, _) in structure.Fields)
+            foreach (var field in structure.Fields)
             {
-                if (!GlslParser.IsGlslBaseType(type) && !generatedTypes.Contains(type))
+                if (!GlslParser.IsGlslBaseType(field.Type) && !generatedTypes.Contains(field.Type))
                 {
                     return false;
                 }
@@ -88,8 +88,12 @@ namespace Editor
             GenerateContentStructure(contentBuilder);
             GenerateConstructor(constructorBuilder, structure.Name);
 
-            foreach (var (type, name, arraySize) in structure.Fields)
+            foreach (var field in structure.Fields)
             {
+                var type = field.Type;
+                var name = field.Name;
+                var arraySize = field.ArraySize;
+
                 var csharpType = GlslParser.MapGlslTypeToCSharp(type, _generatedTypes);
                 bool isCustomType = GlslParser.IsCustomType(csharpType, type);
 

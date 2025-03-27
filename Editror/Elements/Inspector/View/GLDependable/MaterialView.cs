@@ -15,11 +15,6 @@ namespace Editor
 
         public override Control GetView()
         {
-            SceneManager sceneManager = ServiceHub.Get<SceneManager>();
-            EditorMetadataManager metaDataManager = ServiceHub.Get<EditorMetadataManager>();
-            var materialAssetManager = ServiceHub.Get<EditorMaterialAssetManager>();
-            string? resourseGuid = GettingGUID();
-
             //StackPanel content = new StackPanel();
             //ObjectField objectField = new ObjectField();
             //objectField.AllowedExtensions = new string[] { ".mat" };
@@ -58,6 +53,11 @@ namespace Editor
             //        });
             //    }
             //};
+
+            SceneManager sceneManager = ServiceHub.Get<SceneManager>();
+            EditorMetadataManager metaDataManager = ServiceHub.Get<EditorMetadataManager>();
+            var materialAssetManager = ServiceHub.Get<EditorMaterialAssetManager>();
+            string? resourseGuid = GettingGUID();
 
             DropBoxField dropBoxField = new DropBoxField();
             dropBoxField.IsEnabled = !descriptor.IsReadOnly;

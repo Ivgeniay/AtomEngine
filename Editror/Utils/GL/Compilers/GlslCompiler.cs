@@ -40,7 +40,7 @@ namespace Editor
                 result.Log.AppendLine("full shader");
 
                 shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, e.FileFullPath);
-                shaderSource = RSParser.RemoveServiceMarkers(shaderSource);
+                shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
                 var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
 
                 var options = WindowOptions.Default;

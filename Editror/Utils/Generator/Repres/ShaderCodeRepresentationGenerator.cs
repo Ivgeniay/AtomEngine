@@ -34,8 +34,8 @@ namespace Editor
         }
 
         private static string GenerateRepresentationClass(string materialName, string vertexSource,
-            string fragmentSource, List<(string type, string name, int? arraySize)> uniforms,
-            List<UniformBlockStructure> uniformBlocks, string sourceGuid, List<RSFileInfo> rsFiles)
+            string fragmentSource, List<UniformField> uniforms, List<UniformBlockStructure> uniformBlocks, 
+            string sourceGuid, List<RSFileInfo> rsFiles)
         {
             var mainBuilder = new StringBuilder();
             var contentBuilder = new StringBuilder();
@@ -54,8 +54,12 @@ namespace Editor
             GenerateConstructorStructure(constructorBuilder, materialName);
             GenerateDisposeStructure(disposeBuilder);
 
-            foreach (var (type, name, arraySize) in uniforms)
+            foreach (var uniform in uniforms)
             {
+                var type = uniform.Type;
+                var name = uniform.Name;
+                var arraySize = uniform.ArraySize;
+
                 var csharpType = GlslParser.MapGlslTypeToCSharp(type);
                 bool isCustomType = GlslParser.IsCustomType(csharpType, type);
                 string cashFieldName = $"_{name}";

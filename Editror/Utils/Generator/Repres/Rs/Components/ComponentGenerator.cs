@@ -40,9 +40,9 @@ namespace Editor
             {
                 ComponentGeneratorFieldInfo fieldInfo = new ComponentGeneratorFieldInfo();
 
-                string type = uniform.type;
-                string name = uniform.name;
-                int? arraySize = uniform.arraySize;
+                string type = uniform.Type;
+                string name = uniform.Name;
+                int? arraySize = uniform.ArraySize;
                 string csharpType = GlslParser.MapGlslTypeToCSharp(type);
 
                 fieldInfo.FieldName = name;
@@ -50,7 +50,11 @@ namespace Editor
                 fieldInfo.IsUniform = true;
                 fieldInfo.IsArray = arraySize.HasValue;
                 fieldInfo.ArraySize = arraySize.HasValue ? arraySize.Value : 0;
-                fieldInfo.IsDirtySupport = true;
+                fieldInfo.IsDirtySupport = true; 
+                foreach(var attribute in uniform.Attributes)
+                {
+                    
+                }
                 fieldInfo.Attributes.Add("[ShowInInspector]");
                 fieldInfo.Attributes.Add("[SupportDirty]");
                 fieldInfo.IsCustomStruct =  GlslParser.IsCustomType(csharpType, type);
@@ -163,6 +167,14 @@ namespace Editor
         private static void UniformCustomStructCase(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, ComponentGeneratorFieldInfo fieldInfo)
         {
             //public DirectionalLight Lights  = new DirectionalLight();
+            foreach (var attr in fieldInfo.Attributes)
+            {
+                fieldsBuilder.AppendLine($"        {attr}");
+            }
+
+            fieldsBuilder.AppendLine($"        private {fieldInfo.FieldType} _{fieldInfo.FieldName};");
+
+            constructorBuilder.AppendLine($"            {fieldInfo.FieldName} = new {fieldInfo.FieldType}();");
         }
 
         private static void UniformCase(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, ComponentGeneratorFieldInfo fieldInfo)
@@ -202,7 +214,9 @@ namespace Editor
                 fieldsBuilder.AppendLine($"        {attr}");
             }
 
-            fieldsBuilder.AppendLine($"        public StructArray<{fieldInfo.FieldType}> {fieldInfo.FieldName} = new StructArray<{fieldInfo.FieldType}>({fieldInfo.ArraySize});");
+            fieldsBuilder.AppendLine($"        public StructArray<{fieldInfo.FieldType}> {fieldInfo.FieldName};");
+
+            constructorBuilder.AppendLine($"            {fieldInfo.FieldName} = new StructArray<{fieldInfo.FieldType}>({fieldInfo.ArraySize});");
 
             if (fieldInfo.IsDirtySupport)
             {
@@ -223,7 +237,9 @@ namespace Editor
             {
                 fieldsBuilder.AppendLine($"        {attr}");
             }
-            fieldsBuilder.AppendLine($"        public LocaleArray<{fieldInfo.FieldType}> {fieldInfo.FieldName} = new LocaleArray<{fieldInfo.FieldType}>({fieldInfo.ArraySize});");
+            fieldsBuilder.AppendLine($"        public LocaleArray<{fieldInfo.FieldType}> {fieldInfo.FieldName};");
+            
+            constructorBuilder.AppendLine($"            {fieldInfo.FieldName} = new LocaleArray<{fieldInfo.FieldType}>({fieldInfo.ArraySize});");
 
             if (fieldInfo.IsDirtySupport)
             {

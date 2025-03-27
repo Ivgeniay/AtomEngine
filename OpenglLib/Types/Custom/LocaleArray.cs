@@ -6,9 +6,9 @@ using System.Collections;
 
 namespace OpenglLib
 {
-    public class LocaleArray<T> : IEnumerable<T> where T : struct
+    public class LocaleArray<T> : IDirty, IEnumerable<T> where T : struct
     {
-        public bool IsDirty { get; set; } = false;
+        public bool IsDirty { get; set; } = true;
 
         public int Location = -1;
         private T[] array;
@@ -59,6 +59,10 @@ namespace OpenglLib
                 yield return array[i];
         }
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        public void SetClean()
+        {
+            IsDirty = false;
+        }
 
         public unsafe void SetUniform(int location, object value)
         {
@@ -181,5 +185,11 @@ namespace OpenglLib
                     throw new ArgumentException($"Unsupported uniform type: {type}");
             }
         }
+    }
+
+    public interface IDirty
+    {
+        bool IsDirty { get; set; }
+        void SetClean();
     }
 }

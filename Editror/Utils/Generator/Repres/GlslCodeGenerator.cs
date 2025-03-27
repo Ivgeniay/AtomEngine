@@ -57,7 +57,7 @@ namespace Editor.Utils.Generator
                     List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, sourcePath);
 
                     shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, sourcePath);
-                    shaderSource = RSParser.RemoveServiceMarkers(shaderSource);
+                    shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
 
                     var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
                     GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);

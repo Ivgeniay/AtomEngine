@@ -111,7 +111,7 @@ namespace OpenglLib
         private static List<string> ExtractRequiredComponents(string sourceCode)
         {
             var components = new List<string>();
-            var regex = new Regex(@"\[RequiredComponent:([^\]]+)\]");
+            var regex = new Regex(@"\[RequiredComponent\s*:\s*([^\]]+?)\s*\]", RegexOptions.Compiled);
 
             foreach (Match match in regex.Matches(sourceCode))
             {

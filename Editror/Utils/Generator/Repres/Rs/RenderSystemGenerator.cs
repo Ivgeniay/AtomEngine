@@ -43,7 +43,7 @@ namespace Editor
             GenerateConstructorStructure(constructorBuilder, systemName);
             GenerateConstructorBody(constructorBodyBuilder, requiredComponents, componentInfo);
             GenerateRenderMethodStructure(renderMethodBuilder, componentInfo);
-            GenerateRenderBody(renderBodyBuilder, interfaceName, componentInfo);
+            GenerateRenderBody(renderBodyBuilder, interfaceName, rsFileInfo, componentInfo);
             GenerateOtherMethods(otherMethodsBuilder);
             GenerateQueryComponents(queryComponentsBuilder, requiredComponents, componentInfo);
 
@@ -101,7 +101,6 @@ namespace Editor
             builder.AppendLine("            World = world;");
             builder.AppendLine();
             builder.AppendLine("            queryRendererEntities = this.CreateEntityQuery()");
-            builder.AppendLine("                .With<MeshComponent>()");
             builder.AppendLine("                .With<MaterialComponent>()");
             builder.AppendLine(QUERY_COMPONENTS_PLACEHOLDER);
             builder.AppendLine("                ;");
@@ -155,10 +154,11 @@ namespace Editor
             builder.AppendLine();
         }
 
-        private static void GenerateRenderBody(StringBuilder builder, string interfaceName, ComponentGeneratorInfo componentInfo)
+        private static void GenerateRenderBody(StringBuilder builder, string interfaceName, RSFileInfo rsFileInfo, ComponentGeneratorInfo componentInfo)
         {
             builder.AppendLine($"                if (materialComponent.Material.Shader is {interfaceName} renderer)");
             builder.AppendLine("                {");
+            builder.AppendLine("                    materialComponent.Material.Shader.Use();");
 
             if (componentInfo != null)
             {
@@ -197,8 +197,12 @@ namespace Editor
                     }
                 }
             }
-            builder.AppendLine();
-            builder.AppendLine("                    meshComponent.Mesh.Draw(materialComponent.Material.Shader);");
+            if (rsFileInfo.RequiredComponent.Contains("MeshComponent") ||
+                rsFileInfo.RequiredComponent.Contains("AtomEngine.MeshComponent"))
+            {
+                builder.AppendLine();
+                builder.AppendLine("                    meshComponent.Mesh.Draw(materialComponent.Material.Shader);");
+            }
             builder.AppendLine("                }");
         }
 
