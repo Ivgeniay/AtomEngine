@@ -164,8 +164,8 @@ namespace OpenglLib
                     remainingLine = remainingLine.Replace(match.Value, "");
                     attributes.Add(new ShaderAttribute
                     {
-                        Name = match.Groups[1].Value,
-                        Value = match.Groups[2].Value.Trim()
+                        Name = match.Groups[1].Value.ToLower(),
+                        Value = match.Groups[2].Value.Trim().ToLower()
                     });
                 }
 

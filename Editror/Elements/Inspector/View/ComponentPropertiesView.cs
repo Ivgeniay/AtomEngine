@@ -97,6 +97,8 @@ namespace Editor
             if (descriptor.Context is EntityInspectorContext entityContext)
                 componentType = entityContext.Component.GetType();
 
+
+
             var properties = (List<PropertyDescriptor>)descriptor.Value;
             foreach (var property in properties)
             {
@@ -127,7 +129,6 @@ namespace Editor
                 };
             }
 
-            //return panel;
             return border;
         }
 

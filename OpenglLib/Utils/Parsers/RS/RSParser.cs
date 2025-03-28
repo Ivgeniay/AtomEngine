@@ -7,7 +7,9 @@ namespace OpenglLib
         private static Dictionary<string, string> masks = new Dictionary<string, string>()
         {
             { "InterfaceName", @"\[InterfaceName:[^\]]+\]" },
-            { "RequiredComponent", @"\[RequiredComponent:[^\]]+\]" }
+            { "RequiredComponent", @"\[RequiredComponent:[^\]]+\]" },
+            { "ComponentName", @"\[ComponentName:[^\]]+\]" },
+            { "SystemName", @"\[SystemName:[^\]]+\]" },
         };
 
         public static RSFileInfo ParseFile(string filePath)
@@ -23,11 +25,15 @@ namespace OpenglLib
         {
             var filename = Path.GetFileName(filePath);
             var folder = filePath.Substring(0, filePath.IndexOf(filename));
+            var fileNameWithoutExt = Path.GetFileNameWithoutExtension(filePath).Replace(".", "");
+
             var fileInfo = new RSFileInfo
             {
                 SourcePath = filePath,
                 SourceFolder = folder,
-                InterfaceName = ExtractInterfaceName(sourceCode, Path.GetFileNameWithoutExtension(filePath))
+                InterfaceName = ExtractInterfaceName(sourceCode, fileNameWithoutExt),
+                SystemName = ExtractSystemName(sourceCode, fileNameWithoutExt),
+                ComponentName = ExtractComponentName(sourceCode, fileNameWithoutExt),
             };
 
             fileInfo.RequiredComponent = ExtractRequiredComponents(sourceCode);
@@ -59,55 +65,6 @@ namespace OpenglLib
             return rsFiles;
         }
 
-        //public static List<RSFileInfo> ProcessIncludes(string shaderSource, string sourcePath)
-        //{
-        //    var rsFiles = new List<RSFileInfo>();
-        //    var processedPaths = new HashSet<string>();
-
-        //    string ProcessIncludesRecursively(string source, string path)
-        //    {
-        //        if (processedPaths.Contains(path))
-        //            throw new CircularDependencyError($"Cyclic dependency detected: {path}");
-
-        //        processedPaths.Add(path);
-
-        //        var sourceDir = Path.GetDirectoryName(path);
-        //        var includeRegex = new Regex(@"#include\s+""([^""]+)""");
-
-        //        return includeRegex.Replace(source, match => {
-        //            var includePath = match.Groups[1].Value;
-        //            var fullPath = Path.GetFullPath(Path.Combine(sourceDir, includePath));
-
-        //            try
-        //            {
-        //                if (!File.Exists(fullPath))
-        //                    throw new FileNotFoundError($"Includ file not founded: {includePath}");
-
-        //                var includeContent = File.ReadAllText(fullPath);
-
-        //                if (Path.GetExtension(fullPath).ToLower() == ".rs")
-        //                {
-        //                    var rsInfo = ParseContent(includeContent, fullPath);
-        //                    rsFiles.Add(rsInfo);
-        //                    return rsInfo.ProcessedCode;
-        //                }
-        //                return ProcessIncludesRecursively(includeContent, fullPath);
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                throw new ShaderError($"Error processing include: '{includePath}': {ex.Message} {ex}");
-        //            }
-        //        });
-        //    }
-
-        //    if (!string.IsNullOrEmpty(sourcePath))
-        //    {
-        //        shaderSource = ProcessIncludesRecursively(shaderSource, sourcePath);
-        //    }
-
-        //    return rsFiles;
-        //}
-
         private static List<string> ExtractRequiredComponents(string sourceCode)
         {
             var components = new List<string>();
@@ -131,6 +88,24 @@ namespace OpenglLib
                 return match.Groups[1].Value.Trim();
 
             return "I" + defaultName + "Renderer";
+        }
+
+        private static string ExtractComponentName(string sourceCode, string defaultName)
+        {
+            var match = Regex.Match(sourceCode, @"\[ComponentName:([^\]]+)\]");
+            if (match.Success)
+                return match.Groups[1].Value.Trim();
+
+            return defaultName + "Component";
+        }
+
+        private static string ExtractSystemName(string sourceCode, string defaultName)
+        {
+            var match = Regex.Match(sourceCode, @"\[SystemName:([^\]]+)\]");
+            if (match.Success)
+                return match.Groups[1].Value.Trim();
+
+            return defaultName + "RendererSystem";
         }
 
         public static string RemoveServiceMarkers(string sourceCode)

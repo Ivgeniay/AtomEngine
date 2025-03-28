@@ -12,11 +12,13 @@ namespace Editor
     {
         private InspectorViewFactory _inspectorViewFactory;
         private object _dataObject;
+        private PropertyDescriptor _sourceDescriptor;
 
         public DataObjectView(PropertyDescriptor descriptor) : base(descriptor)
         {
             _inspectorViewFactory = ServiceHub.Get<InspectorViewFactory>();
             _dataObject = descriptor.Value;
+            _sourceDescriptor = descriptor;
         }
 
         public override Control GetView()
@@ -74,7 +76,12 @@ namespace Editor
                     {
                         try
                         {
-                            field.SetValue(obj, Convert.ChangeType(value, field.FieldType));
+                            field.SetValue(_dataObject, Convert.ChangeType(value, field.FieldType));
+                            _sourceDescriptor.Value = _dataObject;
+                            if (_sourceDescriptor.OnValueChanged != null)
+                            {
+                                _sourceDescriptor.OnValueChanged(_dataObject);
+                            }
                         }
                         catch (Exception ex)
                         {

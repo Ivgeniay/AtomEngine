@@ -6,6 +6,8 @@ namespace Editor
 {
     public static class GeneratorConst
     {
+        public const string LABLE = "Rep.g";
+
         public static string GetDefaultNamespaces()
         {
             var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);

@@ -27,7 +27,7 @@ namespace Editor
             GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
             var uniforms = GlslParser.ExtractUniforms(vertexSource + "\n" + fragmentSource);
             var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid, rsFiles);
-            var representationFilePath = Path.Combine(outputDirectory, $"{representationName}{GlslCodeGenerator.LABLE}.cs");
+            var representationFilePath = Path.Combine(outputDirectory, $"{representationName}{GeneratorConst.LABLE}.cs");
             File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);
 
             return $"{representationName}Representation";

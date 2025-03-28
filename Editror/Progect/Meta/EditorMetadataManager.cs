@@ -11,11 +11,8 @@ using System;
 
 namespace Editor
 {
-    public delegate void RegenerateCodeEventHandler(string sourcePath, FileMetadata metadata);
-
     public class EditorMetadataManager : MetadataManager
     {
-        public event RegenerateCodeEventHandler? RegenerateCodeNeeded;
         private string _assetsPath;
 
         public override Task InitializeAsync()
@@ -28,13 +25,6 @@ namespace Editor
                 await base.InitializeAsync();
 
                 _assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
-
-                //RegenerateCodeNeeded += (e, r) =>
-                //{
-                //    DebLogger.Debug($"Needed to generate: {e}");
-                //    DebLogger.Debug(r);
-                //};
-
                 try
                 {
                     ScanAssetsDirectory();
@@ -95,6 +85,12 @@ namespace Editor
                 }
                 DebLogger.Debug($"Identified generated file: {filePath}, SourceGuid: {sourceGuid ?? "Unknown"}");
             }
+
+            eventHub.SendEvent<MetadataCreateEvent>(new MetadataCreateEvent
+            {
+                Metadata = metadata,
+            });
+
             return metadata;
         }
         public override void SaveMetadata(string filePath, FileMetadata metadata)
@@ -182,7 +178,6 @@ namespace Editor
             }
         }
 
-
         public void HandleFileChanged(string filePath)
         {
             if (filePath.EndsWith(META_EXTENSION))
@@ -215,39 +210,23 @@ namespace Editor
                 metadata.ContentHash = currentHash;
                 metadata.LastModified = DateTime.UtcNow;
                 metadata.Version++;
-
-                if (metadata.AssetType == MetadataType.ShaderSource)
-                {
-                    ShaderSourceMetadata scrMetadate = metadata as ShaderSourceMetadata;
-                    if (scrMetadate.IsGenerator && scrMetadate.AutoGeneration)
-                    {
-                        RegenerateCodeNeeded?.Invoke(filePath, metadata);
-                    }
-                }
-
-
                 SaveMetadata(filePath, metadata);
-            }
 
-            commands.ForEach(e =>
-            {
-                if (e.EventType == FileEventType.FileChanged) e.Action?.Invoke(metadata);
-            });
+                eventHub.SendEvent<MetadataChandedEvent>(new MetadataChandedEvent
+                {
+                    Metadata = metadata,
+                });
+            }
         }
-        internal void HandleFileCreated(string filePath)
+        public void HandleFileCreated(string filePath)
         {
             if (filePath.EndsWith(META_EXTENSION))
                 return;
 
             var metadata = CreateMetadata(filePath);
             CacheMetadata(metadata, filePath);
-
-            commands.ForEach(e =>
-            {
-                if (e.EventType == FileEventType.FileCreate) e.Action?.Invoke(metadata);
-            });
         }
-        internal void HandleFileDeleted(string filePath)
+        public void HandleFileDeleted(string filePath)
         {
             if (filePath.EndsWith(META_EXTENSION))
                 return;
@@ -314,17 +293,17 @@ namespace Editor
 
             if (metadata != null)
             {
+                eventHub.SendEvent<MetadataDeletedEvent>(new MetadataDeletedEvent
+                {
+                    Metadata = metadata,
+                });
                 _metadataCache.Remove(filePath);
                 _guidToPathMap.Remove(metadata.Guid);
             }
 
             DebLogger.Info($"Удален метафайл для {filePath}");
-            commands.ForEach(e =>
-            {
-                if (e.EventType == FileEventType.FileDelete) e.Action?.Invoke(metadata);
-            });
         }
-        internal void HandleFileRenamed(string oldPath, string newPath)
+        public void HandleFileRenamed(string oldPath, string newPath)
         {
             if (oldPath.EndsWith(META_EXTENSION) || newPath.EndsWith(META_EXTENSION))
                 return;
@@ -344,11 +323,12 @@ namespace Editor
                 _guidToPathMap[metadata.Guid] = newPath;
             }
 
-            DebLogger.Info($"Перемещен метафайл из {oldPath} в {newPath}");
-            commands.ForEach(e =>
+            eventHub.SendEvent<MetadataChandedEvent>(new MetadataChandedEvent
             {
-                if (e.EventType == FileEventType.FileChanged) e.Action?.Invoke(metadata);
+                Metadata = metadata,
             });
+
+            DebLogger.Info($"Перемещен метафайл из {oldPath} в {newPath}");
         }
 
         public override FileMetadata GetMetadataByGuid(string guid) => _metadataCache.Where(e => e.Value.Guid == guid).FirstOrDefault().Value;
@@ -387,12 +367,6 @@ namespace Editor
             return null;
         }
 
-
-        private List<MetadataManagerCommandModel> commands = new List<MetadataManagerCommandModel>();
-        public void RegisterCommand(MetadataManagerCommandModel command)
-        {
-
-        }
 
         private bool IsGeneratedCodeFile(string filePath, out string sourceGuid)
         {
@@ -502,13 +476,6 @@ namespace Editor
                 }
             }
         }
-    }
-
-    public class MetadataManagerCommandModel
-    {
-        public Action<FileMetadata?>? Action { get; set; }
-        public FileEventType EventType { get; set; }
-
     }
 
 }

@@ -125,7 +125,6 @@ namespace Editor
             documentPanel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             documentPanel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-            // Хлебные крошки
             _breadcrumbsPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -137,7 +136,6 @@ namespace Editor
             Grid.SetRow(_breadcrumbsPanel, 0);
             documentPanel.Children.Add(_breadcrumbsPanel);
 
-            // Скроллируемая область документа
             _documentScrollViewer = new ScrollViewer
             {
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
@@ -175,6 +173,7 @@ namespace Editor
                 Dispatcher.UIThread.Post(async () =>
                 {
                     await LoadDocumentationViaReflection();
+                    LoadLocalDocumentation();
                 });
             }
             catch (Exception ex)
@@ -219,6 +218,42 @@ namespace Editor
             }
         }
 
+        private void LoadLocalDocumentation()
+        {
+            try
+            {
+                EditorAssemblyManager assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
+
+                var types = assemblyManager.GetTypesByAttribute<DocumentationAttribute>();
+                foreach (var type in types)
+                {
+                    var attr = type.GetCustomAttribute<DocumentationAttribute>();
+                    if (attr != null)
+                    {
+                        var doc = new DocumentInfo
+                        {
+                            Name = !string.IsNullOrEmpty(attr.Name) ? attr.Name : type.Name,
+                            Title = !string.IsNullOrEmpty(attr.Title) ? attr.Title : string.Empty,
+                            Description = attr.Description,
+                            Author = string.IsNullOrWhiteSpace(attr.Author) ? "Unknown" : attr.Author,
+                            Section = attr.DocumentationSection,
+                            SubSection = attr.SubSection,
+                            RelatedType = type
+                        };
+
+                        _documentLookup[doc.Name] = doc;
+                        AddDocumentToTree(doc);
+                    }
+                }
+
+                UpdateCategoryTree();
+            }
+            catch (Exception ex)
+            {
+                ShowErrorMessage($"Ошибка загрузки документации через рефлексию: {ex.Message}");
+            }
+        }
+
         private async void OnExportButtonClick(object sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             try
@@ -228,13 +263,13 @@ namespace Editor
                     Title = "Сохранить документацию как HTML",
                     DefaultExtension = "html",
                     Filters = new List<FileDialogFilter>
-            {
-                new FileDialogFilter
-                {
-                    Name = "HTML файлы",
-                    Extensions = new List<string> { "html", "htm" }
-                }
-            }
+                    {
+                        new FileDialogFilter
+                        {
+                            Name = "HTML файлы",
+                            Extensions = new List<string> { "html", "htm" }
+                        }
+                    }
                 };
 
                 var result = await saveDialog.ShowAsync(this.VisualRoot as Window);
@@ -243,12 +278,10 @@ namespace Editor
                 {
                     var html = _htmlGenerator.GenerateDocumentation(_documentLookup.Values.ToList(), _rootNode);
                     await System.IO.File.WriteAllTextAsync(result, html);
-                    Status.SetStatus($"Документация экспортирована в {result}");
                 }
             }
             catch (Exception ex)
             {
-                Status.SetStatus($"Ошибка при экспорте документации: {ex.Message}");
             }
         }
 

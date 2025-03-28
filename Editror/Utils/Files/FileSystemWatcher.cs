@@ -29,10 +29,12 @@ namespace Editor
             @"~$"                 // Временные файлы Office
         };
 
-        public event Action<FileChangedEvent>? AssetChanged;
-        public event Action<FileCreateEvent>? AssetCreated;
-        public event Action<string>? AssetDeleted;
-        public event Action<string, string>? AssetRenamed;
+        protected EventHub eventHub;
+
+        public event Action<FileChangedEvent>? FileChanged;
+        public event Action<FileCreateEvent>? FileCreated;
+        public event Action<string>? FileDeleted;
+        public event Action<string, string>? FileRenamed;
 
         private List<FileEventCommand> _commands = new List<FileEventCommand>();
 
@@ -51,6 +53,7 @@ namespace Editor
             {
                 _assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
                 _metadataManager = ServiceHub.Get<EditorMetadataManager>();
+                eventHub = ServiceHub.Get<EventHub>();
 
                 if (!Directory.Exists(_assetsPath))
                 {
@@ -170,7 +173,7 @@ namespace Editor
                     FilePath = e.FullPath.Substring(0, e.FullPath.IndexOf(fName)),
                     FileFullPath = e.FullPath,
                 };
-                AssetCreated?.Invoke(eventData);
+                FileCreated?.Invoke(eventData);
 
                 foreach(var command in _commands)
                 {
@@ -181,6 +184,7 @@ namespace Editor
                     }
                 }
 
+                eventHub.SendEvent<EngineLib.FileEventCreated>(new EngineLib.FileEventCreated(e.ChangeType, e.FullPath, e.Name));
                 DebLogger.Info($"Создан новый ресурс: {e.FullPath}");
             }
             catch (Exception ex)
@@ -203,8 +207,8 @@ namespace Editor
             try
             {
                 _metadataManager.HandleFileDeleted(e.FullPath);
-                AssetDeleted?.Invoke(e.FullPath);
-
+                FileDeleted?.Invoke(e.FullPath);
+                eventHub.SendEvent<EngineLib.FileEventDeleted>(new EngineLib.FileEventDeleted(e.ChangeType, e.FullPath, e.Name));
                 DebLogger.Info($"Удален ресурс: {e.FullPath}");
             }
             catch (Exception ex)
@@ -263,7 +267,10 @@ namespace Editor
                 }
 
                 _metadataManager.HandleFileRenamed(e.OldFullPath, e.FullPath);
-                AssetRenamed?.Invoke(e.OldFullPath, e.FullPath);
+                FileRenamed?.Invoke(e.OldFullPath, e.FullPath);
+                eventHub.SendEvent<EngineLib.FileEventRenamed>(
+                    new EngineLib.FileEventRenamed(e.ChangeType, e.FullPath, e.Name, e.OldName, e.OldFullPath)
+                    );
             }
             catch (Exception ex)
             {
@@ -328,7 +335,10 @@ namespace Editor
                     FilePath = e.FullPath.Substring(0, e.FullPath.IndexOf(fName)),
                     FileFullPath = e.FullPath,
                 };
-                AssetChanged?.Invoke(eventData);
+                FileChanged?.Invoke(eventData);
+                eventHub.SendEvent<EngineLib.FileEventChange>(
+                    new EngineLib.FileEventChange(e.ChangeType, e.FullPath, e.Name)
+                    );
 
                 foreach (var command in _commands)
                 {

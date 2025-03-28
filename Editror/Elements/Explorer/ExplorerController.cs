@@ -424,10 +424,10 @@ namespace Editor
         public void Open()
         {
             if (fileSystem == null) fileSystem = ServiceHub.Get<FileSystemWatcher>();
-            fileSystem.AssetChanged += Redraw;
-            fileSystem.AssetCreated += Redraw;
-            fileSystem.AssetDeleted += Redraw;
-            fileSystem.AssetRenamed += Redraw;
+            fileSystem.FileChanged += Redraw;
+            fileSystem.FileCreated += Redraw;
+            fileSystem.FileDeleted += Redraw;
+            fileSystem.FileRenamed += Redraw;
 
             _isOpen = true;
         }
@@ -435,10 +435,10 @@ namespace Editor
         public void Close()
         {
             if (fileSystem == null) fileSystem = ServiceHub.Get<FileSystemWatcher>();
-            fileSystem.AssetChanged -= Redraw;
-            fileSystem.AssetCreated -= Redraw;
-            fileSystem.AssetDeleted -= Redraw;
-            fileSystem.AssetRenamed -= Redraw;
+            fileSystem.FileChanged -= Redraw;
+            fileSystem.FileCreated -= Redraw;
+            fileSystem.FileDeleted -= Redraw;
+            fileSystem.FileRenamed -= Redraw;
 
             _isOpen = false;
         }

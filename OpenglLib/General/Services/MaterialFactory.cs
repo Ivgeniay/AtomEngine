@@ -80,7 +80,7 @@ namespace OpenglLib
         {
             try
             {
-                MaterialAsset materialAsset = ServiceHub.Get<MaterialAssetManager>().LoadMaterialAsset(materialAssetPath);
+                MaterialAsset materialAsset = ServiceHub.Get<MaterialAssetManager>().GetMaterialAssetByPath(materialAssetPath);
                 if (materialAsset == null)
                 {
                     DebLogger.Error($"Не удалось загрузить material asset из пути: {materialAssetPath}");
@@ -165,7 +165,7 @@ namespace OpenglLib
         {
             try
             {
-                MaterialAsset material = ServiceHub.Get<MaterialAssetManager>().LoadMaterialAsset(materialPath);
+                MaterialAsset material = ServiceHub.Get<MaterialAssetManager>().GetMaterialAssetByPath(materialPath);
                 if (material == null)
                 {
                     DebLogger.Error($"Не удалось загрузить material asset из пути: {materialPath}");

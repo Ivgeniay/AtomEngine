@@ -22,7 +22,7 @@ namespace Editor
         public static string GenerateRenderSystemTemplate(RSFileInfo rsFileInfo, ComponentGeneratorInfo componentInfo = null)
         {
             string interfaceName = rsFileInfo.InterfaceName;
-            string systemName = GetSystemNameFromInterface(interfaceName);
+            string systemName = rsFileInfo.SystemName;
             var requiredComponents = rsFileInfo.RequiredComponent;
 
             var mainBuilder = new StringBuilder();

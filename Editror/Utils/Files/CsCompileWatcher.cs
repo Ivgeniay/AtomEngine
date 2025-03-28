@@ -13,7 +13,7 @@ namespace Editor
         {
             scriptSyncSystem = ServiceHub.Get<ScriptSyncSystem>();
             watcher = ServiceHub.Get<FileSystemWatcher>();
-            watcher.AssetChanged += FileCreatedHandler;
+            watcher.FileChanged += FileCreatedHandler;
             return Task.CompletedTask;
         }
 

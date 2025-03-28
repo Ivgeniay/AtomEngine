@@ -5,6 +5,8 @@
         public string SourcePath { get; set; } = string.Empty;
         public string SourceFolder { get; set; } = string.Empty;
         public string InterfaceName { get; set; } = string.Empty;
+        public string ComponentName { get; set; } = string.Empty;
+        public string SystemName { get; set; } = string.Empty;
         public string ProcessedCode { get; set; } = string.Empty;
         public List<UniformBlockStructure> UniformBlocks { get; set; } = new List<UniformBlockStructure>();
         public List<UniformField> Uniforms { get; set; } = new List<UniformField>();

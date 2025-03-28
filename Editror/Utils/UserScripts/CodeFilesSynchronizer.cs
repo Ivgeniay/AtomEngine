@@ -60,10 +60,10 @@ namespace Editor
                 SynchronizeDirectories();
 
                 _assetFileSystem = ServiceHub.Get<FileSystemWatcher>();
-                _assetFileSystem.AssetCreated += OnAssetCreated;
-                _assetFileSystem.AssetChanged += OnAssetChanged;
-                _assetFileSystem.AssetDeleted += OnAssetDeleted;
-                _assetFileSystem.AssetRenamed += OnAssetRenamed;
+                _assetFileSystem.FileCreated += OnAssetCreated;
+                _assetFileSystem.FileChanged += OnAssetChanged;
+                _assetFileSystem.FileDeleted += OnAssetDeleted;
+                _assetFileSystem.FileRenamed += OnAssetRenamed;
 
                 _isInitialized = true;
 
@@ -80,10 +80,10 @@ namespace Editor
                 return;
 
             // Отписываемся от событий AssetFileSystem
-            _assetFileSystem.AssetCreated -= OnAssetCreated;
-            _assetFileSystem.AssetChanged -= OnAssetChanged;
-            _assetFileSystem.AssetDeleted -= OnAssetDeleted;
-            _assetFileSystem.AssetRenamed -= OnAssetRenamed;
+            _assetFileSystem.FileCreated -= OnAssetCreated;
+            _assetFileSystem.FileChanged -= OnAssetChanged;
+            _assetFileSystem.FileDeleted -= OnAssetDeleted;
+            _assetFileSystem.FileRenamed -= OnAssetRenamed;
 
             _isInitialized = false;
 

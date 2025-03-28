@@ -1,6 +1,6 @@
 ﻿namespace EngineLib
 {
-    public class MetadataCreateEvent : EventHubEvent
+    public class MetadataEvent : EventHubEvent
     {
         public FileMetadata Metadata;
     }

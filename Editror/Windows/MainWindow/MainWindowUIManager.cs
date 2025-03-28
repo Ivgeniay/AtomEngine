@@ -201,20 +201,20 @@ namespace Editor
                 SubCategory = new string[] { "Generate" },
                 Action = (e) =>
                 {
-                    if (e.FileName.EndsWith($"{GlslCodeGenerator.LABLE}.cs"))
+                    if (e.FileName.EndsWith($"{GeneratorConst.LABLE}.cs"))
                     {
                         var metadata = ServiceHub.Get<EditorMetadataManager>().GetMetadata(e.FileFullPath);
 
                         var materialController = ServiceHub.Get<EditorMaterialAssetManager>();
                         var material = materialController.CreateMaterialAsset(metadata.Guid);
 
-                        string materialPath = Path.Combine(
-                            Path.GetDirectoryName(e.FileFullPath),
-                            $"{Path.GetFileNameWithoutExtension(e.FileName).Replace($"{GlslCodeGenerator.LABLE}", "")}_Material.mat"
-                        );
+                        //string materialPath = Path.Combine(
+                        //    Path.GetDirectoryName(e.FileFullPath),
+                        //    $"{Path.GetFileNameWithoutExtension(e.FileName).Replace($"{GlslCodeGenerator.LABLE}", "")}_Material.mat"
+                        //);
 
-                        materialController.SaveMaterialAsset(material, materialPath);
-                        Status.SetStatus($"Created material: {material.Name}");
+                        //materialController.SaveMaterialAsset(material, materialPath);
+                        //Status.SetStatus($"Created material: {material.Name}");
                     }
                 }
             });

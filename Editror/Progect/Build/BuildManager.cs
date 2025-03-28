@@ -165,7 +165,7 @@ namespace Editor
                 if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
                     continue;
 
-                MaterialAsset material = materialManager.LoadMaterialAsset(sourcePath);
+                MaterialAsset material = materialManager.GetMaterialAssetByPath(sourcePath);
                 if (material != null && material.TextureReferences != null)
                 {
                     foreach (var textureGuid in material.TextureReferences.Values)

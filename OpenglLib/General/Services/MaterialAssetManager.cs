@@ -5,30 +5,39 @@ namespace OpenglLib
 {
     public class MaterialAssetManager : IService
     {
+        public const string MATERIAL_EXT = ".mat";
+        public const string MATERIAL_EXT_MASK = "*.mat";
+
+        protected EventHub eventHub;
         protected Dictionary<string, MaterialAsset> _cacheMaterialAssets = new Dictionary<string, MaterialAsset>();
+
 
         public virtual Task InitializeAsync()
         {
+            eventHub = ServiceHub.Get<EventHub>();
             return Task.CompletedTask;
         }
 
-        public MaterialAsset CreateMaterialAsset(string shaderRepresentationGuid)
+        public MaterialAsset CreateMaterialAsset(string shaderRepresentationGuid, string directory = null, string nameWithoutExt = null)
         {
-            var material = new MaterialAsset
-            {
-                ShaderRepresentationGuid = shaderRepresentationGuid,
-                Name = $"Material_{Guid.NewGuid().ToString().Substring(0, 8)}"
-            };
-
             string filePath = ServiceHub.Get<MetadataManager>().GetPathByGuid(shaderRepresentationGuid);
 
             if (File.Exists(filePath))
             {
+                if (string.IsNullOrWhiteSpace(nameWithoutExt)) nameWithoutExt = $"Material_{Guid.NewGuid().ToString().Substring(0, 8)}";
+
+                var material = new MaterialAsset
+                {
+                    ShaderRepresentationGuid = shaderRepresentationGuid,
+                    Name = nameWithoutExt
+                };
+
                 try
                 {
                     string fileContent = File.ReadAllText(filePath);
                     string namespaceName = CSRepresentationParser.ExtractNamespace(fileContent);
                     string className = CSRepresentationParser.ExtractClassName(fileContent);
+                    
 
                     if (!string.IsNullOrEmpty(namespaceName) && !string.IsNullOrEmpty(className))
                     {
@@ -42,6 +51,20 @@ namespace OpenglLib
                     }
 
                     InitializeUniformsFromShaderRepresentation(material, filePath);
+
+                    if (string.IsNullOrWhiteSpace(directory))
+                    {
+                        string filename = Path.GetFileNameWithoutExtension(filePath);
+                        directory = Path.Combine(
+                            Path.GetDirectoryName(filePath),
+                            $"{nameWithoutExt}.mat"
+                        );
+                    }
+
+                    SaveMaterialAsset(material, directory);
+
+                    _cacheMaterialAssets[directory] = material;
+                    return material;
                 }
                 catch (Exception ex)
                 {
@@ -53,9 +76,7 @@ namespace OpenglLib
             {
                 DebLogger.Warn($"Shader representation file not found: GUID={shaderRepresentationGuid}");
             }
-
-            _cacheMaterialAssets.Add(filePath, material);
-            return material;
+            return null;
         }
         public virtual void SaveMaterialAsset(MaterialAsset material)
         {
@@ -75,7 +96,16 @@ namespace OpenglLib
             File.WriteAllText(path, json);
         }
 
-        public virtual MaterialAsset LoadMaterialAsset(string path)
+        protected virtual MaterialAsset LoadMaterial(string path)
+        {
+            string json = File.ReadAllText(path);
+            MaterialAsset asset = MaterialSerializer.DeserializeMaterial(json);
+            _cacheMaterialAssets[path] = asset;
+
+            return asset;
+        }
+
+        public virtual MaterialAsset GetMaterialAssetByPath(string path)
         {
             if (!File.Exists(path))
             {
@@ -90,13 +120,9 @@ namespace OpenglLib
                 return material;
             }
 
-            string json = File.ReadAllText(path);
-            MaterialAsset asset = MaterialSerializer.DeserializeMaterial(json);
-            _cacheMaterialAssets[path] = asset;
-
-            return asset;
+            return LoadMaterial(path);
         }
-        public virtual MaterialAsset GetMaterialAsset(string guid) =>
+        public virtual MaterialAsset GetMaterialAssetFromGUID(string guid) =>
             _cacheMaterialAssets.FirstOrDefault(e => e.Value.Guid == guid).Value;
         public virtual string GetPathFromGUID(string guid) =>
             _cacheMaterialAssets.FirstOrDefault(e => e.Value.Guid == guid).Key;
@@ -215,12 +241,12 @@ namespace OpenglLib
         {
             try
             {
-                var matFiles = Directory.GetFiles(rootDirectory, "*.mat", SearchOption.AllDirectories);
+                var matFiles = Directory.GetFiles(rootDirectory, MATERIAL_EXT_MASK, SearchOption.AllDirectories);
                 foreach (var matFile in matFiles)
                 {
                     try
                     {
-                        var material = LoadMaterialAsset(matFile);
+                        var material = GetMaterialAssetByPath(matFile);
                         if (material != null)
                         {
                             DebLogger.Debug($"Cached material: {matFile}");

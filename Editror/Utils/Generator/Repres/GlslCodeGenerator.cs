@@ -11,8 +11,6 @@ namespace Editor.Utils.Generator
 {
     internal static class GlslCodeGenerator
     {
-        public const string LABLE = "Rep.g";
-
         public async static Task<string> GenerateCode(string sourcePath, string outputDirectory, bool generateStructs = true)
         {
             var loadingManager = ServiceHub.Get<LoadingManager>();
@@ -116,7 +114,7 @@ namespace Editor.Utils.Generator
                     {
                         ComponentGeneratorInfo componentInfo;
                         var sourceCode = ComponentGenerator.GenerateComponentTemplate(rs, out componentInfo);
-                        string componentFileName = ComponentGenerator.GetComponentNameFromInterface(rs.InterfaceName);
+                        string componentFileName = rs.ComponentName;
                         string path = rs.SourcePath.Contains(":") ? outputDirectory : rs.SourceFolder;
                         path = Path.Combine(path, componentFileName + ".cs");
                         compListsMap[rs] = componentInfo;
@@ -128,7 +126,7 @@ namespace Editor.Utils.Generator
                         ComponentGeneratorInfo component = null;
                         if (compListsMap.TryGetValue(rs, out component)) { }
                         var sourceCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rs, component);
-                        string systemFileName = RenderSystemGenerator.GetSystemNameFromInterface(rs.InterfaceName);
+                        string systemFileName = rs.SystemName;
                         string path = rs.SourcePath.Contains(":") ? outputDirectory : rs.SourceFolder;
                         path = Path.Combine(path, systemFileName + ".cs");
                         File.WriteAllText(path, sourceCode);

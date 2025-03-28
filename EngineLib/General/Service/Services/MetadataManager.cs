@@ -69,7 +69,6 @@ namespace EngineLib
         public abstract void SaveMetadata(FileMetadata metadata);
         public abstract FileMetadata LoadMetadata(string metaFilePath);
 
-
         public virtual void CacheMetadata(FileMetadata metadata, string filePath, bool withInvoke = true)
         {
             SaveMetadata(filePath, metadata);
@@ -77,7 +76,7 @@ namespace EngineLib
             _guidToPathMap[metadata.Guid] = filePath;
 
             if (withInvoke)
-                eventHub.SendEvent<MetadataCreateEvent>(new MetadataCreateEvent
+                eventHub.SendEvent<MetadataCachedEvent>(new MetadataCachedEvent
                 {
                     Metadata = metadata,
                 });

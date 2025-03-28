@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Linq;
+using System.Text;
 using OpenglLib;
 
 namespace Editor
@@ -18,7 +19,7 @@ namespace Editor
             info = new ComponentGeneratorInfo();
 
             string interfaceName = rsFileInfo.InterfaceName;
-            string componentName = GetComponentNameFromInterface(interfaceName);
+            string componentName = rsFileInfo.ComponentName;
             info.ComponentName = componentName;
 
             var mainBuilder = new StringBuilder();
@@ -50,13 +51,12 @@ namespace Editor
                 fieldInfo.IsUniform = true;
                 fieldInfo.IsArray = arraySize.HasValue;
                 fieldInfo.ArraySize = arraySize.HasValue ? arraySize.Value : 0;
-                fieldInfo.IsDirtySupport = true; 
-                foreach(var attribute in uniform.Attributes)
-                {
-                    
-                }
+                fieldInfo.IsDirtySupport = uniform.Attributes.Any(e => e.Name == "IsDirty".ToLower() && e.Value == "True".ToLower());
+                //foreach(var attribute in uniform.Attributes)
+                //{
+                //    fieldInfo.IsDirtySupport = true;
+                //}
                 fieldInfo.Attributes.Add("[ShowInInspector]");
-                fieldInfo.Attributes.Add("[SupportDirty]");
                 fieldInfo.IsCustomStruct =  GlslParser.IsCustomType(csharpType, type);
 
                 info.AddField(fieldInfo);
@@ -88,8 +88,10 @@ namespace Editor
 
                     fieldInfo.FieldName = propertyName;
                     fieldInfo.FieldType = typeName;
+
+                    fieldInfo.Attributes.Add("[ShowInInspector]");
                     fieldInfo.IsUniformBlock = true;
-                    fieldInfo.IsDirtySupport = true;
+                    fieldInfo.IsDirtySupport = block.Attributes.Any(e => e.Name == "IsDirty".ToLower() && e.Value == "True".ToLower()); ;
 
                     info.AddField(fieldInfo);
 
@@ -172,9 +174,28 @@ namespace Editor
                 fieldsBuilder.AppendLine($"        {attr}");
             }
 
-            fieldsBuilder.AppendLine($"        private {fieldInfo.FieldType} _{fieldInfo.FieldName};");
+            if (!fieldInfo.IsDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        public {fieldInfo.FieldType} {fieldInfo.FieldName};");
+            }
 
             constructorBuilder.AppendLine($"            {fieldInfo.FieldName} = new {fieldInfo.FieldType}();");
+
+            if (fieldInfo.IsDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        [SupportDirty]");
+                fieldsBuilder.AppendLine($"        private {fieldInfo.FieldType} _{fieldInfo.FieldName};");
+
+                constructorBuilder.AppendLine($"            IsDirty{fieldInfo.FieldName} = true;");
+
+                fieldsBuilder.AppendLine($"        public bool IsDirty{fieldInfo.FieldName}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"            get => {fieldInfo.FieldName}.IsDirty;");
+                fieldsBuilder.AppendLine($"            set => {fieldInfo.FieldName}.IsDirty = value;");
+                fieldsBuilder.AppendLine("        }");
+
+                makeCleanBuilder.AppendLine($"            IsDirty{fieldInfo.FieldName} = false;");
+            }
         }
 
         private static void UniformCase(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, ComponentGeneratorFieldInfo fieldInfo)
@@ -184,10 +205,18 @@ namespace Editor
                 fieldsBuilder.AppendLine($"        {attr}");
             }
 
-            fieldsBuilder.AppendLine($"        private {fieldInfo.FieldType} _{fieldInfo.FieldName};");
+            if (!fieldInfo.IsDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        public {fieldInfo.FieldType} {fieldInfo.FieldName};");
+            }
 
             if (fieldInfo.IsDirtySupport)
             {
+                fieldsBuilder.AppendLine($"        [SupportDirty]");
+                fieldsBuilder.AppendLine($"        private {fieldInfo.FieldType} _{fieldInfo.FieldName};");
+
+                constructorBuilder.AppendLine($"            IsDirty{fieldInfo.FieldName} = true;");
+
                 fieldsBuilder.AppendLine("        [DefaultBool(true)]");
                 fieldsBuilder.AppendLine($"        public bool IsDirty{fieldInfo.FieldName};");
 
@@ -214,6 +243,10 @@ namespace Editor
                 fieldsBuilder.AppendLine($"        {attr}");
             }
 
+            if (fieldInfo.IsDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        [SupportDirty]");
+            }
             fieldsBuilder.AppendLine($"        public StructArray<{fieldInfo.FieldType}> {fieldInfo.FieldName};");
 
             constructorBuilder.AppendLine($"            {fieldInfo.FieldName} = new StructArray<{fieldInfo.FieldType}>({fieldInfo.ArraySize});");
@@ -237,12 +270,18 @@ namespace Editor
             {
                 fieldsBuilder.AppendLine($"        {attr}");
             }
+            if (fieldInfo.IsDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        [SupportDirty]");
+            }
             fieldsBuilder.AppendLine($"        public LocaleArray<{fieldInfo.FieldType}> {fieldInfo.FieldName};");
             
             constructorBuilder.AppendLine($"            {fieldInfo.FieldName} = new LocaleArray<{fieldInfo.FieldType}>({fieldInfo.ArraySize});");
 
             if (fieldInfo.IsDirtySupport)
             {
+                constructorBuilder.AppendLine($"            IsDirty{fieldInfo.FieldName} = true;");
+
                 fieldsBuilder.AppendLine($"        public bool IsDirty{fieldInfo.FieldName}");
                 fieldsBuilder.AppendLine("        {");
                 fieldsBuilder.AppendLine($"            get => {fieldInfo.FieldName}.IsDirty;");
@@ -257,24 +296,37 @@ namespace Editor
 
         private static void UniformBlockCase(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, ComponentGeneratorFieldInfo fieldInfo)
         {
-            fieldsBuilder.AppendLine("        [ShowInInspector]");
-            fieldsBuilder.AppendLine($"        private {fieldInfo.FieldType} _{fieldInfo.FieldName};");
+            foreach (var attr in fieldInfo.Attributes)
+            {
+                fieldsBuilder.AppendLine($"        {attr}");
+            }
 
-            fieldsBuilder.AppendLine("        [DefaultBool(true)]");
-            fieldsBuilder.AppendLine($"        public bool IsDirty{fieldInfo.FieldName};");
+            if (!fieldInfo.IsDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        public {fieldInfo.FieldType} {fieldInfo.FieldName};");
+            }
 
-            fieldsBuilder.AppendLine($"        public {fieldInfo.FieldType} {fieldInfo.FieldName}");
-            fieldsBuilder.AppendLine("        {");
-            fieldsBuilder.AppendLine($"            get => _{fieldInfo.FieldName};");
-            fieldsBuilder.AppendLine("            set");
-            fieldsBuilder.AppendLine("            {");
-            fieldsBuilder.AppendLine($"                _{fieldInfo.FieldName} = value;");
-            fieldsBuilder.AppendLine($"                IsDirty{fieldInfo.FieldName} = true;");
-            fieldsBuilder.AppendLine("            }");
-            fieldsBuilder.AppendLine("        }");
-            fieldsBuilder.AppendLine();
+            if (fieldInfo.IsDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        [SupportDirty]");
+                fieldsBuilder.AppendLine($"        private {fieldInfo.FieldType} _{fieldInfo.FieldName};");
 
-            makeCleanBuilder.AppendLine($"            IsDirty{fieldInfo.FieldName} = false;");
+                fieldsBuilder.AppendLine("        [DefaultBool(true)]");
+                fieldsBuilder.AppendLine($"        public bool IsDirty{fieldInfo.FieldName};");
+
+                fieldsBuilder.AppendLine($"        public {fieldInfo.FieldType} {fieldInfo.FieldName}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"            get => _{fieldInfo.FieldName};");
+                fieldsBuilder.AppendLine("            set");
+                fieldsBuilder.AppendLine("            {");
+                fieldsBuilder.AppendLine($"                _{fieldInfo.FieldName} = value;");
+                fieldsBuilder.AppendLine($"                IsDirty{fieldInfo.FieldName} = true;");
+                fieldsBuilder.AppendLine("            }");
+                fieldsBuilder.AppendLine("        }");
+                fieldsBuilder.AppendLine();
+
+                makeCleanBuilder.AppendLine($"            IsDirty{fieldInfo.FieldName} = false;");
+            }
         }
 
         public static string GetComponentNameFromInterface(string interfaceName)
