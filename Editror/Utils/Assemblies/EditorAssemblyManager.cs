@@ -198,11 +198,12 @@ namespace Editor
 
         internal IEnumerable<Type> GetTypesByAttribute<T>() where T : Attribute
         {
-            foreach (var assembly in _assemblyDict)
+            foreach (var assemblyPair in _assemblyDict)
             {
-                if (assembly.Key == typeof(UserScriptAssembly)) continue;
+                if (assemblyPair.Key == typeof(UserScriptAssembly)) continue;
+                if (IsSystemAssembly(assemblyPair.Value)) continue;
 
-                var types = assembly.Value.GetTypes();
+                var types = assemblyPair.Value.GetTypes();
                 foreach(Type t in types)
                 {
                     if (t.GetCustomAttribute<T>(true) != null)

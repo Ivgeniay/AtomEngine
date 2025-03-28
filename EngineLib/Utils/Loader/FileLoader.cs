@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using AtomEngine;
+using System.Reflection;
 
 namespace EngineLib
 {
@@ -17,10 +18,13 @@ namespace EngineLib
             string content = null;
             Exception lastException = null;
 
-            if (searchMode == FileSearchMode.FileSystemOnly || searchMode == FileSearchMode.BothSearch)
+            bool isEmbeddedPath = path.StartsWith(EmbeddedPrefix);
+            string normalPath = isEmbeddedPath ? path.Substring(EmbeddedPrefix.Length) : path;
+
+            if (!isEmbeddedPath && (searchMode == FileSearchMode.FileSystemOnly || searchMode == FileSearchMode.BothSearch))
             {
                 var fileProvider = ContentProviders.FirstOrDefault(p => p is FileSystemContentProvider);
-                if (fileProvider != null && fileProvider.CanProvideContent(path))
+                if (fileProvider != null)
                 {
                     try
                     {
@@ -33,22 +37,17 @@ namespace EngineLib
                 }
             }
 
+            // Ищем в embedded-ресурсах, если указан embedded-префикс или не нашли в файловой системе
             if (content == null &&
-                (searchMode == FileSearchMode.EmbeddedOnly || searchMode == FileSearchMode.BothSearch))
+                (isEmbeddedPath || searchMode == FileSearchMode.EmbeddedOnly || searchMode == FileSearchMode.BothSearch))
             {
                 var embeddedProvider = ContentProviders.FirstOrDefault(p => p is EmbeddedContentProvider);
                 if (embeddedProvider != null)
                 {
                     try
                     {
-                        var embeddedPath = path.StartsWith(EmbeddedPrefix)
-                            ? path
-                            : $"{EmbeddedPrefix}{path}";
-
-                        if (embeddedProvider.CanProvideContent(embeddedPath))
-                        {
-                            content = embeddedProvider.GetContent(embeddedPath);
-                        }
+                        string embeddedPath = isEmbeddedPath ? path : $"{EmbeddedPrefix}{normalPath}";
+                        content = embeddedProvider.GetContent(embeddedPath);
                     }
                     catch (Exception ex)
                     {
@@ -71,21 +70,34 @@ namespace EngineLib
 
         public static string ResolvePath(string basePath, string includePath, FileSearchMode searchMode = FileSearchMode.BothSearch)
         {
-            string resolvedPath = null;
+            if (string.IsNullOrEmpty(basePath) || string.IsNullOrEmpty(includePath))
+                throw new ArgumentException("Base path and include path cannot be null or empty");
 
-            if (searchMode == FileSearchMode.FileSystemOnly || searchMode == FileSearchMode.BothSearch)
+            bool isBaseEmbedded = basePath.StartsWith(EmbeddedPrefix);
+            bool isIncludeEmbedded = includePath.StartsWith(EmbeddedPrefix);
+
+            if (isIncludeEmbedded)
+            {
+                searchMode = FileSearchMode.EmbeddedOnly;
+            }
+
+            if (!isBaseEmbedded && (searchMode == FileSearchMode.FileSystemOnly || searchMode == FileSearchMode.BothSearch))
             {
                 var fileProvider = ContentProviders.FirstOrDefault(p => p is FileSystemContentProvider);
-                if (fileProvider != null && !includePath.StartsWith(EmbeddedPrefix))
+                if (fileProvider != null)
                 {
                     try
                     {
-                        resolvedPath = fileProvider.ResolvePath(basePath, includePath);
+                        string normalIncludePath = isIncludeEmbedded ? includePath.Substring(EmbeddedPrefix.Length) : includePath;
+                        string resolvedPath = fileProvider.ResolvePath(basePath, normalIncludePath);
 
                         if (File.Exists(resolvedPath))
                             return resolvedPath;
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Debug($"Failed to resolve path in file system: {ex.Message}");
+                    }
                 }
             }
 
@@ -94,26 +106,33 @@ namespace EngineLib
                 var embeddedProvider = ContentProviders.FirstOrDefault(p => p is EmbeddedContentProvider);
                 if (embeddedProvider != null)
                 {
-                    var embeddedPath = includePath.StartsWith(EmbeddedPrefix)
-                        ? includePath
-                        : $"{EmbeddedPrefix}{includePath}";
-
                     try
                     {
-                        resolvedPath = embeddedProvider.ResolvePath(basePath.StartsWith(EmbeddedPrefix) ? basePath : $"{EmbeddedPrefix}{basePath}", embeddedPath);
-                        return resolvedPath;
+                        string embeddedBasePath = isBaseEmbedded ? basePath : $"{EmbeddedPrefix}{basePath}";
+                        string embeddedIncludePath = isIncludeEmbedded ? includePath : $"{EmbeddedPrefix}{includePath}";
+
+                        string resolvedPath = embeddedProvider.ResolvePath(embeddedBasePath, embeddedIncludePath);
+
+                        try
+                        {
+                            embeddedProvider.GetContent(resolvedPath);
+                            return resolvedPath;
+                        }
+                        catch
+                        {
+                        }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Debug($"Failed to resolve path in embedded resources: {ex.Message}");
+                    }
                 }
             }
 
-            if (resolvedPath == null)
-            {
-                throw new FileNotFoundError($"Could not resolve path for: {includePath} relative to {basePath}");
-            }
-
-            return resolvedPath;
+            throw new FileNotFoundError($"Could not resolve path for: {includePath} relative to {basePath}");
         }
+
+
     }
 
     public enum FileSearchMode

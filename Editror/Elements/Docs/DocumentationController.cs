@@ -12,6 +12,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Editor
 {
@@ -189,24 +190,27 @@ namespace Editor
                 EditorAssemblyManager assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
 
                 var types = assemblyManager.GetTypesByAttribute<DocumentationAttribute>();
-                foreach (var type in types)
+                if (types != null)
                 {
-                    var attr = type.GetCustomAttribute<DocumentationAttribute>();
-                    if (attr != null)
+                    foreach (var type in types)
                     {
-                        var doc = new DocumentInfo
+                        var attr = type.GetCustomAttribute<DocumentationAttribute>();
+                        if (attr != null)
                         {
-                            Name = !string.IsNullOrEmpty(attr.Name) ? attr.Name : type.Name,
-                            Title = !string.IsNullOrEmpty(attr.Title) ? attr.Title : string.Empty,
-                            Description = attr.Description,
-                            Author = string.IsNullOrWhiteSpace(attr.Author) ? "Unknown" : attr.Author,
-                            Section = attr.DocumentationSection,
-                            SubSection = attr.SubSection,
-                            RelatedType = type
-                        };
+                            var doc = new DocumentInfo
+                            {
+                                Name = !string.IsNullOrEmpty(attr.Name) ? attr.Name : type.Name,
+                                Title = !string.IsNullOrEmpty(attr.Title) ? attr.Title : string.Empty,
+                                Description = attr.Description,
+                                Author = string.IsNullOrWhiteSpace(attr.Author) ? "Unknown" : attr.Author,
+                                Section = attr.DocumentationSection,
+                                SubSection = attr.SubSection,
+                                RelatedType = type
+                            };
 
-                        _documentLookup[doc.Name] = doc;
-                        AddDocumentToTree(doc);
+                            _documentLookup[doc.Name] = doc;
+                            AddDocumentToTree(doc);
+                        }
                     }
                 }
 
@@ -222,35 +226,23 @@ namespace Editor
         {
             try
             {
-                EditorAssemblyManager assemblyManager = ServiceHub.Get<EditorAssemblyManager>();
+                string sourceDocumentation = FileLoader.LoadFile("embedded:Resources/Documentation/doc.json");
+                List<DocumentInfo> docsInfo = JsonConvert.DeserializeObject<List<DocumentInfo>>(sourceDocumentation);
 
-                var types = assemblyManager.GetTypesByAttribute<DocumentationAttribute>();
-                foreach (var type in types)
+                if (docsInfo != null && docsInfo.Count() > 0)
                 {
-                    var attr = type.GetCustomAttribute<DocumentationAttribute>();
-                    if (attr != null)
+                    foreach (var doc in docsInfo)
                     {
-                        var doc = new DocumentInfo
-                        {
-                            Name = !string.IsNullOrEmpty(attr.Name) ? attr.Name : type.Name,
-                            Title = !string.IsNullOrEmpty(attr.Title) ? attr.Title : string.Empty,
-                            Description = attr.Description,
-                            Author = string.IsNullOrWhiteSpace(attr.Author) ? "Unknown" : attr.Author,
-                            Section = attr.DocumentationSection,
-                            SubSection = attr.SubSection,
-                            RelatedType = type
-                        };
-
                         _documentLookup[doc.Name] = doc;
                         AddDocumentToTree(doc);
                     }
-                }
 
-                UpdateCategoryTree();
+                    UpdateCategoryTree();
+                }
             }
             catch (Exception ex)
             {
-                ShowErrorMessage($"Ошибка загрузки документации через рефлексию: {ex.Message}");
+                ShowErrorMessage($"Error loading local documentation: {ex.Message}");
             }
         }
 

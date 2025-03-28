@@ -98,7 +98,7 @@ namespace OpenglLib
 
         protected virtual MaterialAsset LoadMaterial(string path)
         {
-            string json = File.ReadAllText(path);
+            string json = FileLoader.LoadFile(path);// File.ReadAllText(path);
             MaterialAsset asset = MaterialSerializer.DeserializeMaterial(json);
             _cacheMaterialAssets[path] = asset;
 

@@ -17,6 +17,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AdditionalFiles Include="Resources/**/*.*" />
+    <EmbeddedResource Include="Resources/**/*.*" />
+    <None Remove="Resources/**/*.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Remove="Resources\Documentation\doc.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\CommonLib\CommonLib.csproj" />
   </ItemGroup>
 
