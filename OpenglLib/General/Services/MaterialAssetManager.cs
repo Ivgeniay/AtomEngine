@@ -11,7 +11,6 @@ namespace OpenglLib
         protected EventHub eventHub;
         protected Dictionary<string, MaterialAsset> _cacheMaterialAssets = new Dictionary<string, MaterialAsset>();
 
-
         public virtual Task InitializeAsync()
         {
             eventHub = ServiceHub.Get<EventHub>();
@@ -98,7 +97,7 @@ namespace OpenglLib
 
         protected virtual MaterialAsset LoadMaterial(string path)
         {
-            string json = FileLoader.LoadFile(path);// File.ReadAllText(path);
+            string json = FileLoader.LoadFile(path);
             MaterialAsset asset = MaterialSerializer.DeserializeMaterial(json);
             _cacheMaterialAssets[path] = asset;
 
@@ -246,7 +245,7 @@ namespace OpenglLib
                 {
                     try
                     {
-                        var material = GetMaterialAssetByPath(matFile);
+                        var material = LoadMaterial(matFile);
                         if (material != null)
                         {
                             DebLogger.Debug($"Cached material: {matFile}");

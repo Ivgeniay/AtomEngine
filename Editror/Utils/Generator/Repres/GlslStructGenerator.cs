@@ -141,7 +141,7 @@ namespace Editor
             builder.AppendLine();
             builder.AppendLine($"{GeneratorConst.GetUserScriptNamespace()}");
             builder.AppendLine("{");
-            builder.AppendLine($"    public class {className} : CustomStruct");
+            builder.AppendLine($"    public class {className} : CustomStruct, IDataSerializable");
             builder.AppendLine("    {");
             builder.AppendLine(CONTENT_PLACEHOLDER);
             builder.AppendLine("    }");

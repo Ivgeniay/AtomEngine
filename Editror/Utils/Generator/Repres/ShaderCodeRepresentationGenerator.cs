@@ -266,6 +266,7 @@ namespace Editor
             fieldsBuilder.AppendLine();
 
             constructorBodyBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.CSharpTypeName}>(_gl, ref {refStruct}, {ShaderConst.SHADER_PROGRAM}, {block.Binding.Value});");
+            //constructorBodyBuilder.AppendLine($"            bindingService.AllocateBindingPoint(handle, {block.Binding.Value});");
 
             disposeBodyBuilder.AppendLine($"            {block.InstanceName}Ubo.Dispose();");
         }
@@ -287,7 +288,7 @@ namespace Editor
             fieldsBuilder.AppendLine("        }");
             fieldsBuilder.AppendLine();
 
-            constructorBodyBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.CSharpTypeName}>(_gl, ref {refStruct}, GetBlockIndex(\"{block.Name}\"));");
+            constructorBodyBuilder.AppendLine($"            {block.InstanceName}Ubo = new UniformBufferObject<{block.CSharpTypeName}>(_gl, ref {refStruct}, handle, GetBlockIndex(\"{block.Name}\"), \"{block.Name}\");");
 
             disposeBodyBuilder.AppendLine($"            {block.InstanceName}Ubo.Dispose();");
         }

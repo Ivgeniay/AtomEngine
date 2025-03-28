@@ -12,6 +12,20 @@ namespace WindowsBuild
 #if DEBUG
             DefaultLogger logger = new DefaultLogger();
 #endif
+            Assembly[] allAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+            List<Assembly> embeddedFileAssembly = new List<Assembly>();
+            foreach (var assembly in allAssemblies)
+            {
+                var name = assembly.GetName().Name;
+                if (
+                    name == "CommonLib" ||
+                    name == "EngineLib" ||
+                    name == "OpenglLib"
+                    )
+                    embeddedFileAssembly.Add(assembly);
+            }
+            IncludeProcessor.RegisterContentProvider(new FileSystemContentProvider());
+            IncludeProcessor.RegisterContentProvider(new EmbeddedContentProvider(embeddedFileAssembly.ToArray()));
 
             string rootPath = AppDomain.CurrentDomain.BaseDirectory;
             WindowBuildFileRouter router = new WindowBuildFileRouter(rootPath);
@@ -24,17 +38,7 @@ namespace WindowsBuild
             ServiceHub.AddMapping<ExcludeSerializationTypeService, OpenGlExcludeSerializationTypeService>();
             ServiceHub.RegisterService<BindingPointService>();
 
-
             ServiceHub.Initialize().Wait();
-
-            IncludeProcessor.RegisterContentProvider(new FileSystemContentProvider());
-            IncludeProcessor.RegisterContentProvider(new EmbeddedContentProvider(
-                new Assembly[]
-                {
-                        ServiceHub.Get<AssemblyManager>().GetAssembly<CoreAssembly>(),
-                        ServiceHub.Get<AssemblyManager>().GetAssembly<CommonAssembly>(),
-                        ServiceHub.Get<AssemblyManager>().GetAssembly<OpenGlLibAssembly>()
-                }));
 
             AssemblyManager assemblyManager = ServiceHub.Get<AssemblyManager>();
             assemblyManager.InitializeAddDomainAssemblies();

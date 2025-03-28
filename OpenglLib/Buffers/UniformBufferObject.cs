@@ -31,10 +31,11 @@ namespace OpenglLib.Buffers
 
 
 
-        public unsafe UniformBufferObject(GL gl, ref TDataType data, uint blockIndex)
+        public unsafe UniformBufferObject(GL gl, ref TDataType data, uint program, uint blockIndex, string blockName)
         {
             _gl = gl;
             _handle = _gl.GenBuffer();
+            _program = program;
 
             if (blockIndex != uint.MaxValue)
             {

@@ -170,11 +170,11 @@ namespace Editor
                     {
                         if (field.IsArray)
                         {
-                            UniformArrayCase(builder, field, componentVar);
+                            UniformArrayCase(builder, field, rsFileInfo, componentVar);
                         }
                         else
                         {
-                            UniformCase(builder, field, componentVar);
+                            UniformCase(builder, field, rsFileInfo, componentVar);
                         }
 
                     }
@@ -183,17 +183,17 @@ namespace Editor
                     {
                         if (field.IsArray)
                         {
-                            CustomStructArrayCase(builder, field, componentVar);
+                            CustomStructArrayCase(builder, field, rsFileInfo, componentVar);
                         }
                         else
                         {
-                            CustomStructCase(builder, field, componentVar);
+                            CustomStructCase(builder, field, rsFileInfo, componentVar);
                         }
                     }
 
                     if (field.IsUniformBlock)
                     {
-                        UniformBlockCase(builder, field, componentVar);
+                        UniformBlockCase(builder, field, rsFileInfo, componentVar);
                     }
                 }
             }
@@ -206,7 +206,7 @@ namespace Editor
             builder.AppendLine("                }");
         }
 
-        private static void UniformArrayCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, string componentVar)
+        private static void UniformArrayCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, RSFileInfo rsFileInfo, string componentVar)
         {
             if (fieldInfo.IsDirtySupport)
             {
@@ -227,7 +227,7 @@ namespace Editor
                 }
             }
         }
-        private static void UniformCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, string componentVar)
+        private static void UniformCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, RSFileInfo rsFileInfo, string componentVar)
         {
             if (fieldInfo.IsDirtySupport)
             {
@@ -242,15 +242,66 @@ namespace Editor
                 builder.AppendLine($"                    renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
             }
         }
-        private static void CustomStructArrayCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, string componentVar)
+        private static void CustomStructArrayCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, RSFileInfo rsFileInfo, string componentVar, int indentLevel = 5)
         {
-            DebLogger.Warn($"{nameof(CustomStructArrayCase)} not implemented");
+            string indent = new string(' ', indentLevel * 4);
+
+            GlslStructure? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
+            if (currentStruct == null) return;
+
+            int arraySize = fieldInfo.ArraySize;
+
+            for (int i = 0; i < arraySize; i++)
+            {
+                if (fieldInfo.IsDirtySupport)
+                {
+                    builder.AppendLine($"{indent}if ({componentVar}.IsDirty{fieldInfo.FieldName})");
+                    builder.AppendLine($"{indent}{{");
+                    indentLevel++;
+                    indent = new string(' ', indentLevel * 4);
+                }
+
+                string arrayElementPrefix = $"{fieldInfo.FieldName}[{i}]";
+                ProcessStructFields(builder, currentStruct, rsFileInfo, componentVar, arrayElementPrefix, indentLevel);
+
+                if (fieldInfo.IsDirtySupport)
+                {
+                    indentLevel--;
+                    indent = new string(' ', indentLevel * 4);
+                    if (i == arraySize - 1)
+                    {
+                        builder.AppendLine($"{indent}    {componentVar}.IsDirty{fieldInfo.FieldName} = false;");
+                    }
+                    builder.AppendLine($"{indent}}}");
+                }
+            }
         }
-        private static void CustomStructCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, string componentVar)
+        private static void CustomStructCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, RSFileInfo rsFileInfo, string componentVar, int indentLevel = 5)
         {
-            DebLogger.Warn($"{nameof(CustomStructCase)} not implemented");
+            string indent = new string(' ', indentLevel * 4);
+
+            GlslStructure? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
+            if (currentStruct == null) return;
+
+            if (fieldInfo.IsDirtySupport)
+            {
+                builder.AppendLine($"{indent}if ({componentVar}.IsDirty{fieldInfo.FieldName})");
+                builder.AppendLine($"{indent}{{");
+                indentLevel++;
+                indent = new string(' ', indentLevel * 4);
+            }
+
+            ProcessStructFields(builder, currentStruct, rsFileInfo, componentVar, fieldInfo.FieldName, indentLevel);
+
+            if (fieldInfo.IsDirtySupport)
+            {
+                indentLevel--;
+                indent = new string(' ', indentLevel * 4);
+                builder.AppendLine($"{indent}    {componentVar}.IsDirty{fieldInfo.FieldName} = false;");
+                builder.AppendLine($"{indent}}}");
+            }
         }
-        private static void UniformBlockCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, string componentVar)
+        private static void UniformBlockCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, RSFileInfo rsFileInfo, string componentVar)
         {
             if (fieldInfo.IsDirtySupport)
             {
@@ -265,6 +316,60 @@ namespace Editor
                 builder.AppendLine($"                    renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
             }
         }
+        private static void ProcessStructFields(StringBuilder builder, GlslStructure structure, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
+        {
+            string indent = new string(' ', indentLevel * 4);
+
+            foreach (var field in structure.Fields)
+            {
+                string rendererFieldPath = $"renderer.{prefix}.{field.Name}";
+                string componentFieldPath = $"{componentVar}.{prefix}.{field.Name}";
+
+                if (field.ArraySize.HasValue)
+                {
+                    ProcessArrayField(builder, field, rsFileInfo, componentVar, prefix, indentLevel);
+                }
+                else if (GlslParser.IsCustomType(field.Type, field.Type))
+                {
+                    GlslStructure? nestedStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
+                    if (nestedStruct != null)
+                    {
+                        ProcessStructFields(builder, nestedStruct, rsFileInfo, componentVar, $"{prefix}.{field.Name}", indentLevel);
+                    }
+                }
+                else
+                {
+                    builder.AppendLine($"{indent}{rendererFieldPath} = {componentFieldPath};");
+                }
+            }
+        }
+        private static void ProcessArrayField(StringBuilder builder, GlslStructField field, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
+        {
+            string indent = new string(' ', indentLevel * 4);
+            int arraySize = field.ArraySize.Value;
+
+            if (GlslParser.IsCustomType(field.Type, field.Type))
+            {
+                GlslStructure? itemStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
+                if (itemStruct != null)
+                {
+                    for (int i = 0; i < arraySize; i++)
+                    {
+                        ProcessStructFields(builder, itemStruct, rsFileInfo, componentVar, $"{prefix}.{field.Name}[{i}]", indentLevel);
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < arraySize; i++)
+                {
+                    string rendererFieldPath = $"renderer.{prefix}.{field.Name}[{i}]";
+                    string componentFieldPath = $"{componentVar}.{prefix}.{field.Name}[{i}]";
+                    builder.AppendLine($"{indent}{rendererFieldPath} = {componentFieldPath};");
+                }
+            }
+        }
+
 
 
         private static void GenerateOtherMethods(StringBuilder builder)

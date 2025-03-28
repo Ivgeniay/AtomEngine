@@ -1,5 +1,6 @@
 ﻿using AtomEngine;
 using AtomEngine.RenderEntity;
+using EngineLib;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using System.Text;
@@ -16,6 +17,7 @@ namespace OpenglLib
 
         protected string VertexSource;
         protected string FragmentSource;
+
         public Shader(GL gl, string vertexSource = "", string fragmentSource = "")
         { 
             _gl = gl;

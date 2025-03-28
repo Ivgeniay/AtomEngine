@@ -275,7 +275,7 @@ namespace Editor
 
                 int totalSize = CalculateStructureSize(structure.Name, structures);
                 contentBuilder.AppendLine($"    [StructLayout(LayoutKind.Explicit, Size = {totalSize})]");
-                contentBuilder.AppendLine($"    public struct {structName}");
+                contentBuilder.AppendLine($"    public struct {structName} : IDataSerializable");
                 contentBuilder.AppendLine("    {");
                 contentBuilder.AppendLine(CLASS_FIELDS_PLACEHOLDER);
                 contentBuilder.AppendLine("    }");

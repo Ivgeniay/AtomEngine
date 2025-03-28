@@ -48,7 +48,7 @@ namespace Editor
 
                 fieldInfo.FieldName = name;
                 fieldInfo.FieldType = csharpType;
-                fieldInfo.IsUniform = true;
+                fieldInfo.IsUniform = !GlslParser.IsCustomType(csharpType, type);
                 fieldInfo.IsArray = arraySize.HasValue;
                 fieldInfo.ArraySize = arraySize.HasValue ? arraySize.Value : 0;
                 fieldInfo.IsDirtySupport = uniform.Attributes.Any(e => e.Name == "IsDirty".ToLower() && e.Value == "True".ToLower());
@@ -179,7 +179,7 @@ namespace Editor
                 fieldsBuilder.AppendLine($"        public {fieldInfo.FieldType} {fieldInfo.FieldName};");
             }
 
-            constructorBuilder.AppendLine($"            {fieldInfo.FieldName} = new {fieldInfo.FieldType}();");
+            constructorBuilder.AppendLine($"            {fieldInfo.FieldName} = new {fieldInfo.FieldType}(null);");
 
             if (fieldInfo.IsDirtySupport)
             {

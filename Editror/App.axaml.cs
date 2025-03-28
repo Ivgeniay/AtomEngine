@@ -10,6 +10,8 @@ using System.Threading;
 using EngineLib;
 using OpenglLib;
 using System.Reflection;
+using System.Collections.Generic;
+using System.Xml.Linq;
 
 namespace Editor
 {
@@ -44,6 +46,21 @@ namespace Editor
         {
             try
             {
+                Assembly[] allAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+                List<Assembly> embeddedFileAssembly = new List<Assembly>();
+                foreach(var assembly in allAssemblies)
+                {
+                    var name = assembly.GetName().Name;
+                    if (
+                        name == "CommonLib" ||
+                        name == "EngineLib" ||
+                        name == "OpenglLib"
+                        ) 
+                        embeddedFileAssembly.Add(assembly);
+                }
+                IncludeProcessor.RegisterContentProvider(new FileSystemContentProvider());
+                IncludeProcessor.RegisterContentProvider(new EmbeddedContentProvider(embeddedFileAssembly.ToArray()));
+
                 // Проверка директор
                 ServiceHub.RegisterService<EditorDirectoryExplorer>();
                 ServiceHub.AddMapping<DirectoryExplorer, EditorDirectoryExplorer>();
@@ -143,15 +160,6 @@ namespace Editor
                     var exception = (Exception)args.ExceptionObject;
                     DebLogger.Fatal($"Необработанное исключение AppDomain: {exception.Message}\n{exception.StackTrace}");
                 };
-
-                IncludeProcessor.RegisterContentProvider(new FileSystemContentProvider());
-                IncludeProcessor.RegisterContentProvider(new EmbeddedContentProvider(
-                    new Assembly[]
-                    {
-                        ServiceHub.Get<AssemblyManager>().GetAssembly<CoreAssembly>(),
-                        ServiceHub.Get<AssemblyManager>().GetAssembly<CommonAssembly>(),
-                        ServiceHub.Get<AssemblyManager>().GetAssembly<OpenGlLibAssembly>()
-                    }));
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {

@@ -97,7 +97,7 @@ namespace Editor
 
         private static void UniformCustomStructCase(StringBuilder builder, string type, string name, string csharpType)
         {
-            builder.AppendLine($"        {csharpType} {name} {{ set; }}");
+            builder.AppendLine($"        {csharpType} {name} {{ get; }}");
         }
 
         private static void UniformArrayCase(StringBuilder builder, string type, string name, int arraySize, string csharpType)

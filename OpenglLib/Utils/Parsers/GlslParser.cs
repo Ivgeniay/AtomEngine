@@ -272,7 +272,7 @@ namespace OpenglLib
                     Name = name,
                     UniformBlockType = blockType,
                     Binding = binding,
-                    Fields = ParseFields(fieldsText),
+                    Fields = ParseFields(fieldsText, source),
                     InstanceName = instanceName
                 };
                 uniblock.Attributes = ExtractAttributesAbove(source, match.Index);
@@ -282,7 +282,7 @@ namespace OpenglLib
             return blocks;
         }
 
-        public static List<UniformBlockField> ParseFields(string fieldsText)
+        public static List<UniformBlockField> ParseFields(string fieldsText, string fullSource)
         {
             List<UniformBlockField> fields = new List<UniformBlockField>();
 
@@ -305,7 +305,7 @@ namespace OpenglLib
                     }
                     else
                     {
-                        arraySize = ResolveArraySizeIdentifier(fieldsText, sizeValue);
+                        arraySize = ResolveArraySizeIdentifier(fullSource, sizeValue);
                     }
                 }
                 UniformBlockField field = new UniformBlockField()
@@ -328,99 +328,99 @@ namespace OpenglLib
 
             return glslType switch
             {
-                "bool" => "bool",
-                "int" => "int",
-                "uint" => "uint",
-                "float" => "float",
-                "double" => "double",
+                "bool"                   => "bool",
+                "int"                    => "int",
+                "uint"                   => "uint",
+                "float"                  => "float",
+                "double"                 => "double",
 
-                "bvec2" => "Vector2D<bool>",
-                "bvec3" => "Vector3D<bool>",
-                "bvec4" => "Vector4D<bool>",
+                "bvec2"                  => "Vector2D<bool>",
+                "bvec3"                  => "Vector3D<bool>",
+                "bvec4"                  => "Vector4D<bool>",
 
-                "ivec2" => "Vector2D<int>",
-                "ivec3" => "Vector3D<int>",
-                "ivec4" => "Vector4D<int>",
+                "ivec2"                  => "Vector2D<int>",
+                "ivec3"                  => "Vector3D<int>",
+                "ivec4"                  => "Vector4D<int>",
 
-                "uvec2" => "Vector2D<uint>",
-                "uvec3" => "Vector3D<uint>",
-                "uvec4" => "Vector4D<uint>",
+                "uvec2"                  => "Vector2D<uint>",
+                "uvec3"                  => "Vector3D<uint>",
+                "uvec4"                  => "Vector4D<uint>",
 
-                "vec2" => "Vector2D<float>",
-                "vec3" => "Vector3D<float>",
-                "vec4" => "Vector4D<float>",
+                "vec2"                   => "Vector2D<float>",
+                "vec3"                   => "Vector3D<float>",
+                "vec4"                   => "Vector4D<float>",
 
-                "mat2" => "Matrix2X2<float>",
-                "mat3" => "Matrix3X3<float>",
-                "mat4" => "Matrix4X4<float>",
-                "mat2x2" => "Matrix2X2<float>",
-                "mat2x3" => "Matrix2X3<float>",
-                "mat2x4" => "Matrix2X4<float>",
-                "mat3x2" => "Matrix3X2<float>",
-                "mat3x3" => "Matrix3X3<float>",
-                "mat3x4" => "Matrix3X4<float>",
-                "mat4x2" => "Matrix4X2<float>",
-                "mat4x3" => "Matrix4X3<float>",
-                "mat4x4" => "Matrix4X4<float>",
+                "mat2"                   => "Matrix2X2<float>",
+                "mat3"                   => "Matrix3X3<float>",
+                "mat4"                   => "Matrix4X4<float>",
+                "mat2x2"                 => "Matrix2X2<float>",
+                "mat2x3"                 => "Matrix2X3<float>",
+                "mat2x4"                 => "Matrix2X4<float>",
+                "mat3x2"                 => "Matrix3X2<float>",
+                "mat3x3"                 => "Matrix3X3<float>",
+                "mat3x4"                 => "Matrix3X4<float>",
+                "mat4x2"                 => "Matrix4X2<float>",
+                "mat4x3"                 => "Matrix4X3<float>",
+                "mat4x4"                 => "Matrix4X4<float>",
 
-                "sampler1D" => "int",
-                "sampler2D" => "int",
-                "sampler3D" => "int",
-                "samplerCube" => "int",
-                "sampler2DRect" => "int",
-                "sampler1DArray" => "int",
-                "sampler2DArray" => "int",
-                "samplerCubeArray" => "int",
-                "samplerBuffer" => "int",
-                "sampler2DMS" => "int",
-                "sampler2DMSArray" => "int",
+                "sampler1D"              => "int",
+                "sampler2D"              => "int",
+                "sampler3D"              => "int",
+                "samplerCube"            => "int",
+                "sampler2DRect"          => "int",
+                "sampler1DArray"         => "int",
+                "sampler2DArray"         => "int",
+                "samplerCubeArray"       => "int",
+                "samplerBuffer"          => "int",
+                "sampler2DMS"            => "int",
+                "sampler2DMSArray"       => "int",
 
-                "sampler1DShadow" => "int",
-                "sampler2DShadow" => "int",
-                "samplerCubeShadow" => "int",
-                "sampler2DRectShadow" => "int",
-                "sampler1DArrayShadow" => "int",
-                "sampler2DArrayShadow" => "int",
+                "sampler1DShadow"        => "int",
+                "sampler2DShadow"        => "int",
+                "samplerCubeShadow"      => "int",
+                "sampler2DRectShadow"    => "int",
+                "sampler1DArrayShadow"   => "int",
+                "sampler2DArrayShadow"   => "int",
                 "samplerCubeArrayShadow" => "int",
 
-                "isampler1D" => "int",
-                "isampler2D" => "int",
-                "isampler3D" => "int",
-                "isamplerCube" => "int",
-                "isampler2DRect" => "int",
-                "isampler1DArray" => "int",
-                "isampler2DArray" => "int",
-                "isamplerCubeArray" => "int",
-                "isamplerBuffer" => "int",
-                "isampler2DMS" => "int",
-                "isampler2DMSArray" => "int",
+                "isampler1D"             => "int",
+                "isampler2D"             => "int",
+                "isampler3D"             => "int",
+                "isamplerCube"           => "int",
+                "isampler2DRect"         => "int",
+                "isampler1DArray"        => "int",
+                "isampler2DArray"        => "int",
+                "isamplerCubeArray"      => "int",
+                "isamplerBuffer"         => "int",
+                "isampler2DMS"           => "int",
+                "isampler2DMSArray"      => "int",
 
-                "usampler1D" => "int",
-                "usampler2D" => "int",
-                "usampler3D" => "int",
-                "usamplerCube" => "int",
-                "usampler2DRect" => "int",
-                "usampler1DArray" => "int",
-                "usampler2DArray" => "int",
-                "usamplerCubeArray" => "int",
-                "usamplerBuffer" => "int",
-                "usampler2DMS" => "int",
-                "usampler2DMSArray" => "int",
+                "usampler1D"             => "int",
+                "usampler2D"             => "int",
+                "usampler3D"             => "int",
+                "usamplerCube"           => "int",
+                "usampler2DRect"         => "int",
+                "usampler1DArray"        => "int",
+                "usampler2DArray"        => "int",
+                "usamplerCubeArray"      => "int",
+                "usamplerBuffer"         => "int",
+                "usampler2DMS"           => "int",
+                "usampler2DMSArray"      => "int",
 
-                "atomic_uint" => "uint",
-                "image1D" => "int",
-                "image2D" => "int",
-                "image3D" => "int",
-                "image2DRect" => "int",
-                "imageCube" => "int",
-                "image1DArray" => "int",
-                "image2DArray" => "int",
-                "imageBuffer" => "int",
-                "image2DMS" => "int",
-                "image2DMSArray" => "int",
+                "atomic_uint"            => "uint",
+                "image1D"                => "int",
+                "image2D"                => "int",
+                "image3D"                => "int",
+                "image2DRect"            => "int",
+                "imageCube"              => "int",
+                "image1DArray"           => "int",
+                "image2DArray"           => "int",
+                "imageBuffer"            => "int",
+                "image2DMS"              => "int",
+                "image2DMSArray"         => "int",
 
-                "void" => "void",
-                "struct" => "struct",
+                "void"                   => "void",
+                "struct"                 => "struct",
                 _ => glslType
             };
         }
@@ -504,7 +504,15 @@ namespace OpenglLib
         }
 
         public static bool IsCustomType(string csharpType, string type) =>
-            csharpType == type && type != "float" && type != "bool" && type != "int" && type != "uint" && type != "float" && type != "double";
+            csharpType == type && type != "float" && type != "bool" && type != "int" && type != "uint" && type != "double" &&
+            type != "Vector2D<bool>" && type != "Vector3D<bool>" && type != "Vector4D<bool>" && type != "Vector2D<int>" &&
+            type != "Vector3D<int>" && type != "Vector4D<int>" && type != "Vector2D<uint>" && type != "Vector3D<uint>" &&
+            type != "Vector4D<uint>" && type != "Vector2D<float>" && type != "Vector3D<float>" && type != "Vector4D<float>" &&
+            type != "Matrix2X2<float>" && type != "Matrix3X3<float>" && type != "Matrix4X4<float>" && type != "Matrix2X2<float>" &&
+            type != "Matrix2X3<float>" && type != "Matrix2X4<float>" && type != "Matrix3X2<float>" && type != "Matrix3X3<float>" &&
+            type != "Matrix3X4<float>" && type != "Matrix4X2<float>" && type != "Matrix4X3<float>" && type != "Matrix4X4<float>";
+
+
 
         private static UniformBlockType GetUniformBlockType(string layoutType)
         {
