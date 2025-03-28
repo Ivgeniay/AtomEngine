@@ -26,7 +26,6 @@ namespace OpenglLib
             {
                 if (uniform.Value > -1) ProcessUniformLocation(uniform.Key, uniform.Value); 
             }
-            //ProcessUnbindedUniformBlocks();
         }
 
         private void ProcessUniformLocation(string path, int location)
@@ -37,97 +36,208 @@ namespace OpenglLib
             for (int i = 0; i < parts.Length; i++)
             {
                 var part = parts[i];
-                var arrayMatch = Regex.Match(part, @"(.*?)\[(\d+)\]");
-                if (arrayMatch.Success)
+                var isLastPart = i == parts.Length - 1;
+
+                if (IsArrayAccess(part))
                 {
-                    var propertyName = arrayMatch.Groups[1].Value;
-                    var property = currentInstance.GetType().GetProperty(propertyName);
-                    if (property == null) return;
-
-                    var propertyType = property.PropertyType;
-                    var value = property.GetValue(currentInstance);
-
-                    if (propertyType.IsGenericType)
-                    {
-                        var genericType = propertyType.GetGenericTypeDefinition();
-                        if (genericType == typeof(LocaleArray<>))
-                        {
-                            if (i == parts.Length - 1)
-                            {
-                                var locationProperty = currentInstance.GetType().GetProperty($"{propertyName}Location");
-                                if (locationProperty != null)
-                                {
-                                    locationProperty.SetValue(currentInstance, location);
-                                }
-                            }
-                        }
-                        else if (genericType == typeof(StructArray<>))
-                        {
-                            var index = int.Parse(arrayMatch.Groups[2].Value);
-                            var indexer = propertyType.GetProperty("Item");
-                            currentInstance = indexer.GetValue(value, new object[] { index });
-                        }
-                    }
+                    ProcessArrayPart(ref currentInstance, part, path, location, isLastPart);
                 }
                 else
                 {
-                    var property = currentInstance.GetType().GetProperty(part);
-                    if (property == null) return;
-
-                    var propertyType = property.PropertyType;
-                    if (typeof(CustomStruct).IsAssignableFrom(propertyType))
-                    {
-                        currentInstance = property.GetValue(currentInstance);
-                    }
-                    else
-                    {
-                        property = currentInstance.GetType().GetProperty(part + "Location");
-                        if (property != null)
-                        {
-                            property.SetValue(currentInstance, location);
-                        }
-                    }
+                    ProcessSimplePart(ref currentInstance, part, path, location, isLastPart);
                 }
+
+                if (currentInstance == null)
+                    return;
             }
         }
 
+        private bool IsArrayAccess(string part)
+        {
+            return Regex.IsMatch(part, @"(.*?)\[(\d+)\]");
+        }
 
-        //private void ProcessUnbindedUniformBlocks()
+        private void ProcessArrayPart(ref object currentInstance, string part, string path, int location, bool isLastPart)
+        {
+            var match = Regex.Match(part, @"(.*?)\[(\d+)\]");
+            var propertyName = match.Groups[1].Value;
+            var index = int.Parse(match.Groups[2].Value);
+
+            var property = currentInstance.GetType().GetProperty(propertyName);
+            if (property == null)
+            {
+                currentInstance = null;
+                return;
+            }
+
+            var value = property.GetValue(currentInstance);
+            if (value == null)
+            {
+                currentInstance = null;
+                return;
+            }
+
+            var propertyType = property.PropertyType;
+
+            if (!propertyType.IsGenericType)
+            {
+                currentInstance = null;
+                return;
+            }
+
+            var genericType = propertyType.GetGenericTypeDefinition();
+
+            if (genericType == typeof(LocaleArray<>))
+            {
+                ProcessLocaleArray(ref currentInstance, propertyName, location, isLastPart);
+            }
+            else if (genericType == typeof(StructArray<>))
+            {
+                ProcessStructArray(ref currentInstance, value, propertyType, index);
+            }
+            else
+            {
+                currentInstance = null;
+            }
+        }
+
+        private void ProcessLocaleArray(ref object currentInstance, string propertyName, int location, bool isLastPart)
+        {
+            if (isLastPart)
+            {
+                var locationProperty = currentInstance.GetType().GetProperty($"{propertyName}Location");
+                if (locationProperty != null)
+                {
+                    locationProperty.SetValue(currentInstance, location);
+                }
+            }
+            else
+            {
+                currentInstance = null;
+            }
+        }
+
+        private void ProcessStructArray(ref object currentInstance, object arrayInstance, Type arrayType, int index)
+        {
+            var indexer = arrayType.GetProperty("Item");
+            if (indexer != null)
+            {
+                try
+                {
+                    currentInstance = indexer.GetValue(arrayInstance, new object[] { index });
+                }
+                catch
+                {
+                    currentInstance = null;
+                }
+            }
+            else
+            {
+                currentInstance = null;
+            }
+        }
+
+        private void ProcessSimplePart(ref object currentInstance, string part, string path, int location, bool isLastPart)
+        {
+            var property = currentInstance.GetType().GetProperty(part);
+
+            if (property == null)
+            {
+                if (isLastPart)
+                {
+                    var locationProperty = currentInstance.GetType().GetProperty(part + "Location");
+                    if (locationProperty != null)
+                    {
+                        locationProperty.SetValue(currentInstance, location);
+                    }
+                }
+
+                currentInstance = null;
+                return;
+            }
+
+            var propertyType = property.PropertyType;
+
+            if (typeof(CustomStruct).IsAssignableFrom(propertyType))
+            {
+                currentInstance = property.GetValue(currentInstance);
+            }
+            else if (isLastPart)
+            {
+                var locationProperty = currentInstance.GetType().GetProperty(part + "Location");
+                if (locationProperty != null)
+                {
+                    locationProperty.SetValue(currentInstance, location);
+                }
+            }
+            else
+            {
+                currentInstance = null;
+            }
+        }
+
+        //private void ProcessUniformLocation(string path, int location)
         //{
-        //    var uboFields = this.GetType()
-        //        .GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
-        //        .Where(f => f.Name.EndsWith("Ubo"))
-        //        .Where(f => f.GetCustomAttribute<BlockNameAttribute>() != null);
+        //    var parts = path.Split('.');
+        //    object currentInstance = this;
 
-        //    foreach (var field in uboFields)
+        //    for (int i = 0; i < parts.Length; i++)
         //    {
-        //        string blockName = field.Name.Substring(0, field.Name.IndexOf("Ubo"));
-        //        BlockNameAttribute attribute = field.GetCustomAttribute<BlockNameAttribute>();
-        //        var locationProps = this.GetType()
-        //            .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-        //            .Where(p => p.Name.EndsWith($"{ShaderConst.LOCATION}") && p.Name.StartsWith(blockName));
-
-        //        foreach(var locationProp in locationProps)
+        //        var part = parts[i];
+        //        var arrayMatch = Regex.Match(part, @"(.*?)\[(\d+)\]");
+        //        if (arrayMatch.Success)
         //        {
-        //            var bindingPoint = SetupUniformBlockBinding(attribute.BlockName);
-        //            locationProp.SetValue(this, bindingPoint);
+        //            var propertyName = arrayMatch.Groups[1].Value;
+        //            var property = currentInstance.GetType().GetProperty(propertyName);
+        //            if (property == null) return;
+
+        //            var propertyType = property.PropertyType;
+        //            var value = property.GetValue(currentInstance);
+
+        //            if (propertyType.IsGenericType)
+        //            {
+        //                var genericType = propertyType.GetGenericTypeDefinition();
+        //                if (genericType == typeof(LocaleArray<>))
+        //                {
+        //                    if (i == parts.Length - 1)
+        //                    {
+        //                        var locationProperty = currentInstance.GetType().GetProperty($"{propertyName}Location");
+        //                        if (locationProperty != null)
+        //                        {
+        //                            locationProperty.SetValue(currentInstance, location);
+        //                        }
+        //                    }
+        //                }
+        //                else if (genericType == typeof(StructArray<>))
+        //                {
+        //                    var index = int.Parse(arrayMatch.Groups[2].Value);
+        //                    var indexer = propertyType.GetProperty("Item");
+        //                    currentInstance = indexer.GetValue(value, new object[] { index });
+        //                }
+        //            }
+        //        }
+        //        else
+        //        {
+        //            var property = currentInstance.GetType().GetProperty(part);
+        //            if (property == null) return;
+
+        //            var propertyType = property.PropertyType;
+        //            if (typeof(CustomStruct).IsAssignableFrom(propertyType))
+        //            {
+        //                currentInstance = property.GetValue(currentInstance);
+        //            }
+        //            else
+        //            {
+        //                property = currentInstance.GetType().GetProperty(part + "Location");
+        //                if (property != null)
+        //                {
+        //                    property.SetValue(currentInstance, location);
+        //                }
+        //            }
         //        }
         //    }
         //}
 
-        //protected int SetupUniformBlockBinding(string blockName)
-        //{
-        //    uint blockIndex = _gl.GetUniformBlockIndex(handle, blockName);
-        //    if (blockIndex != uint.MaxValue)
-        //    {
-        //        var bindingService = ServiceHub.Get<BindingPointService>();
-        //        uint bindingPoint = bindingService.AllocateBindingPoint((int)handle);
-        //        //_gl.UniformBlockBinding(handle, blockIndex, bindingPoint);
-        //        return (int)bindingPoint;
-        //    }
-
-        //    return -1;
-        //}
     }
 
 }
