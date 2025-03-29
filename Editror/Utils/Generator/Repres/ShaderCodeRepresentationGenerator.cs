@@ -18,14 +18,12 @@ namespace Editor
         private const string DISPOSE_BODY_PLACEHOLDER = "/*DISPOSE_BODY*/";
 
         public static string GenerateRepresentationFromSource(string representationName, string vertexSource, string fragmentSource,
-             string outputDirectory, List<UniformBlockStructure> uniformBlocks, List<RSFileInfo> rsFiles, string sourceGuid = null,
+             string outputDirectory, List<UniformField> uniforms, List<UniformBlockStructure> uniformBlocks, List<RSFileInfo> rsFiles, string sourceGuid = null,
              string sourcePath = null)
         {
             if (string.IsNullOrEmpty(sourceGuid) && !string.IsNullOrEmpty(sourcePath))
                 sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(sourcePath)?.Guid;
 
-            GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
-            var uniforms = GlslParser.ExtractUniforms(vertexSource + "\n" + fragmentSource);
             var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid, rsFiles);
             var representationFilePath = Path.Combine(outputDirectory, $"{representationName}{GeneratorConst.LABLE}.cs");
             File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);
