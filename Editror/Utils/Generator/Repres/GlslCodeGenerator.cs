@@ -56,8 +56,10 @@ namespace Editor.Utils.Generator
 
                     shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, sourcePath);
                     shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
+                    shaderSource = GlslParser.ResolveConstantPlacement(shaderSource, RSParser.GetConstFromFileInfos(rsFiles));
                     shaderSource = GlslParser.ResolveStructurePlacement(shaderSource, RSParser.GetStructuresFromFileInfos(rsFiles));
                     shaderSource = GlslParser.ResolveUniformPlacement(shaderSource, RSParser.GetUniformsFromRsFileInfos(rsFiles));
+                    shaderSource = GlslParser.ResolveUniformBlockPlacement(shaderSource, RSParser.GetUniformsBlocksFromRsFileInfos(rsFiles));
                     shaderSource = GlslParser.ResolveMethodPlacement(shaderSource, RSParser.GetMethodsFromRsFileInfos(rsFiles));
 
                     var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
@@ -65,6 +67,7 @@ namespace Editor.Utils.Generator
 
                     var combinedSource = vertexSource + "\n" + fragmentSource;
 
+                    List<GlslConstant> constants =  GlslParser.ParseGlslConstants(combinedSource);
                     List<UniformField> uniforms = GlslParser.ExtractUniforms(combinedSource);
                     List<GlslStructure> structures = structures = GlslParser.ParseGlslStructures(combinedSource);
 

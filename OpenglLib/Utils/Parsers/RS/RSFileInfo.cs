@@ -8,6 +8,7 @@
         public string ComponentName { get; set; } = string.Empty;
         public string SystemName { get; set; } = string.Empty;
         public string ProcessedCode { get; set; } = string.Empty;
+        public List<GlslConstant> Constants { get; set } = new List<GlslConstant>();
         public List<UniformBlockStructure> UniformBlocks { get; set; } = new List<UniformBlockStructure>();
         public List<UniformField> Uniforms { get; set; } = new List<UniformField>();
         public List<GlslStructure> Structures { get; set; } = new List<GlslStructure>();

@@ -80,6 +80,14 @@
     "SubSection": "RS/Attributes"
   },
   {
+    "Name": "[UniformBlockTarget:Value]",
+    "Title": "Атрибут UniformBlockTarget",
+    "Description": "Атрибут [UniformBlockTarget:Value] применяется к uniform-блокам в .rs файле. Он указывает генератору расположение переменной в шейдере. Возможные значение [UniformBlockTarget:Vertex], [UniformBlockTarget:Fragment], [UniformBlockTarget:Both]",
+    "Author": "AtomEngine Team",
+    "Section": "GLSL",
+    "SubSection": "RS/Attributes"
+  },
+  {
     "Name": "[UniformTarget:Value]",
     "Title": "Атрибут UniformTarget",
     "Description": "Атрибут [UniformTarget:Value] применяется к uniform-переменным в .rs файле. Он указывает генератору расположение переменной в шейдере. Возможные значение [UniformTarget:Vertex], [UniformTarget:Fragment], [UniformTarget:Both]",

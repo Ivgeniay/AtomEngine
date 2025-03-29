@@ -40,6 +40,7 @@ namespace OpenglLib
             fileInfo.RequiredComponent = ExtractRequiredComponents(sourceCode);
             fileInfo.ProcessedCode = RemoveServiceMarkers(sourceCode);
 
+            fileInfo.Constants = GlslParser.ParseGlslConstants(fileInfo.ProcessedCode);
             fileInfo.UniformBlocks = GlslParser.ParseUniformBlocks(fileInfo.ProcessedCode);
             fileInfo.Uniforms = GlslParser.ExtractUniforms(fileInfo.ProcessedCode);
             fileInfo.Structures = GlslParser.ParseGlslStructures(fileInfo.ProcessedCode);
@@ -120,6 +121,24 @@ namespace OpenglLib
         }
 
 
+        public static List<GlslConstant> GetConstFromFileInfos(List<RSFileInfo> rsInfos)
+        {
+            var consts = new List<GlslConstant>();
+            foreach (RSFileInfo rsInfo in rsInfos)
+            {
+                consts.AddRange(rsInfo.UniformBlocks);
+            }
+            return consts;
+        }
+        public static List<UniformBlockStructure> GetUniformsBlocksFromRsFileInfos(List<RSFileInfo> rsInfos)
+        {
+            var uniformsBlocks = new List<UniformBlockStructure>();
+            foreach (RSFileInfo rsInfo in rsInfos)
+            {
+                uniformsBlocks.AddRange(rsInfo.UniformBlocks);
+            }
+            return uniformsBlocks;
+        }
         public static List<UniformField> GetUniformsFromRsFileInfos(List<RSFileInfo> rsInfos)
         {
             var uniforms = new List<UniformField>();

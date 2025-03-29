@@ -46,6 +46,7 @@ namespace Editor
                 shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
                 shaderSource = GlslParser.ResolveStructurePlacement(shaderSource, RSParser.GetStructuresFromFileInfos(rsFiles));
                 shaderSource = GlslParser.ResolveUniformPlacement(shaderSource, RSParser.GetUniformsFromRsFileInfos(rsFiles));
+                shaderSource = GlslParser.ResolveUniformBlockPlacement(shaderSource, RSParser.GetUniformsBlocksFromRsFileInfos(rsFiles));
                 shaderSource = GlslParser.ResolveMethodPlacement(shaderSource, RSParser.GetMethodsFromRsFileInfos(rsFiles));
 
                 var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);

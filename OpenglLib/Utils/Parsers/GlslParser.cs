@@ -238,6 +238,7 @@ namespace OpenglLib
                 @"(?:layout\s*\(\s*(std140|std430|packed|shared)(?:\s*,\s*binding\s*=\s*(\d+))?\)\s*)?" +
                 @"uniform\s+(\w+)?\s*\{([^}]+)\}\s*(\w+)?;",
                 RegexOptions.Multiline);
+            var processedBlockNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (Match match in blockRegex.Matches(source))
             {
@@ -254,6 +255,11 @@ namespace OpenglLib
                     continue;
                 }
 
+                if (processedBlockNames.Contains(name))
+                {
+                    continue;
+                }
+
                 UniformBlockType blockType = GetUniformBlockType(layoutTypeStr);
 
                 var uniblock = new UniformBlockStructure
@@ -261,7 +267,8 @@ namespace OpenglLib
                     Name = name,
                     UniformBlockType = blockType,
                     Binding = binding,
-                    Fields = ParseFields(fieldsText, source),
+                    FullText = match.Value,
+                    Fields = ParseUniformBlockFields(fieldsText, source),
                     InstanceName = instanceName
                 };
                 uniblock.Attributes = ExtractAttributesAbove(source, match.Index);
@@ -271,7 +278,7 @@ namespace OpenglLib
             return blocks;
         }
 
-        public static List<UniformBlockField> ParseFields(string fieldsText, string fullSource)
+        public static List<UniformBlockField> ParseUniformBlockFields(string fieldsText, string fullSource)
         {
             List<UniformBlockField> fields = new List<UniformBlockField>();
 
@@ -549,6 +556,332 @@ namespace OpenglLib
             return null;
         }
 
+        // const
+        public static List<GlslConstant> ParseGlslConstants(string source)
+        {
+            var constants = new List<GlslConstant>();
+            var processedConstantNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var constantRegex = new Regex(@"const\s+(\w+)\s+(\w+)\s*=\s*([^;]+);", RegexOptions.Multiline);
+
+            foreach (Match match in constantRegex.Matches(source))
+            {
+                var type = match.Groups[1].Value;
+                var name = match.Groups[2].Value;
+                var value = match.Groups[3].Value.Trim();
+
+                if (processedConstantNames.Contains(name))
+                {
+                    continue;
+                }
+
+                var constant = new GlslConstant
+                {
+                    Type = type,
+                    Name = name,
+                    Value = value,
+                    CSharpType = GlslParser.MapGlslTypeToCSharp(type),
+                    FullText = match.Value,
+                };
+
+                constant.Attributes = ExtractAttributesAbove(source, match.Index);
+                constants.Add(constant);
+                processedConstantNames.Add(name);
+            }
+
+            return constants;
+        }
+
+        public static string ResolveConstantPlacement(string sourceShader, List<GlslConstant> constants)
+        {
+            int vertexSectionIndex = sourceShader.IndexOf("#vertex", StringComparison.OrdinalIgnoreCase);
+            int fragmentSectionIndex = sourceShader.IndexOf("#fragment", StringComparison.OrdinalIgnoreCase);
+
+            if (vertexSectionIndex == -1 || fragmentSectionIndex == -1)
+            {
+                throw new FormatException("Shader source must contain both #vertex and #fragment sections");
+            }
+
+            string resultShader = new string(sourceShader.ToCharArray());
+
+            List<string> constantsToAddToVertex = new List<string>();
+            List<string> constantsToAddToFragment = new List<string>();
+            List<string> constantsToRemove = new List<string>();
+
+            foreach (var constant in constants)
+            {
+                var constantTargetAttr = constant.Attributes
+                    .FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
+
+                if (constantTargetAttr == null)
+                {
+                    continue;
+                }
+
+                string constantText = constant.FullText;
+                if (string.IsNullOrEmpty(constantText))
+                {
+                    constantText = FormatConstant(constant);
+                }
+
+                int constantPosition = resultShader.IndexOf(constantText, StringComparison.OrdinalIgnoreCase);
+
+                if (constantPosition == -1)
+                {
+                    string constantPattern = $"const\\s+{constant.Type}\\s+{constant.Name}\\s*=\\s*[^;]+;";
+                    var regex = new Regex(constantPattern, RegexOptions.Singleline);
+                    var match = regex.Match(resultShader);
+
+                    if (match.Success)
+                    {
+                        constantText = match.Value;
+                        constantPosition = match.Index;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                bool isInVertexSection = constantPosition > vertexSectionIndex && constantPosition < fragmentSectionIndex;
+                bool isInFragmentSection = constantPosition > fragmentSectionIndex;
+
+                bool shouldBeInVertex = constantTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
+                                       constantTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+
+                bool shouldBeInFragment = constantTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
+                                         constantTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+
+                if (shouldBeInVertex && !isInVertexSection)
+                {
+                    constantsToAddToVertex.Add(constantText);
+                }
+
+                if (shouldBeInFragment && !isInFragmentSection)
+                {
+                    constantsToAddToFragment.Add(constantText);
+                }
+
+                if ((isInVertexSection && !shouldBeInVertex) ||
+                    (isInFragmentSection && !shouldBeInFragment))
+                {
+                    constantsToRemove.Add(constantText);
+                }
+            }
+
+            foreach (var constantText in constantsToRemove)
+            {
+                resultShader = resultShader.Replace(constantText, "");
+            }
+
+            vertexSectionIndex = resultShader.IndexOf("#vertex", StringComparison.OrdinalIgnoreCase);
+            fragmentSectionIndex = resultShader.IndexOf("#fragment", StringComparison.OrdinalIgnoreCase);
+
+            int vertexMainIndex = resultShader.IndexOf("void main()", vertexSectionIndex,
+                fragmentSectionIndex - vertexSectionIndex, StringComparison.OrdinalIgnoreCase);
+
+            int fragmentMainIndex = resultShader.IndexOf("void main()", fragmentSectionIndex,
+                StringComparison.OrdinalIgnoreCase);
+
+            if (vertexMainIndex == -1 || fragmentMainIndex == -1)
+            {
+                throw new FormatException("Both vertex and fragment sections must contain a main function");
+            }
+
+            if (constantsToAddToVertex.Count > 0)
+            {
+                string vertexConstantsToAdd = string.Join("\n", constantsToAddToVertex);
+                resultShader = resultShader.Insert(vertexMainIndex, vertexConstantsToAdd + "\n\n");
+            }
+
+            fragmentSectionIndex = resultShader.IndexOf("#fragment", StringComparison.OrdinalIgnoreCase);
+            fragmentMainIndex = resultShader.IndexOf("void main()", fragmentSectionIndex,
+                StringComparison.OrdinalIgnoreCase);
+
+            if (constantsToAddToFragment.Count > 0)
+            {
+                string fragmentConstantsToAdd = string.Join("\n", constantsToAddToFragment);
+                resultShader = resultShader.Insert(fragmentMainIndex, fragmentConstantsToAdd + "\n\n");
+            }
+
+            return resultShader;
+        }
+
+        private static string FormatConstant(GlslConstant constant)
+        {
+            return $"const {constant.Type} {constant.Name} = {constant.Value};";
+        }
+
+        // Uniform-блоки
+        public static string ResolveUniformBlockPlacement(string sourceShader, List<UniformBlockStructure> uniformBlocks)
+        {
+            int vertexSectionIndex = sourceShader.IndexOf("#vertex", StringComparison.OrdinalIgnoreCase);
+            int fragmentSectionIndex = sourceShader.IndexOf("#fragment", StringComparison.OrdinalIgnoreCase);
+
+            if (vertexSectionIndex == -1 || fragmentSectionIndex == -1)
+            {
+                throw new FormatException("Shader source must contain both #vertex and #fragment sections");
+            }
+
+            string resultShader = new string(sourceShader.ToCharArray());
+
+            List<string> blocksToAddToVertex = new List<string>();
+            List<string> blocksToAddToFragment = new List<string>();
+            List<string> blocksToRemove = new List<string>();
+
+            foreach (var block in uniformBlocks)
+            {
+                var blockTargetAttr = block.Attributes
+                    .FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
+
+                if (blockTargetAttr == null)
+                {
+                    continue;
+                }
+
+                string blockText = block.FullText;
+                if (string.IsNullOrEmpty(blockText))
+                {
+                    blockText = FormatUniformBlock(block);
+                }
+
+                int blockPosition = resultShader.IndexOf(blockText, StringComparison.OrdinalIgnoreCase);
+
+                if (blockPosition == -1)
+                {
+                    string blockPattern = $"(?:layout\\s*\\(\\s*(?:std140|std430|packed|shared)(?:\\s*,\\s*binding\\s*=\\s*\\d+)?\\)\\s*)?" +
+                                         $"uniform\\s+{Regex.Escape(block.Name)}?\\s*\\{{[^}}]+\\}}\\s*{Regex.Escape(block.InstanceName ?? "")}?\\s*;";
+
+                    var regex = new Regex(blockPattern, RegexOptions.Singleline);
+                    var match = regex.Match(resultShader);
+
+                    if (match.Success)
+                    {
+                        blockText = match.Value;
+                        blockPosition = match.Index;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                bool isInVertexSection = blockPosition > vertexSectionIndex && blockPosition < fragmentSectionIndex;
+                bool isInFragmentSection = blockPosition > fragmentSectionIndex;
+
+                bool shouldBeInVertex = blockTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
+                                       blockTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+
+                bool shouldBeInFragment = blockTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
+                                         blockTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+
+                if (shouldBeInVertex && !isInVertexSection)
+                {
+                    blocksToAddToVertex.Add(blockText);
+                }
+
+                if (shouldBeInFragment && !isInFragmentSection)
+                {
+                    blocksToAddToFragment.Add(blockText);
+                }
+
+                if ((isInVertexSection && !shouldBeInVertex) ||
+                    (isInFragmentSection && !shouldBeInFragment))
+                {
+                    blocksToRemove.Add(blockText);
+                }
+            }
+
+            foreach (var blockText in blocksToRemove)
+            {
+                resultShader = resultShader.Replace(blockText, "");
+            }
+
+            vertexSectionIndex = resultShader.IndexOf("#vertex", StringComparison.OrdinalIgnoreCase);
+            fragmentSectionIndex = resultShader.IndexOf("#fragment", StringComparison.OrdinalIgnoreCase);
+
+            int vertexMainIndex = resultShader.IndexOf("void main()", vertexSectionIndex,
+                fragmentSectionIndex - vertexSectionIndex, StringComparison.OrdinalIgnoreCase);
+
+            int fragmentMainIndex = resultShader.IndexOf("void main()", fragmentSectionIndex,
+                StringComparison.OrdinalIgnoreCase);
+
+            if (vertexMainIndex == -1 || fragmentMainIndex == -1)
+            {
+                throw new FormatException("Both vertex and fragment sections must contain a main function");
+            }
+
+            if (blocksToAddToVertex.Count > 0)
+            {
+                string vertexBlocksToAdd = string.Join("\n\n", blocksToAddToVertex);
+                resultShader = resultShader.Insert(vertexMainIndex, vertexBlocksToAdd + "\n\n");
+            }
+
+            fragmentSectionIndex = resultShader.IndexOf("#fragment", StringComparison.OrdinalIgnoreCase);
+            fragmentMainIndex = resultShader.IndexOf("void main()", fragmentSectionIndex,
+                StringComparison.OrdinalIgnoreCase);
+
+            if (blocksToAddToFragment.Count > 0)
+            {
+                string fragmentBlocksToAdd = string.Join("\n\n", blocksToAddToFragment);
+                resultShader = resultShader.Insert(fragmentMainIndex, fragmentBlocksToAdd + "\n\n");
+            }
+
+            return resultShader;
+        }
+
+        private static string FormatUniformBlock(UniformBlockStructure block)
+        {
+            var sb = new StringBuilder();
+
+            if (block.UniformBlockType != UniformBlockType.Ordinary || block.Binding.HasValue)
+            {
+                sb.Append("layout(");
+
+                if (block.UniformBlockType != UniformBlockType.Ordinary)
+                {
+                    sb.Append(block.UniformBlockType.ToString().ToLower());
+                }
+
+                if (block.Binding.HasValue)
+                {
+                    if (block.UniformBlockType != UniformBlockType.Ordinary)
+                    {
+                        sb.Append(", ");
+                    }
+                    sb.Append($"binding = {block.Binding.Value}");
+                }
+
+                sb.Append(") ");
+            }
+
+            sb.Append("uniform ");
+            if (!string.IsNullOrEmpty(block.Name) && block.Name != block.InstanceName)
+            {
+                sb.Append(block.Name + " ");
+            }
+
+            sb.Append("{\n");
+            foreach (var field in block.Fields)
+            {
+                sb.Append($"    {field.Type} {field.Name}");
+                if (field.ArraySize.HasValue)
+                {
+                    sb.Append($"[{field.ArraySize.Value}]");
+                }
+                sb.Append(";\n");
+            }
+            sb.Append("}");
+
+            if (!string.IsNullOrEmpty(block.InstanceName))
+            {
+                sb.Append(" " + block.InstanceName);
+            }
+
+            sb.Append(";");
+
+            return sb.ToString();
+        }
+
 
         // Uniforms
         public static string ResolveUniformPlacement(string sourceShader, List<UniformField> uniforms)
@@ -570,7 +903,7 @@ namespace OpenglLib
             foreach (var uniform in uniforms)
             {
                 var uniformTargetAttr = uniform.Attributes
-                    .FirstOrDefault(a => a.Name.Equals("uniformtarget", StringComparison.OrdinalIgnoreCase));
+                    .FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
 
                 if (uniformTargetAttr == null)
                 {
@@ -718,62 +1051,6 @@ namespace OpenglLib
             return structures;
         }
 
-
-
-        //public static List<GlslStructure> ParseGlslStructures(string sourceCode)
-        //{
-        //    var structures = new List<GlslStructure>();
-        //    var processedStructNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        //    var structRegex = new Regex(@"struct\s+(\w+)\s*\{([^}]+)\}", RegexOptions.Multiline);
-        //    var matches = structRegex.Matches(sourceCode);
-
-        //    foreach (Match match in matches)
-        //    {
-        //        string structName = match.Groups[1].Value;
-        //        if (processedStructNames.Contains(structName))
-        //        {
-        //            continue;
-        //        }
-
-        //        var structure = new GlslStructure
-        //        {
-        //            Name = structName,
-        //            Fields = ParseStructFields(match.Groups[2].Value),
-        //            FullText = match.Value,
-        //            Position = match.Index
-        //        };
-
-        //        structure.Attributes = ExtractAttributesAbove(sourceCode, match.Index);
-
-        //        structures.Add(structure);
-        //        processedStructNames.Add(structName);
-        //    }
-
-        //    return structures;
-        //}
-
-        //public static List<GlslStructure> ParseGlslStructures(string sourceCode)
-        //{
-        //    var structures = new List<GlslStructure>();
-        //    var structRegex = new Regex(@"struct\s+(\w+)\s*\{([^}]+)\}", RegexOptions.Multiline);
-        //    var matches = structRegex.Matches(sourceCode);
-
-        //    foreach (Match match in matches)
-        //    {
-        //        var structure = new GlslStructure
-        //        {
-        //            Name = match.Groups[1].Value,
-        //            Fields = ParseStructFields(match.Groups[2].Value),
-        //            Attributes = ExtractAttributesAbove(sourceCode, match.Index),
-        //        };
-
-        //        structure.Attributes = ExtractAttributesAbove(sourceCode, match.Index);
-        //        structures.Add(structure);
-        //    }
-
-        //    return structures;
-        //}
-
         public static string ResolveStructurePlacement(string sourceShader, List<GlslStructure> structures)
         {
             int vertexSectionIndex = sourceShader.IndexOf("#vertex", StringComparison.OrdinalIgnoreCase);
@@ -793,7 +1070,7 @@ namespace OpenglLib
             foreach (var structure in structures)
             {
                 var structTargetAttr = structure.Attributes
-                    .FirstOrDefault(a => a.Name.Equals("structtarget", StringComparison.OrdinalIgnoreCase));
+                    .FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
 
                 if (structTargetAttr == null)
                 {
@@ -934,7 +1211,7 @@ namespace OpenglLib
             foreach (var method in methods)
             {
                 var methodTargetAttr = method.Attributes
-                    .FirstOrDefault(a => a.Name.Equals("methodtarget", StringComparison.OrdinalIgnoreCase));
+                    .FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
 
                 if (methodTargetAttr == null)
                 {
@@ -1117,9 +1394,9 @@ namespace OpenglLib
             return methodInfo;
         }
 
-        private static List<RsMethodParamInfo> ParseParameters(string paramsText)
+        private static List<GlslMethodParamInfo> ParseParameters(string paramsText)
         {
-            var parameters = new List<RsMethodParamInfo>();
+            var parameters = new List<GlslMethodParamInfo>();
 
             if (string.IsNullOrWhiteSpace(paramsText))
                 return parameters;
@@ -1146,7 +1423,7 @@ namespace OpenglLib
                     if (i < parts.Length - 2) paramType.Append(" ");
                 }
 
-                parameters.Add(new RsMethodParamInfo
+                parameters.Add(new GlslMethodParamInfo
                 {
                     Type = paramType.ToString(),
                     Name = paramName
@@ -1189,6 +1466,16 @@ namespace OpenglLib
 
     }
 
+    public class GlslConstant
+    {
+        public string Type { get; set; } = string.Empty;
+        public string CSharpType { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+        public string FullText { get; set; } = string.Empty;
+        public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
+    }
+    
     public class GlslStructure
     {
         public string Name { get; set; } = string.Empty;
@@ -1228,11 +1515,11 @@ namespace OpenglLib
         public string Content { get; set; } = string.Empty;
         public string ReturnType { get; set; } = string.Empty;
         public string FullMethodText { get; set; } = string.Empty;
-        public List<RsMethodParamInfo> Params { get; set; } = new List<RsMethodParamInfo>();
+        public List<GlslMethodParamInfo> Params { get; set; } = new List<GlslMethodParamInfo>();
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
     }
 
-    public class RsMethodParamInfo
+    public class GlslMethodParamInfo
     {
         public string Name { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
@@ -1245,6 +1532,7 @@ namespace OpenglLib
         public UniformBlockType UniformBlockType { get; set; } = UniformBlockType.Ordinary;
         public string CSharpTypeName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
+        public string FullText { get; set; } = string.Empty;
         public int? Binding { get; set; } = null;
         public string? InstanceName { get; set; } = null;
         public List<UniformBlockField> Fields { get; set; } = new List<UniformBlockField>();
