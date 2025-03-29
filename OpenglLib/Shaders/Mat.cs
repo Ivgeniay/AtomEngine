@@ -24,7 +24,8 @@ namespace OpenglLib
         {
             foreach (var uniform in _uniformLocations)
             {
-                if (uniform.Value > -1) ProcessUniformLocation(uniform.Key, uniform.Value); 
+                if (uniform.Value > -1) 
+                    ProcessUniformLocation(uniform.Key, uniform.Value); 
             }
         }
 

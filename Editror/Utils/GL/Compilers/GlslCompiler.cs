@@ -4,6 +4,7 @@ using System.IO;
 using System;
 using System.Text;
 using OpenglLib;
+using System.Collections.Generic;
 
 namespace Editor
 {
@@ -39,8 +40,14 @@ namespace Editor
                 }
                 result.Log.AppendLine("full shader");
 
+                List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, e.FileFullPath);
+
                 shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, e.FileFullPath);
                 shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
+                shaderSource = GlslParser.ResolveStructurePlacement(shaderSource, RSParser.GetStructuresFromFileInfos(rsFiles));
+                shaderSource = GlslParser.ResolveUniformPlacement(shaderSource, RSParser.GetUniformsFromRsFileInfos(rsFiles));
+                shaderSource = GlslParser.ResolveMethodPlacement(shaderSource, RSParser.GetMethodsFromRsFileInfos(rsFiles));
+
                 var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
 
                 var options = WindowOptions.Default;

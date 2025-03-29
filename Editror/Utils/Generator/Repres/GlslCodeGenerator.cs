@@ -56,22 +56,24 @@ namespace Editor.Utils.Generator
 
                     shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, sourcePath);
                     shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
+                    shaderSource = GlslParser.ResolveStructurePlacement(shaderSource, RSParser.GetStructuresFromFileInfos(rsFiles));
+                    shaderSource = GlslParser.ResolveUniformPlacement(shaderSource, RSParser.GetUniformsFromRsFileInfos(rsFiles));
+                    shaderSource = GlslParser.ResolveMethodPlacement(shaderSource, RSParser.GetMethodsFromRsFileInfos(rsFiles));
 
                     var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
                     GlslParser.ValidateMainFunctions(vertexSource, fragmentSource);
+
                     var combinedSource = vertexSource + "\n" + fragmentSource;
 
-                    List<GlslStructure> structures = new List<GlslStructure>();
-                    if (generateStructs)
+                    List<UniformField> uniforms = GlslParser.ExtractUniforms(combinedSource);
+                    List<GlslStructure> structures = structures = GlslParser.ParseGlslStructures(combinedSource);
+
+                    if (structures.Count > 0)
                     {
-                        structures = GlslParser.ParseGlslStructures(combinedSource);
-                        if (structures.Count > 0)
-                        {
-                            GlslStructGenerator.GenerateStructs(
+                        GlslStructGenerator.GenerateStructs(
                             shaderSourceCode: combinedSource,
                             outputDirectory: outputDirectory,
                             sourceGuid: sourceGuid);
-                        }
                     }
 
                     List<UniformBlockStructure> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
@@ -139,8 +141,9 @@ namespace Editor.Utils.Generator
                         representationName: representationName,
                         outputDirectory: outputDirectory,
                         fragmentSource: fragmentSource,
-                        uniformBlocks: uniformBlocks,
                         vertexSource: vertexSource,
+                        uniforms: uniforms,
+                        uniformBlocks: uniformBlocks,
                         sourceGuid: sourceGuid,
                         sourcePath: sourcePath,
                         rsFiles: rsFiles);

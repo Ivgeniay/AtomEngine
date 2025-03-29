@@ -39,7 +39,7 @@ namespace OpenglLib
                 }
                 if (Location == -1)
                 {
-                    DebLogger.Warn("You try to set value to -1 lcation field");
+                    //DebLogger.Warn("You try to set value to -1 lcation field");
                     return;
                 }
 

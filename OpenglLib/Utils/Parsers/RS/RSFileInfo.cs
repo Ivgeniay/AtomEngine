@@ -11,7 +11,7 @@
         public List<UniformBlockStructure> UniformBlocks { get; set; } = new List<UniformBlockStructure>();
         public List<UniformField> Uniforms { get; set; } = new List<UniformField>();
         public List<GlslStructure> Structures { get; set; } = new List<GlslStructure>();
-        public List<string> Methods { get; set; } = new List<string>();
+        public List<GlslMethodInfo> Methods { get; set; } = new List<GlslMethodInfo>();
         public List<string> RequiredComponent { get; set; } = new List<string>();
     }
 }

@@ -64,6 +64,30 @@
     "SubSection": "RS/Attributes"
   },
   {
+    "Name": "[MethdoTarget:Value]",
+    "Title": "Атрибут MethdoTarget",
+    "Description": "Атрибут [MethdoTarget:Value] применяется к методам в .rs файле. Он указывает генератору расположение метода в шейдере. Возможные значение [MethdoTarget:Vertex], [MethdoTarget:Fragment], [MethdoTarget:Both]",
+    "Author": "AtomEngine Team",
+    "Section": "GLSL",
+    "SubSection": "RS/Attributes"
+  },
+  {
+    "Name": "[StructTarget:Value]",
+    "Title": "Атрибут StructTarget",
+    "Description": "Атрибут [StructTarget:Value] применяется к структурам в .rs файле. Он указывает генератору расположение структуры в шейдере. Возможные значение [StructTarget:Vertex], [StructTarget:Fragment], [StructTarget:Both]",
+    "Author": "AtomEngine Team",
+    "Section": "GLSL",
+    "SubSection": "RS/Attributes"
+  },
+  {
+    "Name": "[UniformTarget:Value]",
+    "Title": "Атрибут UniformTarget",
+    "Description": "Атрибут [UniformTarget:Value] применяется к uniform-переменным в .rs файле. Он указывает генератору расположение переменной в шейдере. Возможные значение [UniformTarget:Vertex], [UniformTarget:Fragment], [UniformTarget:Both]",
+    "Author": "AtomEngine Team",
+    "Section": "GLSL",
+    "SubSection": "RS/Attributes"
+  },
+  {
     "Name": ".RS",
     "Title": "Рабочий процесс интеграции GLSL и .rs файлов",
     "Description": "Описание полного процесса работы с .rs файлами: от их создания и аннотирования атрибутами до включения в GLSL шейдеры и последующей генерации C# кода. Включает в себя лучшие практики организации файлов, рекомендации по именованию и типичные сценарии использования в проектах рендеринга. Данный документ помогает разработчикам эффективно интегрировать GLSL шейдеры с C# кодом в ECS архитектуре.",
