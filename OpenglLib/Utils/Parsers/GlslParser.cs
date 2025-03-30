@@ -1,4 +1,5 @@
 ﻿using AtomEngine;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -27,6 +28,8 @@ namespace OpenglLib
 
             var (sourceVertex, sourceFragment) = GlslParser.ExtractShaderSources(shaderSource);
             var (hasVertexMain, hasFragmentMain) = GlslParser.ValidateMainFunctions(sourceVertex, sourceFragment);
+
+            shaderModel.RSFiles = rsFiles;
 
             shaderModel.Vertex = new VertexShaderModel
             {
@@ -879,62 +882,97 @@ namespace OpenglLib
 
 
         // Attributes
-        public static List<ShaderAttribute> ExtractAttributesAbove(string source, int uniformPosition)
+        public static List<ShaderAttribute> ExtractAttributesAbove(string source, int startPosition)
         {
             List<ShaderAttribute> attributes = new List<ShaderAttribute>();
 
-            int lineStartPosition = source.LastIndexOf('\n', uniformPosition);
-            if (lineStartPosition == -1)
-                lineStartPosition = 0;
-            else
-                lineStartPosition++;
+            if (startPosition < 0 || startPosition >= source.Length)
+                return attributes;
 
-            var attributeRegex = new Regex(@"\[(\w+):([^\]]*)\]");
+            int currentLineStart = startPosition;
 
-            int currentLineEnd = lineStartPosition;
-            while (currentLineEnd > 0)
+            while (currentLineStart < source.Length && (source[currentLineStart] == '\r' || source[currentLineStart] == '\n'))
             {
-                int prevLineStart = source.LastIndexOf('\n', currentLineEnd - 2);
-                if (prevLineStart == -1)
-                    prevLineStart = 0;
-                else
-                    prevLineStart++;
-
-                string line = source.Substring(prevLineStart, currentLineEnd - prevLineStart).Trim();
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//"))
+                currentLineStart++;
+            }
+            if (currentLineStart >= source.Length)
+                return attributes;
+            if (currentLineStart > 0)
+            {
+                int tempStart = currentLineStart;
+                while (tempStart > 0 && source[tempStart - 1] != '\n')
                 {
-                    currentLineEnd = prevLineStart;
-                    continue;
+                    tempStart--;
                 }
-                bool hasOnlyAttributes = true;
-                string remainingLine = line;
+                currentLineStart = tempStart;
+            }
+            if (currentLineStart == 0)
+                return attributes;
 
-                MatchCollection matches = attributeRegex.Matches(line);
-                if (matches.Count == 0)
+            var attributeRegex = new Regex(@"\[(\w+)(?::([^\]]*))?\]");
+
+            int checkPosition = currentLineStart - 1;
+            bool foundNonAttributeLine = false;
+
+            while (checkPosition > 0 && !foundNonAttributeLine)
+            {
+                int lineEnd = checkPosition;
+
+                if (lineEnd > 0 && source[lineEnd - 1] == '\r')
                 {
-                    break;
+                    lineEnd--;
                 }
-                foreach (Match match in matches)
+                int lineStart = lineEnd;
+                while (lineStart > 0 && source[lineStart - 1] != '\n')
                 {
-                    remainingLine = remainingLine.Replace(match.Value, "");
-                    attributes.Add(new ShaderAttribute
+                    lineStart--;
+                }
+
+                if (lineStart <= lineEnd)
+                {
+                    string line = source.Substring(lineStart, lineEnd - lineStart).Trim();
+
+                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//"))
                     {
-                        Name = match.Groups[1].Value.ToLower(),
-                        Value = match.Groups[2].Value.Trim().ToLower()
-                    });
-                }
+                        checkPosition = lineStart - 1;
+                        continue;
+                    }
+                    var matches = attributeRegex.Matches(line);
 
-                if (!string.IsNullOrWhiteSpace(remainingLine))
+                    if (matches.Count > 0)
+                    {
+                        string lineWithoutAttributes = line;
+
+                        foreach (Match match in matches)
+                        {
+                            lineWithoutAttributes = lineWithoutAttributes.Replace(match.Value, "");
+                            attributes.Add(new ShaderAttribute
+                            {
+                                Name = match.Groups[1].Value,
+                                Value = match.Groups[2].Success ? match.Groups[2].Value : string.Empty,
+                                FullText = match.Value
+                            });
+                        }
+                        if (!string.IsNullOrWhiteSpace(lineWithoutAttributes))
+                        {
+                            foundNonAttributeLine = true;
+                        }
+                    }
+                    else
+                    {
+                        foundNonAttributeLine = true;
+                    }
+                    checkPosition = lineStart - 1;
+                }
+                else
                 {
                     break;
                 }
-                currentLineEnd = prevLineStart;
             }
             return attributes.Reverse<ShaderAttribute>().ToList();
         }
 
 
-        // VertexAttributes
         public static List<VertexAttribute> ParseVertexAttributes(string shaderSource)
         {
             var attributes = new List<VertexAttribute>();
@@ -1050,10 +1088,10 @@ namespace OpenglLib
 
             foreach (var constant in constants)
             {
-                var constantTargetAttr = constant.Attributes
+                var placeTargetAttr = constant.Attributes
                     .FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
 
-                if (constantTargetAttr == null)
+                if (placeTargetAttr == null)
                 {
                     continue;
                 }
@@ -1086,11 +1124,11 @@ namespace OpenglLib
                 bool isInVertexSection = constantPosition > vertexSectionIndex && constantPosition < fragmentSectionIndex;
                 bool isInFragmentSection = constantPosition > fragmentSectionIndex;
 
-                bool shouldBeInVertex = constantTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
-                                       constantTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+                bool shouldBeInVertex = placeTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
+                                       placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
 
-                bool shouldBeInFragment = constantTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
-                                         constantTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+                bool shouldBeInFragment = placeTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
+                                         placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
 
                 if (shouldBeInVertex && !isInVertexSection)
                 {
@@ -1152,8 +1190,9 @@ namespace OpenglLib
             return $"const {constant.Type} {constant.Name} = {constant.Value};";
         }
 
-        // Uniform-блоки
 
+
+        // Uniform-блоки
         public static string ResolveUniformBlockPlacement(string sourceShader, List<UniformBlockModel> uniformBlocks)
         {
             int vertexSectionIndex = sourceShader.IndexOf("#vertex", StringComparison.OrdinalIgnoreCase);
@@ -1172,10 +1211,10 @@ namespace OpenglLib
 
             foreach (var block in uniformBlocks)
             {
-                var blockTargetAttr = block.Attributes
+                var placeTargetAttr = block.Attributes
                     .FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
 
-                if (blockTargetAttr == null)
+                if (placeTargetAttr == null)
                 {
                     continue;
                 }
@@ -1210,11 +1249,11 @@ namespace OpenglLib
                 bool isInVertexSection = blockPosition > vertexSectionIndex && blockPosition < fragmentSectionIndex;
                 bool isInFragmentSection = blockPosition > fragmentSectionIndex;
 
-                bool shouldBeInVertex = blockTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
-                                       blockTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+                bool shouldBeInVertex = placeTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
+                                       placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
 
-                bool shouldBeInFragment = blockTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
-                                         blockTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+                bool shouldBeInFragment = placeTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
+                                         placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
 
                 if (shouldBeInVertex && !isInVertexSection)
                 {
@@ -1370,10 +1409,10 @@ namespace OpenglLib
                     Name = name,
                     FullText = match.Value,
                     ArraySize = arraySize,
+                    Attributes = ExtractAttributesAbove(source, match.Index),
                     Binding = binding
                 };
 
-                uniformField.Attributes = ExtractAttributesAbove(source, match.Index);
                 uniforms.Add(uniformField);
                 processedUniformNames.Add(name);
             }
@@ -1399,10 +1438,10 @@ namespace OpenglLib
 
             foreach (var uniform in uniforms)
             {
-                var uniformTargetAttr = uniform.Attributes
+                var placeTargetAttr = uniform.Attributes
                     .FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
 
-                if (uniformTargetAttr == null)
+                if (placeTargetAttr == null)
                 {
                     continue;
                 }
@@ -1420,7 +1459,7 @@ namespace OpenglLib
                     string uniformPattern = $"uniform\\s+{uniform.Type}\\s+{uniform.Name}";
                     if (uniform.ArraySize.HasValue)
                     {
-                        uniformPattern += $"\\s*\\[\\s*{uniform.ArraySize}\\s*\\]";
+                        uniformPattern += $"\\s*\\[\\s*(?:{uniform.ArraySize}|\\w+)\\s*\\]";
                     }
                     uniformPattern += "\\s*;";
 
@@ -1434,18 +1473,30 @@ namespace OpenglLib
                     }
                     else
                     {
-                        continue;
+                        uniformPattern = $"uniform\\s+{uniform.Type}\\s+{uniform.Name}\\s*(?:\\[[^\\]]*\\])?\\s*;";
+                        regex = new Regex(uniformPattern, RegexOptions.Singleline);
+                        match = regex.Match(resultShader);
+
+                        if (match.Success)
+                        {
+                            uniformText = match.Value;
+                            uniformPosition = match.Index;
+                        }
+                        else
+                        {
+                            continue;
+                        }
                     }
                 }
 
                 bool isInVertexSection = uniformPosition > vertexSectionIndex && uniformPosition < fragmentSectionIndex;
                 bool isInFragmentSection = uniformPosition > fragmentSectionIndex;
 
-                bool shouldBeInVertex = uniformTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
-                                       uniformTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+                bool shouldBeInVertex = placeTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
+                                       placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
 
-                bool shouldBeInFragment = uniformTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
-                                         uniformTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+                bool shouldBeInFragment = placeTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
+                                         placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
 
                 if (shouldBeInVertex && !isInVertexSection)
                 {
@@ -1513,7 +1564,6 @@ namespace OpenglLib
             return result;
         }
 
-
         // Structs
         public static List<GlslStructureModel> ParseGlslStructures(string sourceCode)
         {
@@ -1565,10 +1615,10 @@ namespace OpenglLib
 
             foreach (var structure in structures)
             {
-                var structTargetAttr = structure.Attributes
+                var placeTargetAttr = structure.Attributes
                     .FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
 
-                if (structTargetAttr == null)
+                if (placeTargetAttr == null)
                 {
                     continue;
                 }
@@ -1590,12 +1640,12 @@ namespace OpenglLib
                     if (match.Success)
                     {
                         structText = match.Value;
+                        structPosition = match.Index;
+
                         if (!structText.TrimEnd().EndsWith(";"))
                         {
                             structText = structText.TrimEnd() + ";";
                         }
-
-                        structPosition = match.Index;
                     }
                     else
                     {
@@ -1613,11 +1663,11 @@ namespace OpenglLib
                 bool isInVertexSection = structPosition > vertexSectionIndex && structPosition < fragmentSectionIndex;
                 bool isInFragmentSection = structPosition > fragmentSectionIndex;
 
-                bool shouldBeInVertex = structTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
-                                       structTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+                bool shouldBeInVertex = placeTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
+                                       placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
 
-                bool shouldBeInFragment = structTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
-                                         structTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+                bool shouldBeInFragment = placeTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
+                                         placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
 
                 if (shouldBeInVertex && !isInVertexSection)
                 {
@@ -1681,7 +1731,12 @@ namespace OpenglLib
 
             foreach (var field in structure.Fields)
             {
-                sb.Append($"\n    {field.Type} {field.Name};");
+                sb.Append($"\n    {field.Type} {field.Name}");
+                if (field.ArraySize.HasValue)
+                {
+                    sb.Append($"[{field.ArraySize}]");
+                }
+                sb.Append(";");
             }
 
             sb.Append("\n};");
@@ -1699,22 +1754,22 @@ namespace OpenglLib
                 throw new FormatException("Shader source must contain both #vertex and #fragment sections");
             }
 
-            string resultShader = sourceShader;
+            string resultShader = new string(sourceShader.ToCharArray());
+
             List<string> methodsToAddToVertex = new List<string>();
             List<string> methodsToAddToFragment = new List<string>();
             List<string> methodsToRemove = new List<string>();
 
             foreach (var method in methods)
             {
-                var methodTargetAttr = method.Attributes
+                var placeTargetAttr = method.Attributes
                     .FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
 
-                if (methodTargetAttr == null)
+                if (placeTargetAttr == null)
                 {
                     continue;
                 }
 
-                // Определяем текущее положение метода в шейдере
                 int methodPosition = resultShader.IndexOf(method.FullMethodText, StringComparison.OrdinalIgnoreCase);
                 if (methodPosition == -1)
                 {
@@ -1724,11 +1779,11 @@ namespace OpenglLib
                 bool isInVertexSection = methodPosition > vertexSectionIndex && methodPosition < fragmentSectionIndex;
                 bool isInFragmentSection = methodPosition > fragmentSectionIndex;
 
-                bool shouldBeInVertex = methodTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
-                                      methodTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+                bool shouldBeInVertex = placeTargetAttr.Value.Equals("vertex", StringComparison.OrdinalIgnoreCase) ||
+                                      placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
 
-                bool shouldBeInFragment = methodTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
-                                        methodTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
+                bool shouldBeInFragment = placeTargetAttr.Value.Equals("fragment", StringComparison.OrdinalIgnoreCase) ||
+                                        placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase);
 
                 if (shouldBeInVertex && !isInVertexSection)
                 {
@@ -1974,6 +2029,7 @@ namespace OpenglLib
         public string FullText { get; set; } = string.Empty;
         public VertexShaderModel Vertex {  get; set; }
         public FragmentShaderModel Fragment {  get; set; }
+        public List<RSFileInfo> RSFiles { get; set; } = new List<RSFileInfo>();
     }
 
     public class VertexShaderModel : ShaderChankModel
@@ -2072,6 +2128,7 @@ namespace OpenglLib
     {
         public string Name { get; set; } = string.Empty;
         public string Value { get; set; } = string.Empty;
+        public string FullText { get; set; } = string.Empty;
     }
 
     public class GlslMethodInfo
