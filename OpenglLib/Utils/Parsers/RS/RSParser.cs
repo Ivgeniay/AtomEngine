@@ -121,27 +121,27 @@ namespace OpenglLib
         }
 
 
-        public static List<GlslConstant> GetConstFromFileInfos(List<RSFileInfo> rsInfos)
+        public static List<GlslConstantModel> GetConstFromFileInfos(List<RSFileInfo> rsInfos)
         {
-            var consts = new List<GlslConstant>();
+            var consts = new List<GlslConstantModel>();
             foreach (RSFileInfo rsInfo in rsInfos)
             {
-                consts.AddRange(rsInfo.UniformBlocks);
+                consts.AddRange(rsInfo.Constants);
             }
             return consts;
         }
-        public static List<UniformBlockStructure> GetUniformsBlocksFromRsFileInfos(List<RSFileInfo> rsInfos)
+        public static List<UniformBlockModel> GetUniformsBlocksFromRsFileInfos(List<RSFileInfo> rsInfos)
         {
-            var uniformsBlocks = new List<UniformBlockStructure>();
+            var uniformsBlocks = new List<UniformBlockModel>();
             foreach (RSFileInfo rsInfo in rsInfos)
             {
                 uniformsBlocks.AddRange(rsInfo.UniformBlocks);
             }
             return uniformsBlocks;
         }
-        public static List<UniformField> GetUniformsFromRsFileInfos(List<RSFileInfo> rsInfos)
+        public static List<UniformModel> GetUniformsFromRsFileInfos(List<RSFileInfo> rsInfos)
         {
-            var uniforms = new List<UniformField>();
+            var uniforms = new List<UniformModel>();
             foreach (RSFileInfo rsInfo in rsInfos)
             {
                 uniforms.AddRange(rsInfo.Uniforms);
@@ -157,9 +157,9 @@ namespace OpenglLib
             }
             return methods;
         }
-        public static List<GlslStructure> GetStructuresFromFileInfos(List<RSFileInfo> rsInfos)
+        public static List<GlslStructureModel> GetStructuresFromFileInfos(List<RSFileInfo> rsInfos)
         {
-            var structs = new List<GlslStructure>();
+            var structs = new List<GlslStructureModel>();
             foreach (RSFileInfo rsInfo in rsInfos)
             {
                 structs.AddRange(rsInfo.Structures);
@@ -168,75 +168,3 @@ namespace OpenglLib
         }
     }
 }
-
-
-
-//private static List<RsMethodInfo> ExtractMethods(string sourceCode)
-//{
-//    var methods = new List<RsMethodInfo>();
-
-//    var methodRegex = new Regex(
-//        @"((?:void|float|int|vec\d|mat\d|bool)\s+)" +
-//        @"(\w+)\s*" +                                
-//        @"\(([^)]*)\)\s*" +                          
-//        @"(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})",        
-//        RegexOptions.Singleline
-//    );
-
-//    foreach (Match methodMatch in methodRegex.Matches(sourceCode))
-//    {
-//        if (!methodMatch.Success) continue;
-
-//        var returnType = methodMatch.Groups[1].Value.Trim();
-//        var methodName = methodMatch.Groups[2].Value.Trim();
-//        var parametersText = methodMatch.Groups[3].Value.Trim();
-//        var methodBody = methodMatch.Groups[4].Value.Trim();
-
-//        var fullMethodText = returnType + " " + methodName + "(" + parametersText + ") " + methodBody;
-
-//        var content = methodBody;
-//        if (content.StartsWith("{") && content.EndsWith("}"))
-//        {
-//            content = content.Substring(1, content.Length - 2).Trim();
-//        }
-
-//        var methodInfo = new RsMethodInfo
-//        {
-//            Name = methodName,
-//            ReturnType = returnType,
-//            Content = content,
-//            FullMethodText = fullMethodText,
-//            Params = new List<PsMethodParamInfo>(),
-//            Attributes = new List<ShaderAttribute>()
-//        };
-
-//        if (!string.IsNullOrEmpty(parametersText))
-//        {
-//            var parameters = parametersText.Split(',');
-//            foreach (var param in parameters)
-//            {
-//                var trimmedParam = param.Trim();
-//                if (string.IsNullOrEmpty(trimmedParam)) continue;
-
-//                var parts = trimmedParam.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-//                if (parts.Length >= 2)
-//                {
-//                    methodInfo.Params.Add(new PsMethodParamInfo
-//                    {
-//                        Type = parts[0],
-//                        Name = parts[1]
-//                    });
-//                }
-//            }
-//        }
-//        int methodPosition = sourceCode.IndexOf(fullMethodText);
-//        if (methodPosition > 0)
-//        {
-//            methodInfo.Attributes = GlslParser.ExtractAttributesAbove(sourceCode, methodPosition);
-//        }
-
-//        methods.Add(methodInfo);
-//    }
-
-//    return methods;
-//}

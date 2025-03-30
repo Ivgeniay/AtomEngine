@@ -32,22 +32,6 @@ namespace OpenglLib
 
             BoundingVolume = new BoundingBox(this);
         }
-        public Mesh(GL gl, float[] vertices, uint[] indices, List<Texture> textures, PrimitiveType primitiveType = PrimitiveType.Triangles)
-        {
-            if (vertices.Length % 8 != 0)
-                throw new ArgumentError("Vertices array length must be multiple of 8");
-            if (indices.Length % 3 != 0)
-                throw new ArgumentError("Indices array length must be multiple of 3");
-
-            GL = gl;
-            Vertices = vertices;
-            Indices = indices;
-            Textures = textures;
-            _primitiveType = primitiveType;
-            FillingVertices(vertices, indices);
-
-            SetupMesh();
-        }
 
         private void ValidateVertexData()
         {
@@ -60,29 +44,17 @@ namespace OpenglLib
 
         private Dictionary<string, int> _attributeOffsets;
 
-        private void InitializeAttributeOffsets()
-        {
-            _attributeOffsets = new Dictionary<string, int>();
-            foreach (var attr in _format.Attributes)
-            {
-                _attributeOffsets[attr.Name] = attr.Offset / sizeof(float);
-            }
-        }
-
         private void FillingVertices(float[] vertices, uint[] indices)
         {
             if (_format == null)
             {
-                // Для случая с Vector3, у нас только позиции
                 _format = new VertexFormat();
                 _format.AddAttribute("position", 0, 3);
             }
 
-            // Для Vector3 у нас 3 компонента на вершину
             int componentsPerVertex = 3;
             int vertexCount = vertices.Length / componentsPerVertex;
 
-            // Создаем массив правильного размера
             Vertices_ = new Vertex[vertexCount];
 
             for (int i = 0; i < vertexCount; i++)
@@ -99,36 +71,6 @@ namespace OpenglLib
                     )
                 };
             }
-
-            //if (_primitiveType == PrimitiveType.Triangles)
-            //{
-            //    // Проверяем, что количество индексов кратно 3
-            //    if (indices.Length % 3 != 0)
-            //        throw new ArgumentException("For triangles, the number of indices must be a multiple of 3");
-
-            //    Triangles = new Triangle[indices.Length / 3];
-
-            //    for (int i = 0; i < indices.Length; i += 3)
-            //    {
-            //        // Проверяем, что индексы не выходят за границы массива
-            //        if (indices[i] >= vertexCount ||
-            //            indices[i + 1] >= vertexCount ||
-            //            indices[i + 2] >= vertexCount)
-            //        {
-            //            throw new ArgumentException($"Index {indices[i]}, {indices[i + 1]}, or {indices[i + 2]} is out of range for vertex count {vertexCount}");
-            //        }
-
-            //        Triangles[i / 3] = new Triangle(
-            //            Vertices_[indices[i]].Position,
-            //            Vertices_[indices[i + 1]].Position,
-            //            Vertices_[indices[i + 2]].Position
-            //        );
-            //    }
-            //}
-            //else
-            //{
-            //    Triangles = Array.Empty<Triangle>();
-            //}
         }
 
         public static Mesh CreateWireframeMesh(GL gl, Vector3[] vertices, uint[] indices, List<Texture> textures = null)

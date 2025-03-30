@@ -64,33 +64,9 @@
     "SubSection": "RS/Attributes"
   },
   {
-    "Name": "[MethdoTarget:Value]",
+    "Name": "[PlaceTarget:Value]",
     "Title": "Атрибут MethdoTarget",
-    "Description": "Атрибут [MethdoTarget:Value] применяется к методам в .rs файле. Он указывает генератору расположение метода в шейдере. Возможные значение [MethdoTarget:Vertex], [MethdoTarget:Fragment], [MethdoTarget:Both]",
-    "Author": "AtomEngine Team",
-    "Section": "GLSL",
-    "SubSection": "RS/Attributes"
-  },
-  {
-    "Name": "[StructTarget:Value]",
-    "Title": "Атрибут StructTarget",
-    "Description": "Атрибут [StructTarget:Value] применяется к структурам в .rs файле. Он указывает генератору расположение структуры в шейдере. Возможные значение [StructTarget:Vertex], [StructTarget:Fragment], [StructTarget:Both]",
-    "Author": "AtomEngine Team",
-    "Section": "GLSL",
-    "SubSection": "RS/Attributes"
-  },
-  {
-    "Name": "[UniformBlockTarget:Value]",
-    "Title": "Атрибут UniformBlockTarget",
-    "Description": "Атрибут [UniformBlockTarget:Value] применяется к uniform-блокам в .rs файле. Он указывает генератору расположение переменной в шейдере. Возможные значение [UniformBlockTarget:Vertex], [UniformBlockTarget:Fragment], [UniformBlockTarget:Both]",
-    "Author": "AtomEngine Team",
-    "Section": "GLSL",
-    "SubSection": "RS/Attributes"
-  },
-  {
-    "Name": "[UniformTarget:Value]",
-    "Title": "Атрибут UniformTarget",
-    "Description": "Атрибут [UniformTarget:Value] применяется к uniform-переменным в .rs файле. Он указывает генератору расположение переменной в шейдере. Возможные значение [UniformTarget:Vertex], [UniformTarget:Fragment], [UniformTarget:Both]",
+    "Description": "Атрибут [PlaceTarget:Value] применяется к uniform-переменным, uniform-блокам, структурам и методам в .rs файле. Он указывает генератору расположение объекта в шейдере. Возможные значение [PlaceTarget:Vertex], [PlaceTarget:Fragment], [PlaceTarget:Both]",
     "Author": "AtomEngine Team",
     "Section": "GLSL",
     "SubSection": "RS/Attributes"

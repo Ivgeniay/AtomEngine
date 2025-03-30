@@ -18,7 +18,7 @@ namespace Editor
         private const string DISPOSE_BODY_PLACEHOLDER = "/*DISPOSE_BODY*/";
 
         public static string GenerateRepresentationFromSource(string representationName, string vertexSource, string fragmentSource,
-             string outputDirectory, List<UniformField> uniforms, List<UniformBlockStructure> uniformBlocks, List<RSFileInfo> rsFiles, string sourceGuid = null,
+             string outputDirectory, List<UniformModel> uniforms, List<UniformBlockModel> uniformBlocks, List<RSFileInfo> rsFiles, string sourceGuid = null,
              string sourcePath = null)
         {
             if (string.IsNullOrEmpty(sourceGuid) && !string.IsNullOrEmpty(sourcePath))
@@ -32,7 +32,7 @@ namespace Editor
         }
 
         private static string GenerateRepresentationClass(string materialName, string vertexSource,
-            string fragmentSource, List<UniformField> uniforms, List<UniformBlockStructure> uniformBlocks, 
+            string fragmentSource, List<UniformModel> uniforms, List<UniformBlockModel> uniformBlocks, 
             string sourceGuid, List<RSFileInfo> rsFiles)
         {
             var mainBuilder = new StringBuilder();
@@ -247,7 +247,7 @@ namespace Editor
             constructorBodyBuilder.AppendLine($"            {cashFieldName} = new LocaleArray<{csharpType}>({arraySize}, _gl);");
         }
 
-        private static void UniformBlockWithBindingCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, StringBuilder disposeBodyBuilder, UniformBlockStructure block)
+        private static void UniformBlockWithBindingCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, StringBuilder disposeBodyBuilder, UniformBlockModel block)
         {
             string refStruct = $"_{block.InstanceName}";
 
@@ -269,7 +269,7 @@ namespace Editor
             disposeBodyBuilder.AppendLine($"            {block.InstanceName}Ubo.Dispose();");
         }
 
-        private static void UniformBlockWithoutBindingCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, StringBuilder disposeBodyBuilder, UniformBlockStructure block)
+        private static void UniformBlockWithoutBindingCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, StringBuilder disposeBodyBuilder, UniformBlockModel block)
         {
             string refStruct = $"_{block.InstanceName}";
 

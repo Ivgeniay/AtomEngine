@@ -44,6 +44,7 @@ namespace Editor
 
                 shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, e.FileFullPath);
                 shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
+                shaderSource = GlslParser.ResolveConstantPlacement(shaderSource, RSParser.GetConstFromFileInfos(rsFiles));
                 shaderSource = GlslParser.ResolveStructurePlacement(shaderSource, RSParser.GetStructuresFromFileInfos(rsFiles));
                 shaderSource = GlslParser.ResolveUniformPlacement(shaderSource, RSParser.GetUniformsFromRsFileInfos(rsFiles));
                 shaderSource = GlslParser.ResolveUniformBlockPlacement(shaderSource, RSParser.GetUniformsBlocksFromRsFileInfos(rsFiles));

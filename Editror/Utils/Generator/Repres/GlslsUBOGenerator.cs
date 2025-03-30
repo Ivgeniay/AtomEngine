@@ -14,9 +14,9 @@ namespace Editor
         private const string MAIN_CONTENT_PLACEHOLDER = "/*MAIN_CONTENT*/";
         private const string CLASS_FIELDS_PLACEHOLDER = "/*CLASS_FIELDS*/";
 
-        public static void GenerateUniformBlockClass(UniformBlockStructure block, string outputDirectory, string sourceGuid, List<GlslStructure> structures)
+        public static void GenerateUniformBlockClass(UniformBlockModel block, string outputDirectory, string sourceGuid, List<GlslStructureModel> structures)
         {
-            List<GlslStructure> usedStructures = GetUsedStructures(block, structures);
+            List<GlslStructureModel> usedStructures = GetUsedStructures(block, structures);
             if (usedStructures.Count > 0)
             {
                 GenerateStructsForUbo(usedStructures, outputDirectory, sourceGuid);
@@ -49,7 +49,7 @@ namespace Editor
             File.WriteAllText(blockFilePath, result, Encoding.UTF8);
         }
 
-        private static void GenerateMainStructure(StringBuilder builder, UniformBlockStructure block, List<GlslStructure> structures, string sourceGuid)
+        private static void GenerateMainStructure(StringBuilder builder, UniformBlockModel block, List<GlslStructureModel> structures, string sourceGuid)
         {
             GeneratorConst.WriteGeneratedCodeHeader(builder, sourceGuid);
             builder.AppendLine("using System.Runtime.InteropServices;");
@@ -61,7 +61,7 @@ namespace Editor
             builder.AppendLine("}");
         }
 
-        private static void GenerateExplicitLayoutContent(StringBuilder builder, UniformBlockStructure block, int totalSize)
+        private static void GenerateExplicitLayoutContent(StringBuilder builder, UniformBlockModel block, int totalSize)
         {
             builder.AppendLine($"    [StructLayout(LayoutKind.Explicit, Size = {totalSize})]");
             builder.AppendLine($"    public unsafe struct {block.CSharpTypeName} : IDataSerializable");
@@ -70,7 +70,7 @@ namespace Editor
             builder.AppendLine("    }");
         }
 
-        private static void GenerateSequentialLayoutContent(StringBuilder builder, UniformBlockStructure block)
+        private static void GenerateSequentialLayoutContent(StringBuilder builder, UniformBlockModel block)
         {
             builder.AppendLine("    [StructLayout(LayoutKind.Sequential)]");
             builder.AppendLine($"    public unsafe struct {block.CSharpTypeName} : IDataSerializable");
@@ -79,7 +79,7 @@ namespace Editor
             builder.AppendLine("    }");
         }
 
-        private static void GenerateExplicitLayoutFields(StringBuilder builder, UniformBlockStructure block, List<GlslStructure> structures)
+        private static void GenerateExplicitLayoutFields(StringBuilder builder, UniformBlockModel block, List<GlslStructureModel> structures)
         {
             int currentOffset = 0;
 
@@ -110,7 +110,7 @@ namespace Editor
             }
         }
 
-        private static void GenerateSequentialLayoutFields(StringBuilder builder, UniformBlockStructure block)
+        private static void GenerateSequentialLayoutFields(StringBuilder builder, UniformBlockModel block)
         {
             foreach (var field in block.Fields)
             {
@@ -133,7 +133,7 @@ namespace Editor
             }
         }
 
-        private static void GenerateCustomTypeField(StringBuilder builder, string type, string name, int? arraySize, List<GlslStructure> structures, int currentOffset)
+        private static void GenerateCustomTypeField(StringBuilder builder, string type, string name, int? arraySize, List<GlslStructureModel> structures, int currentOffset)
         {
             bool isUserStructure = structures.Any(s => s.Name == type);
             string fieldType = isUserStructure ? $"{type}_Std140" : GlslParser.MapGlslTypeToCSharp(type);
@@ -254,7 +254,7 @@ namespace Editor
             }
         }
 
-        private static void GenerateStructsForUbo(List<GlslStructure> structures, string outputDirectory, string sourceGuid)
+        private static void GenerateStructsForUbo(List<GlslStructureModel> structures, string outputDirectory, string sourceGuid)
         {
             foreach (var structure in structures)
             {
@@ -320,7 +320,7 @@ namespace Editor
             }
         }
 
-        private static void GenerateCustomTypeFieldForStruct(StringBuilder builder, string type, string name, int? arraySize, List<GlslStructure> structures, int currentOffset)
+        private static void GenerateCustomTypeFieldForStruct(StringBuilder builder, string type, string name, int? arraySize, List<GlslStructureModel> structures, int currentOffset)
         {
             if (arraySize.HasValue)
             {
@@ -376,7 +376,7 @@ namespace Editor
             }
         }
 
-        private static void GenerateArrayFieldForStruct(StringBuilder builder, string type, string csharpType, string name, int arraySize, List<GlslStructure> structures, int currentOffset)
+        private static void GenerateArrayFieldForStruct(StringBuilder builder, string type, string csharpType, string name, int arraySize, List<GlslStructureModel> structures, int currentOffset)
         {
             var arrayElementsBuilder = new StringBuilder();
             var getterCasesBuilder = new StringBuilder();
@@ -469,7 +469,7 @@ namespace Editor
 
 
 
-        private static bool HasComplexTypes(UniformBlockStructure block, List<GlslStructure> structures)
+        private static bool HasComplexTypes(UniformBlockModel block, List<GlslStructureModel> structures)
         {
             foreach (var field in block.Fields)
             {
@@ -485,7 +485,7 @@ namespace Editor
             return false;
         }
 
-        private static int CalculateTotalSize(UniformBlockStructure block, List<GlslStructure> structures)
+        private static int CalculateTotalSize(UniformBlockModel block, List<GlslStructureModel> structures)
         {
             int totalSize = 0;
             int maxAlignment = 4;
@@ -506,7 +506,7 @@ namespace Editor
             return AlignSize(totalSize, maxAlignment);
         }
 
-        private static int GetTypeAlignment(string type, string csharpType, List<GlslStructure> structures)
+        private static int GetTypeAlignment(string type, string csharpType, List<GlslStructureModel> structures)
         {
             if (type is "bool" or "int" or "uint" or "float")
                 return 4;
@@ -535,7 +535,7 @@ namespace Editor
             return (size + alignment - 1) / alignment * alignment;
         }
 
-        private static int CalculateStructureAlignment(string structureName, List<GlslStructure> structures)
+        private static int CalculateStructureAlignment(string structureName, List<GlslStructureModel> structures)
         {
             var structure = structures.FirstOrDefault(s => s.Name == structureName);
             if (structure == null)
@@ -557,7 +557,7 @@ namespace Editor
             return maxAlignment;
         }
 
-        private static int GetTypeSize(string type, string csharpType, int? arraySize, List<GlslStructure> structures)
+        private static int GetTypeSize(string type, string csharpType, int? arraySize, List<GlslStructureModel> structures)
         {
             int baseSize = type switch
             {
@@ -591,9 +591,9 @@ namespace Editor
             return baseSize;
         }
 
-        private static List<GlslStructure> GetUsedStructures(UniformBlockStructure block, List<GlslStructure> allStructures)
+        private static List<GlslStructureModel> GetUsedStructures(UniformBlockModel block, List<GlslStructureModel> allStructures)
         {
-            var result = new List<GlslStructure>();
+            var result = new List<GlslStructureModel>();
             var processedTypes = new HashSet<string>();
 
             void CollectStructureAndDependencies(string typeName)
@@ -636,7 +636,7 @@ namespace Editor
             return type is "bool" or "int" or "uint" or "float" or "double";
         }
 
-        private static int CalculateStructureSize(string structureName, List<GlslStructure> structures)
+        private static int CalculateStructureSize(string structureName, List<GlslStructureModel> structures)
         {
             var structure = structures.FirstOrDefault(s => s.Name == structureName);
             if (structure == null)
@@ -670,7 +670,7 @@ namespace Editor
             return AlignSize(totalSize, maxAlignment);
         }
 
-        private static int EstimateStructureSize(string structureName, List<GlslStructure> structures)
+        private static int EstimateStructureSize(string structureName, List<GlslStructureModel> structures)
         {
             var structure = structures.FirstOrDefault(s => s.Name == structureName);
             if (structure == null)

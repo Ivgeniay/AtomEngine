@@ -28,20 +28,11 @@ namespace OpenglLib
             vertexSource = string.IsNullOrEmpty(vertexSource) ? VertexSource : vertexSource;
             fragmentSource = string.IsNullOrEmpty(fragmentSource) ? FragmentSource : fragmentSource;
 
-            if (string.IsNullOrEmpty(vertexSource)) throw new ShaderError("Vertex shader in null or empty");
-            if (string.IsNullOrEmpty(fragmentSource)) throw new ShaderError("Fragment shader in null or empty");
-
-            //vertexSource = ShaderParser.ProcessConstants(vertexSource);
-            //fragmentSource = ShaderParser.ProcessConstants(fragmentSource);
-
-            DebLogger.Info(vertexSource + "\n" + fragmentSource);
-
             Result<uint, Error> mb_vertexShader = CompileShader(ShaderType.VertexShader, vertexSource);
             uint vertexShader = mb_vertexShader.Unwrap();
 
             Result<uint, Error> mb_fragmentShader = CompileShader(ShaderType.FragmentShader, fragmentSource);
             uint fragmentShader = mb_fragmentShader.Unwrap();
-
 
             handle = _gl.CreateProgram();
             _gl.AttachShader(handle, vertexShader);
@@ -71,7 +62,6 @@ namespace OpenglLib
             if (!_uniformLocations.TryGetValue(name, out int location))
             {
                 DebLogger.Error($"Uniform {name} not found in shader program");
-                //throw new ArgumentError($"Uniform {name} not found in shader program");
             }
 
             switch (_uniformInfo[name].Type)

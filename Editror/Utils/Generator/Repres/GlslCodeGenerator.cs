@@ -17,6 +17,8 @@ namespace Editor.Utils.Generator
             string finalResult = null;
             CsCompileWatcher watcher = ServiceHub.Get<CsCompileWatcher>();
 
+            var shader = GlslExtractor.ExtractShader(sourcePath);
+
             try
             {
                 watcher.EnableWatching(false);
@@ -67,9 +69,9 @@ namespace Editor.Utils.Generator
 
                     var combinedSource = vertexSource + "\n" + fragmentSource;
 
-                    List<GlslConstant> constants =  GlslParser.ParseGlslConstants(combinedSource);
-                    List<UniformField> uniforms = GlslParser.ExtractUniforms(combinedSource);
-                    List<GlslStructure> structures = structures = GlslParser.ParseGlslStructures(combinedSource);
+                    List<GlslConstantModel> constants = GlslParser.ParseGlslConstants(combinedSource);
+                    List<UniformModel> uniforms = GlslParser.ExtractUniforms(combinedSource);
+                    List<GlslStructureModel> structures = structures = GlslParser.ParseGlslStructures(combinedSource);
 
                     if (structures.Count > 0)
                     {
@@ -79,7 +81,7 @@ namespace Editor.Utils.Generator
                             sourceGuid: sourceGuid);
                     }
 
-                    List<UniformBlockStructure> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
+                    List<UniformBlockModel> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
                     uniformBlocks = SeparateBlocks(rsFiles, uniformBlocks);
 
                     foreach (var block in uniformBlocks)
@@ -171,9 +173,9 @@ namespace Editor.Utils.Generator
             return finalResult;
         }
 
-        private static List<UniformBlockStructure> UnionBlocks(List<RSFileInfo> rsFiles, List<UniformBlockStructure> uniformBlocks)
+        private static List<UniformBlockModel> UnionBlocks(List<RSFileInfo> rsFiles, List<UniformBlockModel> uniformBlocks)
         {
-            var resultList = new List<UniformBlockStructure>();
+            var resultList = new List<UniformBlockModel>();
             foreach (var rs in rsFiles)
             {
                 foreach(var uniformBlock in rs.UniformBlocks)
@@ -189,7 +191,7 @@ namespace Editor.Utils.Generator
 
             return resultList;
         }
-        private static List<UniformBlockStructure> SeparateBlocks(List<RSFileInfo> rsFiles, List<UniformBlockStructure> uniformBlocks)
+        private static List<UniformBlockModel> SeparateBlocks(List<RSFileInfo> rsFiles, List<UniformBlockModel> uniformBlocks)
         {
             return uniformBlocks.Where(e =>
             {

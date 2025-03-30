@@ -4,8 +4,66 @@ using System.Text.RegularExpressions;
 
 namespace OpenglLib
 {
+    public static class GlslExtractor
+    {
+        public static GlslShaderModel ExtractShader(string sourcePath)
+        {
+            GlslShaderModel shaderModel = new GlslShaderModel();
+
+            string shaderSource = File.ReadAllText(sourcePath);
+
+            bool isComplete = GlslParser.IsCompleteShaderFile(shaderSource);
+
+            List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, sourcePath);
+
+            shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, sourcePath);
+            shaderSource = RSParser.RemoveServiceMarkers(shaderSource);
+
+            shaderSource = GlslParser.ResolveConstantPlacement(shaderSource, RSParser.GetConstFromFileInfos(rsFiles));
+            shaderSource = GlslParser.ResolveStructurePlacement(shaderSource, RSParser.GetStructuresFromFileInfos(rsFiles));
+            shaderSource = GlslParser.ResolveUniformPlacement(shaderSource, RSParser.GetUniformsFromRsFileInfos(rsFiles));
+            shaderSource = GlslParser.ResolveUniformBlockPlacement(shaderSource, RSParser.GetUniformsBlocksFromRsFileInfos(rsFiles));
+            shaderSource = GlslParser.ResolveMethodPlacement(shaderSource, RSParser.GetMethodsFromRsFileInfos(rsFiles));
+
+            var (sourceVertex, sourceFragment) = GlslParser.ExtractShaderSources(shaderSource);
+            var (hasVertexMain, hasFragmentMain) = GlslParser.ValidateMainFunctions(sourceVertex, sourceFragment);
+
+            shaderModel.Vertex = new VertexShaderModel
+            {
+                FullText = GlslParser.RemoveAllAttributes(sourceVertex),
+                VertexAttributes = GlslParser.ParseVertexAttributes(sourceVertex),
+                VertexOutParams = GlslParser.ExtractVertexOutputs(sourceVertex),
+                Version = GlslParser.ParseGlslVersion(sourceVertex),
+                Constants = GlslParser.ParseGlslConstants(sourceVertex),
+                Uniforms = GlslParser.ExtractUniforms(sourceVertex),
+                Structures = GlslParser.ParseGlslStructures(sourceVertex),
+                UniformsBlocks = GlslParser.ParseUniformBlocks(sourceVertex),
+                Methods = GlslParser.ExtractMethods(sourceVertex)
+            };
+
+            shaderModel.Fragment = new FragmentShaderModel
+            {
+                FullText = GlslParser.RemoveAllAttributes(sourceFragment),
+                InnerParams = GlslParser.ExtractFragmentInputs(sourceFragment),
+                Version = GlslParser.ParseGlslVersion(sourceFragment),
+                Constants = GlslParser.ParseGlslConstants(sourceFragment),
+                Uniforms = GlslParser.ExtractUniforms(sourceFragment),
+                Structures = GlslParser.ParseGlslStructures(sourceFragment),
+                UniformsBlocks = GlslParser.ParseUniformBlocks(sourceFragment),
+                Methods = GlslParser.ExtractMethods(sourceFragment)
+            };
+
+            shaderModel.FullText = GlslParser.RemoveAllAttributes(shaderSource);
+
+            return shaderModel;
+        }
+    }
+
     public static class GlslParser
     {
+        public const string FRAGMENT_SPACE = "fragment";
+        public const string VERTEX_SPACE = "vertex";
+
         public static bool IsCompleteShaderFile(string source)
         {
             return source.Contains("#vertex") && source.Contains("#fragment");
@@ -47,8 +105,8 @@ namespace OpenglLib
             string fragmentSource = "";
             try
             {
-                var vertexRegex = new Regex(@"#vertex\r?\n(.*?)(?=#fragment|$)", RegexOptions.Singleline);
-                var fragmentRegex = new Regex(@"#fragment\r?\n(.*?)$", RegexOptions.Singleline);
+                var vertexRegex = new Regex(@$"#{VERTEX_SPACE}\r?\n(.*?)(?=#{FRAGMENT_SPACE}|$)", RegexOptions.Singleline);
+                var fragmentRegex = new Regex(@$"#{FRAGMENT_SPACE}\r?\n(.*?)$", RegexOptions.Singleline);
 
                 var vertexMatch = vertexRegex.Match(source);
                 var fragmentMatch = fragmentRegex.Match(source);
@@ -71,7 +129,7 @@ namespace OpenglLib
             return (vertexSource, fragmentSource);
         }
 
-        public static void ValidateMainFunctions(string vertexSource, string fragmentSource)
+        public static (bool, bool) ValidateMainFunctions(string vertexSource, string fragmentSource)
         {
             var mainRegex = new Regex(@"void\s+main\s*\(\s*\)\s*{");
 
@@ -87,105 +145,8 @@ namespace OpenglLib
             {
                 throw new Exception($"Fragment shader must have exactly one main function. Found: {fragmentMainCount}");
             }
-        }
 
-        public static List<UniformField> ExtractUniforms(string source)
-        {
-            List<UniformField> uniforms = new List<UniformField>();
-            var processedUniformNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var uniformRegex = new Regex(@"uniform\s+(?!layout)(?:highp|mediump|lowp)?\s*(\w+)\s+(\w+)(?:\[(\w+|\d+)\])?\s*;");
-
-            foreach (Match match in uniformRegex.Matches(source))
-            {
-                var type = match.Groups[1].Value;
-                var name = match.Groups[2].Value;
-
-                if (processedUniformNames.Contains(name))
-                {
-                    continue;
-                }
-
-                int? arraySize = null;
-
-                if (match.Groups[3].Success)
-                {
-                    var sizeValue = match.Groups[3].Value;
-                    if (int.TryParse(sizeValue, out int size))
-                    {
-                        arraySize = size;
-                    }
-                    else
-                    {
-                        arraySize = ResolveArraySizeIdentifier(source, sizeValue);
-                    }
-                }
-                var uniformField = new UniformField
-                {
-                    Type = type,
-                    CSharpType = MapGlslTypeToCSharp(type),
-                    Name = name,
-                    FullText = match.Value,
-                    ArraySize = arraySize
-                };
-
-                uniformField.Attributes = ExtractAttributesAbove(source, match.Index);
-                uniforms.Add(uniformField);
-            }
-            return uniforms;
-        }
-
-        public static List<ShaderAttribute> ExtractAttributesAbove(string source, int uniformPosition)
-        {
-            List<ShaderAttribute> attributes = new List<ShaderAttribute>();
-
-            int lineStartPosition = source.LastIndexOf('\n', uniformPosition);
-            if (lineStartPosition == -1)
-                lineStartPosition = 0;
-            else
-                lineStartPosition++;
-
-            var attributeRegex = new Regex(@"\[(\w+):([^\]]*)\]");
-
-            int currentLineEnd = lineStartPosition;
-            while (currentLineEnd > 0)
-            {
-                int prevLineStart = source.LastIndexOf('\n', currentLineEnd - 2);
-                if (prevLineStart == -1)
-                    prevLineStart = 0;
-                else
-                    prevLineStart++; 
-
-                string line = source.Substring(prevLineStart, currentLineEnd - prevLineStart).Trim();
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//"))
-                {
-                    currentLineEnd = prevLineStart;
-                    continue;
-                }
-                bool hasOnlyAttributes = true;
-                string remainingLine = line;
-
-                MatchCollection matches = attributeRegex.Matches(line);
-                if (matches.Count == 0)
-                {
-                    break;
-                }
-                foreach (Match match in matches)
-                {
-                    remainingLine = remainingLine.Replace(match.Value, "");
-                    attributes.Add(new ShaderAttribute
-                    {
-                        Name = match.Groups[1].Value.ToLower(),
-                        Value = match.Groups[2].Value.Trim().ToLower()
-                    });
-                }
-
-                if (!string.IsNullOrWhiteSpace(remainingLine))
-                {
-                    break;
-                }
-                currentLineEnd = prevLineStart;
-            }
-            return attributes.Reverse<ShaderAttribute>().ToList();
+            return (vertexMainCount == 1, fragmentMainCount == 1);
         }
 
         public static string RemoveAllAttributes(string source)
@@ -193,9 +154,9 @@ namespace OpenglLib
             return Regex.Replace(source, @"\[\w+:[^\]]*\]", string.Empty);
         }
 
-        public static List<GlslStructField> ParseStructFields(string fieldsText)
+        public static List<GlslStructFieldModel> ParseStructFields(string fieldsText)
         {
-            List<GlslStructField> fields = new List<GlslStructField>();
+            List<GlslStructFieldModel> fields = new List<GlslStructFieldModel>();
 
             fieldsText = Regex.Replace(fieldsText, @"//.*$", "", RegexOptions.Multiline);
             fieldsText = Regex.Replace(fieldsText, @"/\*[\s\S]*?\*/", "");
@@ -219,7 +180,7 @@ namespace OpenglLib
                         arraySize = ResolveArraySizeIdentifier(fieldsText, sizeValue);
                     }
                 }
-                var field = new GlslStructField
+                var field = new GlslStructFieldModel
                 {
                     Type = type,
                     Name = name,
@@ -231,9 +192,9 @@ namespace OpenglLib
             return fields;
         }
 
-        public static List<UniformBlockStructure> ParseUniformBlocks(string source)
+        public static List<UniformBlockModel> ParseUniformBlocks(string source)
         {
-            var blocks = new List<UniformBlockStructure>();
+            var blocks = new List<UniformBlockModel>();
             var blockRegex = new Regex(
                 @"(?:layout\s*\(\s*(std140|std430|packed|shared)(?:\s*,\s*binding\s*=\s*(\d+))?\)\s*)?" +
                 @"uniform\s+(\w+)?\s*\{([^}]+)\}\s*(\w+)?;",
@@ -260,27 +221,27 @@ namespace OpenglLib
                     continue;
                 }
 
-                UniformBlockType blockType = GetUniformBlockType(layoutTypeStr);
+                LayoutType blockType = GetUniformBlockType(layoutTypeStr);
 
-                var uniblock = new UniformBlockStructure
+                var uniblock = new UniformBlockModel
                 {
                     Name = name,
                     UniformBlockType = blockType,
                     Binding = binding,
                     FullText = match.Value,
                     Fields = ParseUniformBlockFields(fieldsText, source),
+                    Attributes = ExtractAttributesAbove(source, match.Index),
                     InstanceName = instanceName
                 };
-                uniblock.Attributes = ExtractAttributesAbove(source, match.Index);
                 blocks.Add(uniblock);
             }
 
             return blocks;
         }
 
-        public static List<UniformBlockField> ParseUniformBlockFields(string fieldsText, string fullSource)
+        public static List<BlockFieldModel> ParseUniformBlockFields(string fieldsText, string fullSource)
         {
-            List<UniformBlockField> fields = new List<UniformBlockField>();
+            List<BlockFieldModel> fields = new List<BlockFieldModel>();
 
             fieldsText = Regex.Replace(fieldsText, @"//.*$", "", RegexOptions.Multiline);
             fieldsText = Regex.Replace(fieldsText, @"/\*[\s\S]*?\*/", "");
@@ -304,11 +265,14 @@ namespace OpenglLib
                         arraySize = ResolveArraySizeIdentifier(fullSource, sizeValue);
                     }
                 }
-                UniformBlockField field = new UniformBlockField()
+                BlockFieldModel field = new BlockFieldModel()
                 {
                     Type = type,
                     Name = name,
                     ArraySize = arraySize,
+                    Attributes = GlslParser.ExtractAttributesAbove(fullSource, match.Index),
+                    CSharpTypeName = GlslParser.MapGlslTypeToCSharp(type),
+                    Fulltext = match.Value,
                 };
                 fields.Add(field);
             }
@@ -510,15 +474,15 @@ namespace OpenglLib
 
 
 
-        private static UniformBlockType GetUniformBlockType(string layoutType)
+        private static LayoutType GetUniformBlockType(string layoutType)
         {
             return layoutType.ToLower() switch
             {
-                "std140" => UniformBlockType.STD140,
-                "std430" => UniformBlockType.STD430,
-                "packed" => UniformBlockType.Packed,
-                "shared" => UniformBlockType.Shared,
-                _ => UniformBlockType.Ordinary
+                "std140" => LayoutType.STD140,
+                "std430" => LayoutType.STD430,
+                "packed" => LayoutType.Packed,
+                "shared" => LayoutType.Shared,
+                _ => LayoutType.Ordinary
             };
         }
 
@@ -556,10 +520,487 @@ namespace OpenglLib
             return null;
         }
 
-        // const
-        public static List<GlslConstant> ParseGlslConstants(string source)
+        public static GlslVersionModel ParseGlslVersion(string shaderSource)
         {
-            var constants = new List<GlslConstant>();
+            var versionRegex = new Regex(@"#version\s+(\d+)(?:\s+(\w+))?", RegexOptions.Multiline);
+            var match = versionRegex.Match(shaderSource);
+
+            if (!match.Success)
+            {
+                return new GlslVersionModel { Version = 110 };
+            }
+
+            int version = int.Parse(match.Groups[1].Value);
+            string profile = match.Groups[2].Success ? match.Groups[2].Value : string.Empty;
+
+            return new GlslVersionModel
+            {
+                Version = version,
+                Profile = profile
+            };
+        }
+
+        // In Out Params
+        public static List<VertexOutParams> ExtractVertexOutputs(string source)
+        {
+            var outputs = new List<VertexOutParams>();
+            var processedOutNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            ExtractSimpleOutputs(source, outputs, processedOutNames);
+            ExtractBlockOutputs(source, outputs, processedOutNames);
+
+            return outputs;
+        }
+
+        private static void ExtractSimpleOutputs(string source, List<VertexOutParams> outputs, HashSet<string> processedOutNames)
+        {
+            var simpleOutRegex = new Regex(@"(?:layout\s*\(\s*location\s*=\s*(\d+)\s*\))?\s*out\s+(?!layout)(?:highp|mediump|lowp)?\s*(\w+)\s+(\w+)(?:\[(\w+|\d+)\])?\s*;");
+
+            foreach (Match match in simpleOutRegex.Matches(source))
+            {
+                int? location = null;
+                if (!string.IsNullOrEmpty(match.Groups[1].Value))
+                {
+                    location = int.Parse(match.Groups[1].Value);
+                }
+
+                var type = match.Groups[2].Value;
+                var name = match.Groups[3].Value;
+
+                if (processedOutNames.Contains(name))
+                {
+                    continue;
+                }
+
+                int? arraySize = null;
+                if (match.Groups[4].Success)
+                {
+                    var sizeValue = match.Groups[4].Value;
+                    if (int.TryParse(sizeValue, out int size))
+                    {
+                        arraySize = size;
+                    }
+                    else
+                    {
+                        arraySize = ResolveArraySizeIdentifier(source, sizeValue);
+                    }
+                }
+
+                var field = new BlockFieldModel
+                {
+                    Type = type,
+                    CSharpTypeName = MapGlslTypeToCSharp(type),
+                    Name = name,
+                    ArraySize = arraySize,
+                    Fulltext = match.Value,
+                    Attributes = ExtractAttributesAbove(source, match.Index)
+                };
+
+                var outParam = new VertexOutParams
+                {
+                    Location = location,
+                    Type = type,
+                    CSharpTypeName = MapGlslTypeToCSharp(type),
+                    FillText = match.Value
+                };
+
+                outParam.Fields.Add(field);
+                outputs.Add(outParam);
+                processedOutNames.Add(name);
+            }
+        }
+
+        private static void ExtractBlockOutputs(string source, List<VertexOutParams> outputs, HashSet<string> processedOutNames)
+        {
+            var blockStartRegex = new Regex(@"(?:layout\s*\(\s*location\s*=\s*(\d+)\s*\))?\s*out\s+(\w+)\s*{");
+
+            foreach (Match blockMatch in blockStartRegex.Matches(source))
+            {
+                int? location = null;
+                if (!string.IsNullOrEmpty(blockMatch.Groups[1].Value))
+                {
+                    location = int.Parse(blockMatch.Groups[1].Value);
+                }
+
+                var blockTypeName = blockMatch.Groups[2].Value;
+
+                int blockStart = blockMatch.Index + blockMatch.Length - 1;
+                int blockEnd = FindMatchingBrace(source, blockStart);
+
+                if (blockEnd == -1)
+                {
+                    continue;
+                }
+
+                string blockContent = source.Substring(blockStart + 1, blockEnd - blockStart - 1);
+
+                var instanceNameMatch = Regex.Match(source.Substring(blockEnd + 1), @"^\s*(\w+)\s*;");
+                string instanceName = instanceNameMatch.Success ? instanceNameMatch.Groups[1].Value : string.Empty;
+
+                if (!string.IsNullOrEmpty(instanceName) && processedOutNames.Contains(instanceName))
+                {
+                    continue;
+                }
+
+                var outParam = new VertexOutParams
+                {
+                    Location = location,
+                    InstanceName = instanceName,
+                    Type = blockTypeName,
+                    CSharpTypeName = GlslParser.MapGlslTypeToCSharp(blockTypeName), 
+                    FillText = source.Substring(blockMatch.Index, blockEnd - blockMatch.Index + instanceNameMatch.Length + 1)
+                };
+
+                ExtractBlockFields(blockContent, outParam);
+
+                if (outParam.Fields.Count > 0)
+                {
+                    outputs.Add(outParam);
+                    if (!string.IsNullOrEmpty(instanceName))
+                    {
+                        processedOutNames.Add(instanceName);
+                    }
+                }
+            }
+        }
+
+        private static void ExtractBlockFields(string blockContent, VertexOutParams outParam)
+        {
+            var fieldRegex = new Regex(@"(?:highp|mediump|lowp)?\s*(\w+)\s+(\w+)(?:\[(\w+|\d+)\])?\s*;");
+
+            foreach (Match fieldMatch in fieldRegex.Matches(blockContent))
+            {
+                var type = fieldMatch.Groups[1].Value;
+                var name = fieldMatch.Groups[2].Value;
+
+                int? arraySize = null;
+                if (fieldMatch.Groups[3].Success)
+                {
+                    var sizeValue = fieldMatch.Groups[3].Value;
+                    if (int.TryParse(sizeValue, out int size))
+                    {
+                        arraySize = size;
+                    }
+                }
+
+                var field = new BlockFieldModel
+                {
+                    Type = type,
+                    CSharpTypeName = MapGlslTypeToCSharp(type),
+                    Name = name,
+                    ArraySize = arraySize,
+                    Fulltext = fieldMatch.Value
+                };
+
+                outParam.Fields.Add(field);
+            }
+        }
+
+        private static int FindMatchingBrace(string text, int openBracePosition)
+        {
+            int depth = 1;
+            for (int i = openBracePosition + 1; i < text.Length; i++)
+            {
+                if (text[i] == '{')
+                {
+                    depth++;
+                }
+                else if (text[i] == '}')
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        return i;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+
+
+        public static List<FragmentInnerParams> ExtractFragmentInputs(string source)
+        {
+            var inputs = new List<FragmentInnerParams>();
+            var processedInNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            ExtractSimpleInputs(source, inputs, processedInNames);
+            ExtractBlockInputs(source, inputs, processedInNames);
+
+            return inputs;
+        }
+
+        private static void ExtractSimpleInputs(string source, List<FragmentInnerParams> inputs, HashSet<string> processedInNames)
+        {
+            var simpleInRegex = new Regex(@"(?:layout\s*\(\s*location\s*=\s*(\d+)\s*\))?\s*in\s+(?!layout)(?:highp|mediump|lowp)?\s*(\w+)\s+(\w+)(?:\[(\w+|\d+)\])?\s*;");
+
+            foreach (Match match in simpleInRegex.Matches(source))
+            {
+                int? location = null;
+                if (!string.IsNullOrEmpty(match.Groups[1].Value))
+                {
+                    location = int.Parse(match.Groups[1].Value);
+                }
+
+                var type = match.Groups[2].Value;
+                var name = match.Groups[3].Value;
+
+                if (processedInNames.Contains(name))
+                {
+                    continue;
+                }
+
+                int? arraySize = null;
+                if (match.Groups[4].Success)
+                {
+                    var sizeValue = match.Groups[4].Value;
+                    if (int.TryParse(sizeValue, out int size))
+                    {
+                        arraySize = size;
+                    }
+                    else
+                    {
+                        arraySize = ResolveArraySizeIdentifier(source, sizeValue);
+                    }
+                }
+
+                var field = new BlockFieldModel
+                {
+                    Type = type,
+                    CSharpTypeName = MapGlslTypeToCSharp(type),
+                    Name = name,
+                    ArraySize = arraySize,
+                    Fulltext = match.Value,
+                    Attributes = ExtractAttributesAbove(source, match.Index)
+                };
+
+                var inParam = new FragmentInnerParams
+                {
+                    Location = location,
+                    Type = type,
+                    CSharpTypeName = MapGlslTypeToCSharp(type),
+                    FillText = match.Value
+                };
+
+                inParam.Fields.Add(field);
+                inputs.Add(inParam);
+                processedInNames.Add(name);
+            }
+        }
+
+        private static void ExtractBlockInputs(string source, List<FragmentInnerParams> inputs, HashSet<string> processedInNames)
+        {
+            var blockStartRegex = new Regex(@"(?:layout\s*\(\s*location\s*=\s*(\d+)\s*\))?\s*in\s+(\w+)\s*{");
+
+            foreach (Match blockMatch in blockStartRegex.Matches(source))
+            {
+                int? location = null;
+                if (!string.IsNullOrEmpty(blockMatch.Groups[1].Value))
+                {
+                    location = int.Parse(blockMatch.Groups[1].Value);
+                }
+
+                var blockTypeName = blockMatch.Groups[2].Value;
+
+                int blockStart = blockMatch.Index + blockMatch.Length - 1;
+                int blockEnd = FindMatchingBrace(source, blockStart);
+
+                if (blockEnd == -1)
+                {
+                    continue;
+                }
+
+                string blockContent = source.Substring(blockStart + 1, blockEnd - blockStart - 1);
+
+                var instanceNameMatch = Regex.Match(source.Substring(blockEnd + 1), @"^\s*(\w+)\s*;");
+                string instanceName = instanceNameMatch.Success ? instanceNameMatch.Groups[1].Value : string.Empty;
+
+                if (!string.IsNullOrEmpty(instanceName) && processedInNames.Contains(instanceName))
+                {
+                    continue;
+                }
+
+                var inParam = new FragmentInnerParams
+                {
+                    Location = location,
+                    InstanceName = instanceName,
+                    Type = blockTypeName,
+                    CSharpTypeName = GlslParser.MapGlslTypeToCSharp(blockTypeName),
+                    FillText = source.Substring(blockMatch.Index, blockEnd - blockMatch.Index + instanceNameMatch.Length + 1)
+                };
+
+                ExtractBlockFields(blockContent, inParam);
+
+                if (inParam.Fields.Count > 0)
+                {
+                    inputs.Add(inParam);
+                    if (!string.IsNullOrEmpty(instanceName))
+                    {
+                        processedInNames.Add(instanceName);
+                    }
+                }
+            }
+        }
+
+        private static void ExtractBlockFields(string blockContent, FragmentInnerParams inParam)
+        {
+            var fieldRegex = new Regex(@"(?:highp|mediump|lowp)?\s*(\w+)\s+(\w+)(?:\[(\w+|\d+)\])?\s*;");
+
+            foreach (Match fieldMatch in fieldRegex.Matches(blockContent))
+            {
+                var type = fieldMatch.Groups[1].Value;
+                var name = fieldMatch.Groups[2].Value;
+
+                int? arraySize = null;
+                if (fieldMatch.Groups[3].Success)
+                {
+                    var sizeValue = fieldMatch.Groups[3].Value;
+                    if (int.TryParse(sizeValue, out int size))
+                    {
+                        arraySize = size;
+                    }
+                }
+
+                var field = new BlockFieldModel
+                {
+                    Type = type,
+                    CSharpTypeName = MapGlslTypeToCSharp(type),
+                    Name = name,
+                    ArraySize = arraySize,
+                    Fulltext = fieldMatch.Value
+                };
+
+                inParam.Fields.Add(field);
+            }
+        }
+
+
+
+
+        // Attributes
+        public static List<ShaderAttribute> ExtractAttributesAbove(string source, int uniformPosition)
+        {
+            List<ShaderAttribute> attributes = new List<ShaderAttribute>();
+
+            int lineStartPosition = source.LastIndexOf('\n', uniformPosition);
+            if (lineStartPosition == -1)
+                lineStartPosition = 0;
+            else
+                lineStartPosition++;
+
+            var attributeRegex = new Regex(@"\[(\w+):([^\]]*)\]");
+
+            int currentLineEnd = lineStartPosition;
+            while (currentLineEnd > 0)
+            {
+                int prevLineStart = source.LastIndexOf('\n', currentLineEnd - 2);
+                if (prevLineStart == -1)
+                    prevLineStart = 0;
+                else
+                    prevLineStart++;
+
+                string line = source.Substring(prevLineStart, currentLineEnd - prevLineStart).Trim();
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//"))
+                {
+                    currentLineEnd = prevLineStart;
+                    continue;
+                }
+                bool hasOnlyAttributes = true;
+                string remainingLine = line;
+
+                MatchCollection matches = attributeRegex.Matches(line);
+                if (matches.Count == 0)
+                {
+                    break;
+                }
+                foreach (Match match in matches)
+                {
+                    remainingLine = remainingLine.Replace(match.Value, "");
+                    attributes.Add(new ShaderAttribute
+                    {
+                        Name = match.Groups[1].Value.ToLower(),
+                        Value = match.Groups[2].Value.Trim().ToLower()
+                    });
+                }
+
+                if (!string.IsNullOrWhiteSpace(remainingLine))
+                {
+                    break;
+                }
+                currentLineEnd = prevLineStart;
+            }
+            return attributes.Reverse<ShaderAttribute>().ToList();
+        }
+
+
+        // VertexAttributes
+        public static List<VertexAttribute> ParseVertexAttributes(string shaderSource)
+        {
+            var attributes = new List<VertexAttribute>();
+
+            var lines = shaderSource.Split('\n');
+            int? currentLocation = null;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+
+                var layoutMatch = Regex.Match(line, @"layout\s*\(\s*location\s*=\s*(\d+)\s*\)");
+                if (layoutMatch.Success)
+                {
+                    currentLocation = int.Parse(layoutMatch.Groups[1].Value);
+
+                    var attrMatch = Regex.Match(line, @"in\s+(\w+)\s+(\w+)\s*;");
+                    if (attrMatch.Success)
+                    {
+                        var type = attrMatch.Groups[1].Value;
+                        var name = attrMatch.Groups[2].Value;
+
+                        attributes.Add(new VertexAttribute
+                        {
+                            Name = name,
+                            Location = currentLocation,
+                            Type = type,
+                            CSharpTypeName = GlslParser.MapGlslTypeToCSharp(type),
+                            FullText = line,
+                            Attributes = GlslParser.ExtractAttributesAbove(shaderSource, attrMatch.Index)
+                        });
+
+                        currentLocation = null;
+                    }
+                }
+                else if (line.StartsWith("in "))
+                {
+                    var attrMatch = Regex.Match(line, @"in\s+(\w+)\s+(\w+)\s*;");
+                    if (attrMatch.Success)
+                    {
+                        var type = attrMatch.Groups[1].Value;
+                        var name = attrMatch.Groups[2].Value;
+
+                        attributes.Add(new VertexAttribute
+                        {
+                            Name = name,
+                            Location = currentLocation,
+                            Type = type,
+                            CSharpTypeName = GlslParser.MapGlslTypeToCSharp(type),
+                            FullText = line,
+                            Attributes = GlslParser.ExtractAttributesAbove(shaderSource, attrMatch.Index)
+                        });
+
+                        currentLocation = null;
+                    }
+                }
+            }
+
+            return attributes;
+        }
+
+
+        // const
+        public static List<GlslConstantModel> ParseGlslConstants(string source)
+        {
+            var constants = new List<GlslConstantModel>();
             var processedConstantNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var constantRegex = new Regex(@"const\s+(\w+)\s+(\w+)\s*=\s*([^;]+);", RegexOptions.Multiline);
 
@@ -574,12 +1015,12 @@ namespace OpenglLib
                     continue;
                 }
 
-                var constant = new GlslConstant
+                var constant = new GlslConstantModel
                 {
                     Type = type,
                     Name = name,
                     Value = value,
-                    CSharpType = GlslParser.MapGlslTypeToCSharp(type),
+                    CSharpTypeName = GlslParser.MapGlslTypeToCSharp(type),
                     FullText = match.Value,
                 };
 
@@ -591,7 +1032,7 @@ namespace OpenglLib
             return constants;
         }
 
-        public static string ResolveConstantPlacement(string sourceShader, List<GlslConstant> constants)
+        public static string ResolveConstantPlacement(string sourceShader, List<GlslConstantModel> constants)
         {
             int vertexSectionIndex = sourceShader.IndexOf("#vertex", StringComparison.OrdinalIgnoreCase);
             int fragmentSectionIndex = sourceShader.IndexOf("#fragment", StringComparison.OrdinalIgnoreCase);
@@ -706,13 +1147,14 @@ namespace OpenglLib
             return resultShader;
         }
 
-        private static string FormatConstant(GlslConstant constant)
+        private static string FormatConstant(GlslConstantModel constant)
         {
             return $"const {constant.Type} {constant.Name} = {constant.Value};";
         }
 
         // Uniform-блоки
-        public static string ResolveUniformBlockPlacement(string sourceShader, List<UniformBlockStructure> uniformBlocks)
+
+        public static string ResolveUniformBlockPlacement(string sourceShader, List<UniformBlockModel> uniformBlocks)
         {
             int vertexSectionIndex = sourceShader.IndexOf("#vertex", StringComparison.OrdinalIgnoreCase);
             int fragmentSectionIndex = sourceShader.IndexOf("#fragment", StringComparison.OrdinalIgnoreCase);
@@ -829,22 +1271,22 @@ namespace OpenglLib
             return resultShader;
         }
 
-        private static string FormatUniformBlock(UniformBlockStructure block)
+        private static string FormatUniformBlock(UniformBlockModel block)
         {
             var sb = new StringBuilder();
 
-            if (block.UniformBlockType != UniformBlockType.Ordinary || block.Binding.HasValue)
+            if (block.UniformBlockType != LayoutType.Ordinary || block.Binding.HasValue)
             {
                 sb.Append("layout(");
 
-                if (block.UniformBlockType != UniformBlockType.Ordinary)
+                if (block.UniformBlockType != LayoutType.Ordinary)
                 {
                     sb.Append(block.UniformBlockType.ToString().ToLower());
                 }
 
                 if (block.Binding.HasValue)
                 {
-                    if (block.UniformBlockType != UniformBlockType.Ordinary)
+                    if (block.UniformBlockType != LayoutType.Ordinary)
                     {
                         sb.Append(", ");
                     }
@@ -884,7 +1326,62 @@ namespace OpenglLib
 
 
         // Uniforms
-        public static string ResolveUniformPlacement(string sourceShader, List<UniformField> uniforms)
+        public static List<UniformModel> ExtractUniforms(string source)
+        {
+            List<UniformModel> uniforms = new List<UniformModel>();
+            var processedUniformNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var uniformRegex = new Regex(@"(?:layout\s*\(\s*binding\s*=\s*(\d+)\s*\))?\s*uniform\s+(?!layout)(?:highp|mediump|lowp)?\s*(\w+)\s+(\w+)(?:\[(\w+|\d+)\])?\s*;");
+
+            foreach (Match match in uniformRegex.Matches(source))
+            {
+                int? binding = null;
+                if (!string.IsNullOrEmpty(match.Groups[1].Value))
+                {
+                    binding = int.Parse(match.Groups[1].Value);
+                }
+
+                var type = match.Groups[2].Value;
+                var name = match.Groups[3].Value;
+
+                if (processedUniformNames.Contains(name))
+                {
+                    continue;
+                }
+
+                int? arraySize = null;
+                if (match.Groups[4].Success)
+                {
+                    var sizeValue = match.Groups[4].Value;
+                    if (int.TryParse(sizeValue, out int size))
+                    {
+                        arraySize = size;
+                    }
+                    else
+                    {
+                        arraySize = ResolveArraySizeIdentifier(source, sizeValue);
+                    }
+                }
+
+                var uniformField = new UniformModel
+                {
+                    Type = type,
+                    CSharpTypeName = MapGlslTypeToCSharp(type),
+                    Name = name,
+                    FullText = match.Value,
+                    ArraySize = arraySize,
+                    Binding = binding
+                };
+
+                uniformField.Attributes = ExtractAttributesAbove(source, match.Index);
+                uniforms.Add(uniformField);
+                processedUniformNames.Add(name);
+            }
+
+            return uniforms;
+        }
+
+        public static string ResolveUniformPlacement(string sourceShader, List<UniformModel> uniforms)
         {
             int vertexSectionIndex = sourceShader.IndexOf("#vertex", StringComparison.OrdinalIgnoreCase);
             int fragmentSectionIndex = sourceShader.IndexOf("#fragment", StringComparison.OrdinalIgnoreCase);
@@ -1005,7 +1502,7 @@ namespace OpenglLib
             return resultShader;
         }
 
-        private static string FormatUniform(UniformField uniform)
+        private static string FormatUniform(UniformModel uniform)
         {
             string result = $"uniform {uniform.Type} {uniform.Name}";
             if (uniform.ArraySize.HasValue)
@@ -1018,9 +1515,9 @@ namespace OpenglLib
 
 
         // Structs
-        public static List<GlslStructure> ParseGlslStructures(string sourceCode)
+        public static List<GlslStructureModel> ParseGlslStructures(string sourceCode)
         {
-            var structures = new List<GlslStructure>();
+            var structures = new List<GlslStructureModel>();
             var processedStructNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var structRegex = new Regex(@"struct\s+(\w+)\s*\{([^}]+)\}\s*(?:\w+(?:\s*,\s*\w+)*\s*)?;?", RegexOptions.Multiline);
             var matches = structRegex.Matches(sourceCode);
@@ -1034,12 +1531,11 @@ namespace OpenglLib
                     continue;
                 }
 
-                var structure = new GlslStructure
+                var structure = new GlslStructureModel
                 {
                     Name = structName,
                     Fields = ParseStructFields(match.Groups[2].Value),
                     FullText = match.Value,
-                    Position = match.Index
                 };
 
                 structure.Attributes = ExtractAttributesAbove(sourceCode, match.Index);
@@ -1051,7 +1547,7 @@ namespace OpenglLib
             return structures;
         }
 
-        public static string ResolveStructurePlacement(string sourceShader, List<GlslStructure> structures)
+        public static string ResolveStructurePlacement(string sourceShader, List<GlslStructureModel> structures)
         {
             int vertexSectionIndex = sourceShader.IndexOf("#vertex", StringComparison.OrdinalIgnoreCase);
             int fragmentSectionIndex = sourceShader.IndexOf("#fragment", StringComparison.OrdinalIgnoreCase);
@@ -1178,7 +1674,7 @@ namespace OpenglLib
             return resultShader;
         }
 
-        private static string FormatStructure(GlslStructure structure)
+        private static string FormatStructure(GlslStructureModel structure)
         {
             var sb = new StringBuilder();
             sb.Append($"struct {structure.Name} {{");
@@ -1466,26 +1962,94 @@ namespace OpenglLib
 
     }
 
-    public class GlslConstant
+
+    public class GlslVersionModel
+    {
+        public string Profile { get; set; } = string.Empty;
+        public int Version { get; set; }
+    }
+    
+    public class GlslShaderModel
+    {
+        public string FullText { get; set; } = string.Empty;
+        public VertexShaderModel Vertex {  get; set; }
+        public FragmentShaderModel Fragment {  get; set; }
+    }
+
+    public class VertexShaderModel : ShaderChankModel
+    {
+        public List<VertexAttribute> VertexAttributes { get; set; } = new List<VertexAttribute>();
+        public List<VertexOutParams> VertexOutParams { get; set; } = new List<VertexOutParams>();
+    }
+
+    public class FragmentShaderModel : ShaderChankModel
+    {
+        public List<FragmentInnerParams> InnerParams { get; set; } = new List<FragmentInnerParams>();
+    }
+
+    public class ShaderChankModel
+    {
+        public const string FRAGMENT_NAME_PREFIX = "fragment";
+        public const string VERTEX_NAME_PREFIX = "vertex";
+
+        public GlslVersionModel Version { get; set; }
+        public List<GlslConstantModel> Constants { get; set; } = new List<GlslConstantModel>();
+        public List<UniformModel> Uniforms { get; set; } = new List<UniformModel>();
+        public List<UniformBlockModel> UniformsBlocks { get; set; } = new List<UniformBlockModel>();
+        public List<GlslStructureModel> Structures { get; set; } = new List<GlslStructureModel>();
+        public List<GlslMethodInfo> Methods { get; set; } = new List<GlslMethodInfo>();
+        public string FullText { get; set; } = string.Empty; 
+    }
+
+    public class VertexAttribute
+    {
+        public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
+        public string Name { get; set; } = string.Empty;
+        public int? Location { get; set; }
+        public string Type { get; set; } = string.Empty;
+        public string CSharpTypeName { get; set; } = string.Empty;
+        public string FullText { get; set; } = string.Empty;
+    }
+
+    public class VertexOutParams
+    {
+        public int? Location { get; set; }
+        public string? InstanceName { get; set; } = null;
+        public string Type { get; set; } = string.Empty;
+        public string CSharpTypeName { get; set; } = string.Empty;
+        public string FillText { get; set; } = string.Empty;
+        public List<BlockFieldModel> Fields { get; set; } = new List<BlockFieldModel>();
+    }
+
+    public class FragmentInnerParams
+    {
+        public int? Location { get; set; }
+        public string? InstanceName { get; set; } = null;
+        public string Type { get; set; } = string.Empty;
+        public string CSharpTypeName { get; set; } = string.Empty;
+        public string FillText { get; set; } = string.Empty;
+        public List<BlockFieldModel> Fields { get; set; } = new List<BlockFieldModel>();
+    }
+
+    public class GlslConstantModel
     {
         public string Type { get; set; } = string.Empty;
-        public string CSharpType { get; set; } = string.Empty;
+        public string CSharpTypeName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Value { get; set; } = string.Empty;
         public string FullText { get; set; } = string.Empty;
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
     }
     
-    public class GlslStructure
+    public class GlslStructureModel
     {
         public string Name { get; set; } = string.Empty;
         public string FullText { get; set; } = string.Empty;
-        public int Position { get; set; }
-        public List<GlslStructField> Fields { get; set; } = new List<GlslStructField>();
+        public List<GlslStructFieldModel> Fields { get; set; } = new List<GlslStructFieldModel>();
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
     }
 
-    public class GlslStructField
+    public class GlslStructFieldModel
     {
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
         public string Type { get; set; } = string.Empty;
@@ -1493,14 +2057,15 @@ namespace OpenglLib
         public int? ArraySize { get; set; }
     }
 
-    public class UniformField
+    public class UniformModel
     {
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
         public string Type { get; set; } = string.Empty;
-        public string CSharpType { get; set; } = string.Empty;
+        public string CSharpTypeName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string FullText { get; set; } = string.Empty;
         public int? ArraySize { get; set; }
+        public int? Binding { get; set; }
     }
 
     public class ShaderAttribute
@@ -1526,27 +2091,29 @@ namespace OpenglLib
         public string[] Qualifiers { get; set; }
     }
 
-    public class UniformBlockStructure
+    public class UniformBlockModel
     {
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
-        public UniformBlockType UniformBlockType { get; set; } = UniformBlockType.Ordinary;
+        public LayoutType UniformBlockType { get; set; } = LayoutType.Ordinary;
         public string CSharpTypeName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string FullText { get; set; } = string.Empty;
         public int? Binding { get; set; } = null;
         public string? InstanceName { get; set; } = null;
-        public List<UniformBlockField> Fields { get; set; } = new List<UniformBlockField>();
+        public List<BlockFieldModel> Fields { get; set; } = new List<BlockFieldModel>();
     }
 
-    public class UniformBlockField
+    public class BlockFieldModel
     {
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
         public string Type { get; set; } = string.Empty;
+        public string CSharpTypeName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public int? ArraySize { get; set; }
+        public string Fulltext { get; set; } = string.Empty;
     }
 
-    public enum UniformBlockType
+    public enum LayoutType
     {
         Ordinary,
         STD140, 
@@ -1554,4 +2121,19 @@ namespace OpenglLib
         Packed, 
         Shared, 
     }
+
 }
+
+
+/*
+ 
+Тип layout	                Вершинный шейдер	Фрагментный шейдер	            Пример
+location (входной in)	        ✅ Да	            ❌ Нет	            layout(location=0) in vec3 pos;
+location (выходной out)	        ❌ Нет*	            ✅ Да	            layout(location=0) out vec4 color;
+binding (uniform)	            ✅ Да	            ✅ Да	            layout(binding=0) uniform sampler2D tex;
+set + binding (Vulkan)	        ✅ Да	            ✅ Да	            layout(set=0, binding=1) uniform…
+std140/std430 (UBO/SSBO)	    ✅ Да	            ✅ Да	            layout(std140, binding=2) uniform Camera {…}
+flat/noperspective	            ✅ Только out	    ✅ Только in	    layout(flat) out int id;
+row_major/column_major	        ✅ Да	            ✅ Да	            layout(row_major) uniform Transform {…}
+
+ */

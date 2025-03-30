@@ -246,7 +246,7 @@ namespace Editor
         {
             string indent = new string(' ', indentLevel * 4);
 
-            GlslStructure? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
+            GlslStructureModel? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
             if (currentStruct == null) return;
 
             int arraySize = fieldInfo.ArraySize;
@@ -280,7 +280,7 @@ namespace Editor
         {
             string indent = new string(' ', indentLevel * 4);
 
-            GlslStructure? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
+            GlslStructureModel? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
             if (currentStruct == null) return;
 
             if (fieldInfo.IsDirtySupport)
@@ -316,7 +316,7 @@ namespace Editor
                 builder.AppendLine($"                    renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
             }
         }
-        private static void ProcessStructFields(StringBuilder builder, GlslStructure structure, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
+        private static void ProcessStructFields(StringBuilder builder, GlslStructureModel structure, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
         {
             string indent = new string(' ', indentLevel * 4);
 
@@ -331,7 +331,7 @@ namespace Editor
                 }
                 else if (GlslParser.IsCustomType(field.Type, field.Type))
                 {
-                    GlslStructure? nestedStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
+                    GlslStructureModel? nestedStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
                     if (nestedStruct != null)
                     {
                         ProcessStructFields(builder, nestedStruct, rsFileInfo, componentVar, $"{prefix}.{field.Name}", indentLevel);
@@ -343,14 +343,14 @@ namespace Editor
                 }
             }
         }
-        private static void ProcessArrayField(StringBuilder builder, GlslStructField field, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
+        private static void ProcessArrayField(StringBuilder builder, GlslStructFieldModel field, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
         {
             string indent = new string(' ', indentLevel * 4);
             int arraySize = field.ArraySize.Value;
 
             if (GlslParser.IsCustomType(field.Type, field.Type))
             {
-                GlslStructure? itemStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
+                GlslStructureModel? itemStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
                 if (itemStruct != null)
                 {
                     for (int i = 0; i < arraySize; i++)
