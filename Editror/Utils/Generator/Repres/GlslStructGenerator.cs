@@ -22,7 +22,7 @@ namespace Editor
             var pendingStructures = new List<GlslStructureModel>();
             var result = new List<string>();
 
-            var structures = GlslParser.ParseGlslStructures(shaderSourceCode);
+            var structures = GlslParser.ExtractGlslStructures(shaderSourceCode);
             pendingStructures.AddRange(structures);
 
             while (pendingStructures.Count > 0)

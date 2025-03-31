@@ -36,28 +36,215 @@ namespace OpenglLib
                 FullText = GlslParser.RemoveAllAttributes(sourceVertex),
                 VertexAttributes = GlslParser.ParseVertexAttributes(sourceVertex),
                 VertexOutParams = GlslParser.ExtractVertexOutputs(sourceVertex),
-                Version = GlslParser.ParseGlslVersion(sourceVertex),
-                Constants = GlslParser.ParseGlslConstants(sourceVertex),
+                Version = GlslParser.ExtractGlslVersion(sourceVertex),
+                Constants = GlslParser.ExtractGlslConstants(sourceVertex),
                 Uniforms = GlslParser.ExtractUniforms(sourceVertex),
-                Structures = GlslParser.ParseGlslStructures(sourceVertex),
-                UniformsBlocks = GlslParser.ParseUniformBlocks(sourceVertex),
+                Structures = GlslParser.ExtractGlslStructures(sourceVertex),
+                UniformsBlocks = GlslParser.ExtractUniformBlocks(sourceVertex),
                 Methods = GlslParser.ExtractMethods(sourceVertex)
             };
             shaderModel.Fragment = new FragmentShaderModel
             {
                 FullText = GlslParser.RemoveAllAttributes(sourceFragment),
                 InnerParams = GlslParser.ExtractFragmentInputs(sourceFragment),
-                Version = GlslParser.ParseGlslVersion(sourceFragment),
-                Constants = GlslParser.ParseGlslConstants(sourceFragment),
+                Version = GlslParser.ExtractGlslVersion(sourceFragment),
+                Constants = GlslParser.ExtractGlslConstants(sourceFragment),
                 Uniforms = GlslParser.ExtractUniforms(sourceFragment),
-                Structures = GlslParser.ParseGlslStructures(sourceFragment),
-                UniformsBlocks = GlslParser.ParseUniformBlocks(sourceFragment),
+                Structures = GlslParser.ExtractGlslStructures(sourceFragment),
+                UniformsBlocks = GlslParser.ExtractUniformBlocks(sourceFragment),
                 Methods = GlslParser.ExtractMethods(sourceFragment)
             };
 
+            shaderModel.Vertex.StructureInstances = GlslParser.ExtractStructInstances(sourceVertex, shaderModel.Vertex.Structures);
+            shaderModel.Fragment.StructureInstances = GlslParser.ExtractStructInstances(sourceFragment, shaderModel.Fragment.Structures);
+            
             shaderModel.FullText = new string(shaderSource);
 
+            PropagateAttributesFromRsFiles(shaderModel);
+
             return shaderModel;
+        }
+
+
+        public static void PropagateAttributesFromRsFiles(GlslShaderModel shaderModel)
+        {
+            if (shaderModel.RSFiles == null || shaderModel.RSFiles.Count == 0 ||
+                (shaderModel.Vertex == null && shaderModel.Fragment == null))
+                return;
+
+            var rsConstantsDict = new Dictionary<string, List<GlslConstantModel>>();
+            var rsUniformsDict = new Dictionary<string, List<UniformModel>>();
+            var rsUniformBlocksDict = new Dictionary<string, List<UniformBlockModel>>();
+            var rsStructuresDict = new Dictionary<string, List<GlslStructureModel>>();
+            var rsMethodsDict = new Dictionary<string, List<GlslMethodInfo>>();
+
+            foreach (var rsFile in shaderModel.RSFiles)
+            {
+                foreach (var constant in rsFile.Constants)
+                {
+                    if (!rsConstantsDict.ContainsKey(constant.Name))
+                        rsConstantsDict[constant.Name] = new List<GlslConstantModel>();
+                    rsConstantsDict[constant.Name].Add(constant);
+                }
+
+                foreach (var uniform in rsFile.Uniforms)
+                {
+                    if (!rsUniformsDict.ContainsKey(uniform.Name))
+                        rsUniformsDict[uniform.Name] = new List<UniformModel>();
+                    rsUniformsDict[uniform.Name].Add(uniform);
+                }
+
+                foreach (var block in rsFile.UniformBlocks)
+                {
+                    var blockName = !string.IsNullOrEmpty(block.Name) ? block.Name :
+                                 (!string.IsNullOrEmpty(block.InstanceName) ? block.InstanceName : "");
+
+                    if (!string.IsNullOrEmpty(blockName))
+                    {
+                        if (!rsUniformBlocksDict.ContainsKey(blockName))
+                            rsUniformBlocksDict[blockName] = new List<UniformBlockModel>();
+                        rsUniformBlocksDict[blockName].Add(block);
+                    }
+                }
+
+                foreach (var structure in rsFile.Structures)
+                {
+                    if (!rsStructuresDict.ContainsKey(structure.Name))
+                        rsStructuresDict[structure.Name] = new List<GlslStructureModel>();
+                    rsStructuresDict[structure.Name].Add(structure);
+                }
+
+                foreach (var method in rsFile.Methods)
+                {
+                    if (!rsMethodsDict.ContainsKey(method.Name))
+                        rsMethodsDict[method.Name] = new List<GlslMethodInfo>();
+                    rsMethodsDict[method.Name].Add(method);
+                }
+            }
+
+            if (shaderModel.Vertex != null)
+            {
+                PropagateAttributesToShaderModel(shaderModel.Vertex, rsConstantsDict, rsUniformsDict,
+                    rsUniformBlocksDict, rsStructuresDict, rsMethodsDict);
+            }
+            if (shaderModel.Fragment != null)
+            {
+                PropagateAttributesToShaderModel(shaderModel.Fragment, rsConstantsDict, rsUniformsDict,
+                    rsUniformBlocksDict, rsStructuresDict, rsMethodsDict);
+            }
+        }
+
+        private static void PropagateAttributesToShaderModel(
+            ShaderChankModel shaderModel,
+            Dictionary<string, List<GlslConstantModel>> rsConstantsDict,
+            Dictionary<string, List<UniformModel>> rsUniformsDict,
+            Dictionary<string, List<UniformBlockModel>> rsUniformBlocksDict,
+            Dictionary<string, List<GlslStructureModel>> rsStructuresDict,
+            Dictionary<string, List<GlslMethodInfo>> rsMethodsDict)
+        {
+            foreach (var constant in shaderModel.Constants)
+            {
+                if (rsConstantsDict.TryGetValue(constant.Name, out var rsConstants))
+                {
+                    foreach (var rsConstant in rsConstants)
+                    {
+                        MergeAttributes(constant.Attributes, rsConstant.Attributes);
+                    }
+                }
+            }
+
+            foreach (var uniform in shaderModel.Uniforms)
+            {
+                if (rsUniformsDict.TryGetValue(uniform.Name, out var rsUniforms))
+                {
+                    foreach (var rsUniform in rsUniforms)
+                    {
+                        MergeAttributes(uniform.Attributes, rsUniform.Attributes);
+                    }
+                }
+            }
+
+            foreach (var block in shaderModel.UniformsBlocks)
+            {
+                // Проверяем сначала по имени блока
+                var blockName = !string.IsNullOrEmpty(block.Name) ? block.Name :
+                             (!string.IsNullOrEmpty(block.InstanceName) ? block.InstanceName : "");
+
+                if (!string.IsNullOrEmpty(blockName) && rsUniformBlocksDict.TryGetValue(blockName, out var rsBlocks))
+                {
+                    foreach (var rsBlock in rsBlocks)
+                    {
+                        MergeAttributes(block.Attributes, rsBlock.Attributes);
+
+                        // Также обрабатываем поля блоков
+                        foreach (var field in block.Fields)
+                        {
+                            var rsField = rsBlock.Fields.FirstOrDefault(f => f.Name == field.Name);
+                            if (rsField != null && rsField.Attributes != null)
+                            {
+                                MergeAttributes(field.Attributes, rsField.Attributes);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Структуры
+            foreach (var structure in shaderModel.Structures)
+            {
+                if (rsStructuresDict.TryGetValue(structure.Name, out var rsStructures))
+                {
+                    foreach (var rsStructure in rsStructures)
+                    {
+                        MergeAttributes(structure.Attributes, rsStructure.Attributes);
+
+                        // Можно добавить обработку полей структур, если это необходимо
+                        // Однако в текущей модели структуры это не предусмотрено
+                    }
+                }
+            }
+
+            // Методы
+            foreach (var method in shaderModel.Methods)
+            {
+                if (rsMethodsDict.TryGetValue(method.Name, out var rsMethods))
+                {
+                    foreach (var rsMethod in rsMethods)
+                    {
+                        MergeAttributes(method.Attributes, rsMethod.Attributes);
+                    }
+                }
+            }
+        }
+
+        private static void MergeAttributes(List<ShaderAttribute> targetAttributes, List<ShaderAttribute> sourceAttributes)
+        {
+            if (sourceAttributes == null || sourceAttributes.Count == 0)
+                return;
+
+            // Если целевая коллекция не инициализирована, создаем её
+            if (targetAttributes == null)
+                throw new ArgumentNullException(nameof(targetAttributes));
+
+            // Добавляем отсутствующие атрибуты
+            foreach (var srcAttr in sourceAttributes)
+            {
+                // Проверяем есть ли такой атрибут уже
+                var existingAttr = targetAttributes.FirstOrDefault(
+                    a => a.Name.Equals(srcAttr.Name, StringComparison.OrdinalIgnoreCase) &&
+                         a.Value.Equals(srcAttr.Value, StringComparison.OrdinalIgnoreCase));
+
+                // Если нет, добавляем
+                if (existingAttr == null)
+                {
+                    targetAttributes.Add(new ShaderAttribute
+                    {
+                        Name = srcAttr.Name,
+                        Value = srcAttr.Value,
+                        FullText = srcAttr.FullText
+                    });
+                }
+            }
         }
     }
 
@@ -367,7 +554,7 @@ namespace OpenglLib
             return null;
         }
 
-        public static GlslVersionModel ParseGlslVersion(string shaderSource)
+        public static GlslVersionModel ExtractGlslVersion(string shaderSource)
         {
             var versionRegex = new Regex(@"#version\s+(\d+)(?:\s+(\w+))?", RegexOptions.Multiline);
             var match = versionRegex.Match(shaderSource);
@@ -880,7 +1067,7 @@ namespace OpenglLib
         #endregion
 
         #region const
-        public static List<GlslConstantModel> ParseGlslConstants(string source)
+        public static List<GlslConstantModel> ExtractGlslConstants(string source)
         {
             var constants = new List<GlslConstantModel>();
             var processedConstantNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1037,7 +1224,7 @@ namespace OpenglLib
         #endregion
 
         #region Uniform-блоки
-        public static List<UniformBlockModel> ParseUniformBlocks(string source)
+        public static List<UniformBlockModel> ExtractUniformBlocks(string source)
         {
             var blocks = new List<UniformBlockModel>();
             var blockRegex = new Regex(
@@ -1527,7 +1714,7 @@ namespace OpenglLib
         #endregion
 
         #region Structs
-        public static List<GlslStructureModel> ParseGlslStructures(string sourceCode)
+        public static List<GlslStructureModel> ExtractGlslStructures(string sourceCode)
         {
             var structures = new List<GlslStructureModel>();
             //var processedStructNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1594,6 +1781,129 @@ namespace OpenglLib
             }
 
             return fields;
+        }
+
+        public static List<GlslStructInstance> ExtractStructInstances(string sourceCode, List<GlslStructureModel> structures)
+        {
+            var instances = new List<GlslStructInstance>();
+
+            if (structures == null || structures.Count == 0 || string.IsNullOrEmpty(sourceCode))
+                return instances;
+
+            // Для каждой структуры ищем её экземпляры
+            foreach (var structure in structures)
+            {
+                // Случаи 1, 2, 7: Объявление переменной структурного типа (с возможной инициализацией)
+                // SurfaceMaterial surfaceMat; или SurfaceMaterial surfaceMat = ...; или SurfaceMaterial materials[10];
+                var regex1 = new Regex($@"(?<!struct\s+){Regex.Escape(structure.Name)}\s+(\w+)(?:\[(\w+|\d+)\])?(?:\s*=\s*[^;]+)?\s*;");
+                foreach (Match match in regex1.Matches(sourceCode))
+                {
+                    var instanceName = match.Groups[1].Value;
+                    int? arraySize = null;
+
+                    if (match.Groups[2].Success)
+                    {
+                        var sizeValue = match.Groups[2].Value;
+                        if (int.TryParse(sizeValue, out int size))
+                        {
+                            arraySize = size;
+                        }
+                        else
+                        {
+                            arraySize = ResolveArraySizeIdentifier(sourceCode, sizeValue);
+                        }
+                    }
+
+                    instances.Add(new GlslStructInstance
+                    {
+                        Structure = structure,
+                        InstanceName = instanceName,
+                        IsUniform = false,
+                        FullText = match.Value,
+                        ArraySize = arraySize
+                    });
+                }
+
+                // Случаи 3, 4: Объявление экземпляра сразу после определения структуры
+                // struct SurfaceMaterial { ... } surfaceMat; или struct SurfaceMaterial { ... } surfaceMat, backMaterial, frontMaterial;
+                var structDefinitionRegex = new Regex($@"struct\s+{Regex.Escape(structure.Name)}\s*{{[^}}]*}}\s*([\w,\s]+)\s*;");
+                foreach (Match match in structDefinitionRegex.Matches(sourceCode))
+                {
+                    if (match.Groups[1].Success)
+                    {
+                        var instanceNames = match.Groups[1].Value.Split(',');
+                        foreach (var instanceNameWithSpaces in instanceNames)
+                        {
+                            var instanceName = instanceNameWithSpaces.Trim();
+                            if (!string.IsNullOrEmpty(instanceName))
+                            {
+                                // Проверяем, есть ли массив
+                                var arrayMatch = Regex.Match(instanceName, @"(\w+)(?:\[(\w+|\d+)\])?");
+                                if (arrayMatch.Success)
+                                {
+                                    var name = arrayMatch.Groups[1].Value;
+                                    int? arraySize = null;
+
+                                    if (arrayMatch.Groups[2].Success)
+                                    {
+                                        var sizeValue = arrayMatch.Groups[2].Value;
+                                        if (int.TryParse(sizeValue, out int size))
+                                        {
+                                            arraySize = size;
+                                        }
+                                        else
+                                        {
+                                            arraySize = ResolveArraySizeIdentifier(sourceCode, sizeValue);
+                                        }
+                                    }
+
+                                    instances.Add(new GlslStructInstance
+                                    {
+                                        Structure = structure,
+                                        InstanceName = name,
+                                        IsUniform = false,
+                                        FullText = match.Value,
+                                        ArraySize = arraySize
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Случаи 5, 6, 7: Uniform структуры (с возможными квалификаторами precision и массивами)
+                // uniform SurfaceMaterial surfaceMat; или uniform highp SurfaceMaterial surfaceMat; или uniform SurfaceMaterial materials[10];
+                var uniformRegex = new Regex($@"uniform\s+(?:highp|mediump|lowp)?\s*{Regex.Escape(structure.Name)}\s+(\w+)(?:\[(\w+|\d+)\])?\s*;");
+                foreach (Match match in uniformRegex.Matches(sourceCode))
+                {
+                    var instanceName = match.Groups[1].Value;
+                    int? arraySize = null;
+
+                    if (match.Groups[2].Success)
+                    {
+                        var sizeValue = match.Groups[2].Value;
+                        if (int.TryParse(sizeValue, out int size))
+                        {
+                            arraySize = size;
+                        }
+                        else
+                        {
+                            arraySize = ResolveArraySizeIdentifier(sourceCode, sizeValue);
+                        }
+                    }
+
+                    instances.Add(new GlslStructInstance
+                    {
+                        Structure = structure,
+                        InstanceName = instanceName,
+                        IsUniform = true,
+                        FullText = match.Value,
+                        ArraySize = arraySize
+                    });
+                }
+            }
+
+            return instances;
         }
 
         public static string ResolveStructurePlacement(string sourceShader, List<GlslStructureModel> structures)
@@ -2036,21 +2346,22 @@ namespace OpenglLib
 
     public class VertexShaderModel : ShaderChankModel
     {
+        public override string PREFIX { get; set; } = "vertex";
         public List<VertexAttribute> VertexAttributes { get; set; } = new List<VertexAttribute>();
         public List<VertexOutParams> VertexOutParams { get; set; } = new List<VertexOutParams>();
     }
 
     public class FragmentShaderModel : ShaderChankModel
     {
+        public override string PREFIX { get; set; } = "fragment";
         public List<FragmentInnerParams> InnerParams { get; set; } = new List<FragmentInnerParams>();
     }
 
     public class ShaderChankModel
     {
-        public const string FRAGMENT_NAME_PREFIX = "fragment";
-        public const string VERTEX_NAME_PREFIX = "vertex";
-
+        public virtual string PREFIX { get; set; } = string.Empty;
         public GlslVersionModel? Version { get; set; }
+        public List<GlslStructInstance> StructureInstances { get; set; } = new List<GlslStructInstance>();
         public List<GlslConstantModel> Constants { get; set; } = new List<GlslConstantModel>();
         public List<UniformModel> Uniforms { get; set; } = new List<UniformModel>();
         public List<UniformBlockModel> UniformsBlocks { get; set; } = new List<UniformBlockModel>();
@@ -2105,6 +2416,15 @@ namespace OpenglLib
         public string FullText { get; set; } = string.Empty;
         public List<GlslStructFieldModel> Fields { get; set; } = new List<GlslStructFieldModel>();
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
+    }
+
+    public class GlslStructInstance
+    {
+        public GlslStructureModel Structure { get; set; }
+        public string InstanceName { get; set; } = string.Empty;
+        public bool IsUniform { get; set; } = false;
+        public string FullText { get; set; } = string.Empty;
+        public int? ArraySize { get; set; }
     }
 
     public class GlslStructFieldModel

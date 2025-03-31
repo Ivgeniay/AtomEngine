@@ -40,10 +40,10 @@ namespace OpenglLib
             fileInfo.RequiredComponent = ExtractRequiredComponents(sourceCode);
             fileInfo.ProcessedCode = RemoveServiceMarkers(sourceCode);
 
-            fileInfo.Constants = GlslParser.ParseGlslConstants(fileInfo.ProcessedCode);
-            fileInfo.UniformBlocks = GlslParser.ParseUniformBlocks(fileInfo.ProcessedCode);
+            fileInfo.Constants = GlslParser.ExtractGlslConstants(fileInfo.ProcessedCode);
+            fileInfo.UniformBlocks = GlslParser.ExtractUniformBlocks(fileInfo.ProcessedCode);
             fileInfo.Uniforms = GlslParser.ExtractUniforms(fileInfo.ProcessedCode);
-            fileInfo.Structures = GlslParser.ParseGlslStructures(fileInfo.ProcessedCode);
+            fileInfo.Structures = GlslParser.ExtractGlslStructures(fileInfo.ProcessedCode);
 
             fileInfo.Methods = GlslParser.ExtractMethods(fileInfo.ProcessedCode);
 

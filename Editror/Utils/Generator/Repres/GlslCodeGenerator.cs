@@ -69,9 +69,9 @@ namespace Editor.Utils.Generator
 
                         var combinedSource = vertexSource + "\n" + fragmentSource;
 
-                        List<GlslConstantModel> constants = GlslParser.ParseGlslConstants(combinedSource);
+                        List<GlslConstantModel> constants = GlslParser.ExtractGlslConstants(combinedSource);
                         List<UniformModel> uniforms = GlslParser.ExtractUniforms(combinedSource);
-                        List<GlslStructureModel> structures = structures = GlslParser.ParseGlslStructures(combinedSource);
+                        List<GlslStructureModel> structures = structures = GlslParser.ExtractGlslStructures(combinedSource);
 
                         if (structures.Count > 0)
                         {
@@ -81,7 +81,7 @@ namespace Editor.Utils.Generator
                                 sourceGuid: sourceGuid);
                         }
 
-                        List<UniformBlockModel> uniformBlocks = GlslParser.ParseUniformBlocks(combinedSource);
+                        List<UniformBlockModel> uniformBlocks = GlslParser.ExtractUniformBlocks(combinedSource);
                         uniformBlocks = SeparateBlocks(rsFiles, uniformBlocks);
 
                         foreach (var block in uniformBlocks)
