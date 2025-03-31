@@ -1,8 +1,6 @@
-﻿using System.Linq;
-using System.Text;
-using OpenglLib;
+﻿using System.Text;
 
-namespace Editor
+namespace OpenglLib
 {
     internal static class ComponentGenerator
     {

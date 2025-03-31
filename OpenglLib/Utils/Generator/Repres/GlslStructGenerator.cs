@@ -1,11 +1,6 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.IO;
-using System;
-using OpenglLib;
+﻿using System.Text;
 
-namespace Editor
+namespace OpenglLib
 {
     internal static class GlslStructGenerator
     {
@@ -19,7 +14,7 @@ namespace Editor
         public static List<string> GenerateStructs(string shaderSourceCode, string outputDirectory, string sourceGuid = null)
         {
             _generatedTypes = new HashSet<string>();
-            var pendingStructures = new List<GlslStructureModel>();
+            var pendingStructures = new List<GlslStructModel>();
             var result = new List<string>();
 
             var structures = GlslParser.ExtractGlslStructures(shaderSourceCode);
@@ -28,7 +23,7 @@ namespace Editor
             while (pendingStructures.Count > 0)
             {
                 bool processedAny = false;
-                var remainingStructures = new List<GlslStructureModel>();
+                var remainingStructures = new List<GlslStructModel>();
 
                 foreach (var structure in pendingStructures)
                 {
@@ -64,7 +59,7 @@ namespace Editor
             return result;
         }
 
-        private static bool CanProcessStructure(GlslStructureModel structure, HashSet<string> generatedTypes)
+        private static bool CanProcessStructure(GlslStructModel structure, HashSet<string> generatedTypes)
         {
             foreach (var field in structure.Fields)
             {
@@ -76,7 +71,7 @@ namespace Editor
             return true;
         }
 
-        private static string GenerateModelClass(GlslStructureModel structure, string sourceGuid)
+        private static string GenerateModelClass(GlslStructModel structure, string sourceGuid)
         {
             var mainBuilder = new StringBuilder();
             var contentBuilder = new StringBuilder();

@@ -26,6 +26,7 @@
   </ItemGroup>
   
   <ItemGroup>
+    <AdditionalFiles Remove="Resources\Graphics\RS\StructureInstanceDetectionTest.rs" />
     <AdditionalFiles Remove="Resources\Graphics\RS\view.rs" />
   </ItemGroup>
   

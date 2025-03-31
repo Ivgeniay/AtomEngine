@@ -44,8 +44,9 @@ namespace OpenglLib
             fileInfo.UniformBlocks = GlslParser.ExtractUniformBlocks(fileInfo.ProcessedCode);
             fileInfo.Uniforms = GlslParser.ExtractUniforms(fileInfo.ProcessedCode);
             fileInfo.Structures = GlslParser.ExtractGlslStructures(fileInfo.ProcessedCode);
-
             fileInfo.Methods = GlslParser.ExtractMethods(fileInfo.ProcessedCode);
+
+            fileInfo.StructureInstances = GlslParser.ExtractStructInstances(fileInfo.ProcessedCode, fileInfo.Structures);
 
             return fileInfo;
         }
@@ -157,12 +158,21 @@ namespace OpenglLib
             }
             return methods;
         }
-        public static List<GlslStructureModel> GetStructuresFromFileInfos(List<RSFileInfo> rsInfos)
+        public static List<GlslStructModel> GetStructuresFromFileInfos(List<RSFileInfo> rsInfos)
         {
-            var structs = new List<GlslStructureModel>();
+            var structs = new List<GlslStructModel>();
             foreach (RSFileInfo rsInfo in rsInfos)
             {
                 structs.AddRange(rsInfo.Structures);
+            }
+            return structs;
+        }
+        public static List<GlslStructInstance> GetStructuresInstanceFromFileInfos(List<RSFileInfo> rsInfos)
+        {
+            var structs = new List<GlslStructInstance>();
+            foreach (RSFileInfo rsInfo in rsInfos)
+            {
+                structs.AddRange(rsInfo.StructureInstances);
             }
             return structs;
         }

@@ -1,11 +1,7 @@
-﻿using System.Collections.Generic;
-using Editor.Utils.Generator;
-using System.Text;
-using System.IO;
+﻿using System.Text;
 using EngineLib;
-using OpenglLib;
 
-namespace Editor
+namespace OpenglLib
 {
     public static class ShaderCodeRepresentationGenerator
     {
@@ -21,9 +17,6 @@ namespace Editor
              string outputDirectory, List<UniformModel> uniforms, List<UniformBlockModel> uniformBlocks, List<RSFileInfo> rsFiles, string sourceGuid = null,
              string sourcePath = null)
         {
-            if (string.IsNullOrEmpty(sourceGuid) && !string.IsNullOrEmpty(sourcePath))
-                sourceGuid = ServiceHub.Get<EditorMetadataManager>().GetMetadata(sourcePath)?.Guid;
-
             var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid, rsFiles);
             var representationFilePath = Path.Combine(outputDirectory, $"{representationName}{GeneratorConst.LABLE}.cs");
             File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);

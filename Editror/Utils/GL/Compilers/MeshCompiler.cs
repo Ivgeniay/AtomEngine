@@ -1,5 +1,4 @@
-﻿using Editor.Utils.Generator;
-using Silk.NET.Windowing;
+﻿using Silk.NET.Windowing;
 using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
 using System.Linq;

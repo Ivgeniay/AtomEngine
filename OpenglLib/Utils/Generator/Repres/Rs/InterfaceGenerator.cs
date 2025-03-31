@@ -1,7 +1,6 @@
 ﻿using System.Text;
-using OpenglLib;
 
-namespace Editor
+namespace OpenglLib
 {
     public static class InterfaceGenerator
     {

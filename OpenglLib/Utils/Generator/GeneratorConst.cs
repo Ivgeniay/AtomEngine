@@ -1,31 +1,39 @@
-﻿using EngineLib;
-using System.Text;
-using System;
+﻿using System.Text;
 
-namespace Editor
+namespace OpenglLib
 {
     public static class GeneratorConst
     {
         public const string LABLE = "Rep.g";
 
+        private static string projectNamespace = string.Empty;
+
         public static string GetDefaultNamespaces()
         {
-            var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
-            return
+            var defaultNamespace = 
 @$"using System.Collections.Generic;
 using System.Numerics;
 using Silk.NET.Maths;
 using AtomEngine;
 using EngineLib;
 using OpenglLib;
-using System;
-using {projConfig.RootNamespace};";
+using System;";
+            if (!string.IsNullOrWhiteSpace(projectNamespace))
+            {
+                defaultNamespace += $"\nusing {projectNamespace};";
+            }
+            return defaultNamespace;
+        }
+
+        public static void SetUserScriptNamespace(string @namespace)
+        {
+            //"using UserScriptNamespace;"
+            projectNamespace = @namespace;
         }
 
         public static string GetUserScriptNamespace()
         {
-            var projConfig = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
-            return $"namespace {projConfig.RootNamespace}";
+            return $"namespace {projectNamespace}";
         }
 
         public static void WriteGeneratedCodeHeader(StringBuilder builder, string sourceGuid)

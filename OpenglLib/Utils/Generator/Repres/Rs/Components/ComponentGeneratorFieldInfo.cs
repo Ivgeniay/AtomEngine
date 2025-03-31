@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace Editor
+﻿namespace OpenglLib
 {
     public class ComponentGeneratorFieldInfo
     {

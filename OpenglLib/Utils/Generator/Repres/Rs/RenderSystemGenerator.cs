@@ -1,10 +1,6 @@
-﻿using System.Collections.Generic;
-using System.Text;
-using System.Linq;
-using OpenglLib;
-using AtomEngine;
+﻿using System.Text;
 
-namespace Editor
+namespace OpenglLib
 {
     public static class RenderSystemGenerator
     {
@@ -246,7 +242,7 @@ namespace Editor
         {
             string indent = new string(' ', indentLevel * 4);
 
-            GlslStructureModel? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
+            GlslStructModel? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
             if (currentStruct == null) return;
 
             int arraySize = fieldInfo.ArraySize;
@@ -280,7 +276,7 @@ namespace Editor
         {
             string indent = new string(' ', indentLevel * 4);
 
-            GlslStructureModel? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
+            GlslStructModel? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
             if (currentStruct == null) return;
 
             if (fieldInfo.IsDirtySupport)
@@ -316,7 +312,7 @@ namespace Editor
                 builder.AppendLine($"                    renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
             }
         }
-        private static void ProcessStructFields(StringBuilder builder, GlslStructureModel structure, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
+        private static void ProcessStructFields(StringBuilder builder, GlslStructModel structure, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
         {
             string indent = new string(' ', indentLevel * 4);
 
@@ -331,7 +327,7 @@ namespace Editor
                 }
                 else if (GlslParser.IsCustomType(field.Type, field.Type))
                 {
-                    GlslStructureModel? nestedStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
+                    GlslStructModel? nestedStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
                     if (nestedStruct != null)
                     {
                         ProcessStructFields(builder, nestedStruct, rsFileInfo, componentVar, $"{prefix}.{field.Name}", indentLevel);
@@ -350,7 +346,7 @@ namespace Editor
 
             if (GlslParser.IsCustomType(field.Type, field.Type))
             {
-                GlslStructureModel? itemStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
+                GlslStructModel? itemStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
                 if (itemStruct != null)
                 {
                     for (int i = 0; i < arraySize; i++)

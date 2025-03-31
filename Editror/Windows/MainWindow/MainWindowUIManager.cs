@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using Editor.Utils.Generator;
 using Avalonia.Controls;
 using System.Linq;
 using AtomEngine;
@@ -8,6 +7,7 @@ using System;
 using System.Threading.Tasks;
 using EngineLib;
 using Avalonia.Threading;
+using OpenglLib;
 
 namespace Editor
 {
@@ -255,7 +255,7 @@ namespace Editor
                 {
                     string outputDirectoryName = e.FileName.Contains(".") ? e.FileName.Substring(0, e.FileName.IndexOf(".")) : e.FileName;
                     outputDirectoryName = Path.Combine(e.FilePath, outputDirectoryName);
-                    await GlslCodeGenerator.GenerateCode(e.FileFullPath, outputDirectoryName, true);
+                    await GlslCodeGenerator.GenerateCode(e.FileFullPath, outputDirectoryName);
                 }
             });
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
