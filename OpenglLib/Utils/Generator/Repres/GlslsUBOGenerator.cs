@@ -44,9 +44,10 @@ namespace OpenglLib
             File.WriteAllText(blockFilePath, result, Encoding.UTF8);
         }
 
-        private static void GenerateMainStructure(StringBuilder builder, UniformBlockModel block, List<GlslStructModel> structures, string sourceGuid)
+        private static void GenerateMainStructure(StringBuilder builder, UniformBlockModel block, List<GlslStructModel> structures, string sourceGuid = null)
         {
-            GeneratorConst.WriteGeneratedCodeHeader(builder, sourceGuid);
+            if (sourceGuid != null) GeneratorConst.WriteGeneratedCodeHeader(builder, sourceGuid);
+
             builder.AppendLine("using System.Runtime.InteropServices;");
             builder.AppendLine($"{GeneratorConst.GetDefaultNamespaces()}");
             builder.AppendLine();

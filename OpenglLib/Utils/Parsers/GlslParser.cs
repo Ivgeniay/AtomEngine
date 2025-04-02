@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using System.Text;
 using AtomEngine;
+using EngineLib;
 
 namespace OpenglLib
 {
@@ -10,7 +11,8 @@ namespace OpenglLib
         {
             GlslShaderModel shaderModel = new GlslShaderModel();
 
-            string shaderSource = File.ReadAllText(sourcePath);
+            //string shaderSource = File.ReadAllText(sourcePath);
+            string shaderSource = FileLoader.LoadFile(sourcePath);
 
             bool isComplete = GlslParser.IsCompleteShaderFile(shaderSource);
 

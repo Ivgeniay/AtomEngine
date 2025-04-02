@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using AtomEngine;
+﻿using AtomEngine;
 
 namespace OpenglLib
 {
