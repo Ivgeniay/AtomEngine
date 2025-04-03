@@ -696,7 +696,6 @@ namespace OpenglLib
             }
             return AlignSize(totalSize, maxAlignment);
         }
-
     }
 
 }

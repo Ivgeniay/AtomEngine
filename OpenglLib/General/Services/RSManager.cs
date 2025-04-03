@@ -12,6 +12,8 @@ namespace OpenglLib
         private ConcurrentDictionary<string, Dictionary<string, RSStructTypeInfo>> _structuresByName = new ConcurrentDictionary<string, Dictionary<string, RSStructTypeInfo>>();
         private ConcurrentDictionary<string, Dictionary<string, RSUBOTypeInfo>> _ubosByName = new ConcurrentDictionary<string, Dictionary<string, RSUBOTypeInfo>>();
 
+        public string OutputDirectory { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "GeneratedCode");
+
         public Task InitializeAsync()
         {
             return Task.CompletedTask;
@@ -166,7 +168,7 @@ namespace OpenglLib
             }
         }
 
-        public void EnsureTypesGenerated(string rsFilePath)
+        public async Task EnsureTypesGenerated(string rsFilePath)
         {
             if (!_rsFileRegistrations.TryGetValue(rsFilePath, out var registration))
             {
@@ -188,7 +190,7 @@ namespace OpenglLib
                     uboInfo.IsGenerated = true;
                 }
             }
-            GenerateRSComponents(registration);
+            await GenerateRSComponents(registration);
         }
 
         private void GenerateStructType(string rsFilePath, RSStructTypeInfo structInfo, RSFileRegistration registration)
@@ -212,15 +214,13 @@ namespace OpenglLib
                     Attributes = structModel.Attributes,
                     FullText = structModel.FullText.Replace(structInfo.OriginalName, structInfo.GeneratedTypeName)
                 };
-
-                string outputDirectory = Path.Combine(registration.SourceFolder, "Generated");
-                if (!Directory.Exists(outputDirectory))
+                if (!Directory.Exists(OutputDirectory))
                 {
-                    Directory.CreateDirectory(outputDirectory);
+                    Directory.CreateDirectory(OutputDirectory);
                 }
 
                 string modelCode = GlslStructGenerator.GenerateModelClass(modifiedStructModel);
-                string filePath = Path.Combine(outputDirectory, $"GlslStruct.{structInfo.GeneratedTypeName}.g.cs");
+                string filePath = Path.Combine(OutputDirectory, $"GlslStruct.{structInfo.GeneratedTypeName}.g.cs");
                 File.WriteAllText(filePath, modelCode, Encoding.UTF8);
 
                 structInfo.IsGenerated = true;
@@ -256,15 +256,14 @@ namespace OpenglLib
                     UniformBlockType = uboModel.UniformBlockType
                 };
 
-                string outputDirectory = Path.Combine(registration.SourceFolder, "Generated");
-                if (!Directory.Exists(outputDirectory))
+                if (!Directory.Exists(OutputDirectory))
                 {
-                    Directory.CreateDirectory(outputDirectory);
+                    Directory.CreateDirectory(OutputDirectory);
                 }
 
                 GlslsUBOGenerator.GenerateUniformBlockClass(
                     modifiedUboModel,
-                    outputDirectory,
+                    OutputDirectory,
                     rsFilePath,
                     rsFileInfo.Structures);
 
@@ -276,35 +275,31 @@ namespace OpenglLib
             }
         }
 
-        private void GenerateRSComponents(RSFileRegistration registration)
+        private async Task GenerateRSComponents(RSFileRegistration registration)
         {
             try
             {
                 string rsFilePath = registration.FilePath;
-                string rsContent = File.ReadAllText(rsFilePath);
+                string rsContent = FileLoader.LoadFile(rsFilePath);
                 var rsFileInfo = RSParser.ParseContent(rsContent, rsFilePath);
 
-                // Определяем выходную директорию
-                string outputDirectory = Path.Combine(registration.SourceFolder, "Generated");
-                if (!Directory.Exists(outputDirectory))
-                {
-                    Directory.CreateDirectory(outputDirectory);
-                }
-
-                // Генерируем интерфейс
                 string interfaceCode = InterfaceGenerator.GenerateInterface(rsFileInfo);
-                string interfacePath = Path.Combine(outputDirectory, $"{registration.InterfaceName}.cs");
+                string interfacePath = Path.Combine(OutputDirectory, $"{registration.InterfaceName}.cs");
+                if (!Directory.Exists(interfacePath))  Directory.CreateDirectory(interfacePath);
+                await Task.Delay(200);
                 File.WriteAllText(interfacePath, interfaceCode);
 
-                // Генерируем компонент
                 ComponentGeneratorInfo componentInfo;
                 string componentCode = ComponentGenerator.GenerateComponentTemplate(rsFileInfo, out componentInfo);
-                string componentPath = Path.Combine(outputDirectory, $"{registration.ComponentName}.cs");
+                string componentPath = Path.Combine(OutputDirectory, $"{registration.ComponentName}.cs");
+                if (!Directory.Exists(componentPath))  Directory.CreateDirectory(interfacePath);
+                await Task.Delay(200);
                 File.WriteAllText(componentPath, componentCode);
 
-                // Генерируем систему
                 string systemCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rsFileInfo, componentInfo);
-                string systemPath = Path.Combine(outputDirectory, $"{registration.SystemName}.cs");
+                string systemPath = Path.Combine(OutputDirectory, $"{registration.SystemName}.cs");
+                if (!Directory.Exists(systemPath))  Directory.CreateDirectory(interfacePath);
+                await Task.Delay(200);
                 File.WriteAllText(systemPath, systemCode);
             }
             catch (Exception ex)
@@ -312,7 +307,6 @@ namespace OpenglLib
                 DebLogger.Error($"Error generating components for {registration.FilePath}: {ex.Message}");
             }
         }
-
 
     }
 

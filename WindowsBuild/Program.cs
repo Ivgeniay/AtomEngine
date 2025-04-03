@@ -31,6 +31,7 @@ namespace WindowsBuild
             WindowBuildFileRouter router = new WindowBuildFileRouter(rootPath);
 
             ServiceHub.RegisterService<AssemblyManager>();
+            ServiceHub.RegisterService<RSManager>();
             ServiceHub.RegisterService<RuntimeResourceManager>();
             ServiceHub.RegisterService<EventHub>();
             ServiceHub.RegisterService<DirectoryExplorer>(); //Нужно создать экземпляр для WindowsBuild, создать модели, зарегать все сраные пути из router
