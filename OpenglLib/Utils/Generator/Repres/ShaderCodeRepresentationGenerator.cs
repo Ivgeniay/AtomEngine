@@ -14,12 +14,12 @@ namespace OpenglLib
         private const string DISPOSE_BODY_PLACEHOLDER = "/*DISPOSE_BODY*/";
 
         public static string GenerateRepresentationFromSource(string representationName, string vertexSource, string fragmentSource,
-             string outputDirectory, List<UniformModel> uniforms, List<UniformBlockModel> uniformBlocks, List<RSFileInfo> rsFiles, string sourceGuid = null,
-             string sourcePath = null)
+             string outputDirectory, List<UniformModel> uniforms, List<UniformBlockModel> uniformBlocks, List<RSFileInfo> rsFiles,
+             GlslShaderModel shaderModel, string sourceGuid = null, string sourcePath = null)
         {
             UpdateUniformTypesFromRSFiles(uniforms, rsFiles);
 
-            var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid, rsFiles);
+            var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid, rsFiles, shaderModel);
             var representationFilePath = Path.Combine(outputDirectory, $"{representationName}{GeneratorConst.LABLE}.cs");
             File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);
 
@@ -28,7 +28,7 @@ namespace OpenglLib
 
         private static string GenerateRepresentationClass(string materialName, string vertexSource,
             string fragmentSource, List<UniformModel> uniforms, List<UniformBlockModel> uniformBlocks, 
-            string sourceGuid, List<RSFileInfo> rsFiles)
+            string sourceGuid, List<RSFileInfo> rsFiles, GlslShaderModel shaderModel)
         {
             var mainBuilder = new StringBuilder();
             var contentBuilder = new StringBuilder();
@@ -100,6 +100,91 @@ namespace OpenglLib
                 {
                     isUseDispose = true;
                     UniformBlockWithoutBindingCase(fieldsBuilder, constructorBodyBuilder, disposeBodyBuilder, block);
+                }
+            }
+
+            if (shaderModel.Vertex != null)
+            {
+                foreach (var structInstance in shaderModel.Vertex.StructureInstances)
+                {
+                    if (!structInstance.IsUniform)
+                    {
+                        string cashFieldName = $"_{structInstance.InstanceName}";
+                        string csharpType = string.IsNullOrWhiteSpace(structInstance.Structure.CSharpTypeName)
+                            ? GlslParser.MapGlslTypeToCSharp(structInstance.Structure.Name)
+                            : structInstance.Structure.CSharpTypeName;
+
+                        if (structInstance.ArraySize.HasValue)
+                        {
+                            int arraySize = structInstance.ArraySize.Value;
+
+                            fieldsBuilder.AppendLine($"        private StructArray<{csharpType}> {cashFieldName};");
+                            fieldsBuilder.AppendLine($"        public StructArray<{csharpType}> {structInstance.InstanceName}");
+                            fieldsBuilder.AppendLine("        {");
+                            fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
+                            fieldsBuilder.AppendLine("        }");
+                            fieldsBuilder.AppendLine();
+                            fieldsBuilder.AppendLine();
+
+                            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new StructArray<{csharpType}>({arraySize}, _gl);");
+                        }
+                        else
+                        {
+                            fieldsBuilder.AppendLine($"        private {csharpType} {cashFieldName};");
+                            fieldsBuilder.AppendLine($"        public {csharpType} {structInstance.InstanceName}");
+                            fieldsBuilder.AppendLine("        {");
+                            fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
+                            fieldsBuilder.AppendLine("        }");
+                            fieldsBuilder.AppendLine();
+                            fieldsBuilder.AppendLine();
+
+                            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new {csharpType}(_gl);");
+                        }
+                    }
+                }
+            }
+
+            if (shaderModel.Fragment != null)
+            {
+                foreach (var structInstance in shaderModel.Fragment.StructureInstances)
+                {
+                    if (!structInstance.IsUniform)
+                    {
+                        string cashFieldName = $"_{structInstance.InstanceName}";
+                        if (fieldsBuilder.ToString().Contains($"public {structInstance.InstanceName}"))
+                            continue;
+
+                        string csharpType = string.IsNullOrWhiteSpace(structInstance.Structure.CSharpTypeName)
+                            ? GlslParser.MapGlslTypeToCSharp(structInstance.Structure.Name)
+                            : structInstance.Structure.CSharpTypeName;
+
+                        if (structInstance.ArraySize.HasValue)
+                        {
+                            int arraySize = structInstance.ArraySize.Value;
+
+                            fieldsBuilder.AppendLine($"        private StructArray<{csharpType}> {cashFieldName};");
+                            fieldsBuilder.AppendLine($"        public StructArray<{csharpType}> {structInstance.InstanceName}");
+                            fieldsBuilder.AppendLine("        {");
+                            fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
+                            fieldsBuilder.AppendLine("        }");
+                            fieldsBuilder.AppendLine();
+                            fieldsBuilder.AppendLine();
+
+                            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new StructArray<{csharpType}>({arraySize}, _gl);");
+                        }
+                        else
+                        {
+                            fieldsBuilder.AppendLine($"        private {csharpType} {cashFieldName};");
+                            fieldsBuilder.AppendLine($"        public {csharpType} {structInstance.InstanceName}");
+                            fieldsBuilder.AppendLine("        {");
+                            fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
+                            fieldsBuilder.AppendLine("        }");
+                            fieldsBuilder.AppendLine();
+                            fieldsBuilder.AppendLine();
+
+                            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new {csharpType}(_gl);");
+                        }
+                    }
                 }
             }
 

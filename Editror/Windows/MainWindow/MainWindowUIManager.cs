@@ -255,7 +255,8 @@ namespace Editor
                 {
                     string outputDirectoryName = e.FileName.Contains(".") ? e.FileName.Substring(0, e.FileName.IndexOf(".")) : e.FileName;
                     outputDirectoryName = Path.Combine(e.FilePath, outputDirectoryName);
-                    await GlslCodeGenerator.GenerateCode(e.FileFullPath, outputDirectoryName);
+                    await GenerateCode.Generate(e.FileFullPath, outputDirectoryName);
+                    //await GlslCodeGenerator.GenerateCode(e.FileFullPath, outputDirectoryName);
                 }
             });
             _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu

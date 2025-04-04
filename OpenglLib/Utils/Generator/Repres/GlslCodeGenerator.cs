@@ -19,6 +19,8 @@ namespace OpenglLib
                 var shaderTypeManager = ServiceHub.Get<ShaderTypeManager>();
                 var shader = GlslExtractor.ExtractShaderModel(sourcePath);
 
+                ShaderStructureInstanceProcessor.SyncRSFilesWithShaderModel(shader);
+
                 HashSet<string> processedStructures = new HashSet<string>();
                 HashSet<string> processedUBOs = new HashSet<string>();
 
@@ -28,8 +30,10 @@ namespace OpenglLib
                     {
                         string rsContent = FileLoader.LoadFile(rsFile.SourcePath);
                         var registration = rsManager.RegisterRSFile(rsFile.SourcePath, rsContent);
+                        rsManager.CacheRSInstance(rsFile);
                         await rsManager.EnsureTypesGenerated(rsFile.SourcePath);
                         rsManager.UpdateRSFileTypesWithGeneratedNames(rsFile);
+                        await rsManager.GenerateComponentsFromRSFile(rsFile);
 
                         foreach (var structInfo in registration.Structures.Values)
                         {
@@ -41,6 +45,8 @@ namespace OpenglLib
                             processedUBOs.Add(uboInfo.OriginalName);
                         }
                     }
+
+                    ShaderStructureInstanceProcessor.PropagateRSTypesToShaderModel(shader);
                 }
 
                 if (shader.Vertex != null)
@@ -162,6 +168,7 @@ namespace OpenglLib
                     uniformBlocks: allUBOs,
                     sourceGuid: sourceGuid,
                     sourcePath: sourcePath,
+                    shaderModel: shader,
                     rsFiles: shader.RSFiles);
 
                 return resultRepresentationName;
@@ -175,5 +182,240 @@ namespace OpenglLib
             }
         }
 
+    }
+
+
+    public static class ShaderStructureInstanceProcessor
+    {
+        private const string VERTEX_SUFFIX = "_vt";
+        private const string FRAGMENT_SUFFIX = "_fg";
+
+        public static void ProcessStructureInstances(GlslShaderModel shaderModel)
+        {
+            if (shaderModel == null) return;
+
+            var instanceMap = new Dictionary<string, List<InstanceInfo>>();
+            CollectInstances(shaderModel, instanceMap);
+            ProcessDuplicateInstances(instanceMap);
+            ApplyChangesToModel(shaderModel, instanceMap);
+        }
+
+        public static void PropagateRSTypesToShaderModel(GlslShaderModel shaderModel)
+        {
+            List<RSFileInfo> rsFiles = shaderModel.RSFiles;
+
+            if (shaderModel == null || rsFiles == null || rsFiles.Count == 0)
+                return;
+
+            var typeMap = new Dictionary<string, string>();
+
+            foreach (var rsFile in rsFiles)
+            {
+                foreach (var structure in rsFile.Structures)
+                {
+                    if (!string.IsNullOrEmpty(structure.CSharpTypeName))
+                    {
+                        typeMap[structure.Name] = structure.CSharpTypeName;
+                    }
+                }
+            }
+
+            if (shaderModel.Vertex != null)
+            {
+                foreach (var structure in shaderModel.Vertex.Structures)
+                {
+                    if (typeMap.TryGetValue(structure.Name, out var csharpType))
+                    {
+                        structure.CSharpTypeName = csharpType;
+                    }
+                }
+
+                foreach (var instance in shaderModel.Vertex.StructureInstances)
+                {
+                    if (instance.Structure != null &&
+                        typeMap.TryGetValue(instance.Structure.Name, out var csharpType))
+                    {
+                        instance.Structure.CSharpTypeName = csharpType;
+                    }
+                }
+            }
+
+            if (shaderModel.Fragment != null)
+            {
+                foreach (var structure in shaderModel.Fragment.Structures)
+                {
+                    if (typeMap.TryGetValue(structure.Name, out var csharpType))
+                    {
+                        structure.CSharpTypeName = csharpType;
+                    }
+                }
+
+                foreach (var instance in shaderModel.Fragment.StructureInstances)
+                {
+                    if (instance.Structure != null &&
+                        typeMap.TryGetValue(instance.Structure.Name, out var csharpType))
+                    {
+                        instance.Structure.CSharpTypeName = csharpType;
+                    }
+                }
+            }
+        }
+
+        public static void SyncRSFilesWithShaderModel(GlslShaderModel shaderModel)
+        {
+            if (shaderModel == null || shaderModel.RSFiles == null || shaderModel.RSFiles.Count == 0)
+                return;
+
+            foreach (var rsFile in shaderModel.RSFiles)
+            {
+                foreach (var rsInstance in rsFile.StructureInstances)
+                {
+                    if (rsInstance.IsUniform)
+                        continue;
+
+                    if (shaderModel.Vertex != null)
+                    {
+                        var vertexInstance = shaderModel.Vertex.StructureInstances
+                            .FirstOrDefault(i => !i.IsUniform && i.OriginalInstanceName == rsInstance.InstanceName);
+
+                        if (vertexInstance != null)
+                        {
+                            rsInstance.OriginalInstanceName = rsInstance.InstanceName;
+                            rsInstance.InstanceName = vertexInstance.InstanceName;
+                            continue;
+                        }
+                    }
+
+                    if (shaderModel.Fragment != null)
+                    {
+                        var fragmentInstance = shaderModel.Fragment.StructureInstances
+                            .FirstOrDefault(i => !i.IsUniform && i.OriginalInstanceName == rsInstance.InstanceName);
+
+                        if (fragmentInstance != null)
+                        {
+                            rsInstance.OriginalInstanceName = rsInstance.InstanceName;
+                            rsInstance.InstanceName = fragmentInstance.InstanceName;
+                        }
+                    }
+                }
+            }
+        }
+
+
+
+        private static void CollectInstances(GlslShaderModel shaderModel, Dictionary<string, List<InstanceInfo>> instanceMap)
+        {
+            if (shaderModel.Vertex != null)
+            {
+                foreach (var instance in shaderModel.Vertex.StructureInstances)
+                {
+                    if (!instance.IsUniform)
+                    {
+                        if (!instanceMap.ContainsKey(instance.InstanceName))
+                        {
+                            instanceMap[instance.InstanceName] = new List<InstanceInfo>();
+                        }
+
+                        instanceMap[instance.InstanceName].Add(new InstanceInfo
+                        {
+                            Instance = instance,
+                            IsVertex = true,
+                            StructureHash = CalculateStructureHash(instance.Structure)
+                        });
+
+                        instance.OriginalInstanceName = instance.InstanceName;
+                    }
+                }
+            }
+
+            if (shaderModel.Fragment != null)
+            {
+                foreach (var instance in shaderModel.Fragment.StructureInstances)
+                {
+                    if (!instance.IsUniform)
+                    {
+                        if (!instanceMap.ContainsKey(instance.InstanceName))
+                        {
+                            instanceMap[instance.InstanceName] = new List<InstanceInfo>();
+                        }
+
+                        instanceMap[instance.InstanceName].Add(new InstanceInfo
+                        {
+                            Instance = instance,
+                            IsVertex = false,
+                            StructureHash = CalculateStructureHash(instance.Structure)
+                        });
+
+                        instance.OriginalInstanceName = instance.InstanceName;
+                    }
+                }
+            }
+        }
+
+        private static void ProcessDuplicateInstances(Dictionary<string, List<InstanceInfo>> instanceMap)
+        {
+            foreach (var entry in instanceMap)
+            {
+                string instanceName = entry.Key;
+                var instances = entry.Value;
+
+                if (instances.Count <= 1) continue;
+
+                bool hasVertexInstance = instances.Any(i => i.IsVertex);
+                bool hasFragmentInstance = instances.Any(i => !i.IsVertex);
+
+                if (!hasVertexInstance || !hasFragmentInstance) continue;
+
+                bool areStructuresIdentical = instances.Select(i => i.StructureHash).Distinct().Count() == 1;
+
+                if (areStructuresIdentical)
+                {
+                    foreach (var info in instances)
+                    {
+                        if (info.IsVertex)
+                        {
+                            info.Instance.InstanceName += VERTEX_SUFFIX;
+                        }
+                        else
+                        {
+                            info.Instance.InstanceName += FRAGMENT_SUFFIX;
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (var info in instances)
+                    {
+                        if (info.IsVertex)
+                        {
+                            info.Instance.InstanceName += VERTEX_SUFFIX;
+                        }
+                        else
+                        {
+                            info.Instance.InstanceName += FRAGMENT_SUFFIX;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void ApplyChangesToModel(GlslShaderModel shaderModel, Dictionary<string, List<InstanceInfo>> instanceMap)
+        {
+        }
+
+        private static string CalculateStructureHash(GlslStructModel structure)
+        {
+            if (structure == null) return string.Empty;
+            return string.Join("|", structure.Fields.Select(f => $"{f.Type}:{f.Name}:{f.ArraySize}"));
+        }
+
+        
+
+        private class InstanceInfo
+        {
+            public GlslStructInstance Instance { get; set; }
+            public bool IsVertex { get; set; }
+            public string StructureHash { get; set; }
+        }
     }
 }

@@ -40,19 +40,23 @@ namespace Editor
                 }
                 result.Log.AppendLine("full shader");
 
-                List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, e.FileFullPath);
+                var shader = GlslExtractor.ExtractShaderModel(e.FileFullPath);
+                //List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, e.FileFullPath);
 
-                shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, e.FileFullPath);
-                shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
 
-                shaderSource = GlslPlacementResolver.ResolveUniformBlockPlacement(shaderSource, RSParser.GetUniformsBlocksFromRsFileInfos(rsFiles));
-                shaderSource = GlslPlacementResolver.ResolveUniformPlacement(shaderSource, RSParser.GetUniformsFromRsFileInfos(rsFiles));
-                shaderSource = GlslPlacementResolver.ResolveStructInstancePlacement(shaderSource, RSParser.GetStructuresInstanceFromFileInfos(rsFiles));
-                shaderSource = GlslPlacementResolver.ResolveStructurePlacement(shaderSource, RSParser.GetStructuresFromFileInfos(rsFiles));
-                shaderSource = GlslPlacementResolver.ResolveConstantPlacement(shaderSource, RSParser.GetConstFromFileInfos(rsFiles));
-                shaderSource = GlslPlacementResolver.ResolveMethodPlacement(shaderSource, RSParser.GetMethodsFromRsFileInfos(rsFiles));
+                //shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, e.FileFullPath);
+                //shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
 
-                var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
+                //shaderSource = GlslPlacementResolver.ResolveUniformBlockPlacement(shaderSource, RSParser.GetUniformsBlocksFromRsFileInfos(rsFiles));
+                //shaderSource = GlslPlacementResolver.ResolveUniformPlacement(shaderSource, RSParser.GetUniformsFromRsFileInfos(rsFiles));
+                //shaderSource = GlslPlacementResolver.ResolveStructInstancePlacement(shaderSource, RSParser.GetStructuresInstanceFromFileInfos(rsFiles));
+                //shaderSource = GlslPlacementResolver.ResolveStructurePlacement(shaderSource, RSParser.GetStructuresFromFileInfos(rsFiles));
+                //shaderSource = GlslPlacementResolver.ResolveConstantPlacement(shaderSource, RSParser.GetConstFromFileInfos(rsFiles));
+                //shaderSource = GlslPlacementResolver.ResolveMethodPlacement(shaderSource, RSParser.GetMethodsFromRsFileInfos(rsFiles));
+
+                //var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
+                string vertexSource = shader.Vertex.FullText;
+                string fragmentSource = shader.Fragment.FullText;
 
                 var options = WindowOptions.Default;
                 options.Size = new Silk.NET.Maths.Vector2D<int>(1, 1);

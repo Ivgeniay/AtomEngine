@@ -27,22 +27,11 @@ namespace OpenglLib
             Textures = textures ?? new List<Texture>();
             FillingVertices(vertices, indices);
 
-            ValidateVertexData();
             SetupMesh();
 
             BoundingVolume = new BoundingBox(this);
         }
 
-        private void ValidateVertexData()
-        {
-            //if (Vertices.Length % (_format.Stride / sizeof(float)) != 0)
-            //    throw new ArgumentError($"Vertices array length must be multiple of {_format.Stride / sizeof(float)}");
-
-            //if (_primitiveType == PrimitiveType.Triangles && Indices.Length % 3 != 0)
-            //    throw new ArgumentError("Indices array length must be multiple of 3 for triangle primitives");
-        }
-
-        private Dictionary<string, int> _attributeOffsets;
 
         private void FillingVertices(float[] vertices, uint[] indices)
         {
@@ -104,6 +93,42 @@ namespace OpenglLib
             return new Mesh(gl, vertices, indices, format, textures);
         }
 
+        public VertexFormat AdaptToShader(Shader shader)
+        {
+            var shaderAttributes = shader.GetAllAttributeLocations();
+            var adaptedFormat = new VertexFormat();
+
+            foreach (var attr in shaderAttributes)
+            {
+                var matchingAttribute = _format.Attributes
+                    .FirstOrDefault(a => a.Name.Equals(attr.Key, StringComparison.OrdinalIgnoreCase));
+
+                if (matchingAttribute != null)
+                {
+                    adaptedFormat.AddAttribute(
+                        matchingAttribute.Name,
+                        attr.Value,
+                        matchingAttribute.Size,
+                        matchingAttribute.Type
+                    );
+                }
+                else
+                {
+                    // Логирование несоответствия или генерация дефолтного атрибута
+                    DebLogger.Warn($"Attribute {attr.Key} not found in mesh");
+                }
+            }
+
+            return adaptedFormat;
+        }
+
+        public bool IsCompatibleWithShader(Shader shader)
+        {
+            var shaderAttributes = shader.GetAllAttributeLocations();
+            return shaderAttributes.All(attr =>
+                _format.Attributes.Any(a =>
+                    a.Name.Equals(attr.Key, StringComparison.OrdinalIgnoreCase)));
+        }
         private unsafe void SetupMesh()
         {
             EBO = new BufferObject<uint>(GL, Indices, BufferTargetARB.ElementArrayBuffer);
@@ -163,7 +188,7 @@ namespace OpenglLib
         }
     }
 
-    public struct VertexAttributeDescriptor
+    public class VertexAttributeDescriptor
     {
         public string Name;                  
         public uint Location;                
@@ -184,7 +209,7 @@ namespace OpenglLib
 
     public class VertexFormat
     {
-        public List<VertexAttributeDescriptor> Attributes { get; } = new();
+        public List<VertexAttributeDescriptor> Attributes { get; } = new List<VertexAttributeDescriptor>();
         public int Stride { get; private set; }
 
         public void AddAttribute(string name, uint location, int size, VertexAttribPointerType type = VertexAttribPointerType.Float)

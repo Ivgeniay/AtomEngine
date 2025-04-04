@@ -1,7 +1,7 @@
-﻿using AtomEngine;
-using EngineLib;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Security.Cryptography;
+using AtomEngine;
+using EngineLib;
 using System.Text;
 
 namespace OpenglLib
@@ -11,7 +11,9 @@ namespace OpenglLib
         private ConcurrentDictionary<string, RSFileRegistration> _rsFileRegistrations = new ConcurrentDictionary<string, RSFileRegistration>();
         private ConcurrentDictionary<string, Dictionary<string, RSStructTypeInfo>> _structuresByName = new ConcurrentDictionary<string, Dictionary<string, RSStructTypeInfo>>();
         private ConcurrentDictionary<string, Dictionary<string, RSUBOTypeInfo>> _ubosByName = new ConcurrentDictionary<string, Dictionary<string, RSUBOTypeInfo>>();
+        private ConcurrentDictionary<string, RSFileInfo> _processedRSFiles = new ConcurrentDictionary<string, RSFileInfo>();
 
+        
         public string OutputDirectory { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "GeneratedCode");
 
         public Task InitializeAsync()
@@ -92,6 +94,19 @@ namespace OpenglLib
 
             _rsFileRegistrations[path] = registration;
             return registration;
+        }
+
+        public void CacheRSInstance(RSFileInfo processedRSFile)
+        {
+            _processedRSFiles[processedRSFile.SourcePath] = processedRSFile;
+        }
+
+        public async Task GenerateComponentsFromRSFile(RSFileInfo processedRSFile)
+        {
+            if (_rsFileRegistrations.TryGetValue(processedRSFile.SourcePath, out var registration))
+            {
+                await GenerateRSComponents(registration);
+            }
         }
 
         public RSStructTypeInfo GetStructTypeInfo(string structName, string rsFilePath)
@@ -194,7 +209,7 @@ namespace OpenglLib
                     uboInfo.IsGenerated = true;
                 }
             }
-            await GenerateRSComponents(registration);
+            //await GenerateRSComponents(registration);
         }
 
         private void GenerateStructType(string rsFilePath, RSStructTypeInfo structInfo, RSFileRegistration registration)
@@ -279,13 +294,21 @@ namespace OpenglLib
             }
         }
 
+        
+
         private async Task GenerateRSComponents(RSFileRegistration registration)
         {
             try
             {
                 string rsFilePath = registration.FilePath;
-                string rsContent = FileLoader.LoadFile(rsFilePath);
-                var rsFileInfo = RSParser.ParseContent(rsContent, rsFilePath);
+
+                RSFileInfo rsFileInfo;
+                if (!_processedRSFiles.TryGetValue(rsFilePath, out rsFileInfo))
+                {
+                    string rsContent = FileLoader.LoadFile(rsFilePath);
+                    rsFileInfo = RSParser.ParseContent(rsContent, rsFilePath);
+                }
+
                 UpdateRSFileTypesWithGeneratedNames(rsFileInfo);
                 if (!Directory.Exists(OutputDirectory))  Directory.CreateDirectory(OutputDirectory);
 
@@ -355,7 +378,26 @@ namespace OpenglLib
                     uniform.CSharpTypeName = GlslParser.MapGlslTypeToCSharp(uniform.Type);
                 }
             }
+
+            foreach (var structInstance in rsFileInfo.StructureInstances)
+            {
+                if (!structInstance.IsUniform)
+                {
+                    if (structInstance.OriginalInstanceName != null &&
+                        structInstance.OriginalInstanceName != structInstance.InstanceName)
+                    {
+                        //DebLogger.Info($"В RS-файле используется переименованный инстанс: {structInstance.OriginalInstanceName} -> {structInstance.InstanceName}");
+                    }
+
+                    var structName = structInstance.Structure.Name;
+                    if (registration.Structures.TryGetValue(structName, out var structInfo))
+                    {
+                        structInstance.Structure.CSharpTypeName = structInfo.GeneratedTypeName;
+                    }
+                }
+            }
         }
+
     }
 
     public class RSFileRegistration

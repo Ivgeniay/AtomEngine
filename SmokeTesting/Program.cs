@@ -26,97 +26,97 @@ namespace SmokeTesting
         }
         private static void Game(App app)
         {
-            World world = new World();
-            var camera = world.CreateEntity();
-            var cameraTransform = new TransformComponent(camera);
-            cameraTransform.Position = new Vector3(0, -25, 30);
-            world.AddComponent(camera, cameraTransform);
-            world.AddComponent(camera, new CameraComponent(camera));
+            //World world = new World();
+            //var camera = world.CreateEntity();
+            //var cameraTransform = new TransformComponent(camera);
+            //cameraTransform.Position = new Vector3(0, -25, 30);
+            //world.AddComponent(camera, cameraTransform);
+            //world.AddComponent(camera, new CameraComponent(camera));
 
-            TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
+            //TestMaterialMaterial shader = new TestMaterialMaterial(app.Gl);
             
-            Texture texture = new Texture(app.Gl, PathStorage.WOOD_JPG);
-            Texture texture2 = new Texture(app.Gl, PathStorage.ICON_LIGHT_BULB_PNG);
-            shader.tex_SetTexture(texture);
+            //Texture texture = new Texture(app.Gl, PathStorage.WOOD_JPG);
+            //Texture texture2 = new Texture(app.Gl, PathStorage.ICON_LIGHT_BULB_PNG);
+            //shader.tex_SetTexture(texture);
 
-            PhysicsSystem physicsSystem = new PhysicsSystem(world);
+            //PhysicsSystem physicsSystem = new PhysicsSystem(world);
 
-            for (int i = 0; i < 2; i++)
-            {
-                Entity cubeEntity = world.CreateEntity();
+            //for (int i = 0; i < 2; i++)
+            //{
+            //    Entity cubeEntity = world.CreateEntity();
 
-                Vector3 position = new Vector3(0, 0 + 5 * i, 0);
-                var t = new TransformComponent(cubeEntity);
-                t.Position = position;
+            //    Vector3 position = new Vector3(0, 0 + 5 * i, 0);
+            //    var t = new TransformComponent(cubeEntity);
+            //    t.Position = position;
 
-                Result<Model, Error> _mb_model1 = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
-                var _model1 = _mb_model1.Unwrap();
-                var _mesh1 = _model1.Meshes[0];
-                var _cubeMeshComponent1 = new MeshComponent(cubeEntity, _mesh1);
-                var boudingComponent = new BoundingComponent(cubeEntity).FromBox(_mesh1);
-                physicsSystem.CreateDynamicBox(ref t, new Vector3(2, 2, 2), 1);
-                BoudingMovedComponent boudingMovedComponent = new BoudingMovedComponent(cubeEntity);
-                PhysicsMaterialComponent _physicsMaterialComponent = new PhysicsMaterialComponent(cubeEntity, PhysicsMaterial.Metal);
+            //    Result<Model, Error> _mb_model1 = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
+            //    var _model1 = _mb_model1.Unwrap();
+            //    var _mesh1 = _model1.Meshes[0];
+            //    var _cubeMeshComponent1 = new MeshComponent(cubeEntity, _mesh1);
+            //    var boudingComponent = new BoundingComponent(cubeEntity).FromBox(_mesh1);
+            //    physicsSystem.CreateDynamicBox(ref t, new Vector3(2, 2, 2), 1);
+            //    BoudingMovedComponent boudingMovedComponent = new BoudingMovedComponent(cubeEntity);
+            //    PhysicsMaterialComponent _physicsMaterialComponent = new PhysicsMaterialComponent(cubeEntity, PhysicsMaterial.Metal);
 
-                world.AddComponent(cubeEntity, t);
-                world.AddComponent(cubeEntity, _cubeMeshComponent1);
-                world.AddComponent(cubeEntity, boudingComponent);
-                world.AddComponent(cubeEntity, boudingMovedComponent);
-                //world.AddComponent(cubeEntity, new MaterialComponent(cubeEntity, shader));
-                world.AddComponent(cubeEntity, new CollisionComponent(cubeEntity));
-                world.AddComponent(cubeEntity, _physicsMaterialComponent);
-            }
+            //    world.AddComponent(cubeEntity, t);
+            //    world.AddComponent(cubeEntity, _cubeMeshComponent1);
+            //    world.AddComponent(cubeEntity, boudingComponent);
+            //    world.AddComponent(cubeEntity, boudingMovedComponent);
+            //    //world.AddComponent(cubeEntity, new MaterialComponent(cubeEntity, shader));
+            //    world.AddComponent(cubeEntity, new CollisionComponent(cubeEntity));
+            //    world.AddComponent(cubeEntity, _physicsMaterialComponent);
+            //}
 
-            Vector3 pos = new Vector3(0, -30, 0);
-            Entity platformE = world.CreateEntity();
-            TransformComponent platformTransform = new TransformComponent(platformE);
-            platformTransform.Position = pos;
-            platformTransform.Scale = new Vector3(10, 1, 10);
-            platformTransform.Rotation = new Vector3(5, 0, 0);
-            var _mb_model = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
-            var platformModel = _mb_model.Unwrap();
-            var pltfarmMesh = platformModel.Meshes[0];
-            var boudingComponentCube = new BoundingComponent(platformE).FromBox(pltfarmMesh);
-            var platformMeshComponent = new MeshComponent(platformE, pltfarmMesh);
-            world.AddComponent(platformE, platformMeshComponent);
-            world.AddComponent(platformE, platformTransform);
-            world.AddComponent(platformE, boudingComponentCube);
-            world.AddComponent(platformE, new StaticComponent(platformE));
-            //world.AddComponent(platformE, new MaterialComponent(platformE, shader));
-            physicsSystem.CreateStaticBox(ref platformTransform, new Vector3(20, 2, 20));
+            //Vector3 pos = new Vector3(0, -30, 0);
+            //Entity platformE = world.CreateEntity();
+            //TransformComponent platformTransform = new TransformComponent(platformE);
+            //platformTransform.Position = pos;
+            //platformTransform.Scale = new Vector3(10, 1, 10);
+            //platformTransform.Rotation = new Vector3(5, 0, 0);
+            //var _mb_model = ModelLoader.LoadModel(PathStorage.CUBE_OBJ, app.Gl, app.Assimp);
+            //var platformModel = _mb_model.Unwrap();
+            //var pltfarmMesh = platformModel.Meshes[0];
+            //var boudingComponentCube = new BoundingComponent(platformE).FromBox(pltfarmMesh);
+            //var platformMeshComponent = new MeshComponent(platformE, pltfarmMesh);
+            //world.AddComponent(platformE, platformMeshComponent);
+            //world.AddComponent(platformE, platformTransform);
+            //world.AddComponent(platformE, boudingComponentCube);
+            //world.AddComponent(platformE, new StaticComponent(platformE));
+            ////world.AddComponent(platformE, new MaterialComponent(platformE, shader));
+            //physicsSystem.CreateStaticBox(ref platformTransform, new Vector3(20, 2, 20));
 
-            BoundingShaderMaterial boundingShader = new BoundingShaderMaterial(app.Gl);
-            Mesh mesh1 = Mesh.CreateWireframeMesh(app.Gl, boudingComponentCube.GetVertices(), boudingComponentCube.GetIndices());
-            world.AddComponent(platformE, new BoundingRenderComponent(platformE, boundingShader, mesh1));
-            world.AddComponent(platformE, new CollisionComponent(platformE));
-            PhysicsMaterialComponent platformPhysicsMaterialComponent = new PhysicsMaterialComponent(platformE, PhysicsMaterial.Rubber);
-            world.AddComponent(platformE, platformPhysicsMaterialComponent);
+            //BoundingShaderMaterial boundingShader = new BoundingShaderMaterial(app.Gl);
+            //Mesh mesh1 = Mesh.CreateWireframeMesh(app.Gl, boudingComponentCube.GetVertices(), boudingComponentCube.GetIndices());
+            //world.AddComponent(platformE, new BoundingRenderComponent(platformE, boundingShader, mesh1));
+            //world.AddComponent(platformE, new CollisionComponent(platformE));
+            //PhysicsMaterialComponent platformPhysicsMaterialComponent = new PhysicsMaterialComponent(platformE, PhysicsMaterial.Rubber);
+            //world.AddComponent(platformE, platformPhysicsMaterialComponent);
 
 
-            world.AddSystem(new RenderSystem(world));
-            world.AddSystem(new RotateSystem(world));
-            world.AddSystem(new CameraMoveSystem(world, app));
-            world.AddSystem(new BoundingInputSystem(world, app));
-            world.AddSystem(new BoundingMoveSystem(world));
-            world.AddSystem(new BoundingRenderSystem(world));
-            world.AddSystem(physicsSystem);
-            world.AddSystem(new CollisionSystem(world));
+            //world.AddSystem(new RenderSystem(world));
+            //world.AddSystem(new RotateSystem(world));
+            //world.AddSystem(new CameraMoveSystem(world, app));
+            //world.AddSystem(new BoundingInputSystem(world, app));
+            //world.AddSystem(new BoundingMoveSystem(world));
+            //world.AddSystem(new BoundingRenderSystem(world));
+            //world.AddSystem(physicsSystem);
+            //world.AddSystem(new CollisionSystem(world));
 
-            bool isUpdate = true;
+            //bool isUpdate = true;
 
-            app.Input.Keyboards[0].KeyDown += (keyboard, key, num) =>
-            {
-                if (key == Silk.NET.Input.Key.Space)
-                {
-                    shader.tex_SetTexture(texture2);
-                    //isUpdate = !isUpdate;
-                }
-            };
+            //app.Input.Keyboards[0].KeyDown += (keyboard, key, num) =>
+            //{
+            //    if (key == Silk.NET.Input.Key.Space)
+            //    {
+            //        shader.tex_SetTexture(texture2);
+            //        //isUpdate = !isUpdate;
+            //    }
+            //};
 
-            app.NativeWindow.Render += delta => { if (isUpdate) world.Render(delta); }; 
-            app.NativeWindow.Render += delta => { if (isUpdate) world.Update(delta); };
-            app.OnFixedUpdate += () => { world.FixedUpdate(); };
-            app.NativeWindow.Resize += size => { world.Resize(size.ToNumetrix()); };
+            //app.NativeWindow.Render += delta => { if (isUpdate) world.Render(delta); }; 
+            //app.NativeWindow.Render += delta => { if (isUpdate) world.Update(delta); };
+            //app.OnFixedUpdate += () => { world.FixedUpdate(); };
+            //app.NativeWindow.Resize += size => { world.Resize(size.ToNumetrix()); };
         }
     }
     public struct RotateComponent : IComponent
@@ -552,16 +552,16 @@ namespace SmokeTesting
                 ref var render = ref this.GetComponent<BoundingRenderComponent>(entity);
                 if (render.IsRender)
                 {
-                    var s = (BoundingShaderMaterial)render.Shader;
-                    s.Use();
+                    //var s = (BoundingShaderMaterial)render.Shader;
+                    //s.Use();
 
-                    s.MODEL = transform.GetModelMatrix().ToSilk();
-                    s.VIEW = cameraComponent.ViewMatrix.ToSilk();
-                    s.PROJ = cameraComponent.CreateProjectionMatrix().ToSilk();
+                    //s.MODEL = transform.GetModelMatrix().ToSilk();
+                    //s.VIEW = cameraComponent.ViewMatrix.ToSilk();
+                    //s.PROJ = cameraComponent.CreateProjectionMatrix().ToSilk();
 
-                    s.col = Vector3D<float>.UnitY;
+                    //s.col = Vector3D<float>.UnitY;
 
-                    render.Mesh.DrawAs(s, Silk.NET.OpenGL.PrimitiveType.LineLoop);
+                    //render.Mesh.DrawAs(s, Silk.NET.OpenGL.PrimitiveType.LineLoop);
                 }
             }
         }

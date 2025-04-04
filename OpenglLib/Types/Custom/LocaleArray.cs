@@ -6,6 +6,12 @@ using System.Collections;
 
 namespace OpenglLib
 {
+    /*
+     LocaleArray используется для того чтобы использоваться как массив в сгенерированном типе наследника Mat. 
+    Во время иницализации шейдера, он прокинет в LocaleArray locale первого элемента и потом можно будет безопасно 
+    устанавливать значения, пользуясь классом как массивом не думая о расположении информации в gl контексте.
+     */
+
     public class LocaleArray<T> : IDirty, IEnumerable<T> where T : struct
     {
         public bool IsDirty { get; set; } = true;

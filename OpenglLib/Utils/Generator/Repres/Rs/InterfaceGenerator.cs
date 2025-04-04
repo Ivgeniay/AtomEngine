@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.IO;
+using System.Text;
 
 namespace OpenglLib
 {
@@ -56,6 +57,30 @@ namespace OpenglLib
                 }
             }
 
+            foreach (var structInstance in fileInfo.StructureInstances)
+            {
+                if (!structInstance.IsUniform)
+                {
+                    string propertyName = !string.IsNullOrEmpty(structInstance.InstanceName)
+                        ? structInstance.InstanceName
+                        : structInstance.OriginalInstanceName;
+
+                    string structType = string.IsNullOrWhiteSpace(structInstance.Structure.CSharpTypeName)
+                        ? structInstance.Structure.Name
+                        : structInstance.Structure.CSharpTypeName;
+
+                    if (structInstance.ArraySize.HasValue)
+                    {
+                        StructureInstanceArrayCase(propertiesBuilder, structType, propertyName, structInstance.ArraySize.Value);
+                    }
+                    else
+                    {
+                        StructureInstanceCase(propertiesBuilder, structType, propertyName);
+                    }
+                }
+            }
+
+
             string contentText = contentBuilder.ToString()
                 .Replace(PROPERTIES_PLACEHOLDER, propertiesBuilder.ToString());
 
@@ -87,6 +112,16 @@ namespace OpenglLib
             string propertyName = block.InstanceName ?? block.Name;
             string typeName = $"{block.CSharpTypeName}";
             builder.AppendLine($"        {typeName} {propertyName} {{ set; }}");
+        }
+
+        private static void StructureInstanceCase(StringBuilder builder, string type, string name)
+        {
+            builder.AppendLine($"        {type} {name} {{ get; }}");
+        }
+
+        private static void StructureInstanceArrayCase(StringBuilder builder, string type, string name, int arraySize)
+        {
+            builder.AppendLine($"        StructArray<{type}> {name} {{ get; }}");
         }
 
         private static void UniformCase(StringBuilder builder, string type, string name, string csharpType)

@@ -10,8 +10,6 @@ namespace OpenglLib
         public static GlslShaderModel ExtractShaderModel(string sourcePath)
         {
             GlslShaderModel shaderModel = new GlslShaderModel();
-
-            //string shaderSource = File.ReadAllText(sourcePath);
             string shaderSource = FileLoader.LoadFile(sourcePath);
 
             bool isComplete = GlslParser.IsCompleteShaderFile(shaderSource);
@@ -1400,7 +1398,8 @@ namespace OpenglLib
                             InstanceName = instanceName,
                             IsUniform = true,
                             FullText = match.Value,
-                            ArraySize = arraySize
+                            ArraySize = arraySize,
+                            Attributes = GlslParser.ExtractAttributesAbove(sourceCode, match.Index)
                         });
 
                         processedInstanceNames.Add(instanceName);
@@ -1449,7 +1448,8 @@ namespace OpenglLib
                                         InstanceName = name,
                                         IsUniform = false,
                                         FullText = match.Value,
-                                        ArraySize = arraySize
+                                        ArraySize = arraySize,
+                                        Attributes = GlslParser.ExtractAttributesAbove(sourceCode, match.Index)
                                     });
 
                                     processedInstanceNames.Add(name);
@@ -1492,7 +1492,8 @@ namespace OpenglLib
                             InstanceName = instanceName,
                             IsUniform = false,
                             FullText = match.Value,
-                            ArraySize = arraySize
+                            ArraySize = arraySize,
+                            Attributes = GlslParser.ExtractAttributesAbove(sourceCode, match.Index)
                         });
 
                         processedInstanceNames.Add(instanceName);
@@ -1804,10 +1805,13 @@ namespace OpenglLib
     public class GlslStructInstance
     {
         public GlslStructModel Structure { get; set; }
+        public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
+        public string OriginalInstanceName { get; set; } = string.Empty;
         public string InstanceName { get; set; } = string.Empty;
         public bool IsUniform { get; set; } = false;
         public string FullText { get; set; } = string.Empty;
         public int? ArraySize { get; set; }
+        public bool AdditionPair { get; set; } = false;
     }
 
     public class GlslStructFieldModel

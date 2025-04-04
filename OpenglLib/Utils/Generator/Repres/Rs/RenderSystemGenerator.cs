@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.IO;
+using System.Text;
 
 namespace OpenglLib
 {
@@ -148,7 +149,7 @@ namespace OpenglLib
                 {
                     if (isCustomStruct)
                     {
-                        GenerateCustomStructArrayRendering(builder, fieldName, componentVar, isDirtySupport, uniform.ArraySize.Value);
+                        GenerateCustomStructArrayRendering(builder, fieldName, componentVar, isDirtySupport, uniform.ArraySize.Value, rsFileInfo);
                     }
                     else
                     {
@@ -180,6 +181,41 @@ namespace OpenglLib
                 }
             }
 
+            foreach (var structInstance in rsFileInfo.StructureInstances)
+            {
+                if (!structInstance.IsUniform)
+                {
+                    string instanceName = !string.IsNullOrEmpty(structInstance.InstanceName)
+                        ? structInstance.InstanceName
+                        : structInstance.OriginalInstanceName;
+                    bool isDirtySupport = structInstance.Attributes.Any(a => a.Name.Equals("isdirty", StringComparison.OrdinalIgnoreCase) &&
+                                                                  a.Value.Equals("true", StringComparison.OrdinalIgnoreCase));
+
+                    if (structInstance.ArraySize.HasValue)
+                    {
+                        GenerateStructArrayInstanceRendering(builder, instanceName, componentVar, rsFileInfo, isDirtySupport);
+                    }
+                    else
+                    {
+                        GenerateStructInstanceRendering(builder, instanceName, componentVar, rsFileInfo, isDirtySupport);
+                    }
+                }
+            }
+
+            if (rsFileInfo.Uniforms.Any(e => e.Attributes.Any(a => 
+                                                                a.Name.Equals("isdirty", StringComparison.OrdinalIgnoreCase) &&
+                                                                a.Value.Equals("true", StringComparison.OrdinalIgnoreCase))) ||
+                rsFileInfo.UniformBlocks.Any(e => e.Attributes.Any(a => 
+                                                                a.Name.Equals("isdirty", StringComparison.OrdinalIgnoreCase) &&
+                                                                a.Value.Equals("true", StringComparison.OrdinalIgnoreCase))) ||
+                rsFileInfo.StructureInstances.Any(e => e.Attributes.Any(a => 
+                                                                a.Name.Equals("isdirty", StringComparison.OrdinalIgnoreCase) &&
+                                                                a.Value.Equals("true", StringComparison.OrdinalIgnoreCase))))
+            {
+                builder.AppendLine($"                    {componentVar}.MakeClean();");
+                //{componentVar}.MakeClean();");
+            }
+
             if (rsFileInfo.RequiredComponent.Contains("MeshComponent") ||
                 rsFileInfo.RequiredComponent.Contains("AtomEngine.MeshComponent"))
             {
@@ -190,24 +226,109 @@ namespace OpenglLib
         }
 
 
-        private static void GenerateCustomStructArrayRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport, int arraySize)
+        private static void GenerateStructInstanceRendering(StringBuilder builder, string fieldName, string componentVar, RSFileInfo rsFileInfo, bool isDirtySupport)
         {
+            var structInstance = rsFileInfo.StructureInstances.FirstOrDefault(si =>
+                si.InstanceName == fieldName || si.OriginalInstanceName == fieldName);
+
+            if (structInstance != null && structInstance.Structure != null)
+            {
+                if (isDirtySupport)
+                {
+                    builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
+                    builder.AppendLine("                    {");
+                    ProcessStructFields(builder, structInstance.Structure, rsFileInfo, componentVar, fieldName, 6);
+                    builder.AppendLine("                    }");
+                }
+                else
+                {
+                    ProcessStructFields(builder, structInstance.Structure, rsFileInfo, componentVar, fieldName, 5);
+                }
+            }
+            else
+            {
+                builder.AppendLine($"                    renderer.{fieldName} = {componentVar}.{fieldName};");
+            }
+        }
+
+        private static void GenerateStructArrayInstanceRendering(StringBuilder builder, string fieldName, string componentVar, RSFileInfo rsFileInfo, bool isDirtySupport)
+        {
+            var structInstance = rsFileInfo.StructureInstances.FirstOrDefault(si =>
+                si.InstanceName == fieldName || si.OriginalInstanceName == fieldName);
+
+            if (structInstance != null && structInstance.Structure != null && structInstance.ArraySize.HasValue)
+            {
+                int arraySize = structInstance.ArraySize.Value;
+
+                if (isDirtySupport)
+                {
+                    builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
+                    builder.AppendLine("                    {");
+                    for (int i = 0; i < arraySize; i++)
+                    {
+                        if (GlslParser.IsCustomType(structInstance.Structure.Name, structInstance.Structure.Name))
+                        {
+                            ProcessStructFields(builder, structInstance.Structure, rsFileInfo, componentVar, $"{fieldName}[{i}]", 5);
+                        }
+                        else
+                        {
+                            builder.AppendLine($"                    renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
+                        }
+                    }
+                    builder.AppendLine("                    }");
+                }
+                else
+                {
+                    for (int i = 0; i < arraySize; i++)
+                    {
+                        if (GlslParser.IsCustomType(structInstance.Structure.Name, structInstance.Structure.Name))
+                        {
+                            ProcessStructFields(builder, structInstance.Structure, rsFileInfo, componentVar, $"{fieldName}[{i}]", 5);
+                        }
+                        else
+                        {
+                            builder.AppendLine($"                    renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
+                        }
+                    }
+                }
+            }
+
+        }
+
+        private static void GenerateCustomStructArrayRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport, int arraySize, RSFileInfo rsFileInfo)
+        {
+            var structModel = rsFileInfo.Structures.FirstOrDefault(s => s.Name == fieldName);
+
             if (isDirtySupport)
             {
                 builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
                 builder.AppendLine("                    {");
                 for (var i = 0; i < arraySize; i++)
                 {
-                    builder.AppendLine($"                        renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
+                    if (structModel != null)
+                    {
+                        ProcessStructFields(builder, structModel, rsFileInfo, componentVar, $"{fieldName}[{i}]", 6);
+                    }
+                    else
+                    {
+                        builder.AppendLine($"                        renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
+                    }
                 }
-                builder.AppendLine($"                        {componentVar}.MakeClean();");
+                //builder.AppendLine($"                        {componentVar}.MakeClean();");
                 builder.AppendLine("                    }");
             }
             else
             {
                 for (var i = 0; i < arraySize; i++)
                 {
-                    builder.AppendLine($"                    renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
+                    if (structModel != null)
+                    {
+                        ProcessStructFields(builder, structModel, rsFileInfo, componentVar, $"{fieldName}[{i}]", 5);
+                    }
+                    else
+                    {
+                        builder.AppendLine($"                    renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
+                    }
                 }
             }
         }
@@ -222,7 +343,7 @@ namespace OpenglLib
                 {
                     builder.AppendLine($"                        renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
                 }
-                builder.AppendLine($"                        {componentVar}.MakeClean();");
+                //builder.AppendLine($"                        {componentVar}.MakeClean();");
                 builder.AppendLine("                    }");
             }
             else
@@ -244,7 +365,7 @@ namespace OpenglLib
                     builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
                     builder.AppendLine("                    {");
                     ProcessStructFields(builder, structModel, rsFileInfo, componentVar, fieldName, 5);
-                    builder.AppendLine($"                        {componentVar}.IsDirty{fieldName} = false;");
+                    //builder.AppendLine($"                        {componentVar}.IsDirty{fieldName} = false;");
                     builder.AppendLine("                    }");
                 }
                 else
@@ -276,7 +397,7 @@ namespace OpenglLib
                 builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
                 builder.AppendLine("                    {");
                 builder.AppendLine($"                        renderer.{fieldName} = {componentVar}.{fieldName};");
-                builder.AppendLine($"                        {componentVar}.MakeClean();");
+                //builder.AppendLine($"                        {componentVar}.MakeClean();");
                 builder.AppendLine("                    }");
             }
             else
@@ -292,7 +413,7 @@ namespace OpenglLib
                 builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
                 builder.AppendLine("                    {");
                 builder.AppendLine($"                        renderer.{fieldName} = {componentVar}.{fieldName};");
-                builder.AppendLine($"                        {componentVar}.MakeClean();");
+                //builder.AppendLine($"                        {componentVar}.MakeClean();");
                 builder.AppendLine("                    }");
             }
             else
@@ -301,25 +422,38 @@ namespace OpenglLib
             }
         }
 
+
         private static void ProcessStructFields(StringBuilder builder, GlslStructModel structure, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
         {
             string indent = new string(' ', indentLevel * 4);
 
             foreach (var field in structure.Fields)
             {
-                string rendererFieldPath = $"renderer.{prefix}.{field.Name}";
-                string componentFieldPath = $"{componentVar}.{prefix}.{field.Name}";
+                string fieldPrefix = prefix;
+                if (prefix.IndexOf('.') == -1)
+                {
+                    var structInstance = rsFileInfo.StructureInstances
+                        .FirstOrDefault(si => si.OriginalInstanceName == prefix);
+
+                    if (structInstance != null && !string.IsNullOrEmpty(structInstance.InstanceName))
+                    {
+                        fieldPrefix = structInstance.InstanceName;
+                    }
+                }
+
+                string rendererFieldPath = $"renderer.{fieldPrefix}.{field.Name}";
+                string componentFieldPath = $"{componentVar}.{fieldPrefix}.{field.Name}";
 
                 if (field.ArraySize.HasValue)
                 {
-                    ProcessArrayField(builder, field, rsFileInfo, componentVar, prefix, indentLevel);
+                    ProcessArrayField(builder, field, rsFileInfo, componentVar, fieldPrefix, indentLevel);
                 }
                 else if (GlslParser.IsCustomType(field.Type, field.Type))
                 {
                     var nestedStruct = rsFileInfo.Structures.FirstOrDefault(s => s.Name == field.Type);
                     if (nestedStruct != null)
                     {
-                        ProcessStructFields(builder, nestedStruct, rsFileInfo, componentVar, $"{prefix}.{field.Name}", indentLevel);
+                        ProcessStructFields(builder, nestedStruct, rsFileInfo, componentVar, $"{fieldPrefix}.{field.Name}", indentLevel);
                     }
                 }
                 else
@@ -334,6 +468,18 @@ namespace OpenglLib
             string indent = new string(' ', indentLevel * 4);
             int arraySize = field.ArraySize.Value;
 
+            string fieldPrefix = prefix;
+            if (prefix.IndexOf('.') == -1)
+            {
+                var structInstance = rsFileInfo.StructureInstances
+                    .FirstOrDefault(si => si.OriginalInstanceName == prefix);
+
+                if (structInstance != null && !string.IsNullOrEmpty(structInstance.InstanceName))
+                {
+                    fieldPrefix = structInstance.InstanceName;
+                }
+            }
+
             if (GlslParser.IsCustomType(field.Type, field.Type))
             {
                 var itemStruct = rsFileInfo.Structures.FirstOrDefault(s => s.Name == field.Type);
@@ -341,7 +487,7 @@ namespace OpenglLib
                 {
                     for (int i = 0; i < arraySize; i++)
                     {
-                        ProcessStructFields(builder, itemStruct, rsFileInfo, componentVar, $"{prefix}.{field.Name}[{i}]", indentLevel);
+                        ProcessStructFields(builder, itemStruct, rsFileInfo, componentVar, $"{fieldPrefix}.{field.Name}[{i}]", indentLevel);
                     }
                 }
             }
@@ -349,12 +495,14 @@ namespace OpenglLib
             {
                 for (int i = 0; i < arraySize; i++)
                 {
-                    string rendererFieldPath = $"renderer.{prefix}.{field.Name}[{i}]";
-                    string componentFieldPath = $"{componentVar}.{prefix}.{field.Name}[{i}]";
+                    string rendererFieldPath = $"renderer.{fieldPrefix}.{field.Name}[{i}]";
+                    string componentFieldPath = $"{componentVar}.{fieldPrefix}.{field.Name}[{i}]";
                     builder.AppendLine($"{indent}{rendererFieldPath} = {componentFieldPath};");
                 }
             }
         }
+
+
 
         private static void GenerateQueryComponents(StringBuilder builder, List<string> requiredComponents, string componentName)
         {

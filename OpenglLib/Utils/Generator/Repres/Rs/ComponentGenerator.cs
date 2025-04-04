@@ -76,6 +76,32 @@ namespace OpenglLib
                 }
             }
 
+            foreach (var structInstance in rsFileInfo.StructureInstances)
+            {
+                if (!structInstance.IsUniform)
+                {
+                    string instanceName = !string.IsNullOrEmpty(structInstance.InstanceName)
+                        ? structInstance.InstanceName
+                        : structInstance.OriginalInstanceName;
+
+                    string structType = string.IsNullOrWhiteSpace(structInstance.Structure.CSharpTypeName)
+                        ? structInstance.Structure.Name
+                        : structInstance.Structure.CSharpTypeName;
+
+                    bool isDirtySupport = structInstance.Attributes.Any(e => e.Name.Equals("isdirty", StringComparison.OrdinalIgnoreCase) &&
+                                                                  e.Value.Equals("true", StringComparison.OrdinalIgnoreCase));
+
+                    if (structInstance.ArraySize.HasValue)
+                    {
+                        GenerateStructArrayField(fieldsBuilder, constructorBodyBuilder, makeCleanBodyBuilder, structType, instanceName, structInstance.ArraySize.Value, isDirtySupport);
+                    }
+                    else
+                    {
+                        GenerateStructField(fieldsBuilder, constructorBodyBuilder, makeCleanBodyBuilder, structType, instanceName, isDirtySupport);
+                    }
+                }
+            }
+
             string constructorText = constructorBuilder.ToString()
                 .Replace(CONSTRUCTOR_BODY_PLACEHOLDER, constructorBodyBuilder.ToString().TrimEnd());
 
@@ -136,7 +162,53 @@ namespace OpenglLib
         }
 
 
+        private static void GenerateStructField(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, StringBuilder makeCleanBuilder, string typeName, string fieldName, bool isDirtySupport)
+        {
+            fieldsBuilder.AppendLine($"        [ShowInInspector]");
 
+            if (isDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        [SupportDirty]");
+            }
+
+            fieldsBuilder.AppendLine($"        public {typeName} {fieldName};");
+            constructorBodyBuilder.AppendLine($"            {fieldName} = new {typeName}(null);");
+
+            if (isDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        public bool IsDirty{fieldName}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"            get => {fieldName}.IsDirty;");
+                fieldsBuilder.AppendLine($"            set => {fieldName}.IsDirty = value;");
+                fieldsBuilder.AppendLine("        }");
+
+                makeCleanBuilder.AppendLine($"            IsDirty{fieldName} = false;");
+            }
+        }
+
+        private static void GenerateStructArrayField(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, StringBuilder makeCleanBuilder, string typeName, string fieldName, int arraySize, bool isDirtySupport)
+        {
+            fieldsBuilder.AppendLine($"        [ShowInInspector]");
+
+            if (isDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        [SupportDirty]");
+            }
+
+            fieldsBuilder.AppendLine($"        public StructArray<{typeName}> {fieldName};");
+            constructorBodyBuilder.AppendLine($"            {fieldName} = new StructArray<{typeName}>({arraySize});");
+
+            if (isDirtySupport)
+            {
+                fieldsBuilder.AppendLine($"        public bool IsDirty{fieldName}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"            get => {fieldName}.IsDirty;");
+                fieldsBuilder.AppendLine($"            set => {fieldName}.IsDirty = value;");
+                fieldsBuilder.AppendLine("        }");
+
+                makeCleanBuilder.AppendLine($"            IsDirty{fieldName} = false;");
+            }
+        }
         private static void GenerateCustomStructArrayField(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, string typeName, string fieldName, int arraySize, bool isDirtySupport)
         {
             fieldsBuilder.AppendLine($"        [ShowInInspector]");

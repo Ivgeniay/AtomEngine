@@ -48,6 +48,8 @@ namespace OpenglLib
 
             fileInfo.StructureInstances = GlslParser.ExtractStructInstances(fileInfo.ProcessedCode, fileInfo.Structures);
 
+            ProcessStructureInstancesForPlacement(fileInfo);
+
             return fileInfo;
         }
 
@@ -121,6 +123,39 @@ namespace OpenglLib
             return sourceCode;
         }
 
+        private static void ProcessStructureInstancesForPlacement(RSFileInfo fileInfo)
+        {
+            var newInstances = new List<GlslStructInstance>();
+
+            foreach (var instance in fileInfo.StructureInstances)
+            {
+                if (instance.IsUniform) continue;
+                var placeTargetAttr = instance.Attributes
+                    ?.FirstOrDefault(a => a.Name.Equals("placetarget", StringComparison.OrdinalIgnoreCase));
+
+                if (placeTargetAttr == null) continue;
+
+                if (placeTargetAttr.Value.Equals("both", StringComparison.OrdinalIgnoreCase))
+                {
+                    instance.OriginalInstanceName = instance.InstanceName;
+                    instance.InstanceName += "_vt";
+
+                    var fragmentInstance = new GlslStructInstance
+                    {
+                        Structure = instance.Structure,
+                        OriginalInstanceName = instance.OriginalInstanceName,
+                        InstanceName = instance.OriginalInstanceName + "_fg",
+                        IsUniform = instance.IsUniform,
+                        FullText = instance.FullText,
+                        ArraySize = instance.ArraySize
+                    };
+
+                    newInstances.Add(fragmentInstance);
+                }
+            }
+
+            fileInfo.StructureInstances.AddRange(newInstances);
+        }
 
         public static List<GlslConstantModel> GetConstFromFileInfos(List<RSFileInfo> rsInfos)
         {
@@ -172,7 +207,14 @@ namespace OpenglLib
             var structs = new List<GlslStructInstance>();
             foreach (RSFileInfo rsInfo in rsInfos)
             {
-                structs.AddRange(rsInfo.StructureInstances);
+                foreach(var inst in rsInfo.StructureInstances)
+                {
+                    if (!inst.IsUniform)
+                    {
+                        structs.Add(inst);
+                    }
+                }
+                //structs.AddRange(rsInfo.StructureInstances);
             }
             return structs;
         }
