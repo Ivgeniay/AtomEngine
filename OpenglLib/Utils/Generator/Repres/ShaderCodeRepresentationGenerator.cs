@@ -17,6 +17,8 @@ namespace OpenglLib
              string outputDirectory, List<UniformModel> uniforms, List<UniformBlockModel> uniformBlocks, List<RSFileInfo> rsFiles, string sourceGuid = null,
              string sourcePath = null)
         {
+            UpdateUniformTypesFromRSFiles(uniforms, rsFiles);
+
             var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid, rsFiles);
             var representationFilePath = Path.Combine(outputDirectory, $"{representationName}{GeneratorConst.LABLE}.cs");
             File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);
@@ -51,7 +53,7 @@ namespace OpenglLib
                 var name = uniform.Name;
                 var arraySize = uniform.ArraySize;
 
-                var csharpType = GlslParser.MapGlslTypeToCSharp(type);
+                var csharpType = uniform.CSharpTypeName;
                 bool isCustomType = GlslParser.IsCustomType(csharpType, type);
                 string cashFieldName = $"_{name}";
                 string locationName = $"{name}{ShaderConst.LOCATION}";
@@ -446,6 +448,27 @@ namespace OpenglLib
 
             builder.AppendLine("            }");
             return builder.ToString();
+        }
+
+        private static void UpdateUniformTypesFromRSFiles(List<UniformModel> uniforms, List<RSFileInfo> rsFiles)
+        {
+            var rsManager = ServiceHub.Get<RSManager>();
+            foreach (var uniform in uniforms)
+            {
+                foreach (var rsFile in rsFiles)
+                {
+                    var matchingStruct = rsFile.Structures.FirstOrDefault(s => s.Name == uniform.Type);
+                    if (matchingStruct != null)
+                    {
+                        var structInfo = rsManager.GetStructTypeInfo(matchingStruct.Name, rsFile.SourcePath);
+                        if (structInfo != null)
+                        {
+                            uniform.CSharpTypeName = structInfo.GeneratedTypeName;
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
     }

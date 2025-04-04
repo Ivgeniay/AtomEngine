@@ -69,6 +69,7 @@ namespace Editor
                 ServiceHub.RegisterService<EventHub>();
                 ServiceHub.RegisterService<ModelWatcher>();
                 ServiceHub.RegisterService<RSManager>();
+                ServiceHub.RegisterService<ShaderTypeManager>();
                 // Загрузка сборок
                 ServiceHub.RegisterService<EditorAssemblyManager>();
                 ServiceHub.AddMapping<AssemblyManager, EditorAssemblyManager>();

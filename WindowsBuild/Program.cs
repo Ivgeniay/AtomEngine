@@ -32,6 +32,7 @@ namespace WindowsBuild
 
             ServiceHub.RegisterService<AssemblyManager>();
             ServiceHub.RegisterService<RSManager>();
+            ServiceHub.RegisterService<ShaderTypeManager>();
             ServiceHub.RegisterService<RuntimeResourceManager>();
             ServiceHub.RegisterService<EventHub>();
             ServiceHub.RegisterService<DirectoryExplorer>(); //Нужно создать экземпляр для WindowsBuild, создать модели, зарегать все сраные пути из router

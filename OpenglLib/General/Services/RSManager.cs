@@ -16,6 +16,10 @@ namespace OpenglLib
 
         public Task InitializeAsync()
         {
+            if (!Directory.Exists(OutputDirectory))
+            {
+                Directory.CreateDirectory(OutputDirectory);
+            }
             return Task.CompletedTask;
         }
 
