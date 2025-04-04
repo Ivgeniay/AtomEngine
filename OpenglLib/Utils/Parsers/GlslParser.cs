@@ -1795,6 +1795,7 @@ namespace OpenglLib
     public class GlslStructModel
     {
         public string Name { get; set; } = string.Empty;
+        public string CSharpTypeName { get; set; } = string.Empty;
         public string FullText { get; set; } = string.Empty;
         public List<GlslStructFieldModel> Fields { get; set; } = new List<GlslStructFieldModel>();
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();

@@ -6,7 +6,7 @@ namespace OpenglLib
     {
         public const string LABLE = "Rep.g";
 
-        private static string projectNamespace = string.Empty;
+        private static string projectNamespace = "UserScripts";
 
         public static string GetDefaultNamespaces()
         {

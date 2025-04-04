@@ -29,7 +29,7 @@ namespace OpenglLib
                 string type = uniform.Type;
                 string name = uniform.Name;
                 int? arraySize = uniform.ArraySize;
-                string csharpType = GlslParser.MapGlslTypeToCSharp(type);
+                string csharpType = uniform.CSharpTypeName;
                 bool isCustomStruct = GlslParser.IsCustomType(csharpType, type);
 
                 if (arraySize.HasValue)

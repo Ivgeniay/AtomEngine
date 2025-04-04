@@ -399,10 +399,10 @@ namespace Editor
         public void Open()
         {
             DebLogger.AddLogger(this);
+            _isOpen = true;
+
             Dispatcher.UIThread.Invoke(new Action(() =>
             {
-                _isOpen = true;
-
                 var logs = DebLogger.GetLogs();
                 foreach (var log in logs)
                 {

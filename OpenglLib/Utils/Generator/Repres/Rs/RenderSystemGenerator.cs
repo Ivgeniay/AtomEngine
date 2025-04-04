@@ -15,49 +15,45 @@ namespace OpenglLib
         private const string OTHER_METHODS_PLACEHOLDER = "/*OTHER_METHODS*/";
         private const string QUERY_COMPONENTS_PLACEHOLDER = "/*QUERY_COMPONENTS*/";
 
-        public static string GenerateRenderSystemTemplate(RSFileInfo rsFileInfo, ComponentGeneratorInfo componentInfo = null)
+        public static string GenerateRenderSystemTemplate(RSFileInfo rsFileInfo)
         {
             string interfaceName = rsFileInfo.InterfaceName;
             string systemName = rsFileInfo.SystemName;
             var requiredComponents = rsFileInfo.RequiredComponent;
+            string componentName = rsFileInfo.ComponentName;
 
             var mainBuilder = new StringBuilder();
             var contentBuilder = new StringBuilder();
             var classFieldsBuilder = new StringBuilder();
             var constructorBuilder = new StringBuilder();
-            var constructorBodyBuilder = new StringBuilder();
             var renderMethodBuilder = new StringBuilder();
             var renderBodyBuilder = new StringBuilder();
-            var rendererBodyBuilder = new StringBuilder();
-            var componentFieldsBuilder = new StringBuilder();
-            var queryComponentsBuilder = new StringBuilder();
             var otherMethodsBuilder = new StringBuilder();
+            var queryComponentsBuilder = new StringBuilder();
 
             GenerateClassStructure(mainBuilder, systemName);
             GenerateContentStructure(contentBuilder);
             GenerateClassFields(classFieldsBuilder);
             GenerateConstructorStructure(constructorBuilder, systemName);
-            GenerateConstructorBody(constructorBodyBuilder, requiredComponents, componentInfo);
-            GenerateRenderMethodStructure(renderMethodBuilder, componentInfo);
-            GenerateRenderBody(renderBodyBuilder, interfaceName, rsFileInfo, componentInfo);
+            GenerateRenderMethodStructure(renderMethodBuilder, componentName);
+            GenerateRenderBody(renderBodyBuilder, interfaceName, rsFileInfo);
             GenerateOtherMethods(otherMethodsBuilder);
-            GenerateQueryComponents(queryComponentsBuilder, requiredComponents, componentInfo);
+            GenerateQueryComponents(queryComponentsBuilder, requiredComponents, componentName);
 
             string constructorText = constructorBuilder.ToString()
-                .Replace(CONSTRUCTOR_BODY_PLACEHOLDER, constructorBodyBuilder.ToString().TrimEnd())
-                .Replace(QUERY_COMPONENTS_PLACEHOLDER, queryComponentsBuilder.ToString().TrimEnd());
+                .Replace("/*QUERY_COMPONENTS*/", queryComponentsBuilder.ToString().TrimEnd());
 
             string renderMethodText = renderMethodBuilder.ToString()
-                .Replace(RENDER_BODY_PLACEHOLDER, renderBodyBuilder.ToString().TrimEnd());
+                .Replace("/*RENDER_BODY*/", renderBodyBuilder.ToString().TrimEnd());
 
             string contentText = contentBuilder.ToString()
-                .Replace(CLASS_FIELDS_PLACEHOLDER, classFieldsBuilder.ToString())
-                .Replace(CONSTRUCTOR_PLACEHOLDER, constructorText)
-                .Replace(RENDER_METHOD_PLACEHOLDER, renderMethodText)
-                .Replace(OTHER_METHODS_PLACEHOLDER, otherMethodsBuilder.ToString());
+                .Replace("/*CLASS_FIELDS*/", classFieldsBuilder.ToString())
+                .Replace("/*CONSTRUCTOR*/", constructorText)
+                .Replace("/*RENDER_METHOD*/", renderMethodText)
+                .Replace("/*OTHER_METHODS*/", otherMethodsBuilder.ToString());
 
             string result = mainBuilder.ToString()
-                .Replace(CONTENT_PLACEHOLDER, contentText);
+                .Replace("/*CONTENT*/", contentText);
 
             return result;
         }
@@ -104,25 +100,7 @@ namespace OpenglLib
             builder.AppendLine();
         }
 
-        private static void GenerateConstructorBody(StringBuilder builder, List<string> requiredComponents, ComponentGeneratorInfo componentInfo)
-        {
-            
-        }
-
-        private static void GenerateQueryComponents(StringBuilder builder, List<string> requiredComponents, ComponentGeneratorInfo componentInfo)
-        {
-            foreach (var component in requiredComponents)
-            {
-                builder.AppendLine($"                .With<{component}>()");
-            }
-
-            if (componentInfo != null)
-            {
-                builder.AppendLine($"                .With<{componentInfo.ComponentName}>()");
-            }
-        }
-
-        private static void GenerateRenderMethodStructure(StringBuilder builder, ComponentGeneratorInfo componentInfo)
+        private static void GenerateRenderMethodStructure(StringBuilder builder, string componentName)
         {
             builder.AppendLine("        public void Render(double deltaTime)");
             builder.AppendLine("        {");
@@ -138,10 +116,10 @@ namespace OpenglLib
             builder.AppendLine("                if (meshComponent.Mesh == null || materialComponent.Material?.Shader == null)");
             builder.AppendLine("                    continue;");
             builder.AppendLine();
-            if (componentInfo != null)
+            if (componentName != null)
             {
-                string componentVar = GetComponentVariableName(componentInfo.ComponentName);
-                builder.AppendLine($"                ref var {componentVar} = ref this.GetComponent<{componentInfo.ComponentName}>(entity);");
+                string componentVar = GetComponentVariableName(componentName);
+                builder.AppendLine($"                ref var {componentVar} = ref this.GetComponent<{componentName}>(entity);");
             }
             builder.AppendLine();
             builder.AppendLine(RENDER_BODY_PLACEHOLDER);
@@ -150,49 +128,58 @@ namespace OpenglLib
             builder.AppendLine();
         }
 
-        private static void GenerateRenderBody(StringBuilder builder, string interfaceName, RSFileInfo rsFileInfo, ComponentGeneratorInfo componentInfo)
+        private static void GenerateRenderBody(StringBuilder builder, string interfaceName, RSFileInfo rsFileInfo)
         {
             builder.AppendLine($"                if (materialComponent.Material.Shader is {interfaceName} renderer)");
             builder.AppendLine("                {");
             builder.AppendLine("                    materialComponent.Material.Shader.Use();");
 
-            if (componentInfo != null)
+            string componentVar = GetComponentVariableName(rsFileInfo.ComponentName);
+
+            foreach (var uniform in rsFileInfo.Uniforms)
             {
-                string componentVar = GetComponentVariableName(componentInfo.ComponentName);
+                string fieldName = uniform.Name;
+                bool isArray = uniform.ArraySize.HasValue;
+                bool isCustomStruct = GlslParser.IsCustomType(uniform.CSharpTypeName, uniform.Type);
+                bool isDirtySupport = uniform.Attributes.Any(a => a.Name.Equals("isdirty", StringComparison.OrdinalIgnoreCase) &&
+                                                                 a.Value.Equals("true", StringComparison.OrdinalIgnoreCase));
 
-                foreach (var field in componentInfo.Fields)
+                if (isArray)
                 {
-                    if (field.IsUniform)
+                    if (isCustomStruct)
                     {
-                        if (field.IsArray)
-                        {
-                            UniformArrayCase(builder, field, rsFileInfo, componentVar);
-                        }
-                        else
-                        {
-                            UniformCase(builder, field, rsFileInfo, componentVar);
-                        }
-
+                        GenerateCustomStructArrayRendering(builder, fieldName, componentVar, isDirtySupport, uniform.ArraySize.Value);
                     }
-
-                    if (field.IsCustomStruct) 
+                    else
                     {
-                        if (field.IsArray)
-                        {
-                            CustomStructArrayCase(builder, field, rsFileInfo, componentVar);
-                        }
-                        else
-                        {
-                            CustomStructCase(builder, field, rsFileInfo, componentVar);
-                        }
+                        GenerateSimpleTypeArrayRendering(builder, fieldName, componentVar, isDirtySupport, uniform.ArraySize.Value);
                     }
-
-                    if (field.IsUniformBlock)
+                }
+                else
+                {
+                    if (isCustomStruct)
                     {
-                        UniformBlockCase(builder, field, rsFileInfo, componentVar);
+                        GenerateCustomStructRendering(builder, fieldName, componentVar, isDirtySupport, rsFileInfo);
+                    }
+                    else
+                    {
+                        GenerateSimpleTypeRendering(builder, fieldName, componentVar, isDirtySupport);
                     }
                 }
             }
+
+            foreach (var block in rsFileInfo.UniformBlocks)
+            {
+                if (block.InstanceName != null)
+                {
+                    string fieldName = block.InstanceName;
+                    bool isDirtySupport = block.Attributes.Any(a => a.Name.Equals("isdirty", StringComparison.OrdinalIgnoreCase) &&
+                                                                  a.Value.Equals("true", StringComparison.OrdinalIgnoreCase));
+
+                    GenerateUniformBlockRendering(builder, fieldName, componentVar, isDirtySupport);
+                }
+            }
+
             if (rsFileInfo.RequiredComponent.Contains("MeshComponent") ||
                 rsFileInfo.RequiredComponent.Contains("AtomEngine.MeshComponent"))
             {
@@ -202,116 +189,118 @@ namespace OpenglLib
             builder.AppendLine("                }");
         }
 
-        private static void UniformArrayCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, RSFileInfo rsFileInfo, string componentVar)
+
+        private static void GenerateCustomStructArrayRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport, int arraySize)
         {
-            if (fieldInfo.IsDirtySupport)
+            if (isDirtySupport)
             {
-                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldInfo.FieldName})");
+                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
                 builder.AppendLine("                    {");
-                for (var i = 0; i < fieldInfo.ArraySize; i++)
+                for (var i = 0; i < arraySize; i++)
                 {
-                    builder.AppendLine($"                        renderer.{fieldInfo.FieldName}[{i}] = {componentVar}.{fieldInfo.FieldName}[{i}];");
+                    builder.AppendLine($"                        renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
                 }
                 builder.AppendLine($"                        {componentVar}.MakeClean();");
                 builder.AppendLine("                    }");
             }
             else
             {
-                for (var i = 0; i < fieldInfo.ArraySize; i++)
+                for (var i = 0; i < arraySize; i++)
                 {
-                    builder.AppendLine($"                    renderer.{fieldInfo.FieldName}[{i}] = {componentVar}.{fieldInfo.FieldName}[{i}];");
+                    builder.AppendLine($"                    renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
                 }
             }
         }
-        private static void UniformCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, RSFileInfo rsFileInfo, string componentVar)
+
+        private static void GenerateSimpleTypeArrayRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport, int arraySize)
         {
-            if (fieldInfo.IsDirtySupport)
+            if (isDirtySupport)
             {
-                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldInfo.FieldName})");
+                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
                 builder.AppendLine("                    {");
-                builder.AppendLine($"                        renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
+                for (var i = 0; i < arraySize; i++)
+                {
+                    builder.AppendLine($"                        renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
+                }
                 builder.AppendLine($"                        {componentVar}.MakeClean();");
                 builder.AppendLine("                    }");
             }
             else
             {
-                builder.AppendLine($"                    renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
-            }
-        }
-        private static void CustomStructArrayCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, RSFileInfo rsFileInfo, string componentVar, int indentLevel = 5)
-        {
-            string indent = new string(' ', indentLevel * 4);
-
-            GlslStructModel? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
-            if (currentStruct == null) return;
-
-            int arraySize = fieldInfo.ArraySize;
-
-            for (int i = 0; i < arraySize; i++)
-            {
-                if (fieldInfo.IsDirtySupport)
+                for (var i = 0; i < arraySize; i++)
                 {
-                    builder.AppendLine($"{indent}if ({componentVar}.IsDirty{fieldInfo.FieldName})");
-                    builder.AppendLine($"{indent}{{");
-                    indentLevel++;
-                    indent = new string(' ', indentLevel * 4);
-                }
-
-                string arrayElementPrefix = $"{fieldInfo.FieldName}[{i}]";
-                ProcessStructFields(builder, currentStruct, rsFileInfo, componentVar, arrayElementPrefix, indentLevel);
-
-                if (fieldInfo.IsDirtySupport)
-                {
-                    indentLevel--;
-                    indent = new string(' ', indentLevel * 4);
-                    if (i == arraySize - 1)
-                    {
-                        builder.AppendLine($"{indent}    {componentVar}.IsDirty{fieldInfo.FieldName} = false;");
-                    }
-                    builder.AppendLine($"{indent}}}");
+                    builder.AppendLine($"                    renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
                 }
             }
         }
-        private static void CustomStructCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, RSFileInfo rsFileInfo, string componentVar, int indentLevel = 5)
+
+        private static void GenerateCustomStructRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport, RSFileInfo rsFileInfo)
         {
-            string indent = new string(' ', indentLevel * 4);
-
-            GlslStructModel? currentStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == fieldInfo.FieldType);
-            if (currentStruct == null) return;
-
-            if (fieldInfo.IsDirtySupport)
+            var structModel = rsFileInfo.Structures.FirstOrDefault(s => s.Name == fieldName);
+            if (structModel != null)
             {
-                builder.AppendLine($"{indent}if ({componentVar}.IsDirty{fieldInfo.FieldName})");
-                builder.AppendLine($"{indent}{{");
-                indentLevel++;
-                indent = new string(' ', indentLevel * 4);
+                if (isDirtySupport)
+                {
+                    builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
+                    builder.AppendLine("                    {");
+                    ProcessStructFields(builder, structModel, rsFileInfo, componentVar, fieldName, 5);
+                    builder.AppendLine($"                        {componentVar}.IsDirty{fieldName} = false;");
+                    builder.AppendLine("                    }");
+                }
+                else
+                {
+                    ProcessStructFields(builder, structModel, rsFileInfo, componentVar, fieldName, 5);
+                }
             }
-
-            ProcessStructFields(builder, currentStruct, rsFileInfo, componentVar, fieldInfo.FieldName, indentLevel);
-
-            if (fieldInfo.IsDirtySupport)
+            else
             {
-                indentLevel--;
-                indent = new string(' ', indentLevel * 4);
-                builder.AppendLine($"{indent}    {componentVar}.IsDirty{fieldInfo.FieldName} = false;");
-                builder.AppendLine($"{indent}}}");
+                if (isDirtySupport)
+                {
+                    builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
+                    builder.AppendLine("                    {");
+                    builder.AppendLine($"                        renderer.{fieldName} = {componentVar}.{fieldName};");
+                    builder.AppendLine($"                        {componentVar}.MakeClean();");
+                    builder.AppendLine("                    }");
+                }
+                else
+                {
+                    builder.AppendLine($"                    renderer.{fieldName} = {componentVar}.{fieldName};");
+                }
             }
         }
-        private static void UniformBlockCase(StringBuilder builder, ComponentGeneratorFieldInfo fieldInfo, RSFileInfo rsFileInfo, string componentVar)
+
+        private static void GenerateSimpleTypeRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport)
         {
-            if (fieldInfo.IsDirtySupport)
+            if (isDirtySupport)
             {
-                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldInfo.FieldName})");
+                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
                 builder.AppendLine("                    {");
-                builder.AppendLine($"                        renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
+                builder.AppendLine($"                        renderer.{fieldName} = {componentVar}.{fieldName};");
                 builder.AppendLine($"                        {componentVar}.MakeClean();");
                 builder.AppendLine("                    }");
             }
             else
             {
-                builder.AppendLine($"                    renderer.{fieldInfo.FieldName} = {componentVar}.{fieldInfo.FieldName};");
+                builder.AppendLine($"                    renderer.{fieldName} = {componentVar}.{fieldName};");
             }
         }
+
+        private static void GenerateUniformBlockRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport)
+        {
+            if (isDirtySupport)
+            {
+                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
+                builder.AppendLine("                    {");
+                builder.AppendLine($"                        renderer.{fieldName} = {componentVar}.{fieldName};");
+                builder.AppendLine($"                        {componentVar}.MakeClean();");
+                builder.AppendLine("                    }");
+            }
+            else
+            {
+                builder.AppendLine($"                    renderer.{fieldName} = {componentVar}.{fieldName};");
+            }
+        }
+
         private static void ProcessStructFields(StringBuilder builder, GlslStructModel structure, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
         {
             string indent = new string(' ', indentLevel * 4);
@@ -327,7 +316,7 @@ namespace OpenglLib
                 }
                 else if (GlslParser.IsCustomType(field.Type, field.Type))
                 {
-                    GlslStructModel? nestedStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
+                    var nestedStruct = rsFileInfo.Structures.FirstOrDefault(s => s.Name == field.Type);
                     if (nestedStruct != null)
                     {
                         ProcessStructFields(builder, nestedStruct, rsFileInfo, componentVar, $"{prefix}.{field.Name}", indentLevel);
@@ -339,6 +328,7 @@ namespace OpenglLib
                 }
             }
         }
+
         private static void ProcessArrayField(StringBuilder builder, GlslStructFieldModel field, RSFileInfo rsFileInfo, string componentVar, string prefix, int indentLevel)
         {
             string indent = new string(' ', indentLevel * 4);
@@ -346,7 +336,7 @@ namespace OpenglLib
 
             if (GlslParser.IsCustomType(field.Type, field.Type))
             {
-                GlslStructModel? itemStruct = rsFileInfo.Structures.FirstOrDefault(e => e.Name == field.Type);
+                var itemStruct = rsFileInfo.Structures.FirstOrDefault(s => s.Name == field.Type);
                 if (itemStruct != null)
                 {
                     for (int i = 0; i < arraySize; i++)
@@ -366,6 +356,29 @@ namespace OpenglLib
             }
         }
 
+        private static void GenerateQueryComponents(StringBuilder builder, List<string> requiredComponents, string componentName)
+        {
+            foreach (var component in requiredComponents)
+            {
+                builder.AppendLine($"                .With<{component}>()");
+            }
+
+            if (!string.IsNullOrEmpty(componentName))
+            {
+                builder.AppendLine($"                .With<{componentName}>()");
+            }
+        }
+
+        private static string GetComponentVariableName(string componentName)
+        {
+            if (componentName.EndsWith("Component"))
+            {
+                string baseName = componentName.Substring(0, componentName.Length - "Component".Length);
+                return $"{char.ToLowerInvariant(baseName[0])}{baseName.Substring(1)}Component";
+            }
+
+            return $"{char.ToLowerInvariant(componentName[0])}{componentName.Substring(1)}";
+        }
 
 
         private static void GenerateOtherMethods(StringBuilder builder)
@@ -387,16 +400,6 @@ namespace OpenglLib
             return $"{baseName}RenderSystem";
         }
 
-        private static string GetComponentVariableName(string componentName)
-        {
-            if (componentName.EndsWith("Component"))
-            {
-                string baseName = componentName.Substring(0, componentName.Length - "Component".Length);
-                return $"{char.ToLowerInvariant(baseName[0])}{baseName.Substring(1)}Component";
-            }
-
-            return $"{char.ToLowerInvariant(componentName[0])}{componentName.Substring(1)}";
-        }
     }
 
 }

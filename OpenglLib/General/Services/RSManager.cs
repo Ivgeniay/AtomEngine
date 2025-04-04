@@ -282,23 +282,21 @@ namespace OpenglLib
                 string rsFilePath = registration.FilePath;
                 string rsContent = FileLoader.LoadFile(rsFilePath);
                 var rsFileInfo = RSParser.ParseContent(rsContent, rsFilePath);
+                UpdateRSFileTypesWithGeneratedNames(rsFileInfo);
+                if (!Directory.Exists(OutputDirectory))  Directory.CreateDirectory(OutputDirectory);
 
                 string interfaceCode = InterfaceGenerator.GenerateInterface(rsFileInfo);
                 string interfacePath = Path.Combine(OutputDirectory, $"{registration.InterfaceName}.cs");
-                if (!Directory.Exists(interfacePath))  Directory.CreateDirectory(interfacePath);
                 await Task.Delay(200);
                 File.WriteAllText(interfacePath, interfaceCode);
 
-                ComponentGeneratorInfo componentInfo;
-                string componentCode = ComponentGenerator.GenerateComponentTemplate(rsFileInfo, out componentInfo);
+                string componentCode = ComponentGenerator.GenerateComponentTemplate(rsFileInfo);
                 string componentPath = Path.Combine(OutputDirectory, $"{registration.ComponentName}.cs");
-                if (!Directory.Exists(componentPath))  Directory.CreateDirectory(interfacePath);
                 await Task.Delay(200);
                 File.WriteAllText(componentPath, componentCode);
 
-                string systemCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rsFileInfo, componentInfo);
+                string systemCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rsFileInfo);
                 string systemPath = Path.Combine(OutputDirectory, $"{registration.SystemName}.cs");
-                if (!Directory.Exists(systemPath))  Directory.CreateDirectory(interfacePath);
                 await Task.Delay(200);
                 File.WriteAllText(systemPath, systemCode);
             }
@@ -308,6 +306,52 @@ namespace OpenglLib
             }
         }
 
+        public void UpdateRSFileTypesWithGeneratedNames(RSFileInfo rsFileInfo)
+        {
+            if (!_rsFileRegistrations.TryGetValue(rsFileInfo.SourcePath, out var registration))
+            {
+                return;
+            }
+
+            foreach (var structure in rsFileInfo.Structures)
+            {
+                if (registration.Structures.TryGetValue(structure.Name, out var structInfo))
+                {
+                    structure.CSharpTypeName = structInfo.GeneratedTypeName;
+                }
+            }
+
+            foreach (var ubo in rsFileInfo.UniformBlocks)
+            {
+                if (registration.UniformBlocks.TryGetValue(ubo.Name, out var uboInfo))
+                {
+                    ubo.CSharpTypeName = uboInfo.GeneratedTypeName;
+                }
+            }
+
+            foreach (var uniform in rsFileInfo.Uniforms)
+            {
+                bool isCustomType = false;
+
+                foreach (var struct_ in rsFileInfo.Structures)
+                {
+                    if (uniform.Type == struct_.Name)
+                    {
+                        isCustomType = true;
+                        if (registration.Structures.TryGetValue(struct_.Name, out var structInfo))
+                        {
+                            uniform.CSharpTypeName = structInfo.GeneratedTypeName;
+                        }
+                        break;
+                    }
+                }
+
+                if (!isCustomType)
+                {
+                    uniform.CSharpTypeName = GlslParser.MapGlslTypeToCSharp(uniform.Type);
+                }
+            }
+        }
     }
 
     public class RSFileRegistration
