@@ -97,7 +97,7 @@ namespace OpenglLib
                 {
                     if (arraySize.HasValue)
                     {
-                        SimpleTypeArrayCase(fieldsBuilder, constructorBodyBuilder, csharpType, name, locationName, arraySize.Value);
+                        SimpleTypeArrayCase(fieldsBuilder, constructorBodyBuilder, csharpType, type, name, locationName, arraySize.Value, getSamplerIndex, uniform);
                     }
                     else
                     {
@@ -335,21 +335,49 @@ namespace OpenglLib
             fieldsBuilder.AppendLine();
         }
 
-        private static void SimpleTypeArrayCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string csharpType, string name, string locationName, int arraySize)
+        private static void SimpleTypeArrayCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string csharpType, string type, string name, string locationName, int arraySize, Func<UniformModel, int> getSamplerIndex, UniformModel uniform)
         {
             string cashFieldName = $"_{name}";
 
-            var localeProperty = GetPropertyForLocaleArray(csharpType, name, locationName);
-            fieldsBuilder.Append(localeProperty);
-            fieldsBuilder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
-            fieldsBuilder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
-            fieldsBuilder.AppendLine("        {");
-            fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
-            fieldsBuilder.AppendLine("        }");
-            fieldsBuilder.AppendLine();
-            fieldsBuilder.AppendLine();
+            if (GlslParser.IsSamplerType(type))
+            {
+                int baseSamplerIndex = 0;
 
-            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new LocaleArray<{csharpType}>({arraySize}, _gl);");
+                for(int i = 0; i < arraySize-1; i++)
+                {
+                    if (i == 0) baseSamplerIndex = getSamplerIndex(uniform);
+                    getSamplerIndex(uniform);
+                }
+
+                fieldsBuilder.AppendLine($"        private SamplerArray {cashFieldName};");
+                fieldsBuilder.AppendLine($"        public SamplerArray {name}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"            get => {cashFieldName};");
+                fieldsBuilder.AppendLine("        }");
+                fieldsBuilder.AppendLine();
+
+                fieldsBuilder.AppendLine($"        public int {locationName}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"            get => {name}.Location;");
+                fieldsBuilder.AppendLine($"            set => {name}.Location = value;");
+                fieldsBuilder.AppendLine("        }");
+
+                constructorBodyBuilder.AppendLine($"            {cashFieldName} = new SamplerArray(_gl, {arraySize}, \"{GlslParser.GetTextureTarget(type)}\", {baseSamplerIndex});");
+            }
+            else
+            {
+                var localeProperty = GetPropertyForLocaleArray(csharpType, name, locationName);
+                fieldsBuilder.Append(localeProperty);
+                fieldsBuilder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
+                fieldsBuilder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
+                fieldsBuilder.AppendLine("        }");
+                fieldsBuilder.AppendLine();
+                fieldsBuilder.AppendLine();
+
+                constructorBodyBuilder.AppendLine($"            {cashFieldName} = new LocaleArray<{csharpType}>({arraySize}, _gl);");
+            }
         }
 
         private static void UniformBlockWithBindingCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, StringBuilder disposeBodyBuilder, UniformBlockModel block)
