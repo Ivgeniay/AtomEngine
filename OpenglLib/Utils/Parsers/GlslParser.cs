@@ -518,6 +518,14 @@ namespace OpenglLib
             };
         }
 
+        public static bool IsSamplerType(string type)
+        {
+            return type.StartsWith("sampler") ||
+                   type.StartsWith("isampler") ||
+                   type.StartsWith("usampler") ||
+                   type.StartsWith("image");
+        }
+
         public static bool IsCustomType(string csharpType, string glslType) =>
             (csharpType == glslType || csharpType.Contains(glslType)) && glslType != "float" && glslType != "bool" && glslType != "int" && glslType != "uint" && glslType != "double" &&
             glslType != "Vector2D<bool>" && glslType != "Vector3D<bool>" && glslType != "Vector4D<bool>" && glslType != "Vector2D<int>" &&

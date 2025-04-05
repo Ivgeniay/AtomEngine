@@ -39,8 +39,31 @@ namespace OpenglLib
             var disposeBuilder = new StringBuilder();
             var disposeBodyBuilder = new StringBuilder();
 
-            int samplers = 0;
             bool isUseDispose = false;
+
+            #region SamplerUniform
+            var samplerBindings = new Dictionary<int, string>();
+            int samplerCounter = 0;
+            foreach (var uniform in uniforms)
+            {
+                if (GlslParser.IsSamplerType(uniform.Type) && uniform.Binding.HasValue)
+                {
+                    samplerBindings[uniform.Binding.Value] = uniform.Name;
+                }
+            }
+            Func<UniformModel, int> getSamplerIndex = (uniform) => {
+                if (uniform.Binding.HasValue)
+                {
+                    return uniform.Binding.Value;
+                }
+                while (samplerBindings.ContainsKey(samplerCounter))
+                {
+                    samplerCounter++;
+                }
+                samplerBindings[samplerCounter] = uniform.Name;
+                return samplerCounter++;
+            };
+            #endregion
 
             GenerateClassStructure(mainBuilder, materialName, vertexSource, fragmentSource, sourceGuid);
             GenerateContentStructure(contentBuilder);
@@ -57,6 +80,7 @@ namespace OpenglLib
                 bool isCustomType = GlslParser.IsCustomType(csharpType, type);
                 string cashFieldName = $"_{name}";
                 string locationName = $"{name}{ShaderConst.LOCATION}";
+                int? binding = uniform.Binding;
 
                 if (isCustomType)
                 {
@@ -77,7 +101,7 @@ namespace OpenglLib
                     }
                     else
                     {
-                        SimpleTypeCase(fieldsBuilder, constructorBodyBuilder, type, csharpType, name, locationName, ref samplers);
+                        SimpleTypeCase(fieldsBuilder, constructorBodyBuilder, type, csharpType, name, locationName, getSamplerIndex, uniform);
                     }
                 }
             }
@@ -289,15 +313,16 @@ namespace OpenglLib
             constructorBodyBuilder.AppendLine($"            {cashFieldName} = new StructArray<{csharpType}>({arraySize}, _gl);");
         }
 
-        private static void SimpleTypeCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string type, string csharpType, string name, string locationName, ref int samplers)
+        private static void SimpleTypeCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string type, string csharpType, string name, string locationName, Func<UniformModel, int> getSamplerIndex, UniformModel uniform)
         {
             string cashFieldName = $"_{name}";
             var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
 
             // Если это текстурный сэмплер, добавляем метод установки текстуры
-            if (type.IndexOf("sampler") != -1)
+            if (GlslParser.IsSamplerType(type))
             {
-                fieldsBuilder.AppendLine($"        public void {name}_SetTexture(OpenglLib.Texture texture) => SetTexture(\"Texture{samplers}\", \"{GlslParser.GetTextureTarget(type)}\", {locationName}, {samplers++}, texture);");
+                int sampler = getSamplerIndex(uniform);
+                fieldsBuilder.AppendLine($"        public void {name}_SetTexture(OpenglLib.Texture texture) => SetTexture(\"Texture{sampler}\", \"{GlslParser.GetTextureTarget(type)}\", {locationName}, {sampler}, texture);");
             }
 
             fieldsBuilder.AppendLine($"        public int {locationName} " + "{" + " get ; protected set; } = -1;");
