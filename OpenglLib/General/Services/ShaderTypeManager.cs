@@ -382,13 +382,8 @@ namespace OpenglLib
         }
     }
 
-    public class ShaderTypeInfo
+    public class ShaderTypeInfo : BaseTypeInfo
     {
-        public string StructureGuid { get; set; } = string.Empty;
-        public string OriginalName { get; set; } = string.Empty;
-        public string GeneratedTypeName { get; set; } = string.Empty;
-        public string FilePath { get; set; } = string.Empty;
-        public bool IsGenerated { get; set; }
         public string ContentHash { get; set; } = string.Empty;
         /// <summary>
         /// GlslStructModel или UniformBlockModel
