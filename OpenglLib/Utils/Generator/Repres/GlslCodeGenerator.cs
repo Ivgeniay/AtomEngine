@@ -1,5 +1,6 @@
 ﻿using AtomEngine;
 using EngineLib;
+using System.Collections.Concurrent;
 
 namespace OpenglLib
 {
@@ -31,9 +32,9 @@ namespace OpenglLib
                         string rsContent = FileLoader.LoadFile(rsFile.SourcePath);
                         var registration = rsManager.RegisterRSFile(rsFile.SourcePath, rsContent);
                         rsManager.CacheRSInstance(rsFile);
-                        await rsManager.EnsureTypesGenerated(rsFile.SourcePath);
+                        //await rsManager.EnsureTypesGenerated(rsFile.SourcePath);
                         rsManager.UpdateRSFileTypesWithGeneratedNames(rsFile);
-                        await rsManager.GenerateComponentsFromRSFile(rsFile);
+                        //await rsManager.GenerateComponentsFromRSFile(rsFile);
 
                         foreach (var structInfo in registration.Structures.Values)
                         {
@@ -47,6 +48,12 @@ namespace OpenglLib
                     }
 
                     ShaderStructureInstanceProcessor.PropagateRSTypesToShaderModel(shader);
+                }
+
+                foreach (var rsFile in shader.RSFiles)
+                {
+                    await rsManager.EnsureTypesGenerated(rsFile.SourcePath);
+                    await rsManager.GenerateComponentsFromRSFile(rsFile);
                 }
 
                 if (shader.Vertex != null)
@@ -222,42 +229,14 @@ namespace OpenglLib
 
             if (shaderModel.Vertex != null)
             {
-                foreach (var structure in shaderModel.Vertex.Structures)
-                {
-                    if (typeMap.TryGetValue(structure.Name, out var csharpType))
-                    {
-                        structure.CSharpTypeName = csharpType;
-                    }
-                }
-
-                foreach (var instance in shaderModel.Vertex.StructureInstances)
-                {
-                    if (instance.Structure != null &&
-                        typeMap.TryGetValue(instance.Structure.Name, out var csharpType))
-                    {
-                        instance.Structure.CSharpTypeName = csharpType;
-                    }
-                }
+                UpdateStructureTypes(shaderModel.Vertex.Structures, typeMap);
+                UpdateStructureInstanceTypes(shaderModel.Vertex.StructureInstances, typeMap);
             }
 
             if (shaderModel.Fragment != null)
             {
-                foreach (var structure in shaderModel.Fragment.Structures)
-                {
-                    if (typeMap.TryGetValue(structure.Name, out var csharpType))
-                    {
-                        structure.CSharpTypeName = csharpType;
-                    }
-                }
-
-                foreach (var instance in shaderModel.Fragment.StructureInstances)
-                {
-                    if (instance.Structure != null &&
-                        typeMap.TryGetValue(instance.Structure.Name, out var csharpType))
-                    {
-                        instance.Structure.CSharpTypeName = csharpType;
-                    }
-                }
+                UpdateStructureTypes(shaderModel.Fragment.Structures, typeMap);
+                UpdateStructureInstanceTypes(shaderModel.Fragment.StructureInstances, typeMap);
             }
         }
 
@@ -300,6 +279,47 @@ namespace OpenglLib
                 }
             }
         }
+
+        private static void UpdateStructureTypes(List<GlslStructModel> structures, Dictionary<string, string> typeMap)
+        {
+            foreach (var structure in structures)
+            {
+                if (typeMap.TryGetValue(structure.Name, out var csharpType))
+                {
+                    structure.CSharpTypeName = csharpType;
+                }
+
+                UpdateStructureFields(structure.Fields, typeMap);
+            }
+        }
+
+        private static void UpdateStructureFields(List<GlslStructFieldModel> fields, Dictionary<string, string> typeMap)
+        {
+            foreach (var field in fields)
+            {
+                if (typeMap.TryGetValue(field.Type, out var csharpType))
+                {
+                    field.CSharpTypeName = csharpType;
+                }
+            }
+        }
+
+        private static void UpdateStructureInstanceTypes(List<GlslStructInstance> instances, Dictionary<string, string> typeMap)
+        {
+            foreach (var instance in instances)
+            {
+                if (instance.Structure != null)
+                {
+                    if (typeMap.TryGetValue(instance.Structure.Name, out var csharpType))
+                    {
+                        instance.Structure.CSharpTypeName = csharpType;
+                    }
+
+                    UpdateStructureFields(instance.Structure.Fields, typeMap);
+                }
+            }
+        }
+
 
 
 
@@ -416,6 +436,75 @@ namespace OpenglLib
             public GlslStructInstance Instance { get; set; }
             public bool IsVertex { get; set; }
             public string StructureHash { get; set; }
+        }
+    }
+
+    public static class GlslTypeMapper
+    {
+        private static readonly ConcurrentDictionary<string, string> _guidToTypeNameMap =
+            new ConcurrentDictionary<string, string>();
+
+        private static readonly ConcurrentDictionary<string, string> _structNameToGuidMap =
+            new ConcurrentDictionary<string, string>();
+
+        public static void RegisterTypeMapping(string structureGuid, string structName, string mappedTypeName)
+        {
+            _guidToTypeNameMap[structureGuid] = mappedTypeName;
+            _structNameToGuidMap[structName] = structureGuid;
+
+            DebLogger.Info($"Registered type mapping: {structName} ({structureGuid}) -> {mappedTypeName}");
+        }
+
+        public static string GetTypeNameByGuid(string structureGuid)
+        {
+            if (_guidToTypeNameMap.TryGetValue(structureGuid, out var typeName))
+                return typeName;
+
+            return null;
+        }
+
+        public static string GetGuidByStructName(string structName)
+        {
+            if (_structNameToGuidMap.TryGetValue(structName, out var guid))
+                return guid;
+
+            return null;
+        }
+
+        public static string GetTypeNameByStructName(string structName)
+        {
+            string guid = GetGuidByStructName(structName);
+            if (guid != null)
+            {
+                return GetTypeNameByGuid(guid);
+            }
+
+            return null;
+        }
+
+        public static string TryFindStructureGuid(string structureName, string sourcePath = null)
+        {
+            string guid = GetGuidByStructName(structureName);
+            if (!string.IsNullOrEmpty(guid))
+                return guid;
+
+            var rsManager = ServiceHub.Get<RSManager>();
+            var rsStructInfo = rsManager.GetStructTypeInfo(structureName, sourcePath);
+            if (rsStructInfo != null && !string.IsNullOrEmpty(rsStructInfo.StructureGuid))
+                return rsStructInfo.StructureGuid;
+
+            var shaderTypeManager = ServiceHub.Get<ShaderTypeManager>();
+            var shaderTypeInfo = shaderTypeManager.GetShaderTypeInfo(structureName, sourcePath);
+            if (shaderTypeInfo != null && !string.IsNullOrEmpty(shaderTypeInfo.StructureGuid))
+                return shaderTypeInfo.StructureGuid;
+
+            return Guid.NewGuid().ToString();
+        }
+
+        public static void Clear()
+        {
+            _guidToTypeNameMap.Clear();
+            _structNameToGuidMap.Clear();
         }
     }
 }

@@ -6,7 +6,7 @@ namespace OpenglLib
 {
     /*
     StructArray используется для того чтобы использоваться в качестве массива кастомных пользовательских структуру 
-    генерируемых из .glsl кода. Реализует Dirty. При установки значения в Dirty прокидывает значение во все 
+    генерируемых из .glsl кода. Реализует Dirty Flag pattern. При установки значения в Dirty прокидывает значение во все 
     элементы массива.
      */
     public class StructArray<T> : IEnumerable<T> where T : CustomStruct, IDirty

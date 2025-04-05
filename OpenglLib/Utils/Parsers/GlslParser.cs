@@ -1347,6 +1347,7 @@ namespace OpenglLib
                 var field = new GlslStructFieldModel
                 {
                     Type = type,
+                    CSharpTypeName = MapGlslTypeToCSharp(type),
                     Name = name,
                     ArraySize = arraySize
                 };
@@ -1800,6 +1801,7 @@ namespace OpenglLib
         public string FullText { get; set; } = string.Empty;
         public List<GlslStructFieldModel> Fields { get; set; } = new List<GlslStructFieldModel>();
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
+        public string TypeMappingId { get; set; } = string.Empty;
     }
 
     public class GlslStructInstance
@@ -1818,8 +1820,10 @@ namespace OpenglLib
     {
         public List<ShaderAttribute> Attributes { get; set; } = new List<ShaderAttribute>();
         public string Type { get; set; } = string.Empty;
+        public string CSharpTypeName { get; set; } = string.Empty;
         public string Name {  set; get; } = string.Empty;
         public int? ArraySize { get; set; }
+        public string TypeMappingId { get; set; } = string.Empty;
     }
 
     public class UniformModel

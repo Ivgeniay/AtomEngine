@@ -288,6 +288,7 @@ namespace OpenglLib
 
     public class ShaderTypeInfo
     {
+        public string StructureGuid { get; set; } = string.Empty;
         public string OriginalName { get; set; } = string.Empty;
         public string GeneratedTypeName { get; set; } = string.Empty;
         public string FilePath { get; set; } = string.Empty;

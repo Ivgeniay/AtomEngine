@@ -52,14 +52,19 @@ namespace OpenglLib
 
             foreach (var structure in rsFileInfo.Structures)
             {
+                string structureGuid = GlslTypeMapper.TryFindStructureGuid(structure.Name, path);
+
                 string generatedTypeName = GetTypeNameForRSFile(structure.Name, path);
                 var structInfo = new RSStructTypeInfo
                 {
                     OriginalName = structure.Name,
                     GeneratedTypeName = generatedTypeName,
                     FilePath = path,
-                    IsGenerated = false
+                    IsGenerated = false,
+                    StructureGuid = structureGuid,
                 };
+
+                GlslTypeMapper.RegisterTypeMapping(structureGuid, structure.Name, generatedTypeName);
 
                 registration.Structures[structure.Name] = structInfo;
 
@@ -340,11 +345,35 @@ namespace OpenglLib
                 return;
             }
 
+            //foreach (var structure in rsFileInfo.Structures)
+            //{
+            //    if (registration.Structures.TryGetValue(structure.Name, out var structInfo))
+            //    {
+            //        structure.CSharpTypeName = structInfo.GeneratedTypeName;
+            //    }
+            //}
+
             foreach (var structure in rsFileInfo.Structures)
             {
-                if (registration.Structures.TryGetValue(structure.Name, out var structInfo))
+                if (string.IsNullOrEmpty(structure.TypeMappingId))
                 {
-                    structure.CSharpTypeName = structInfo.GeneratedTypeName;
+                    structure.TypeMappingId = GlslTypeMapper.TryFindStructureGuid(structure.Name, rsFileInfo.SourcePath);
+                }
+                foreach (var field in structure.Fields)
+                {
+                    if (GlslParser.IsCustomType(field.Type, field.Type))
+                    {
+                        field.TypeMappingId = GlslTypeMapper.TryFindStructureGuid(field.Type, rsFileInfo.SourcePath);
+
+                        if (!string.IsNullOrEmpty(field.TypeMappingId))
+                        {
+                            string mappedTypeName = GlslTypeMapper.GetTypeNameByGuid(field.TypeMappingId);
+                            if (!string.IsNullOrEmpty(mappedTypeName))
+                            {
+                                field.CSharpTypeName = mappedTypeName;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -415,6 +444,7 @@ namespace OpenglLib
 
     public class RSStructTypeInfo
     {
+        public string StructureGuid { get; set; } = string.Empty;
         public string OriginalName { get; set; } = string.Empty;
         public string GeneratedTypeName { get; set; } = string.Empty;
         public string FilePath { get; set; } = string.Empty;
