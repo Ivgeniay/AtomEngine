@@ -52,9 +52,11 @@ namespace OpenglLib
 
             foreach (var structure in rsFileInfo.Structures)
             {
-                string structureGuid = GlslTypeMapper.TryFindStructureGuid(structure.Name, path);
+                string structureGuid = string.IsNullOrEmpty(structure.TypeMappingId)
+                                        ? Guid.NewGuid().ToString()
+                                        : structure.TypeMappingId;
 
-                string generatedTypeName = GetTypeNameForRSFile(structure.Name, path);
+                string generatedTypeName = GetUniqueTypeNameForRSFile(structure.Name, structureGuid);
                 var structInfo = new RSStructTypeInfo
                 {
                     OriginalName = structure.Name,
@@ -116,6 +118,8 @@ namespace OpenglLib
 
         public RSStructTypeInfo GetStructTypeInfo(string structName, string rsFilePath)
         {
+            if (rsFilePath == null || structName == null) return null;
+
             if (_rsFileRegistrations.TryGetValue(rsFilePath, out var registration))
             {
                 if (registration.Structures.TryGetValue(structName, out var structInfo))
@@ -148,12 +152,6 @@ namespace OpenglLib
             }
 
             return null;
-        }
-
-        public string GetTypeNameForRSFile(string baseName, string rsFilePath)
-        {
-            string pathHash = CalculatePathHash(rsFilePath);
-            return $"{baseName}RS_{pathHash.Substring(0, 4)}";
         }
 
         public bool HasRSFile(string path)
@@ -198,14 +196,18 @@ namespace OpenglLib
             {
                 throw new KeyNotFoundException($"RS file not registered: {rsFilePath}");
             }
+
+            HashSet<string> generatedTypes = new HashSet<string>();
+            HashSet<string> processingTypes = new HashSet<string>();
+
             foreach (var structInfo in registration.Structures.Values)
             {
                 if (!structInfo.IsGenerated)
                 {
-                    GenerateStructType(rsFilePath, structInfo, registration);
-                    structInfo.IsGenerated = true;
+                    GenerateStructTypeRecursively(rsFilePath, structInfo.OriginalName, generatedTypes, processingTypes, registration);
                 }
             }
+
             foreach (var uboInfo in registration.UniformBlocks.Values)
             {
                 if (!uboInfo.IsGenerated)
@@ -214,45 +216,86 @@ namespace OpenglLib
                     uboInfo.IsGenerated = true;
                 }
             }
-            //await GenerateRSComponents(registration);
         }
 
-        private void GenerateStructType(string rsFilePath, RSStructTypeInfo structInfo, RSFileRegistration registration)
+        private void GenerateStructTypeRecursively(string rsFilePath, string structName, HashSet<string> generatedTypes,
+                                                  HashSet<string> processingTypes, RSFileRegistration registration)
         {
-            try
-            {
-                string rsContent = FileLoader.LoadFile(rsFilePath);
-                var rsFileInfo = RSParser.ParseContent(rsContent, rsFilePath);
+            if (generatedTypes.Contains(structName))
+                return;
 
-                var structModel = rsFileInfo.Structures.FirstOrDefault(s => s.Name == structInfo.OriginalName);
-                if (structModel == null)
+            if (processingTypes.Contains(structName))
+            {
+                throw new Exception($"Circular dependency detected for structure {structName} in {rsFilePath}");
+            }
+
+            processingTypes.Add(structName);
+
+            string rsContent = FileLoader.LoadFile(rsFilePath);
+            var rsFileInfo = RSParser.ParseContent(rsContent, rsFilePath);
+
+            var structModel = rsFileInfo.Structures.FirstOrDefault(s => s.Name == structName);
+            if (structModel == null)
+            {
+                DebLogger.Error($"Structure {structName} not found in {rsFilePath}");
+                processingTypes.Remove(structName);
+                return;
+            }
+
+            foreach (var field in structModel.Fields)
+            {
+                if (GlslParser.IsCustomType(field.Type, field.Type) && !GlslParser.IsGlslBaseType(field.Type))
                 {
-                    DebLogger.Error($"Structure {structInfo.OriginalName} not found in {rsFilePath}");
-                    return;
+                    if (!generatedTypes.Contains(field.Type) && registration.Structures.ContainsKey(field.Type))
+                    {
+                        GenerateStructTypeRecursively(rsFilePath, field.Type, generatedTypes, processingTypes, registration);
+                    }
+                }
+            }
+
+            processingTypes.Remove(structName);
+
+            if (!registration.Structures.TryGetValue(structName, out RSStructTypeInfo structInfo))
+            {
+                DebLogger.Error($"Structure info for {structName} not found in registration");
+                return;
+            }
+
+            if (!structInfo.IsGenerated)
+            {
+                foreach (var field in structModel.Fields)
+                {
+                    if (GlslParser.IsCustomType(field.Type, field.Type) && registration.Structures.ContainsKey(field.Type))
+                    {
+                        var fieldTypeInfo = registration.Structures[field.Type];
+                        field.CSharpTypeName = fieldTypeInfo.GeneratedTypeName;
+                        field.TypeMappingId = fieldTypeInfo.StructureGuid;
+                    }
                 }
 
                 var modifiedStructModel = new GlslStructModel
                 {
                     Name = structInfo.GeneratedTypeName,
+                    CSharpTypeName = structInfo.GeneratedTypeName,
                     Fields = structModel.Fields,
                     Attributes = structModel.Attributes,
-                    FullText = structModel.FullText.Replace(structInfo.OriginalName, structInfo.GeneratedTypeName)
+                    FullText = structModel.FullText.Replace(structInfo.OriginalName, structInfo.GeneratedTypeName),
+                    TypeMappingId = structInfo.StructureGuid
                 };
+
                 if (!Directory.Exists(OutputDirectory))
                 {
                     Directory.CreateDirectory(OutputDirectory);
                 }
 
-                string modelCode = GlslStructGenerator.GenerateModelClass(modifiedStructModel);
+                string modelCode = GlslStructGenerator.GenerateModelClass(modifiedStructModel, structInfo.StructureGuid);
                 string filePath = Path.Combine(OutputDirectory, $"GlslStruct.{structInfo.GeneratedTypeName}.g.cs");
                 File.WriteAllText(filePath, modelCode, Encoding.UTF8);
 
                 structInfo.IsGenerated = true;
             }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Error generating struct {structInfo.OriginalName}: {ex.Message}");
-            }
+
+            generatedTypes.Add(structName);
         }
 
         private void GenerateUBOType(string rsFilePath, RSUBOTypeInfo uboInfo, RSFileRegistration registration)
@@ -299,7 +342,31 @@ namespace OpenglLib
             }
         }
 
-        
+
+        public string GetTypeNameByGuid(string structureGuid)
+        {
+            foreach (var registration in _rsFileRegistrations.Values)
+            {
+                foreach (var info in registration.Structures.Values)
+                {
+                    if (info.StructureGuid == structureGuid)
+                    {
+                        return info.GeneratedTypeName;
+                    }
+                }
+            }
+            return null;
+        }
+
+        public string GetGuidByStructName(string structName)
+        {
+            if (_structuresByName.TryGetValue(structName, out var structDict) && structDict.Count > 0)
+            {
+                return structDict.Values.FirstOrDefault()?.StructureGuid;
+            }
+            return null;
+        }
+
 
         private async Task GenerateRSComponents(RSFileRegistration registration)
         {
@@ -345,32 +412,32 @@ namespace OpenglLib
                 return;
             }
 
-            //foreach (var structure in rsFileInfo.Structures)
-            //{
-            //    if (registration.Structures.TryGetValue(structure.Name, out var structInfo))
-            //    {
-            //        structure.CSharpTypeName = structInfo.GeneratedTypeName;
-            //    }
-            //}
-
             foreach (var structure in rsFileInfo.Structures)
             {
                 if (string.IsNullOrEmpty(structure.TypeMappingId))
                 {
-                    structure.TypeMappingId = GlslTypeMapper.TryFindStructureGuid(structure.Name, rsFileInfo.SourcePath);
+                    if (registration.Structures.TryGetValue(structure.Name, out var structInfo))
+                    {
+                        structure.TypeMappingId = structInfo.StructureGuid;
+                        structure.CSharpTypeName = structInfo.GeneratedTypeName;
+                    }
                 }
+
                 foreach (var field in structure.Fields)
                 {
                     if (GlslParser.IsCustomType(field.Type, field.Type))
                     {
-                        field.TypeMappingId = GlslTypeMapper.TryFindStructureGuid(field.Type, rsFileInfo.SourcePath);
-
-                        if (!string.IsNullOrEmpty(field.TypeMappingId))
+                        if (registration.Structures.TryGetValue(field.Type, out var fieldTypeInfo))
                         {
-                            string mappedTypeName = GlslTypeMapper.GetTypeNameByGuid(field.TypeMappingId);
-                            if (!string.IsNullOrEmpty(mappedTypeName))
+                            field.TypeMappingId = fieldTypeInfo.StructureGuid;
+                            field.CSharpTypeName = fieldTypeInfo.GeneratedTypeName;
+                        }
+                        else
+                        {
+                            field.TypeMappingId = GlslTypeMapper.GetGuidByStructName(field.Type);
+                            if (!string.IsNullOrEmpty(field.TypeMappingId))
                             {
-                                field.CSharpTypeName = mappedTypeName;
+                                field.CSharpTypeName = GlslTypeMapper.GetTypeNameByGuid(field.TypeMappingId);
                             }
                         }
                     }
@@ -415,7 +482,7 @@ namespace OpenglLib
                     if (structInstance.OriginalInstanceName != null &&
                         structInstance.OriginalInstanceName != structInstance.InstanceName)
                     {
-                        //DebLogger.Info($"В RS-файле используется переименованный инстанс: {structInstance.OriginalInstanceName} -> {structInstance.InstanceName}");
+                        
                     }
 
                     var structName = structInstance.Structure.Name;
@@ -427,6 +494,18 @@ namespace OpenglLib
             }
         }
 
+
+        public string GetUniqueTypeNameForRSFile(string baseName, string guid)
+        {
+            string suffix = guid.Substring(0, 4);
+            return $"{baseName}RS_{suffix}";
+        }
+
+        public string GetTypeNameForRSFile(string baseName, string rsFilePath)
+        {
+            string pathHash = CalculatePathHash(rsFilePath);
+            return $"{baseName}RS_{pathHash.Substring(0, 4)}";
+        }
     }
 
     public class RSFileRegistration

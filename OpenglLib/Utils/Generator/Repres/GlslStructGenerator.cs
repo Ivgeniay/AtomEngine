@@ -13,71 +13,71 @@ namespace OpenglLib
 
         private static HashSet<string> _generatedTypes = new HashSet<string>();
 
-        public static List<string> GenerateStructs(string shaderSourceCode, string outputDirectory, string sourceGuid = null)
-        {
-            _generatedTypes = new HashSet<string>();
-            var pendingStructures = new List<GlslStructModel>();
-            var result = new List<string>();
+        //public static List<string> GenerateStructs(string shaderSourceCode, string outputDirectory, string sourceGuid = null)
+        //{
+        //    _generatedTypes = new HashSet<string>();
+        //    var pendingStructures = new List<GlslStructModel>();
+        //    var result = new List<string>();
 
-            var structures = GlslParser.ExtractGlslStructures(shaderSourceCode);
-            pendingStructures.AddRange(structures);
+        //    var structures = GlslParser.ExtractGlslStructures(shaderSourceCode);
+        //    pendingStructures.AddRange(structures);
 
-            while (pendingStructures.Count > 0)
-            {
-                bool processedAny = false;
-                var remainingStructures = new List<GlslStructModel>();
+        //    while (pendingStructures.Count > 0)
+        //    {
+        //        bool processedAny = false;
+        //        var remainingStructures = new List<GlslStructModel>();
 
-                foreach (var structure in pendingStructures)
-                {
-                    if (CanProcessStructure(structure, _generatedTypes))
-                    {
-                        if (!_generatedTypes.Add(structure.Name))
-                        {
-                            continue;
-                        }
+        //        foreach (var structure in pendingStructures)
+        //        {
+        //            if (CanProcessStructure(structure, _generatedTypes))
+        //            {
+        //                if (!_generatedTypes.Add(structure.Name))
+        //                {
+        //                    continue;
+        //                }
 
-                        var modelCode = GenerateModelClass(structure, sourceGuid);
-                        var filePath = Path.Combine(outputDirectory, $"GlslStruct.{structure.Name}.g.cs");
-                        File.WriteAllText(filePath, modelCode, Encoding.UTF8);
+        //                var modelCode = GenerateModelClass(structure, sourceGuid);
+        //                var filePath = Path.Combine(outputDirectory, $"GlslStruct.{structure.Name}.g.cs");
+        //                File.WriteAllText(filePath, modelCode, Encoding.UTF8);
 
-                        result.Add(structure.Name);
-                        processedAny = true;
-                    }
-                    else
-                    {
-                        remainingStructures.Add(structure);
-                    }
-                }
+        //                result.Add(structure.Name);
+        //                processedAny = true;
+        //            }
+        //            else
+        //            {
+        //                remainingStructures.Add(structure);
+        //            }
+        //        }
 
-                if (!processedAny && remainingStructures.Count > 0)
-                {
-                    var circularDeps = string.Join(", ", remainingStructures.Select(s => s.Name));
-                    throw new Exception($"Circular dependencies detected between structures: {circularDeps}");
-                }
+        //        if (!processedAny && remainingStructures.Count > 0)
+        //        {
+        //            var circularDeps = string.Join(", ", remainingStructures.Select(s => s.Name));
+        //            throw new Exception($"Circular dependencies detected between structures: {circularDeps}");
+        //        }
 
-                pendingStructures = remainingStructures;
-            }
+        //        pendingStructures = remainingStructures;
+        //    }
 
-            return result;
-        }
+        //    return result;
+        //}
 
-        private static bool CanProcessStructure(GlslStructModel structure, HashSet<string> generatedTypes)
-        {
-            foreach (var field in structure.Fields)
-            {
-                if (!GlslParser.IsGlslBaseType(field.Type) && !generatedTypes.Contains(field.Type))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
+        //private static bool CanProcessStructure(GlslStructModel structure, HashSet<string> generatedTypes)
+        //{
+        //    foreach (var field in structure.Fields)
+        //    {
+        //        if (!GlslParser.IsGlslBaseType(field.Type) && !generatedTypes.Contains(field.Type))
+        //        {
+        //            return false;
+        //        }
+        //    }
+        //    return true;
+        //}
 
-        public static string GenerateModelClass(GlslStructModel structure, string sourceGuid = null)
+        public static string GenerateModelClass(GlslStructModel structure, string sourceStructGuid = null)
         {
             if (string.IsNullOrEmpty(structure.TypeMappingId))
             {
-                structure.TypeMappingId = GlslTypeMapper.TryFindStructureGuid(structure.Name, sourceGuid);
+                structure.TypeMappingId = GlslTypeMapper.TryFindStructureGuid(structure.Name, sourceStructGuid);
             }
             string generatedTypeName = structure.CSharpTypeName;
             if (string.IsNullOrEmpty(generatedTypeName))
@@ -89,7 +89,10 @@ namespace OpenglLib
             {
                 if (GlslParser.IsCustomType(field.Type, field.Type))
                 {
-                    field.TypeMappingId = GlslTypeMapper.TryFindStructureGuid(field.Type, sourceGuid);
+                    if (string.IsNullOrEmpty(field.TypeMappingId))
+                    {
+                        field.TypeMappingId = GlslTypeMapper.TryFindStructureGuid(field.Type, sourceStructGuid);
+                    }
                     if (!string.IsNullOrEmpty(field.TypeMappingId))
                     {
                         string mappedTypeName = GlslTypeMapper.GetTypeNameByGuid(field.TypeMappingId);
@@ -98,6 +101,10 @@ namespace OpenglLib
                             field.CSharpTypeName = mappedTypeName;
                         }
                     }
+                }
+                else
+                {
+                    field.CSharpTypeName = GlslParser.MapGlslTypeToCSharp(field.Type, _generatedTypes);
                 }
             }
 
@@ -110,7 +117,7 @@ namespace OpenglLib
             var isDirtySetterBuilder = new StringBuilder();
             var setCleanBuilder = new StringBuilder();
 
-            GenerateClassStructure(mainBuilder, structure.Name, sourceGuid);
+            GenerateClassStructure(mainBuilder, structure.Name, sourceStructGuid);
             GenerateContentStructure(contentBuilder);
             GenerateConstructor(constructorBuilder, structure.Name);
 
@@ -120,9 +127,9 @@ namespace OpenglLib
                 var name = field.Name;
                 var arraySize = field.ArraySize;
 
-                var csharpType = !string.IsNullOrEmpty(field.CSharpTypeName)
+                string csharpType = !string.IsNullOrEmpty(field.CSharpTypeName)
                     ? field.CSharpTypeName
-                    : GlslParser.MapGlslTypeToCSharp(type, _generatedTypes);
+                    : GlslParser.MapGlslTypeToCSharp(field.Type, _generatedTypes);
 
                 bool isCustomType = GlslParser.IsCustomType(csharpType, type);
 

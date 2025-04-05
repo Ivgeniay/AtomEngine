@@ -31,6 +31,21 @@ namespace OpenglLib
                 return existingInfo;
             }
 
+            var rsManager = ServiceHub.Get<RSManager>();
+            var rsStructInfo = rsManager.GetStructTypeInfo(structModel.Name, sourcePath);
+
+            string structureGuid;
+            if (rsStructInfo != null)
+            {
+                structureGuid = rsStructInfo.StructureGuid;
+            }
+            else
+            {
+                structureGuid = !string.IsNullOrEmpty(structModel.TypeMappingId)
+                    ? structModel.TypeMappingId
+                    : Guid.NewGuid().ToString();
+            }
+
             string typeName = GetUniqueTypeName(structModel.Name);
             var typeInfo = new ShaderTypeInfo
             {
@@ -39,8 +54,11 @@ namespace OpenglLib
                 FilePath = sourcePath,
                 IsGenerated = false,
                 ContentHash = contentHash,
-                Model = structModel
+                Model = structModel,
+                StructureGuid = structureGuid
             };
+
+            GlslTypeMapper.RegisterTypeMapping(structureGuid, structModel.Name, typeName);
 
             if (!_typesByName.TryGetValue(structModel.Name, out var typesDict))
             {
@@ -113,7 +131,10 @@ namespace OpenglLib
 
             if (typeInfo.Model is GlslStructModel structModel)
             {
-                GenerateStructType(typeInfo, structModel);
+                HashSet<string> generatedTypes = new HashSet<string>();
+                HashSet<string> processingTypes = new HashSet<string>();
+
+                GenerateStructTypeRecursively(typeInfo, structModel, generatedTypes, processingTypes);
             }
             else if (typeInfo.Model is UniformBlockModel blockModel)
             {
@@ -123,6 +144,58 @@ namespace OpenglLib
             typeInfo.IsGenerated = true;
         }
 
+        private void GenerateStructTypeRecursively(ShaderTypeInfo typeInfo, GlslStructModel structModel,
+                                                 HashSet<string> generatedTypes, HashSet<string> processingTypes)
+        {
+            if (generatedTypes.Contains(structModel.Name))
+                return;
+
+            if (processingTypes.Contains(structModel.Name))
+            {
+                throw new Exception($"Circular dependency detected for structure {structModel.Name} in {typeInfo.FilePath}");
+            }
+
+            processingTypes.Add(structModel.Name);
+
+            foreach (var field in structModel.Fields)
+            {
+                if (GlslParser.IsCustomType(field.Type, field.Type) && !GlslParser.IsGlslBaseType(field.Type))
+                {
+                    var fieldTypeInfo = GetShaderTypeInfo(field.Type, typeInfo.FilePath);
+
+                    if (fieldTypeInfo != null)
+                    {
+                        if (!fieldTypeInfo.IsGenerated && fieldTypeInfo.Model is GlslStructModel fieldStructModel)
+                        {
+                            GenerateStructTypeRecursively(fieldTypeInfo, fieldStructModel, generatedTypes, processingTypes);
+                        }
+
+                        field.CSharpTypeName = fieldTypeInfo.GeneratedTypeName;
+                        field.TypeMappingId = fieldTypeInfo.StructureGuid;
+                    }
+                    else
+                    {
+                        var rsManager = ServiceHub.Get<RSManager>();
+                        var rsStructInfo = rsManager.GetStructTypeInfo(field.Type, typeInfo.FilePath);
+
+                        if (rsStructInfo != null)
+                        {
+                            field.CSharpTypeName = rsStructInfo.GeneratedTypeName;
+                            field.TypeMappingId = rsStructInfo.StructureGuid;
+                        }
+                        else
+                        {
+                            DebLogger.Warn($"Type {field.Type} not found for field in {structModel.Name}");
+                        }
+                    }
+                }
+            }
+
+            processingTypes.Remove(structModel.Name);
+            GenerateStructType(typeInfo, structModel);
+            generatedTypes.Add(structModel.Name);
+        }
+
         private void GenerateStructType(ShaderTypeInfo typeInfo, GlslStructModel structModel)
         {
             try
@@ -130,12 +203,14 @@ namespace OpenglLib
                 var modifiedStructModel = new GlslStructModel
                 {
                     Name = typeInfo.GeneratedTypeName,
+                    CSharpTypeName = typeInfo.GeneratedTypeName,
                     Fields = structModel.Fields,
                     Attributes = structModel.Attributes,
-                    FullText = structModel.FullText.Replace(structModel.Name, typeInfo.GeneratedTypeName)
+                    FullText = structModel.FullText.Replace(structModel.Name, typeInfo.GeneratedTypeName),
+                    TypeMappingId = typeInfo.StructureGuid
                 };
 
-                string modelCode = GlslStructGenerator.GenerateModelClass(modifiedStructModel);
+                string modelCode = GlslStructGenerator.GenerateModelClass(modifiedStructModel, typeInfo.StructureGuid);
                 string filePath = Path.Combine(OutputDirectory, $"GlslStruct.{typeInfo.GeneratedTypeName}.g.cs");
                 File.WriteAllText(filePath, modelCode, Encoding.UTF8);
             }
@@ -144,7 +219,7 @@ namespace OpenglLib
                 DebLogger.Error($"Error generating struct {typeInfo.OriginalName}: {ex.Message}");
             }
         }
-
+   
         private void GenerateUniformBlockType(ShaderTypeInfo typeInfo, UniformBlockModel blockModel)
         {
             try
@@ -283,6 +358,27 @@ namespace OpenglLib
                     }
                 }
             }
+        }
+
+        public string GetTypeNameByGuid(string structureGuid)
+        {
+            foreach (var typeInfo in _typesByHash.Values)
+            {
+                if (typeInfo.StructureGuid == structureGuid)
+                {
+                    return typeInfo.GeneratedTypeName;
+                }
+            }
+            return null;
+        }
+
+        public string GetGuidByStructName(string structName)
+        {
+            if (_typesByName.TryGetValue(structName, out var typesDict) && typesDict.Count > 0)
+            {
+                return typesDict.Values.FirstOrDefault()?.StructureGuid;
+            }
+            return null;
         }
     }
 

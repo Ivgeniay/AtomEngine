@@ -15,6 +15,8 @@ namespace OpenglLib
 
             try
             {
+                GlslTypeMapper.Clear();
+
                 string representationName = Path.GetFileNameWithoutExtension(sourcePath);
                 var rsManager = ServiceHub.Get<RSManager>();
                 var shaderTypeManager = ServiceHub.Get<ShaderTypeManager>();
@@ -441,32 +443,64 @@ namespace OpenglLib
 
     public static class GlslTypeMapper
     {
-        private static readonly ConcurrentDictionary<string, string> _guidToTypeNameMap =
+        private static readonly ConcurrentDictionary<string, string> _guidToTypeNameCache =
             new ConcurrentDictionary<string, string>();
 
-        private static readonly ConcurrentDictionary<string, string> _structNameToGuidMap =
+        private static readonly ConcurrentDictionary<string, string> _structNameToGuidCache =
             new ConcurrentDictionary<string, string>();
 
         public static void RegisterTypeMapping(string structureGuid, string structName, string mappedTypeName)
         {
-            _guidToTypeNameMap[structureGuid] = mappedTypeName;
-            _structNameToGuidMap[structName] = structureGuid;
-
-            DebLogger.Info($"Registered type mapping: {structName} ({structureGuid}) -> {mappedTypeName}");
+            _guidToTypeNameCache[structureGuid] = mappedTypeName;
+            _structNameToGuidCache[structName] = structureGuid;
         }
 
         public static string GetTypeNameByGuid(string structureGuid)
         {
-            if (_guidToTypeNameMap.TryGetValue(structureGuid, out var typeName))
+            if (_guidToTypeNameCache.TryGetValue(structureGuid, out var cachedTypeName))
+                return cachedTypeName;
+
+            var rsManager = ServiceHub.Get<RSManager>();
+            var shaderTypeManager = ServiceHub.Get<ShaderTypeManager>();
+
+            var typeName = rsManager.GetTypeNameByGuid(structureGuid);
+            if (!string.IsNullOrEmpty(typeName))
+            {
+                _guidToTypeNameCache[structureGuid] = typeName;
                 return typeName;
+            }
+
+            typeName = shaderTypeManager.GetTypeNameByGuid(structureGuid);
+            if (!string.IsNullOrEmpty(typeName))
+            {
+                _guidToTypeNameCache[structureGuid] = typeName;
+                return typeName;
+            }
 
             return null;
         }
 
         public static string GetGuidByStructName(string structName)
         {
-            if (_structNameToGuidMap.TryGetValue(structName, out var guid))
+            if (_structNameToGuidCache.TryGetValue(structName, out var cachedGuid))
+                return cachedGuid;
+
+            var rsManager = ServiceHub.Get<RSManager>();
+            var shaderTypeManager = ServiceHub.Get<ShaderTypeManager>();
+
+            var guid = rsManager.GetGuidByStructName(structName);
+            if (!string.IsNullOrEmpty(guid))
+            {
+                _structNameToGuidCache[structName] = guid;
                 return guid;
+            }
+
+            guid = shaderTypeManager.GetGuidByStructName(structName);
+            if (!string.IsNullOrEmpty(guid))
+            {
+                _structNameToGuidCache[structName] = guid;
+                return guid;
+            }
 
             return null;
         }
@@ -503,8 +537,8 @@ namespace OpenglLib
 
         public static void Clear()
         {
-            _guidToTypeNameMap.Clear();
-            _structNameToGuidMap.Clear();
+            _guidToTypeNameCache.Clear();
+            _structNameToGuidCache.Clear();
         }
     }
 }
