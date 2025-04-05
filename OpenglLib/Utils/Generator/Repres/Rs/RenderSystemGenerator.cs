@@ -149,7 +149,8 @@ namespace OpenglLib
                 {
                     if (isCustomStruct)
                     {
-                        GenerateCustomStructArrayRendering(builder, fieldName, componentVar, isDirtySupport, uniform.ArraySize.Value, rsFileInfo);
+                        //GenerateCustomStructArrayRendering(builder, fieldName, componentVar, isDirtySupport, uniform.ArraySize.Value, rsFileInfo);
+                        GenerateStructArrayInstanceRendering(builder, fieldName, componentVar, rsFileInfo, isDirtySupport);//, uniform.ArraySize.Value);
                     }
                     else
                     {
@@ -160,7 +161,8 @@ namespace OpenglLib
                 {
                     if (isCustomStruct)
                     {
-                        GenerateCustomStructRendering(builder, fieldName, componentVar, isDirtySupport, rsFileInfo);
+                        //GenerateCustomStructRendering(builder, fieldName, componentVar, isDirtySupport, rsFileInfo);
+                        GenerateStructInstanceRendering(builder, fieldName, componentVar, rsFileInfo, isDirtySupport);
                     }
                     else
                     {
@@ -213,7 +215,6 @@ namespace OpenglLib
                                                                 a.Value.Equals("true", StringComparison.OrdinalIgnoreCase))))
             {
                 builder.AppendLine($"                    {componentVar}.MakeClean();");
-                //{componentVar}.MakeClean();");
             }
 
             if (rsFileInfo.RequiredComponent.Contains("MeshComponent") ||
@@ -357,7 +358,7 @@ namespace OpenglLib
 
         private static void GenerateCustomStructRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport, RSFileInfo rsFileInfo)
         {
-            var structModel = rsFileInfo.Structures.FirstOrDefault(s => s.Name == fieldName);
+            var structModel = rsFileInfo.Structures.FirstOrDefault(s => s.Name.Contains(fieldName));
             if (structModel != null)
             {
                 if (isDirtySupport)

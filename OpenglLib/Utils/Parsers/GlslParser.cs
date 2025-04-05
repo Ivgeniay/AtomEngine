@@ -519,7 +519,7 @@ namespace OpenglLib
         }
 
         public static bool IsCustomType(string csharpType, string glslType) =>
-            csharpType == glslType && glslType != "float" && glslType != "bool" && glslType != "int" && glslType != "uint" && glslType != "double" &&
+            (csharpType == glslType || csharpType.Contains(glslType)) && glslType != "float" && glslType != "bool" && glslType != "int" && glslType != "uint" && glslType != "double" &&
             glslType != "Vector2D<bool>" && glslType != "Vector3D<bool>" && glslType != "Vector4D<bool>" && glslType != "Vector2D<int>" &&
             glslType != "Vector3D<int>" && glslType != "Vector4D<int>" && glslType != "Vector2D<uint>" && glslType != "Vector3D<uint>" &&
             glslType != "Vector4D<uint>" && glslType != "Vector2D<float>" && glslType != "Vector3D<float>" && glslType != "Vector4D<float>" &&

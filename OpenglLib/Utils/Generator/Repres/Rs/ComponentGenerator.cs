@@ -275,7 +275,7 @@ namespace OpenglLib
             if (isDirtySupport)
             {
                 fieldsBuilder.AppendLine($"        [SupportDirty]");
-                fieldsBuilder.AppendLine($"        private {typeName} _{fieldName};");
+                fieldsBuilder.AppendLine($"        public {typeName} {fieldName};");
 
                 constructorBuilder.AppendLine($"            IsDirty{fieldName} = true;");
 

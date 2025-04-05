@@ -4,6 +4,10 @@ using Silk.NET.OpenGL;
 
 namespace OpenglLib
 {
+    /*
+     CustomStruct является родительским объектом всех кастомных пользовательских структуру генерируемых из glsl кода.
+    Реализует систему Dirty, которая устанавливает флаг Dirty для себя и кастомных структур которые аггрегирует.
+     */
     public abstract class CustomStruct : IDirty
     {
         protected bool _isDirty = true;

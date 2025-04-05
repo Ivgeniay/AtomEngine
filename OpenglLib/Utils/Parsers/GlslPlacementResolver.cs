@@ -397,7 +397,7 @@ namespace OpenglLib
 
                     return new Regex(pattern, RegexOptions.Singleline);
                 },
-                si => si.Structure.Attributes,
+                si => si.Attributes,
                 false
             );
         }
