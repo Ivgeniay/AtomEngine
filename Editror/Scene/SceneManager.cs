@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using Avalonia.Controls;
 using Newtonsoft.Json;
-using AtomEngine;
-using System;
-using Avalonia.Threading;
 using System.Linq;
+using AtomEngine;
 using EngineLib;
+using System;
 
 namespace Editor
 {
@@ -61,23 +61,32 @@ namespace Editor
 
         internal void AddComponent(uint entityId, Type typeComponent)
         {
-            var instance = CurrentScene.AddComponent(entityId, typeComponent);
-            OnComponentAdded?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
-            OnSceneDirty?.Invoke(CurrentScene);
-            OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentAdded);
+            Dispatcher.UIThread.Post(() =>
+            {
+                var instance = CurrentScene.AddComponent(entityId, typeComponent);
+                OnComponentAdded?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
+                OnSceneDirty?.Invoke(CurrentScene);
+                OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentAdded);
+            });
         }
         internal void RemoveComponent(uint entityId, Type typeComponent)
         {
-            var instance = CurrentScene.RemoveComponent(entityId, typeComponent);
-            OnComponentRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
-            OnSceneDirty?.Invoke(CurrentScene);
-            OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentRemoved);
+            Dispatcher.UIThread.Post(() =>
+            {
+                var instance = CurrentScene.RemoveComponent(entityId, typeComponent);
+                OnComponentRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
+                OnSceneDirty?.Invoke(CurrentScene);
+                OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentRemoved);
+            });
         }
         internal void ComponentChange(uint entityId, IComponent component, bool withIgnoreSceneView)
         {
-            OnComponentChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, component, withIgnoreSceneView);
-            OnSceneDirty?.Invoke(CurrentScene);
-            OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentValueChange);
+            Dispatcher.UIThread.Post(() =>
+            {
+                OnComponentChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, component, withIgnoreSceneView);
+                OnSceneDirty?.Invoke(CurrentScene);
+                OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentValueChange);
+            });
         }
 
         internal void AddEntity(string entityName)

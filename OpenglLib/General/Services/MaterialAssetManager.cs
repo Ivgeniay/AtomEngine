@@ -1,5 +1,6 @@
 ﻿using AtomEngine;
 using EngineLib;
+using System.Collections.Generic;
 
 namespace OpenglLib
 {
@@ -110,7 +111,8 @@ namespace OpenglLib
                 return;
             }
 
-            string filePath = ServiceHub.Get<MetadataManager>().GetPathByGuid(shaderRepresentationGuid);
+            MetadataManager metadataManager = ServiceHub.Get<MetadataManager>();
+            string filePath = metadataManager.GetPathByGuid(shaderRepresentationGuid);
 
             if (!File.Exists(filePath))
             {
@@ -142,6 +144,22 @@ namespace OpenglLib
                 string path = GetPathFromAsset(material);
                 if (!string.IsNullOrEmpty(path))
                 {
+                    var materialMeta = metadataManager.GetMetadata(path);
+                    if (materialMeta == null || !materialMeta.Dependencies.Contains(shaderRepresentationGuid))
+                    {
+                        var assetDepencyManager = ServiceHub.Get<AssetDependencyManager>();
+                        if (materialMeta != null && materialMeta.Dependencies.Count() > 0)
+                        {
+                            string[] temp = new string[materialMeta.Dependencies.Count()];
+                            materialMeta.Dependencies.CopyTo(temp);
+
+                            for (int i = 0; i < materialMeta.Dependencies.Count(); i++)
+                            {
+                                assetDepencyManager.RemoveDependencyByGuid(path, temp[i]); 
+                            } 
+                        }
+                        assetDepencyManager.AddDependencyByGuid(path, shaderRepresentationGuid);
+                    }
                     SaveMaterialAsset(material, path);
                 }
             }
@@ -214,30 +232,61 @@ namespace OpenglLib
             {
                 string fileContent = File.ReadAllText(shaderRepresentationPath);
 
-                //if (material.UniformValues == null)
-                material.UniformValues = new Dictionary<string, object>();
+                Dictionary<string, object> existingUniformValues = material.UniformValues ?? new Dictionary<string, object>();
+                Dictionary<string, string> existingTextureReferences = material.TextureReferences ?? new Dictionary<string, string>();
 
-                //if (material.TextureReferences == null)
-                material.TextureReferences = new Dictionary<string, string>();
+                Dictionary<string, object> newUniformValues = new Dictionary<string, object>();
+                Dictionary<string, string> newTextureReferences = new Dictionary<string, string>();
 
                 Dictionary<string, object> properties = new Dictionary<string, object>();
                 List<string> samplers = new List<string>();
                 CSRepresentationParser.ExtractUniformProperties(fileContent, properties, samplers);
+
                 foreach (var pair in properties)
                 {
                     if (!samplers.Contains(pair.Key))
-                        material.UniformValues[pair.Key] = pair.Value;
+                    {
+                        if (existingUniformValues.TryGetValue(pair.Key, out var existingValue))
+                        {
+                            if (pair.Value != null && existingValue != null &&
+                                IsSameValueType(pair.Value, existingValue))
+                            {
+                                newUniformValues[pair.Key] = existingValue;
+                            }
+                            else
+                            {
+                                newUniformValues[pair.Key] = pair.Value;
+                            }
+                        }
+                        else
+                        {
+                            newUniformValues[pair.Key] = pair.Value;
+                        }
+                    }
                 }
+
                 foreach (var sampler in samplers)
                 {
-                    material.TextureReferences.Add(sampler, string.Empty);
+                    if (existingTextureReferences.TryGetValue(sampler, out var existingTexture))
+                    {
+                        newTextureReferences[sampler] = existingTexture;
+                    }
+                    else
+                    {
+                        newTextureReferences[sampler] = string.Empty;
+                    }
                 }
+
+                material.UniformValues = newUniformValues;
+                material.TextureReferences = newTextureReferences;
             }
             catch (Exception ex)
             {
                 DebLogger.Error($"Error analyzing shader representation: {ex.Message}");
             }
         }
+
+
         public T GetUniformValue<T>(MaterialAsset material, string name)
         {
             if (material.UniformValues.TryGetValue(name, out var value))
@@ -268,6 +317,11 @@ namespace OpenglLib
             {
                 yield return (kvp.Key, kvp.Value);
             }
+        }
+
+        public (string, string) GetDefaulShaderValue()
+        {
+            return (string.Empty, string.Empty);
         }
 
         protected object ConvertJObjectToTypedValue(object value, string typeName)
@@ -335,6 +389,52 @@ namespace OpenglLib
             {
                 DebLogger.Error($"Error while scanning for materials: {ex.Message}");
             }
+        }
+
+        private bool IsSameValueType(object newValue, object existingValue)
+        {
+            if (newValue == null || existingValue == null)
+                return newValue == null && existingValue == null;
+
+            Type newType = newValue.GetType();
+            Type existingType = existingValue.GetType();
+
+            if (newType == existingType)
+                return true;
+
+            bool newIsNumeric = IsNumericType(newType);
+            bool existingIsNumeric = IsNumericType(existingType);
+            if (newIsNumeric && existingIsNumeric)
+                return true;
+
+            bool newIsVector = newType.FullName?.Contains("Vector") == true;
+            bool existingIsVector = existingType.FullName?.Contains("Vector") == true;
+
+            if (newIsVector && existingIsVector)
+            {
+                bool newIsVec2 = newType.FullName?.Contains("Vector2") == true;
+                bool existingIsVec2 = existingType.FullName?.Contains("Vector2") == true;
+
+                bool newIsVec3 = newType.FullName?.Contains("Vector3") == true;
+                bool existingIsVec3 = existingType.FullName?.Contains("Vector3") == true;
+
+                bool newIsVec4 = newType.FullName?.Contains("Vector4") == true;
+                bool existingIsVec4 = existingType.FullName?.Contains("Vector4") == true;
+
+                return (newIsVec2 && existingIsVec2) ||
+                       (newIsVec3 && existingIsVec3) ||
+                       (newIsVec4 && existingIsVec4);
+            }
+
+            return false;
+        }
+        private bool IsNumericType(Type type)
+        {
+            return type == typeof(int) || type == typeof(long) ||
+                   type == typeof(float) || type == typeof(double) ||
+                   type == typeof(decimal) || type == typeof(byte) ||
+                   type == typeof(short) || type == typeof(uint) ||
+                   type == typeof(ulong) || type == typeof(ushort);
         }
     }
 }

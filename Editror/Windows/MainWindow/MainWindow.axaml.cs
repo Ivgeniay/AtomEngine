@@ -37,6 +37,12 @@ namespace Editor
             ServiceHub.Get<BuildManager>().SetMainWindow(this);
             _sceneManager = ServiceHub.Get<SceneManager>();
             _sceneManager.SetMainWindow(this);
+
+            AssetDependencyManager assetDependencyManager = ServiceHub.Get<AssetDependencyManager>();
+            assetDependencyManager.RegisterDependencyHandler(MetadataType.Material, new MaterialComponentDependencyHandler());
+            assetDependencyManager.RegisterDependencyHandler(MetadataType.Model, new MeshComponentDependencyHandler());
+            assetDependencyManager.RegisterDependencyHandler(MetadataType.Shader, new MaterialShaderDependencyHandler());
+
             _uIManager = new MainWindowUIManager(this);
 
             var chat = new ChatController();

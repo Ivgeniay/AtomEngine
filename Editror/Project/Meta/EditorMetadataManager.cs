@@ -124,6 +124,11 @@ namespace Editor
         {
             string metaJson = File.ReadAllText(metaFilePath);
 
+            if (metaFilePath.EndsWith("TestGlslCodeRep.g.cs.meta"))
+            {
+
+            }
+
             try
             {
                 var settings = new JsonSerializerSettings
