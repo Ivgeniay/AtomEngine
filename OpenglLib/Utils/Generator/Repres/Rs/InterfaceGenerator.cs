@@ -126,7 +126,14 @@ namespace OpenglLib
 
         private static void UniformCase(StringBuilder builder, string type, string name, string csharpType)
         {
-            builder.AppendLine($"        {csharpType} {name} {{ set; }}");
+            if (GlslParser.IsSamplerType(type))
+            {
+                builder.AppendLine($"        OpenglLib.Texture {name} {{ get; set; }}");
+            }
+            else
+            {
+                builder.AppendLine($"        {csharpType} {name} {{ set; }}");
+            }
         }
 
         private static void UniformCustomStructCase(StringBuilder builder, string type, string name, string csharpType)
@@ -136,7 +143,14 @@ namespace OpenglLib
 
         private static void UniformArrayCase(StringBuilder builder, string type, string name, int arraySize, string csharpType)
         {
-            builder.AppendLine($"        LocaleArray<{csharpType}> {name} {{ get; }}");
+            if (GlslParser.IsSamplerType(type))
+            {
+                builder.AppendLine($"        SamplerArray {name} {{ get; }}");
+            }
+            else
+            {
+                builder.AppendLine($"        LocaleArray<{csharpType}> {name} {{ get; }}");
+            }
         }
 
         private static void UniformArrayCustomStructCase(StringBuilder builder, string type, string name, int arraySize, string csharpType)

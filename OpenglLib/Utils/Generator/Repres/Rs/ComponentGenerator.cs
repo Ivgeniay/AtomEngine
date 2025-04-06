@@ -31,6 +31,7 @@ namespace OpenglLib
 
             foreach (var uniform in rsFileInfo.Uniforms)
             {
+                string type = uniform.Type;
                 string typeName = uniform.CSharpTypeName;
                 string fieldName = uniform.Name;
                 bool isArray = uniform.ArraySize.HasValue;
@@ -38,6 +39,7 @@ namespace OpenglLib
                 bool isCustomStruct = GlslParser.IsCustomType(typeName, uniform.Type);
                 bool isDirtySupport = uniform.Attributes.Any(e => e.Name.Equals("isdirty", StringComparison.OrdinalIgnoreCase) &&
                                                                  e.Value.Equals("true", StringComparison.OrdinalIgnoreCase));
+
 
                 if (isArray)
                 {
@@ -47,7 +49,7 @@ namespace OpenglLib
                     }
                     else
                     {
-                        GenerateSimpleTypeArrayField(fieldsBuilder, constructorBodyBuilder, makeCleanBodyBuilder, typeName, fieldName, arraySize, isDirtySupport);
+                        GenerateSimpleTypeArrayField(fieldsBuilder, constructorBodyBuilder, makeCleanBodyBuilder, typeName, type, fieldName, arraySize, isDirtySupport);
                     }
                 }
                 else
@@ -235,47 +237,72 @@ namespace OpenglLib
             fieldsBuilder.AppendLine();
         }
 
-        private static void GenerateSimpleTypeArrayField(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, string typeName, string fieldName, int arraySize, bool isDirtySupport)
+        private static void GenerateSimpleTypeArrayField(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, string csTypeName, string type, string fieldName, int arraySize, bool isDirtySupport)
         {
             fieldsBuilder.AppendLine($"        [ShowInInspector]");
 
-            if (isDirtySupport)
+            if (GlslParser.IsSamplerType(type))
             {
-                fieldsBuilder.AppendLine($"        [SupportDirty]");
+                if (!isDirtySupport)
+                {
+                    fieldsBuilder.AppendLine($"        public SamplerArray {fieldName};");
+                }
+                else
+                {
+                    fieldsBuilder.AppendLine($"        [SupportDirty]");
+                    fieldsBuilder.AppendLine($"        public SamplerArray {fieldName};");
+
+                    fieldsBuilder.AppendLine($"        public bool IsDirty{fieldName}");
+                    fieldsBuilder.AppendLine("        {");
+                    fieldsBuilder.AppendLine($"            get => {fieldName}.IsDirty;");
+                    fieldsBuilder.AppendLine($"            set => {fieldName}.IsDirty = value;");
+                    fieldsBuilder.AppendLine("        }");
+
+                    makeCleanBuilder.AppendLine($"            IsDirty{fieldName} = false;");
+                }
+
+                constructorBuilder.AppendLine($"            {fieldName} = new SamplerArray({arraySize});");
             }
-
-            fieldsBuilder.AppendLine($"        public LocaleArray<{typeName}> {fieldName};");
-            constructorBuilder.AppendLine($"            {fieldName} = new LocaleArray<{typeName}>({arraySize});");
-
-            if (isDirtySupport)
+            else
             {
-                fieldsBuilder.AppendLine($"        public bool IsDirty{fieldName}");
-                fieldsBuilder.AppendLine("        {");
-                fieldsBuilder.AppendLine($"            get => {fieldName}.IsDirty;");
-                fieldsBuilder.AppendLine($"            set => {fieldName}.IsDirty = value;");
-                fieldsBuilder.AppendLine("        }");
+                if (isDirtySupport)
+                {
+                    fieldsBuilder.AppendLine($"        [SupportDirty]");
+                }
 
-                makeCleanBuilder.AppendLine($"            IsDirty{fieldName} = false;");
+                fieldsBuilder.AppendLine($"        public LocaleArray<{csTypeName}> {fieldName};");
+                constructorBuilder.AppendLine($"            {fieldName} = new LocaleArray<{csTypeName}>({arraySize});");
+
+                if (isDirtySupport)
+                {
+                    fieldsBuilder.AppendLine($"        public bool IsDirty{fieldName}");
+                    fieldsBuilder.AppendLine("        {");
+                    fieldsBuilder.AppendLine($"            get => {fieldName}.IsDirty;");
+                    fieldsBuilder.AppendLine($"            set => {fieldName}.IsDirty = value;");
+                    fieldsBuilder.AppendLine("        }");
+
+                    makeCleanBuilder.AppendLine($"            IsDirty{fieldName} = false;");
+                }
             }
 
             fieldsBuilder.AppendLine();
         }
 
-        private static void GenerateCustomStructField(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, string typeName, string fieldName, bool isDirtySupport)
+        private static void GenerateCustomStructField(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, string csTypeName, string fieldName, bool isDirtySupport)
         {
             fieldsBuilder.AppendLine($"        [ShowInInspector]");
 
             if (!isDirtySupport)
             {
-                fieldsBuilder.AppendLine($"        public {typeName} {fieldName};");
+                fieldsBuilder.AppendLine($"        public {csTypeName} {fieldName};");
             }
 
-            constructorBuilder.AppendLine($"            {fieldName} = new {typeName}(null);");
+            constructorBuilder.AppendLine($"            {fieldName} = new {csTypeName}(null);");
 
             if (isDirtySupport)
             {
                 fieldsBuilder.AppendLine($"        [SupportDirty]");
-                fieldsBuilder.AppendLine($"        public {typeName} {fieldName};");
+                fieldsBuilder.AppendLine($"        public {csTypeName} {fieldName};");
 
                 constructorBuilder.AppendLine($"            IsDirty{fieldName} = true;");
 
@@ -291,59 +318,88 @@ namespace OpenglLib
             fieldsBuilder.AppendLine();
         }
 
-        private static void GenerateSimpleTypeField(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, string typeName, string fieldName, bool isDirtySupport)
+        private static void GenerateSimpleTypeField(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, string csTypeName, string fieldName, bool isDirtySupport)
         {
             fieldsBuilder.AppendLine($"        [ShowInInspector]");
 
-            if (!isDirtySupport)
+            if (GlslParser.IsSamplerType(csTypeName))
             {
-                fieldsBuilder.AppendLine($"        public {typeName} {fieldName};");
+                if (!isDirtySupport)
+                {
+                    fieldsBuilder.AppendLine($"        public OpenglLib.Texture {fieldName};");
+                }
+                else
+                {
+                    fieldsBuilder.AppendLine($"        [SupportDirty]");
+                    fieldsBuilder.AppendLine($"        private OpenglLib.Texture _{fieldName};");
+
+                    fieldsBuilder.AppendLine("        [DefaultBool(true)]");
+                    fieldsBuilder.AppendLine($"        public bool IsDirty{fieldName};");
+
+                    fieldsBuilder.AppendLine($"        public OpenglLib.Texture {fieldName}");
+                    fieldsBuilder.AppendLine("        {");
+                    fieldsBuilder.AppendLine($"            get => _{fieldName};");
+                    fieldsBuilder.AppendLine("            set");
+                    fieldsBuilder.AppendLine("            {");
+                    fieldsBuilder.AppendLine($"                _{fieldName} = value;");
+                    fieldsBuilder.AppendLine($"                IsDirty{fieldName} = true;");
+                    fieldsBuilder.AppendLine("            }");
+                    fieldsBuilder.AppendLine("        }");
+
+                    makeCleanBuilder.AppendLine($"            IsDirty{fieldName}Texture = false;");
+                }
             }
-
-            if (isDirtySupport)
+            else
             {
-                fieldsBuilder.AppendLine($"        [SupportDirty]");
-                fieldsBuilder.AppendLine($"        private {typeName} _{fieldName};");
+                if (!isDirtySupport)
+                {
+                    fieldsBuilder.AppendLine($"        public {csTypeName} {fieldName};");
+                }
+                else
+                {
+                    fieldsBuilder.AppendLine($"        [SupportDirty]");
+                    fieldsBuilder.AppendLine($"        private {csTypeName} _{fieldName};");
 
-                constructorBuilder.AppendLine($"            IsDirty{fieldName} = true;");
+                    constructorBuilder.AppendLine($"            IsDirty{fieldName} = true;");
 
-                fieldsBuilder.AppendLine("        [DefaultBool(true)]");
-                fieldsBuilder.AppendLine($"        public bool IsDirty{fieldName};");
+                    fieldsBuilder.AppendLine("        [DefaultBool(true)]");
+                    fieldsBuilder.AppendLine($"        public bool IsDirty{fieldName};");
 
-                fieldsBuilder.AppendLine($"        public {typeName} {fieldName}");
-                fieldsBuilder.AppendLine("        {");
-                fieldsBuilder.AppendLine($"            get => _{fieldName};");
-                fieldsBuilder.AppendLine("            set");
-                fieldsBuilder.AppendLine("            {");
-                fieldsBuilder.AppendLine($"                _{fieldName} = value;");
-                fieldsBuilder.AppendLine($"                IsDirty{fieldName} = true;");
-                fieldsBuilder.AppendLine("            }");
-                fieldsBuilder.AppendLine("        }");
+                    fieldsBuilder.AppendLine($"        public {csTypeName} {fieldName}");
+                    fieldsBuilder.AppendLine("        {");
+                    fieldsBuilder.AppendLine($"            get => _{fieldName};");
+                    fieldsBuilder.AppendLine("            set");
+                    fieldsBuilder.AppendLine("            {");
+                    fieldsBuilder.AppendLine($"                _{fieldName} = value;");
+                    fieldsBuilder.AppendLine($"                IsDirty{fieldName} = true;");
+                    fieldsBuilder.AppendLine("            }");
+                    fieldsBuilder.AppendLine("        }");
 
-                makeCleanBuilder.AppendLine($"            IsDirty{fieldName} = false;");
+                    makeCleanBuilder.AppendLine($"            IsDirty{fieldName} = false;");
+                }
             }
 
             fieldsBuilder.AppendLine();
         }
 
-        private static void GenerateUniformBlockField(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, string typeName, string fieldName, bool isDirtySupport)
+        private static void GenerateUniformBlockField(StringBuilder fieldsBuilder, StringBuilder constructorBuilder, StringBuilder makeCleanBuilder, string csTypeName, string fieldName, bool isDirtySupport)
         {
             fieldsBuilder.AppendLine($"        [ShowInInspector]");
 
             if (!isDirtySupport)
             {
-                fieldsBuilder.AppendLine($"        public {typeName} {fieldName};");
+                fieldsBuilder.AppendLine($"        public {csTypeName} {fieldName};");
             }
 
             if (isDirtySupport)
             {
                 fieldsBuilder.AppendLine($"        [SupportDirty]");
-                fieldsBuilder.AppendLine($"        private {typeName} _{fieldName};");
+                fieldsBuilder.AppendLine($"        private {csTypeName} _{fieldName};");
 
                 fieldsBuilder.AppendLine("        [DefaultBool(true)]");
                 fieldsBuilder.AppendLine($"        public bool IsDirty{fieldName};");
 
-                fieldsBuilder.AppendLine($"        public {typeName} {fieldName}");
+                fieldsBuilder.AppendLine($"        public {csTypeName} {fieldName}");
                 fieldsBuilder.AppendLine("        {");
                 fieldsBuilder.AppendLine($"            get => _{fieldName};");
                 fieldsBuilder.AppendLine("            set");

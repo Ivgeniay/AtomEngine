@@ -390,20 +390,31 @@ namespace OpenglLib
                 if (material.IsValid)
                 {
                     Type type = material.Shader.GetType();
-                    string methodName = $"{samplerName}_SetTexture";
-                    MethodInfo method = type.GetMethod(methodName);
-                    if (method != null)
+                    PropertyInfo setter = type.GetProperty(samplerName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (setter != null)
                     {
                         Texture texture = _textureFactory.CreateTextureFromGuid(material.GLContext, textureGuid);
-
                         if (texture != null)
                         {
                             material.Shader.Use();
-                            //material.GLContext.ActiveTexture(TextureUnit.Texture0);
-                            method.Invoke(material.Shader, new object[] { texture });
+                            setter.SetValue(material.Shader, texture);
                             DebLogger.Debug($"Применена текстура {samplerName} к материалу {type.Name}");
                         }
                     }
+                    //string methodName = $"{samplerName}_SetTexture";
+                    //MethodInfo method = type.GetMethod(methodName);
+                    //if (method != null)
+                    //{
+                    //    Texture texture = _textureFactory.CreateTextureFromGuid(material.GLContext, textureGuid);
+
+                    //    if (texture != null)
+                    //    {
+                    //        material.Shader.Use();
+                    //        //material.GLContext.ActiveTexture(TextureUnit.Texture0);
+                    //        method.Invoke(material.Shader, new object[] { texture });
+                    //        DebLogger.Debug($"Применена текстура {samplerName} к материалу {type.Name}");
+                    //    }
+                    //}
                 }
             }
             catch (Exception ex)
@@ -498,55 +509,6 @@ namespace OpenglLib
         }
 
 
-        //public virtual void ApplyTextures(GL gl, ShaderBase instance, Dictionary<string, string> textureReferences)
-        //{
-        //    if (textureReferences == null || textureReferences.Count == 0)
-        //    {
-        //        return;
-        //    }
-
-        //    Type instanceType = instance.GetType();
-
-        //    foreach (var kvp in textureReferences)
-        //    {
-        //        string textureName = kvp.Key;
-        //        string textureGuid = kvp.Value;
-
-        //        if (string.IsNullOrEmpty(textureGuid))
-        //        {
-        //            continue;
-        //        }
-
-        //        try
-        //        {
-        //            string methodName = $"{textureName}_SetTexture";
-        //            MethodInfo method = instanceType.GetMethod(methodName);
-
-        //            if (method != null)
-        //            {
-        //                OpenglLib.Texture texture = _textureFactory.CreateTextureFromGuid(gl, textureGuid);
-
-        //                if (texture != null)
-        //                {
-        //                    instance.Use();
-        //                    gl.ActiveTexture(TextureUnit.Texture0);
-        //                    method.Invoke(instance, new object[] { texture });
-        //                    DebLogger.Debug($"Применена текстура {textureName} к материалу {instanceType.Name}");
-        //                }
-        //            }
-        //            else
-        //            {
-        //                DebLogger.Warn($"Метод установки текстуры {methodName} не найден в типе {instanceType.Name}");
-        //            }
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            DebLogger.Warn($"Не удалось установить текстуру {textureName} для {instanceType.Name}: {ex.Message}");
-        //        }
-        //    }
-        //}
-
-
         public virtual void ClearCache()
         {
             Dispose();
@@ -557,9 +519,6 @@ namespace OpenglLib
             _materials.ForEach(e => e.Dispose());
             _materials.Clear();
         }
-
-
-
     }
 
 

@@ -6,37 +6,54 @@ namespace OpenglLib
     {
         private readonly GL _gl;
         private readonly int _size;
-        private readonly int _location;
         private readonly string _target;
+        private readonly int _baseTextureUnit;
+        private readonly Texture[] _textures;
+        public bool IsDirty { get; set; } = true;
 
-        public int Location { get; set; } = -1;
+        public int Location { get; set; }
 
-        public SamplerArray(GL gl, int size, string target)
+        public SamplerArray(int size) {
+            _textures = new Texture[size];
+        }
+
+        public SamplerArray(GL gl, int size, string target, int baseTextureUnit)
         {
             _gl = gl;
             _size = size;
             _target = target;
+            _baseTextureUnit = baseTextureUnit;
+            _textures = new Texture[size];
         }
 
-        public void SetTexture(int index, Texture texture, int unitOffset = 0)
+        public Texture this[int index]
         {
-            if (index < 0 || index >= _size)
+            get => _textures[index];
+            set
             {
-                throw new IndexOutOfRangeException($"Index {index} is out of range for SamplerArray of size {_size}");
-            }
+                if (index < 0 || index >= _size)
+                    throw new IndexOutOfRangeException();
 
-            if (Location == -1)
-            {
-                return;
-            }
 
-            TextureUnit unit = TextureUnit.Texture0 + index + unitOffset;
+                if (_gl != null && Location != -1 && value != null)
+                {
+                    _textures[index] = value;
+                    SetTextureAtIndex(index, value);
+                    IsDirty = true;
+                }
+            }
+        }
+
+        private void SetTextureAtIndex(int index, Texture texture)
+        {
+            int unitIndex = _baseTextureUnit + index;
+            TextureUnit unit = TextureUnit.Texture0 + unitIndex;
             TextureTarget target = Enum.Parse<TextureTarget>(_target);
 
             texture.Target = target;
             texture.Bind(unit);
 
-            _gl.Uniform1(Location + index, index + unitOffset);
+            _gl.Uniform1(Location + index, unitIndex);
         }
     }
 }

@@ -315,23 +315,44 @@ namespace OpenglLib
 
         private static void SimpleTypeCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string type, string csharpType, string name, string locationName, Func<UniformModel, int> getSamplerIndex, UniformModel uniform)
         {
+            //if (GlslParser.IsSamplerType(type))
+            //{
+            //    int sampler = getSamplerIndex(uniform);
+            //    fieldsBuilder.AppendLine($"        public void {name}_SetTexture(OpenglLib.Texture texture) => SetTexture(\"Texture{sampler}\", \"{GlslParser.GetTextureTarget(type)}\", {locationName}, {sampler}, texture);");
+            //}
+
             string cashFieldName = $"_{name}";
             var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
 
-            // Если это текстурный сэмплер, добавляем метод установки текстуры
+            fieldsBuilder.AppendLine($"        public int {locationName} " + "{" + " get ; protected set; } = -1;");
+
             if (GlslParser.IsSamplerType(type))
             {
-                int sampler = getSamplerIndex(uniform);
-                fieldsBuilder.AppendLine($"        public void {name}_SetTexture(OpenglLib.Texture texture) => SetTexture(\"Texture{sampler}\", \"{GlslParser.GetTextureTarget(type)}\", {locationName}, {sampler}, texture);");
+                int samplerIndex = getSamplerIndex(uniform);
+
+                fieldsBuilder.AppendLine($"        private OpenglLib.Texture _{name};");
+                fieldsBuilder.AppendLine($"        public OpenglLib.Texture {name}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"            get => _{name};");
+                fieldsBuilder.AppendLine("            set");
+                fieldsBuilder.AppendLine("            {");
+                fieldsBuilder.AppendLine($"                if (value != null && {locationName} != -1)");
+                fieldsBuilder.AppendLine($"                {{");
+                fieldsBuilder.AppendLine($"                    _{name} = value;");
+                fieldsBuilder.AppendLine($"                    SetTexture(\"Texture{samplerIndex}\", \"{GlslParser.GetTextureTarget(type)}\", {locationName}, {samplerIndex}, value);");
+                fieldsBuilder.AppendLine($"                }}");
+                fieldsBuilder.AppendLine("            }");
+                fieldsBuilder.AppendLine("        }");
+            }
+            else
+            {
+                fieldsBuilder.AppendLine($"        private {csharpType} {cashFieldName};");
+                fieldsBuilder.AppendLine($"        public {_unsafe}{csharpType} {name}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.Append(GetSetter(type, locationName, cashFieldName));
+                fieldsBuilder.AppendLine("        }");
             }
 
-            fieldsBuilder.AppendLine($"        public int {locationName} " + "{" + " get ; protected set; } = -1;");
-            fieldsBuilder.AppendLine($"        private {csharpType} {cashFieldName};");
-            fieldsBuilder.AppendLine($"        public {_unsafe}{csharpType} {name}");
-            fieldsBuilder.AppendLine("        {");
-            fieldsBuilder.Append(GetSetter(type, locationName, cashFieldName));
-            fieldsBuilder.AppendLine("        }");
-            fieldsBuilder.AppendLine();
             fieldsBuilder.AppendLine();
         }
 
@@ -343,7 +364,7 @@ namespace OpenglLib
             {
                 int baseSamplerIndex = 0;
 
-                for(int i = 0; i < arraySize-1; i++)
+                for(int i = 0; i < arraySize; i++)
                 {
                     if (i == 0) baseSamplerIndex = getSamplerIndex(uniform);
                     getSamplerIndex(uniform);

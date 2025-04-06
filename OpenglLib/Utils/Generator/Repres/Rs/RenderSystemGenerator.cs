@@ -36,7 +36,7 @@ namespace OpenglLib
             GenerateContentStructure(contentBuilder);
             GenerateClassFields(classFieldsBuilder);
             GenerateConstructorStructure(constructorBuilder, systemName);
-            GenerateRenderMethodStructure(renderMethodBuilder, componentName);
+            GenerateRenderMethodStructure(renderMethodBuilder, componentName, rsFileInfo);
             GenerateRenderBody(renderBodyBuilder, interfaceName, rsFileInfo);
             GenerateOtherMethods(otherMethodsBuilder);
             GenerateQueryComponents(queryComponentsBuilder, requiredComponents, componentName);
@@ -101,7 +101,7 @@ namespace OpenglLib
             builder.AppendLine();
         }
 
-        private static void GenerateRenderMethodStructure(StringBuilder builder, string componentName)
+        private static void GenerateRenderMethodStructure(StringBuilder builder, string componentName, RSFileInfo rsFileInfo)
         {
             builder.AppendLine("        public void Render(double deltaTime)");
             builder.AppendLine("        {");
@@ -111,10 +111,16 @@ namespace OpenglLib
             builder.AppendLine();
             builder.AppendLine("            foreach (var entity in rendererEntities)");
             builder.AppendLine("            {");
-            builder.AppendLine("                ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);");
+            if (rsFileInfo.RequiredComponent.Contains("MeshComponent") || rsFileInfo.RequiredComponent.Contains("AtomEngine.MeshComponent"))
+                builder.AppendLine("                ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);");
+
             builder.AppendLine("                ref var materialComponent = ref this.GetComponent<MaterialComponent>(entity);");
             builder.AppendLine();
-            builder.AppendLine("                if (meshComponent.Mesh == null || materialComponent.Material?.Shader == null)");
+            if (rsFileInfo.RequiredComponent.Contains("MeshComponent") || rsFileInfo.RequiredComponent.Contains("AtomEngine.MeshComponent"))
+            {
+                builder.AppendLine("                if (meshComponent.Mesh == null || materialComponent.Material?.Shader == null)");
+            }
+            else builder.AppendLine("                if (materialComponent.Material?.Shader == null)");
             builder.AppendLine("                    continue;");
             builder.AppendLine();
             if (componentName != null)
@@ -149,8 +155,7 @@ namespace OpenglLib
                 {
                     if (isCustomStruct)
                     {
-                        //GenerateCustomStructArrayRendering(builder, fieldName, componentVar, isDirtySupport, uniform.ArraySize.Value, rsFileInfo);
-                        GenerateStructArrayInstanceRendering(builder, fieldName, componentVar, rsFileInfo, isDirtySupport);//, uniform.ArraySize.Value);
+                        GenerateStructArrayInstanceRendering(builder, fieldName, componentVar, rsFileInfo, isDirtySupport);
                     }
                     else
                     {
@@ -161,7 +166,6 @@ namespace OpenglLib
                 {
                     if (isCustomStruct)
                     {
-                        //GenerateCustomStructRendering(builder, fieldName, componentVar, isDirtySupport, rsFileInfo);
                         GenerateStructInstanceRendering(builder, fieldName, componentVar, rsFileInfo, isDirtySupport);
                     }
                     else
@@ -296,37 +300,43 @@ namespace OpenglLib
 
         }
 
-        private static void GenerateCustomStructArrayRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport, int arraySize, RSFileInfo rsFileInfo)
+        private static void GenerateSimpleTypeArrayRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport, int arraySize)
         {
-            var structModel = rsFileInfo.Structures.FirstOrDefault(s => s.Name == fieldName);
-
-            if (isDirtySupport)
+            if (GlslParser.IsSamplerType(fieldName))
             {
-                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
-                builder.AppendLine("                    {");
-                for (var i = 0; i < arraySize; i++)
+                if (isDirtySupport)
                 {
-                    if (structModel != null)
-                    {
-                        ProcessStructFields(builder, structModel, rsFileInfo, componentVar, $"{fieldName}[{i}]", 6);
-                    }
-                    else
+                    builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
+                    builder.AppendLine("                    {");
+                    for (var i = 0; i < arraySize; i++)
                     {
                         builder.AppendLine($"                        renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
                     }
+                    builder.AppendLine("                    }");
                 }
-                //builder.AppendLine($"                        {componentVar}.MakeClean();");
-                builder.AppendLine("                    }");
+                else
+                {
+                    for (var i = 0; i < arraySize; i++)
+                    {
+                        builder.AppendLine($"                    renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
+                    }
+                }
             }
             else
             {
-                for (var i = 0; i < arraySize; i++)
+                if (isDirtySupport)
                 {
-                    if (structModel != null)
+                    builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
+                    builder.AppendLine("                    {");
+                    for (var i = 0; i < arraySize; i++)
                     {
-                        ProcessStructFields(builder, structModel, rsFileInfo, componentVar, $"{fieldName}[{i}]", 5);
+                        builder.AppendLine($"                        renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
                     }
-                    else
+                    builder.AppendLine("                    }");
+                }
+                else
+                {
+                    for (var i = 0; i < arraySize; i++)
                     {
                         builder.AppendLine($"                    renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
                     }
@@ -334,44 +344,20 @@ namespace OpenglLib
             }
         }
 
-        private static void GenerateSimpleTypeArrayRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport, int arraySize)
+        private static void GenerateSimpleTypeRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport)
         {
-            if (isDirtySupport)
-            {
-                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
-                builder.AppendLine("                    {");
-                for (var i = 0; i < arraySize; i++)
-                {
-                    builder.AppendLine($"                        renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
-                }
-                //builder.AppendLine($"                        {componentVar}.MakeClean();");
-                builder.AppendLine("                    }");
-            }
-            else
-            {
-                for (var i = 0; i < arraySize; i++)
-                {
-                    builder.AppendLine($"                    renderer.{fieldName}[{i}] = {componentVar}.{fieldName}[{i}];");
-                }
-            }
-        }
-
-        private static void GenerateCustomStructRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport, RSFileInfo rsFileInfo)
-        {
-            var structModel = rsFileInfo.Structures.FirstOrDefault(s => s.Name.Contains(fieldName));
-            if (structModel != null)
+            if (GlslParser.IsSamplerType(fieldName))
             {
                 if (isDirtySupport)
                 {
-                    builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
+                    builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName}Texture)");
                     builder.AppendLine("                    {");
-                    ProcessStructFields(builder, structModel, rsFileInfo, componentVar, fieldName, 5);
-                    //builder.AppendLine($"                        {componentVar}.IsDirty{fieldName} = false;");
+                    builder.AppendLine($"                        renderer.{fieldName} = {componentVar}.{fieldName};");
                     builder.AppendLine("                    }");
                 }
                 else
                 {
-                    ProcessStructFields(builder, structModel, rsFileInfo, componentVar, fieldName, 5);
+                    builder.AppendLine($"                    renderer.{fieldName} = {componentVar}.{fieldName};");
                 }
             }
             else
@@ -381,29 +367,12 @@ namespace OpenglLib
                     builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
                     builder.AppendLine("                    {");
                     builder.AppendLine($"                        renderer.{fieldName} = {componentVar}.{fieldName};");
-                    builder.AppendLine($"                        {componentVar}.MakeClean();");
                     builder.AppendLine("                    }");
                 }
                 else
                 {
                     builder.AppendLine($"                    renderer.{fieldName} = {componentVar}.{fieldName};");
                 }
-            }
-        }
-
-        private static void GenerateSimpleTypeRendering(StringBuilder builder, string fieldName, string componentVar, bool isDirtySupport)
-        {
-            if (isDirtySupport)
-            {
-                builder.AppendLine($"                    if ({componentVar}.IsDirty{fieldName})");
-                builder.AppendLine("                    {");
-                builder.AppendLine($"                        renderer.{fieldName} = {componentVar}.{fieldName};");
-                //builder.AppendLine($"                        {componentVar}.MakeClean();");
-                builder.AppendLine("                    }");
-            }
-            else
-            {
-                builder.AppendLine($"                    renderer.{fieldName} = {componentVar}.{fieldName};");
             }
         }
 
