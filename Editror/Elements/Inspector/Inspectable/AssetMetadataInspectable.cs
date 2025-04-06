@@ -463,25 +463,6 @@ namespace Editor
             {
                 yield return prop;
             }
-
-            yield return new PropertyDescriptor
-            {
-                Name = "Is Generated",
-                Type = typeof(bool),
-                Value = _metadata.IsGenerated,
-                IsReadOnly = true
-            };
-
-            if (_metadata.IsGenerated)
-            {
-                yield return new PropertyDescriptor
-                {
-                    Name = "Source Asset Guid",
-                    Type = typeof(String),
-                    Value = _metadata.SourceAssetGuid,
-                    IsReadOnly = true
-                };
-            }
         }
 
         public override void Update()

@@ -28,9 +28,9 @@ namespace Editor
         private Button _backButton;
         private readonly Canvas _overlayCanvas;
 
-        private readonly List<DescriptionCustomContextMenu> _customContextMenus;
-        private readonly ContextMenu _explorerContextMenu;
-        private readonly ContextMenu _fileContextMenu;
+        private readonly List<DescriptionFileCustomContextMenu> _customFileContextMenus;
+        private readonly List<DescriptionFreeSpaceCustomContextMenu> _customFreeSpaceContextMenus;
+        private readonly List<DescriptionDirectoryTreeCustomContextMenu> _customDirectoryContextMenus;
 
         private readonly ExpandableFileManager _expandableFileManager;
         private readonly ExplorerTreeView _treeViewController;
@@ -95,10 +95,15 @@ namespace Editor
             Grid.SetColumnSpan(_overlayCanvas, 3);
             Children.Add(_overlayCanvas);
 
-            _customContextMenus = new List<DescriptionCustomContextMenu>();
-            _contextMenuManager = new ExplorerContextMenu(this, _customContextMenus);
-            _explorerContextMenu = _contextMenuManager.DirectoryContextMenu;
-            _fileContextMenu = _contextMenuManager.FileContextMenu;
+            _customFileContextMenus = new List<DescriptionFileCustomContextMenu>();
+            _customFreeSpaceContextMenus = new List<DescriptionFreeSpaceCustomContextMenu>();
+            _customDirectoryContextMenus = new List<DescriptionDirectoryTreeCustomContextMenu>();
+
+            _contextMenuManager = new ExplorerContextMenu(
+                                        this,
+                                        _customFileContextMenus,
+                                        _customFreeSpaceContextMenus,
+                                        _customDirectoryContextMenus);
 
             _fileOperations = new ExplorerFileOperations(this, _overlayCanvas);
             _dragDropHandler = new ExplorerDragDropHandler(this, _fileList, _treeView, _overlayCanvas, _fileOperations);
@@ -243,9 +248,19 @@ namespace Editor
             _fileListController.UpdateFileList(_currentPath);
         }
 
-        public void RegisterCustomContextMenu(DescriptionCustomContextMenu description)
+        public void RegisterCustomContextMenu(DescriptionFileCustomContextMenu description)
         {
-            _contextMenuManager.RegisterCustomContextMenu(description);
+            _contextMenuManager.RegisterFileCustomContextMenu(description);
+        }
+
+        public void RegisterCustomContextMenu(DescriptionFreeSpaceCustomContextMenu description)
+        {
+            _contextMenuManager.RegisterFreeSpaceCustomContextMenu(description);
+        }
+
+        public void RegisterCustomContextMenu(DescriptionDirectoryTreeCustomContextMenu description)
+        {
+            _contextMenuManager.RegisterDirectoryCustomContextMenu(description);
         }
 
         public void RegisterExpandableFileHandler(ExpandableFileItem handler)
@@ -278,6 +293,11 @@ namespace Editor
         public void ShowChildItemContextMenu(ExpandableFileItemChild childItem, Control target)
         {
             _contextMenuManager.ShowChildItemContextMenu(childItem, target);
+        }
+
+        public void ShowEmptyAreaContextMenu(Control target)
+        {
+            _contextMenuManager.ShowEmptyAreaContextMenu(target);
         }
 
         public void ShowDropIndicator(Control target)

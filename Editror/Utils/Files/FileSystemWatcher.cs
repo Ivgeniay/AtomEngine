@@ -74,14 +74,11 @@ namespace Editor
                 EnableRaisingEvents = true
             };
 
-            // Регистрируем обработчики событий
             _fileWatcher.Created += OnFileCreated;
             _fileWatcher.Deleted += OnFileDeleted;
             _fileWatcher.Renamed += OnFileRenamed;
             _fileWatcher.Changed += OnFileChanged;
             _fileWatcher.Error += OnFileError;
-
-            DebLogger.Info("Начат мониторинг директории ресурсов");
         }
 
         private bool ShouldProcessEvent(string path, string eventType)
@@ -185,7 +182,6 @@ namespace Editor
                 }
 
                 eventHub.SendEvent<EngineLib.FileEventCreated>(new EngineLib.FileEventCreated(e.ChangeType, e.FullPath, e.Name));
-                DebLogger.Info($"Создан новый ресурс: {e.FullPath}");
             }
             catch (Exception ex)
             {
@@ -200,7 +196,6 @@ namespace Editor
 
             if (!ShouldProcessEvent(e.FullPath, "Deleted"))
             {
-                DebLogger.Debug($"Пропуск дублирующего события удаления: {e.FullPath}");
                 return;
             }
 
@@ -209,7 +204,6 @@ namespace Editor
                 _metadataManager.HandleFileDeleted(e.FullPath);
                 FileDeleted?.Invoke(e.FullPath);
                 eventHub.SendEvent<EngineLib.FileEventDeleted>(new EngineLib.FileEventDeleted(e.ChangeType, e.FullPath, e.Name));
-                DebLogger.Info($"Удален ресурс: {e.FullPath}");
             }
             catch (Exception ex)
             {
@@ -292,13 +286,11 @@ namespace Editor
             {
                 if (Directory.Exists(e.FullPath))
                 {
-                    DebLogger.Debug($"Событие изменения директории: {e.FullPath}");
                     return;
                 }
 
                 if (!File.Exists(e.FullPath))
                 {
-                    DebLogger.Debug($"Файл не существует при обработке события изменения: {e.FullPath}");
                     return;
                 }
 

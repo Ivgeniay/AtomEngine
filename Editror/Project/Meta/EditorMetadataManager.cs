@@ -38,12 +38,16 @@ namespace Editor
         }
 
 
-        public override FileMetadata CreateMetadata(string filePath)
+        protected override FileMetadata CreateMetadata(string filePath)
         {
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
             MetadataType assetType = _extensionToTypeMap.TryGetValue(extension, out var type) ? type : MetadataType.Unknown;
 
-            FileMetadata metadata = assetType switch
+            return CreateMetadataWithType(filePath, assetType);
+        }
+        protected override FileMetadata CreateMetadataWithType(string filePath, MetadataType type)
+        {
+            FileMetadata metadata = type switch
             {
                 MetadataType.Texture => new TextureMetadata(),
                 MetadataType.Model => new ModelMetadata(),
@@ -54,43 +58,23 @@ namespace Editor
             };
 
             metadata.Guid = Guid.NewGuid().ToString();
-            metadata.AssetType = assetType;
+            metadata.AssetType = type;
             metadata.LastModified = DateTime.UtcNow;
             metadata.Version = 1;
             metadata.ContentHash = CalculateFileHash(filePath);
-
-            if (metadata is ScriptMetadata scrMetadata && IsGeneratedCodeFile(filePath, out string sourceGuid))
-            {
-                scrMetadata.IsGenerated = true;
-                if (!string.IsNullOrEmpty(sourceGuid))
-                {
-                    scrMetadata.SourceAssetGuid = sourceGuid;
-
-                    var sourceMetadata = GetMetadataByGuid(sourceGuid);
-                    if (sourceMetadata is ShaderSourceMetadata shaderSourdeMeta)
-                    {
-                        shaderSourdeMeta.IsGenerator = true;
-                        if (!shaderSourdeMeta.GeneratedAssets.Contains(metadata.Guid))
-                        {
-                            var sourcePath = GetPathByGuid(sourceGuid);
-                            shaderSourdeMeta.GeneratedAssets.Add(metadata.Guid);
-                            SaveMetadata(sourcePath, sourceMetadata);
-                            DebLogger.Debug($"Updated source asset {sourcePath} with generated asset reference {metadata.Guid}");
-                        }
-                    }
-                    if (sourceMetadata == null)
-                    {
-                        scrMetadata.SourceAssetGuid = "Unknown";
-                    }
-                }
-                DebLogger.Debug($"Identified generated file: {filePath}, SourceGuid: {sourceGuid ?? "Unknown"}");
-            }
 
             eventHub.SendEvent<MetadataCreateEvent>(new MetadataCreateEvent
             {
                 Metadata = metadata,
             });
 
+            return metadata;
+        }
+        public override FileMetadata CreateMetadataWithTypeAndCache(string filePath, MetadataType type)
+        {
+            var metadata = CreateMetadataWithType(filePath, type);
+            metadata.IsTypeExplicitlySet = true;
+            CacheMetadata(metadata, filePath);
             return metadata;
         }
         public override void SaveMetadata(string filePath, FileMetadata metadata)
@@ -162,13 +146,10 @@ namespace Editor
                     if (basicData.TryGetValue("Version", out var versionObj) && versionObj is long ver)
                         newMetadata.Version = (int)ver + 1;
 
-                    DebLogger.Warn($"Выполнена миграция метаданных для файла {metaFilePath}, возможно изменился формат");
-
                     return newMetadata;
                 }
                 catch (Exception ex)
                 {
-                    DebLogger.Error($"Не удалось мигрировать метаданные: {ex.Message}. Создаются новые метаданные");
                     return new FileMetadata
                     {
                         Guid = Guid.NewGuid().ToString(),
@@ -186,22 +167,23 @@ namespace Editor
             var metadata = GetMetadata(filePath);
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
 
-            MetadataType currentAssetType = _extensionToTypeMap.TryGetValue(extension, out var type) ? type : MetadataType.Unknown;
-
-            if (metadata.AssetType != currentAssetType)
+            if (!metadata.IsTypeExplicitlySet)
             {
-                DebLogger.Info($"File type was changed {metadata.AssetType} to {currentAssetType}: {filePath}");
+                MetadataType currentAssetType = _extensionToTypeMap.TryGetValue(extension, out var type) ? type : MetadataType.Unknown;
 
-                string guid = metadata.Guid;
-                var tags = new List<string>(metadata.Tags);
+                if (metadata.AssetType != currentAssetType)
+                {
+                    string guid = metadata.Guid;
+                    var tags = new List<string>(metadata.Tags);
 
-                metadata = CreateMetadata(filePath);
+                    metadata = CreateMetadata(filePath);
 
-                metadata.Guid = guid;
-                metadata.Tags = tags;
-                metadata.Version += 1;
-                CacheMetadata(metadata, filePath);
-                return;
+                    metadata.Guid = guid;
+                    metadata.Tags = tags;
+                    metadata.Version += 1;
+                    CacheMetadata(metadata, filePath);
+                    return;
+                }
             }
 
             string currentHash = CalculateFileHash(filePath);
@@ -223,8 +205,17 @@ namespace Editor
             if (filePath.EndsWith(META_EXTENSION))
                 return;
 
-            var metadata = CreateMetadata(filePath);
-            CacheMetadata(metadata, filePath);
+            string metaFilePath = filePath + META_EXTENSION;
+            if (File.Exists(metaFilePath))
+            {
+                var metadata = LoadMetadata(metaFilePath);
+                CacheMetadata(metadata, filePath);
+            }
+            else
+            {
+                var metadata = CreateMetadata(filePath);
+                CacheMetadata(metadata, filePath);
+            }
         }
         public void HandleFileDeleted(string filePath)
         {
@@ -232,58 +223,6 @@ namespace Editor
                 return;
 
             var metadata = _metadataCache.TryGetValue(filePath, out var md) ? md : null;
-            if (metadata is ScriptMetadata scrMetadata)
-            {
-                if (scrMetadata?.IsGenerated == true && !string.IsNullOrEmpty(scrMetadata.SourceAssetGuid))
-                {
-                    var sourcePath = GetPathByGuid(scrMetadata.SourceAssetGuid);
-                    if (!string.IsNullOrEmpty(sourcePath))
-                    {
-                        var sourceMetadata = GetMetadata(sourcePath);
-                        if (sourceMetadata is ShaderSourceMetadata shSourceMetadata && shSourceMetadata.GeneratedAssets.Contains(metadata.Guid))
-                        {
-                            shSourceMetadata.GeneratedAssets.Remove(metadata.Guid);
-                            shSourceMetadata.IsGenerator = shSourceMetadata.GeneratedAssets.Count > 0;
-                            SaveMetadata(sourcePath, sourceMetadata);
-                            DebLogger.Debug($"Removed generated asset reference {metadata.Guid} from source asset {sourcePath}");
-                        }
-                    }
-                }
-
-            }
-            if (metadata is ShaderSourceMetadata shaderSourceMetadata)
-            {
-                if (shaderSourceMetadata?.GeneratedAssets?.Count > 0)
-                {
-                    var generatedAssetsToDelete = shaderSourceMetadata.GeneratedAssets.ToList();
-
-                    foreach (var generatedGuid in generatedAssetsToDelete)
-                    {
-                        var generatedPath = GetPathByGuid(generatedGuid);
-                        if (!string.IsNullOrEmpty(generatedPath) && File.Exists(generatedPath))
-                        {
-                            DebLogger.Info($"Удаление зависимого сгенерированного файла: {generatedPath}");
-                            try
-                            {
-                                File.Delete(generatedPath);
-                                var genMetaPath = generatedPath + META_EXTENSION;
-                                if (File.Exists(genMetaPath))
-                                {
-                                    File.Delete(genMetaPath);
-                                }
-
-                                _metadataCache.Remove(generatedPath);
-                                _guidToPathMap.Remove(generatedGuid);
-                            }
-                            catch (Exception ex)
-                            {
-                                DebLogger.Error($"Ошибка при удалении сгенерированного файла {generatedPath}: {ex.Message}");
-                            }
-                        }
-                    }
-                }
-            }
-
 
             string metaFilePath = filePath + META_EXTENSION;
             if (File.Exists(metaFilePath))
@@ -300,8 +239,6 @@ namespace Editor
                 _metadataCache.Remove(filePath);
                 _guidToPathMap.Remove(metadata.Guid);
             }
-
-            DebLogger.Info($"Удален метафайл для {filePath}");
         }
         public void HandleFileRenamed(string oldPath, string newPath)
         {
@@ -327,8 +264,6 @@ namespace Editor
             {
                 Metadata = metadata,
             });
-
-            DebLogger.Info($"Перемещен метафайл из {oldPath} в {newPath}");
         }
 
         public override FileMetadata GetMetadataByGuid(string guid) => _metadataCache.Where(e => e.Value.Guid == guid).FirstOrDefault().Value;
@@ -368,56 +303,6 @@ namespace Editor
         }
 
 
-        private bool IsGeneratedCodeFile(string filePath, out string sourceGuid)
-        {
-            sourceGuid = null;
-
-            if (!filePath.EndsWith(".cs"))
-                return false;
-
-            try
-            {
-                string[] firstLines = new string[10];
-                using (var reader = new StreamReader(filePath))
-                {
-                    for (int i = 0; i < firstLines.Length; i++)
-                    {
-                        var line = reader.ReadLine();
-                        if (line == null)
-                            break;
-                        firstLines[i] = line;
-                    }
-                }
-
-                bool isAutoGenerated = false;
-                foreach (var line in firstLines)
-                {
-                    if (!string.IsNullOrEmpty(line) && line.Contains("<auto-generated>"))
-                    {
-                        isAutoGenerated = true;
-                        break;
-                    }
-                }
-
-                if (!isAutoGenerated)
-                    return false;
-
-                foreach (var line in firstLines)
-                {
-                    if (line.Contains("SourceGuid:"))
-                    {
-                        sourceGuid = line.Split(':')[1].Trim();
-                        return true;
-                    }
-                }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Warn($"Error checking if file is generated code: {ex.Message}");
-                return false;
-            }
-        }
         private void ScanAssetsDirectory()
         {
             if (!Directory.Exists(_assetsPath))

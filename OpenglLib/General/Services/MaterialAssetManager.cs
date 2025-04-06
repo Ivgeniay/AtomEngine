@@ -77,6 +77,79 @@ namespace OpenglLib
             }
             return null;
         }
+
+        public MaterialAsset? CreateEmptyMaterialAsset(string directory, string nameWithoutExt)
+        {
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                DebLogger.Error($"Creating new material error: directory is null");
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(nameWithoutExt))
+                nameWithoutExt = $"Material_{Guid.NewGuid().ToString().Substring(0, 8)}";
+
+            var material = new MaterialAsset
+            {
+                Name = nameWithoutExt
+            };
+
+            string path = Path.Combine(directory, $"{nameWithoutExt}{MATERIAL_EXT}");
+
+            SaveMaterialAsset(material, path);
+            _cacheMaterialAssets[path] = material;
+            return material;
+        }
+
+        public void AssignShaderToMaterial(MaterialAsset material, string shaderRepresentationGuid)
+        {
+            if (material == null)
+            {
+                DebLogger.Error("Error assign shader to material. Material asset is not exist");
+                return;
+            }
+
+            string filePath = ServiceHub.Get<MetadataManager>().GetPathByGuid(shaderRepresentationGuid);
+
+            if (!File.Exists(filePath))
+            {
+                DebLogger.Warn($"Shader representation file not found: GUID={shaderRepresentationGuid}");
+                return;
+            }
+
+            material.ShaderRepresentationGuid = shaderRepresentationGuid;
+
+            try
+            {
+                string fileContent = File.ReadAllText(filePath);
+                string namespaceName = CSRepresentationParser.ExtractNamespace(fileContent);
+                string className = CSRepresentationParser.ExtractClassName(fileContent);
+
+                if (!string.IsNullOrEmpty(namespaceName) && !string.IsNullOrEmpty(className))
+                {
+                    material.ShaderRepresentationTypeName = $"{namespaceName}.{className}";
+                    DebLogger.Info($"Set shader representation type: {material.ShaderRepresentationTypeName}");
+                }
+                else
+                {
+                    DebLogger.Warn($"Could not extract namespace or class name from file: {filePath}");
+                    DefaultGettingRepTymeName(material, filePath);
+                }
+
+                InitializeUniformsFromShaderRepresentation(material, filePath);
+
+                string path = GetPathFromAsset(material);
+                if (!string.IsNullOrEmpty(path))
+                {
+                    SaveMaterialAsset(material, path);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Error processing shader representation file: {ex.Message}");
+            }
+        }
+
         public virtual void SaveMaterialAsset(MaterialAsset material)
         {
             string path = _cacheMaterialAssets.Where(e => e.Value == material).FirstOrDefault().Key;

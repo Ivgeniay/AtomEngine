@@ -358,6 +358,12 @@ namespace Editor
 
         public void HandleChildItemClick(ExpandableFileItemChild childItem, PointerReleasedEventArgs e)
         {
+            if (e.InitialPressMouseButton == MouseButton.Right)
+            {
+                _explorerController.ShowChildItemContextMenu(childItem, _fileList);
+                return;
+            }
+
             var point = e.GetPosition(e.Source as Visual);
             if (point.X < 30 && childItem.Children.Count > 0)
             {
@@ -368,5 +374,18 @@ namespace Editor
                 Status.SetStatus($"Выбран элемент {childItem.Name} из файла {Path.GetFileName(childItem.ParentFilePath)}");
             }
         }
+
+        //public void HandleChildItemClick(ExpandableFileItemChild childItem, PointerReleasedEventArgs e)
+        //{
+        //    var point = e.GetPosition(e.Source as Visual);
+        //    if (point.X < 30 && childItem.Children.Count > 0)
+        //    {
+        //        _fileManager.ToggleChildItemExpansion(childItem);
+        //    }
+        //    else
+        //    {
+        //        Status.SetStatus($"Выбран элемент {childItem.Name} из файла {Path.GetFileName(childItem.ParentFilePath)}");
+        //    }
+        //}
     }
 }

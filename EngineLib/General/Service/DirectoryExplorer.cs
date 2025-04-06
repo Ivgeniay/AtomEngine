@@ -30,5 +30,5 @@ namespace EngineLib
         }
     }
 
-    public class DirectoryType { }
+    public class DirectoryType;
 }

@@ -64,7 +64,9 @@ namespace EngineLib
         public abstract FileMetadata GetMetadata(string filePath);
         public abstract string GetPathByGuid(string guid);
 
-        public abstract FileMetadata CreateMetadata(string filePath);
+        public abstract FileMetadata CreateMetadataWithTypeAndCache(string filePath, MetadataType type);
+        protected abstract FileMetadata CreateMetadata(string filePath);
+        protected abstract FileMetadata CreateMetadataWithType(string filePath, MetadataType type);
         public abstract void SaveMetadata(string filePath, FileMetadata metadata);
         public abstract void SaveMetadata(FileMetadata metadata);
         public abstract FileMetadata LoadMetadata(string metaFilePath);
@@ -119,11 +121,18 @@ namespace EngineLib
 
         public virtual string CalculateFileHash(string filePath)
         {
-            using (var md5 = MD5.Create())
-            using (var stream = File.OpenRead(filePath))
+            try
             {
-                byte[] hash = md5.ComputeHash(stream);
-                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                using (var md5 = MD5.Create())
+                using (var stream = File.OpenRead(filePath))
+                {
+                    byte[] hash = md5.ComputeHash(stream);
+                    return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                }
+            }
+            catch
+            {
+                return Guid.NewGuid().ToString().Substring(0, 6);
             }
         }
 

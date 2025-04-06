@@ -25,7 +25,6 @@ namespace Editor
             });
         }
     }
-
     internal class BaseDirectory : DirectoryType;
     internal class PluginsDirectory : DirectoryType;
     internal class AssetsDirectory : DirectoryType;

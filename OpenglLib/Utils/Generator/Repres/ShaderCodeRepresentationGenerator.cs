@@ -21,6 +21,9 @@ namespace OpenglLib
 
             var representationCode = GenerateRepresentationClass(representationName, vertexSource, fragmentSource, uniforms, uniformBlocks, sourceGuid, rsFiles, shaderModel);
             var representationFilePath = Path.Combine(outputDirectory, $"{representationName}{GeneratorConst.LABLE}.cs");
+
+            ServiceHub.Get<MetadataManager>().CreateMetadataWithTypeAndCache(representationFilePath, MetadataType.Shader);
+
             File.WriteAllText(representationFilePath, representationCode, Encoding.UTF8);
 
             return $"{representationName}Representation";

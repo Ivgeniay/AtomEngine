@@ -8,6 +8,7 @@ using System.IO;
 using Avalonia;
 using System;
 using MouseButton = Avalonia.Input.MouseButton;
+using Avalonia.VisualTree;
 
 
 namespace Editor
@@ -39,6 +40,7 @@ namespace Editor
             _expandableFileManager = expandableFileManager;
             _expandableFileView = expandableFileView;
             _fileItems = new ObservableCollection<string>();
+
 
             Initialize();
         }
@@ -104,37 +106,77 @@ namespace Editor
             }
         }
 
+        private void OnFileListPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (e.GetCurrentPoint(null).Properties.IsRightButtonPressed)
+            {
+                var item = _fileList.GetLogicalDescendants()
+                    .OfType<ListBoxItem>()
+                    .FirstOrDefault(x => x.IsPointerOver);
+
+                if (item == null)
+                {
+                    //_controller.ShowDirectoryContextMenu(_fileList);
+                    _controller.ShowEmptyAreaContextMenu(_fileList);
+                    e.Handled = true;
+                }
+            }
+        }
+
         private void OnFileListPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
+            if (e.InitialPressMouseButton == MouseButton.Right)
+            {
+                var visual = e.Source as Visual;
+                var pointedItem = e.Source as ListBoxItem;
+
+                if (pointedItem == null && visual != null)
+                {
+                    var ancestors = visual.GetVisualAncestors();
+                    pointedItem = ancestors.OfType<ListBoxItem>().FirstOrDefault();
+                }
+
+                var selectedItem = _fileList.SelectedItem as string;
+
+                if (pointedItem != null && pointedItem.DataContext is string fileName)
+                {
+                    if (_expandableFileView.IsChildItemMarker(fileName, out var _childInfo))
+                    {
+                        var childItem = _expandableFileManager.FindChildItem(_childInfo.parentPath, _childInfo.name, _childInfo.level);
+                        if (childItem != null)
+                        {
+                            _controller.ShowChildItemContextMenu(childItem, _fileList);
+                        }
+                    }
+                    else
+                    {
+                        _controller.ShowFileContextMenu(fileName, _fileList);
+                    }
+                }
+                else
+                {
+                    _controller.ShowEmptyAreaContextMenu(_fileList);
+                }
+
+                e.Handled = true;
+                return;
+            }
+
             var item = _fileList.SelectedItem as string;
             if (item == null) return;
 
-            // Проверяем, является ли элемент дочерним
             if (_expandableFileView.IsChildItemMarker(item, out var childInfo))
             {
                 var childItem = _expandableFileManager.FindChildItem(childInfo.parentPath, childInfo.name, childInfo.level);
                 if (childItem != null)
                 {
-                    if (e.InitialPressMouseButton == MouseButton.Right)
-                    {
-                        _controller.ShowChildItemContextMenu(childItem, _fileList);
-                    }
-                    else if (e.InitialPressMouseButton == MouseButton.Left)
-                    {
-                        _expandableFileView.HandleChildItemClick(childItem, e);
-                    }
-
+                    _expandableFileView.HandleChildItemClick(childItem, e);
                     e.Handled = true;
                     return;
                 }
             }
 
-            if (e.InitialPressMouseButton == MouseButton.Right)
-            {
-                _controller.ShowFileContextMenu(item, _fileList);
-                e.Handled = true;
-            }
-            else if (e.InitialPressMouseButton == MouseButton.Left)
+            if (e.InitialPressMouseButton == MouseButton.Left)
             {
                 var visual = e.Source as Visual;
                 if (visual != null)

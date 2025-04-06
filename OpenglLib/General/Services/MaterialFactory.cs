@@ -142,6 +142,12 @@ namespace OpenglLib
 
             try
             {
+                if (!materialAsset.HasValidShader)
+                {
+                    DebLogger.Warn($"Material {materialAsset.Name} doesn't have a valid shader assigned.");
+                    return null;
+                }
+
                 var instance = CreateShaderRepresentationInstance(gl, materialAsset.ShaderRepresentationTypeName);
                 if (instance == null)
                 {

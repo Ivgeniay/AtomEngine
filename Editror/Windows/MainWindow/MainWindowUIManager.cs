@@ -183,7 +183,7 @@ namespace Editor
         private void InitializeExplorer()
         {
             #region C#
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            _explorerController.RegisterCustomContextMenu(new DescriptionFileCustomContextMenu
             {
                 Extension = ".cs",
                 Name = "Open in IDE",
@@ -193,7 +193,7 @@ namespace Editor
                     ServiceHub.Get<ScriptSyncSystem>().OpenProjectInIDE(e.FileFullPath);
                 },
             });
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            _explorerController.RegisterCustomContextMenu(new DescriptionFileCustomContextMenu
             {
                 Extension = ".cs",
                 Name = "Create Material",
@@ -207,20 +207,12 @@ namespace Editor
 
                         var materialController = ServiceHub.Get<EditorMaterialAssetManager>();
                         var material = materialController.CreateMaterialAsset(metadata.Guid);
-
-                        //string materialPath = Path.Combine(
-                        //    Path.GetDirectoryName(e.FileFullPath),
-                        //    $"{Path.GetFileNameWithoutExtension(e.FileName).Replace($"{GlslCodeGenerator.LABLE}", "")}_Material.mat"
-                        //);
-
-                        //materialController.SaveMaterialAsset(material, materialPath);
-                        //Status.SetStatus($"Created material: {material.Name}");
                     }
                 }
             });
             #endregion
             #region RS
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            _explorerController.RegisterCustomContextMenu(new DescriptionFileCustomContextMenu
             {
                 Extension = ".rs",
                 Name = "Onep with GLSL editor",
@@ -234,7 +226,7 @@ namespace Editor
             });
             #endregion
             #region GLSL
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            _explorerController.RegisterCustomContextMenu(new DescriptionFileCustomContextMenu
             {
                 Extension = ".glsl",
                 Name = "Open with IDE",
@@ -245,7 +237,7 @@ namespace Editor
                     ServiceHub.Get<ScriptSyncSystem>().OpenProjectInIDE(e.FileFullPath);
                 },
             });
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            _explorerController.RegisterCustomContextMenu(new DescriptionFileCustomContextMenu
             {
                 Extension = ".glsl",
                 Name = "Generate C# ",
@@ -259,7 +251,7 @@ namespace Editor
                     //await GlslCodeGenerator.GenerateCode(e.FileFullPath, outputDirectoryName);
                 }
             });
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            _explorerController.RegisterCustomContextMenu(new DescriptionFileCustomContextMenu
             {
                 Extension = ".glsl",
                 Name = "Try To Compile",
@@ -272,7 +264,7 @@ namespace Editor
                     else DebLogger.Error(result);
                 }
             });
-            _explorerController.RegisterCustomContextMenu(new DescriptionCustomContextMenu
+            _explorerController.RegisterCustomContextMenu(new DescriptionFileCustomContextMenu
             {
                 Extension = ".glsl",
                 Name = "Onep with GLSL editor",
@@ -283,6 +275,14 @@ namespace Editor
                     OpenWindow(MainControllers.GlslEditor);
                     _glslEditorController.OpenFile(e.FileFullPath);
                 }
+            });
+
+            _explorerController.RegisterCustomContextMenu(new DescriptionFreeSpaceCustomContextMenu()
+            {
+                Action = (s) => DebLogger.Info(s),
+                Name = "Material",
+                SubCategory= new string[] { "Create" },
+                Description = "Ko"
             });
             #endregion
             
