@@ -51,7 +51,6 @@ namespace EngineLib
             _extensionToTypeMap[".txt"] = MetadataType.Text;
         }
 
-
         public virtual Task InitializeAsync()
         {
             eventHub = ServiceHub.Get<EventHub>();
@@ -60,10 +59,12 @@ namespace EngineLib
             return Task.CompletedTask;
         }
 
+        public abstract FileMetadata GetMetadataByName(string name);
         public abstract FileMetadata GetMetadataByGuid(string guid);
         public abstract FileMetadata GetMetadata(string filePath);
         public abstract string GetPathByGuid(string guid);
 
+        public abstract FileMetadata CreateMetadataShaderAndCache(string filePath, string shaderType);
         public abstract FileMetadata CreateMetadataWithTypeAndCache(string filePath, MetadataType type);
         protected abstract FileMetadata CreateMetadata(string filePath);
         protected abstract FileMetadata CreateMetadataWithType(string filePath, MetadataType type);

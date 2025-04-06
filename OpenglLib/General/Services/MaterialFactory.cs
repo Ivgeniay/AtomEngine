@@ -144,7 +144,7 @@ namespace OpenglLib
             {
                 if (!materialAsset.HasValidShader)
                 {
-                    DebLogger.Warn($"Material {materialAsset.Name} doesn't have a valid shader assigned.");
+                    DebLogger.Warn($"Material {materialAsset} doesn't have a valid shader assigned.");
                     return null;
                 }
 

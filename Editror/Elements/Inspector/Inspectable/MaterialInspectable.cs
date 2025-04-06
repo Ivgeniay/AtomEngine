@@ -6,6 +6,7 @@ using Avalonia.Layout;
 using AtomEngine;
 using EngineLib;
 using OpenglLib;
+using System.Linq;
 
 namespace Editor
 {
@@ -23,23 +24,61 @@ namespace Editor
             _materialAssetManager = ServiceHub.Get<EditorMaterialAssetManager>();
         }
 
-        public string Title => $"Material: {_materialAsset.Name}";
+        public string Title => $"Material for {_materialAsset.ShaderRepresentationTypeName}";
 
         public IEnumerable<Control> GetCustomControls(Panel parent)
         {
-            return null;
+            var panel = new StackPanel { Orientation = Orientation.Vertical };
+            var addComponentButton = new Button
+            {
+                Content = "Select Shader",
+                Classes = { "inspectorActionButton" },
+            };
+
+            Command command = new Command(() =>
+            {
+                List<SearchPopupItem> popUpItems = new List<SearchPopupItem>();
+                var metaService = ServiceHub.Get<EditorMetadataManager>();
+
+                var shaders = metaService.FindAssetsByType(MetadataType.Shader);
+
+                foreach (var shader in shaders)
+                {
+                    var name = Path.GetFileName(shader);
+                    popUpItems.Add(new SearchPopupItem(name, shader));
+                }
+
+                ComponentSearchDialog searchDialog = new ComponentSearchDialog(popUpItems);
+
+                searchDialog.ItemSelected += (selectedValue) =>
+                {
+                    var metadata = metaService.GetMetadata(selectedValue as string);
+                    if (metadata != null && metadata is ShaderMetadata shaderMeta)
+                    {
+                        _materialAssetManager.AssignShaderToMaterial(_materialAsset, metadata.Guid);
+                    }
+                };
+
+                searchDialog.Closed += (s, e) =>
+                {
+                    var rootCanvas = MainWindow.MainCanvas_;
+                    if (rootCanvas != null && rootCanvas.Children.Contains(searchDialog))
+                    {
+                        rootCanvas.Children.Remove(searchDialog);
+                    }
+                };
+
+                searchDialog.Show(addComponentButton);
+            });
+
+            addComponentButton.Command = command;
+            panel.Children.Add(addComponentButton);
+
+            yield return panel;
         }
 
         public IEnumerable<PropertyDescriptor> GetProperties()
         {
-            yield return new PropertyDescriptor
-            {
-                Name = "Name",
-                Type = typeof(string),
-                Value = _materialAsset.Name,
-                OnValueChanged = value => _materialAsset.Name = (string)value
-            };
-
             yield return new PropertyDescriptor
             {
                 Name = "Shader Representation",

@@ -28,28 +28,11 @@ namespace OpenglLib
                 var material = new MaterialAsset
                 {
                     ShaderRepresentationGuid = shaderRepresentationGuid,
-                    Name = nameWithoutExt
                 };
 
                 try
                 {
-                    string fileContent = File.ReadAllText(filePath);
-                    string namespaceName = CSRepresentationParser.ExtractNamespace(fileContent);
-                    string className = CSRepresentationParser.ExtractClassName(fileContent);
-                    
-
-                    if (!string.IsNullOrEmpty(namespaceName) && !string.IsNullOrEmpty(className))
-                    {
-                        material.ShaderRepresentationTypeName = $"{namespaceName}.{className}";
-                        DebLogger.Info($"Set shader representation type: {material.ShaderRepresentationTypeName}");
-                    }
-                    else
-                    {
-                        DebLogger.Warn($"Could not extract namespace or class name from file: {filePath}");
-                        DefaultGettingRepTymeName(material, filePath);
-                    }
-
-                    InitializeUniformsFromShaderRepresentation(material, filePath);
+                    FillMaterialDataFromShader(material, filePath);
 
                     if (string.IsNullOrWhiteSpace(directory))
                     {
@@ -78,7 +61,28 @@ namespace OpenglLib
             return null;
         }
 
-        public MaterialAsset? CreateEmptyMaterialAsset(string directory, string nameWithoutExt)
+        private void FillMaterialDataFromShader(MaterialAsset material, string shaderFilePath)
+        {
+            string fileContent = File.ReadAllText(shaderFilePath);
+            string namespaceName = CSRepresentationParser.ExtractNamespace(fileContent);
+            string className = CSRepresentationParser.ExtractClassName(fileContent);
+
+
+            if (!string.IsNullOrEmpty(namespaceName) && !string.IsNullOrEmpty(className))
+            {
+                material.ShaderRepresentationTypeName = $"{namespaceName}.{className}";
+                DebLogger.Info($"Set shader representation type: {material.ShaderRepresentationTypeName}");
+            }
+            else
+            {
+                DebLogger.Warn($"Could not extract namespace or class name from file: {shaderFilePath}");
+                DefaultGettingRepTymeName(material, shaderFilePath);
+            }
+
+            InitializeUniformsFromShaderRepresentation(material, shaderFilePath);
+        }
+
+        public MaterialAsset? CreateEmptyMaterialAsset(string directory, string nameWithoutExt = null)
         {
             if (string.IsNullOrWhiteSpace(directory))
             {
@@ -89,10 +93,7 @@ namespace OpenglLib
             if (string.IsNullOrWhiteSpace(nameWithoutExt))
                 nameWithoutExt = $"Material_{Guid.NewGuid().ToString().Substring(0, 8)}";
 
-            var material = new MaterialAsset
-            {
-                Name = nameWithoutExt
-            };
+            var material = new MaterialAsset();
 
             string path = Path.Combine(directory, $"{nameWithoutExt}{MATERIAL_EXT}");
 
@@ -159,7 +160,7 @@ namespace OpenglLib
             }
             else
             {
-                DebLogger.Error($"Saving material {material.Name}. Unkown path to safe");
+                DebLogger.Error($"Saving material {material.Guid}. Unkown path to safe");
             }
         }
         public virtual void SaveMaterialAsset(MaterialAsset material, string path)
@@ -213,11 +214,11 @@ namespace OpenglLib
             {
                 string fileContent = File.ReadAllText(shaderRepresentationPath);
 
-                if (material.UniformValues == null)
-                    material.UniformValues = new Dictionary<string, object>();
+                //if (material.UniformValues == null)
+                material.UniformValues = new Dictionary<string, object>();
 
-                if (material.TextureReferences == null)
-                    material.TextureReferences = new Dictionary<string, string>();
+                //if (material.TextureReferences == null)
+                material.TextureReferences = new Dictionary<string, string>();
 
                 Dictionary<string, object> properties = new Dictionary<string, object>();
                 List<string> samplers = new List<string>();

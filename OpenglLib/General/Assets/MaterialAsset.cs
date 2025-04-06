@@ -10,6 +10,5 @@ namespace OpenglLib
 
         public Dictionary<string, object> UniformValues { get; set; } = new Dictionary<string, object>();
         public Dictionary<string, string> TextureReferences { get; set; } = new Dictionary<string, string>();
-        public override string Name { get; set; } = "New Material";
     }
 }

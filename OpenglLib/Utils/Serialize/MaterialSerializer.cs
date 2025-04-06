@@ -34,7 +34,6 @@ namespace OpenglLib
                 material.Guid,
                 material.ShaderRepresentationGuid,
                 material.ShaderRepresentationTypeName,
-                material.Name,
                 UniformValues = ConvertUniformValuesToSerializable(material.UniformValues),
                 material.TextureReferences
             };

@@ -54,6 +54,7 @@ namespace Editor
                 MetadataType.Audio => new AudioMetadata(),
                 MetadataType.ShaderSource => new ShaderSourceMetadata(),
                 MetadataType.Script => new ScriptMetadata(),
+                MetadataType.Shader => new ShaderMetadata(),
                 _ => new FileMetadata()
             };
 
@@ -62,6 +63,7 @@ namespace Editor
             metadata.LastModified = DateTime.UtcNow;
             metadata.Version = 1;
             metadata.ContentHash = CalculateFileHash(filePath);
+            metadata.Name = Path.GetFileNameWithoutExtension(filePath);
 
             eventHub.SendEvent<MetadataCreateEvent>(new MetadataCreateEvent
             {
@@ -69,6 +71,27 @@ namespace Editor
             });
 
             return metadata;
+        }
+        public override FileMetadata CreateMetadataShaderAndCache(string filePath, string shaderType)
+        {
+            FileMetadata meta = null;
+            if (_metadataCache.TryGetValue(filePath, out var metadata))
+            {
+                meta = metadata;
+            }
+            else
+            {
+                meta = CreateMetadataWithTypeAndCache(filePath, MetadataType.Shader);
+            }
+
+            var shaderMeta = meta as ShaderMetadata;
+            if (shaderMeta != null)
+            {
+                shaderMeta.ShaderType = shaderType;
+                CacheMetadata(shaderMeta, filePath);
+            }
+
+            return meta;
         }
         public override FileMetadata CreateMetadataWithTypeAndCache(string filePath, MetadataType type)
         {
@@ -117,6 +140,7 @@ namespace Editor
                     MetadataType.Audio => JsonConvert.DeserializeObject<AudioMetadata>(metaJson, settings),
                     MetadataType.ShaderSource => JsonConvert.DeserializeObject<ShaderSourceMetadata>(metaJson, settings),
                     MetadataType.Script => JsonConvert.DeserializeObject<ScriptMetadata>(metaJson, settings),
+                    MetadataType.Shader => JsonConvert.DeserializeObject<ShaderMetadata>(metaJson, settings),
                     //MetadataType.Material => JsonConvert.DefaultSettings<
                     _ => baseMetadata
                 };
@@ -258,6 +282,8 @@ namespace Editor
                 _metadataCache.Remove(oldPath);
                 _metadataCache[newPath] = metadata;
                 _guidToPathMap[metadata.Guid] = newPath;
+                metadata.Name = Path.GetFileNameWithoutExtension(newPath);
+                CacheMetadata(metadata, newPath);
             }
 
             eventHub.SendEvent<MetadataChandedEvent>(new MetadataChandedEvent
@@ -266,6 +292,7 @@ namespace Editor
             });
         }
 
+        public override FileMetadata GetMetadataByName(string name) => _metadataCache.Where(e => e.Value.Name == name).FirstOrDefault().Value;
         public override FileMetadata GetMetadataByGuid(string guid) => _metadataCache.Where(e => e.Value.Guid == guid).FirstOrDefault().Value;
         public override FileMetadata GetMetadata(string filePath)
         {

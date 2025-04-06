@@ -5,6 +5,7 @@ namespace EngineLib
     public class FileMetadata
     {
         public string Guid { get; set; } = System.Guid.NewGuid().ToString();
+        public string Name { get; set; } = string.Empty;
         public MetadataType AssetType { get; set; } = MetadataType.Unknown;
         public bool IsTypeExplicitlySet { get; set; } = false;
         public DateTime LastModified { get; set; } = DateTime.UtcNow;

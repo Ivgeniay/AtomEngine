@@ -276,10 +276,14 @@ namespace Editor
                     _glslEditorController.OpenFile(e.FileFullPath);
                 }
             });
-
+            #endregion
+            #region Material
             _explorerController.RegisterCustomContextMenu(new DescriptionFreeSpaceCustomContextMenu()
             {
-                Action = (s) => DebLogger.Info(s),
+                Action = (s) =>
+                {
+                    ServiceHub.Get<EditorMaterialAssetManager>().CreateEmptyMaterialAsset(s);
+                },
                 Name = "Material",
                 SubCategory= new string[] { "Create" },
                 Description = "Ko"
