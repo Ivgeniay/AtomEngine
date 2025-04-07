@@ -155,8 +155,8 @@ namespace OpenglLib
                 }
                 material = new Material(gl, instance, materialAsset);
                 _materials.Add(material);
-                SetUniformValues(instance, materialAsset.UniformValues);
-                SetTextures(material, materialAsset.TextureReferences);
+                //SetUniformValues(instance, materialAsset.UniformValues);
+                //SetTextures(material, materialAsset.TextureReferences);
 
                 return material;
             }
@@ -319,19 +319,19 @@ namespace OpenglLib
 
             try
             {
-                material.MaterialAsset.UniformValues[name] = value;
-                if (material.IsValid)
-                {
-                    //material.Shader.SetUniform(name, value);
-                    PropertyInfo property = shaderType.GetProperty(name);
-                    if (property != null && property.CanWrite)
-                    {
-                        object convertedValue = ConvertValueToTargetType(value, property.PropertyType);
-                        Type type = convertedValue.GetType();
-                        material.Shader.Use();
-                        property.SetValue(material.Shader, convertedValue);
-                    }
-                }
+                //material.MaterialAsset.UniformValues[name] = value;
+                //if (material.IsValid)
+                //{
+                //    //material.Shader.SetUniform(name, value);
+                //    PropertyInfo property = shaderType.GetProperty(name);
+                //    if (property != null && property.CanWrite)
+                //    {
+                //        object convertedValue = ConvertValueToTargetType(value, property.PropertyType);
+                //        Type type = convertedValue.GetType();
+                //        material.Shader.Use();
+                //        property.SetValue(material.Shader, convertedValue);
+                //    }
+                //}
             }
             catch (Exception ex)
             {
@@ -392,36 +392,22 @@ namespace OpenglLib
 
             try
             {
-                material.MaterialAsset.TextureReferences[samplerName] = textureGuid;
-                if (material.IsValid)
-                {
-                    Type type = material.Shader.GetType();
-                    PropertyInfo setter = type.GetProperty(samplerName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                    if (setter != null)
-                    {
-                        Texture texture = _textureFactory.CreateTextureFromGuid(material.GLContext, textureGuid);
-                        if (texture != null)
-                        {
-                            material.Shader.Use();
-                            setter.SetValue(material.Shader, texture);
-                            DebLogger.Debug($"Применена текстура {samplerName} к материалу {type.Name}");
-                        }
-                    }
-                    //string methodName = $"{samplerName}_SetTexture";
-                    //MethodInfo method = type.GetMethod(methodName);
-                    //if (method != null)
-                    //{
-                    //    Texture texture = _textureFactory.CreateTextureFromGuid(material.GLContext, textureGuid);
-
-                    //    if (texture != null)
-                    //    {
-                    //        material.Shader.Use();
-                    //        //material.GLContext.ActiveTexture(TextureUnit.Texture0);
-                    //        method.Invoke(material.Shader, new object[] { texture });
-                    //        DebLogger.Debug($"Применена текстура {samplerName} к материалу {type.Name}");
-                    //    }
-                    //}
-                }
+                //material.MaterialAsset.TextureReferences[samplerName] = textureGuid;
+                //if (material.IsValid)
+                //{
+                //    Type type = material.Shader.GetType();
+                //    PropertyInfo setter = type.GetProperty(samplerName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                //    if (setter != null)
+                //    {
+                //        Texture texture = _textureFactory.CreateTextureFromGuid(material.GLContext, textureGuid);
+                //        if (texture != null)
+                //        {
+                //            material.Shader.Use();
+                //            setter.SetValue(material.Shader, texture);
+                //            DebLogger.Debug($"Применена текстура {samplerName} к материалу {type.Name}");
+                //        }
+                //    }
+                //}
             }
             catch (Exception ex)
             {

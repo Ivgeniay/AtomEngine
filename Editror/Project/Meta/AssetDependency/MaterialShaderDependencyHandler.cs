@@ -66,8 +66,7 @@ namespace Editor
 
             material.ShaderRepresentationGuid = defaultGuid;
             material.ShaderRepresentationTypeName = defaultTypeName;
-            material.UniformValues = new System.Collections.Generic.Dictionary<string, object>();
-            material.TextureReferences = new System.Collections.Generic.Dictionary<string, string>();
+            material.ClearContainers();
             //_materialManager.AssignShaderToMaterial(material, defaultGuid);
         }
 

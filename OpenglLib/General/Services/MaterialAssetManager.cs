@@ -24,62 +24,22 @@ namespace OpenglLib
             if (File.Exists(filePath))
             {
                 if (string.IsNullOrWhiteSpace(nameWithoutExt)) nameWithoutExt = $"Material_{Guid.NewGuid().ToString().Substring(0, 8)}";
-
-                var material = new MaterialAsset
+                if (string.IsNullOrWhiteSpace(directory))
                 {
-                    ShaderRepresentationGuid = shaderRepresentationGuid,
-                };
-
-                try
-                {
-                    FillMaterialDataFromShader(material, filePath);
-
-                    if (string.IsNullOrWhiteSpace(directory))
-                    {
-                        string filename = Path.GetFileNameWithoutExtension(filePath);
-                        directory = Path.Combine(
-                            Path.GetDirectoryName(filePath),
-                            $"{nameWithoutExt}.mat"
-                        );
-                    }
-
-                    SaveMaterialAsset(material, directory);
-
-                    _cacheMaterialAssets[directory] = material;
-                    return material;
+                    string filename = Path.GetFileNameWithoutExtension(filePath);
+                    directory = Path.Combine(
+                        Path.GetDirectoryName(filePath),
+                        $"{nameWithoutExt}.mat"
+                    );
                 }
-                catch (Exception ex)
-                {
-                    DebLogger.Error($"Error parsing shader representation file: {ex.Message}");
-                    DefaultGettingRepTymeName(material, filePath);
-                }
+                var material = CreateEmptyMaterialAsset(directory, nameWithoutExt);
+                AssignShaderToMaterial(material, shaderRepresentationGuid);
             }
             else
             {
                 DebLogger.Warn($"Shader representation file not found: GUID={shaderRepresentationGuid}");
             }
             return null;
-        }
-
-        private void FillMaterialDataFromShader(MaterialAsset material, string shaderFilePath)
-        {
-            string fileContent = File.ReadAllText(shaderFilePath);
-            string namespaceName = CSRepresentationParser.ExtractNamespace(fileContent);
-            string className = CSRepresentationParser.ExtractClassName(fileContent);
-
-
-            if (!string.IsNullOrEmpty(namespaceName) && !string.IsNullOrEmpty(className))
-            {
-                material.ShaderRepresentationTypeName = $"{namespaceName}.{className}";
-                DebLogger.Info($"Set shader representation type: {material.ShaderRepresentationTypeName}");
-            }
-            else
-            {
-                DebLogger.Warn($"Could not extract namespace or class name from file: {shaderFilePath}");
-                DefaultGettingRepTymeName(material, shaderFilePath);
-            }
-
-            InitializeUniformsFromShaderRepresentation(material, shaderFilePath);
         }
 
         public MaterialAsset? CreateEmptyMaterialAsset(string directory, string nameWithoutExt = null)
@@ -136,8 +96,6 @@ namespace OpenglLib
                     DebLogger.Warn($"Could not extract namespace or class name from file: {filePath}");
                     DefaultGettingRepTymeName(material, filePath);
                 }
-
-                //InitializeUniformsFromShaderRepresentation(material, filePath);
 
                 var uniformContainers = ShaderRepresentationAnalyzer.AnalyzeShaderRepresentation(material.ShaderRepresentationTypeName, fileContent);
                 foreach(var container in uniformContainers)
@@ -225,97 +183,6 @@ namespace OpenglLib
         public virtual string GetPathFromAsset(MaterialAsset material) =>
             _cacheMaterialAssets.Where(e => e.Value.Equals(material)).FirstOrDefault().Key;
 
-        public virtual void InitializeUniformsFromShaderRepresentation(MaterialAsset material, string shaderRepresentationPath)
-        {
-            if (!File.Exists(shaderRepresentationPath))
-            {
-                DebLogger.Error($"Shader representation file not found: {shaderRepresentationPath}");
-                return;
-            }
-
-            try
-            {
-                string fileContent = File.ReadAllText(shaderRepresentationPath);
-
-                Dictionary<string, object> existingUniformValues = material.UniformValues ?? new Dictionary<string, object>();
-                Dictionary<string, string> existingTextureReferences = material.TextureReferences ?? new Dictionary<string, string>();
-
-                Dictionary<string, object> newUniformValues = new Dictionary<string, object>();
-                Dictionary<string, string> newTextureReferences = new Dictionary<string, string>();
-
-                Dictionary<string, object> properties = new Dictionary<string, object>();
-                List<string> samplers = new List<string>();
-                CSRepresentationParser.ExtractUniformProperties(fileContent, properties, samplers);
-
-                foreach (var pair in properties)
-                {
-                    if (!samplers.Contains(pair.Key))
-                    {
-                        if (existingUniformValues.TryGetValue(pair.Key, out var existingValue))
-                        {
-                            if (pair.Value != null && existingValue != null &&
-                                IsSameValueType(pair.Value, existingValue))
-                            {
-                                newUniformValues[pair.Key] = existingValue;
-                            }
-                            else
-                            {
-                                newUniformValues[pair.Key] = pair.Value;
-                            }
-                        }
-                        else
-                        {
-                            newUniformValues[pair.Key] = pair.Value;
-                        }
-                    }
-                }
-
-                foreach (var sampler in samplers)
-                {
-                    if (existingTextureReferences.TryGetValue(sampler, out var existingTexture))
-                    {
-                        newTextureReferences[sampler] = existingTexture;
-                    }
-                    else
-                    {
-                        newTextureReferences[sampler] = string.Empty;
-                    }
-                }
-
-                material.UniformValues = newUniformValues;
-                material.TextureReferences = newTextureReferences;
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Error analyzing shader representation: {ex.Message}");
-            }
-        }
-
-
-        public T GetUniformValue<T>(MaterialAsset material, string name)
-        {
-            if (material.UniformValues.TryGetValue(name, out var value))
-            {
-                string typeName = typeof(T).Name;
-                object convertedValue = ConvertJObjectToTypedValue(value, typeName);
-                if (convertedValue is T typedValue)
-                {
-                    return typedValue;
-                }
-
-                try
-                {
-                    return (T)Convert.ChangeType(convertedValue, typeof(T));
-                }
-                catch
-                {
-                    return default;
-                }
-            }
-
-            return default;
-        }
-
         public IEnumerable<(string, MaterialAsset)> GetMaterials()
         {
             foreach(var kvp in _cacheMaterialAssets)
@@ -329,40 +196,6 @@ namespace OpenglLib
             return (string.Empty, string.Empty);
         }
 
-        protected object ConvertJObjectToTypedValue(object value, string typeName)
-        {
-            if (value is Newtonsoft.Json.Linq.JObject jObject)
-            {
-                switch (typeName)
-                {
-                    case "vec2":
-                    case "Vector2D<float>":
-                        float x = jObject["X"]?.ToObject<float>() ?? 0f;
-                        float y = jObject["Y"]?.ToObject<float>() ?? 0f;
-                        return new Silk.NET.Maths.Vector2D<float>(x, y);
-
-                    case "vec3":
-                    case "Vector3D<float>":
-                        float x3 = jObject["X"]?.ToObject<float>() ?? 0f;
-                        float y3 = jObject["Y"]?.ToObject<float>() ?? 0f;
-                        float z3 = jObject["Z"]?.ToObject<float>() ?? 0f;
-                        return new Silk.NET.Maths.Vector3D<float>(x3, y3, z3);
-
-                    case "vec4":
-                    case "Vector4D<float>":
-                        float x4 = jObject["X"]?.ToObject<float>() ?? 0f;
-                        float y4 = jObject["Y"]?.ToObject<float>() ?? 0f;
-                        float z4 = jObject["Z"]?.ToObject<float>() ?? 0f;
-                        float w4 = jObject["W"]?.ToObject<float>() ?? 0f;
-                        return new Silk.NET.Maths.Vector4D<float>(x4, y4, z4, w4);
-
-                    default:
-                        return jObject.ToObject<object>();
-                }
-            }
-
-            return value;
-        }
         protected void DefaultGettingRepTymeName(MaterialAsset material, string filePath)
         {
             string fileName = Path.GetFileNameWithoutExtension(filePath);
@@ -396,51 +229,6 @@ namespace OpenglLib
             }
         }
 
-        private bool IsSameValueType(object newValue, object existingValue)
-        {
-            if (newValue == null || existingValue == null)
-                return newValue == null && existingValue == null;
-
-            Type newType = newValue.GetType();
-            Type existingType = existingValue.GetType();
-
-            if (newType == existingType)
-                return true;
-
-            bool newIsNumeric = IsNumericType(newType);
-            bool existingIsNumeric = IsNumericType(existingType);
-            if (newIsNumeric && existingIsNumeric)
-                return true;
-
-            bool newIsVector = newType.FullName?.Contains("Vector") == true;
-            bool existingIsVector = existingType.FullName?.Contains("Vector") == true;
-
-            if (newIsVector && existingIsVector)
-            {
-                bool newIsVec2 = newType.FullName?.Contains("Vector2") == true;
-                bool existingIsVec2 = existingType.FullName?.Contains("Vector2") == true;
-
-                bool newIsVec3 = newType.FullName?.Contains("Vector3") == true;
-                bool existingIsVec3 = existingType.FullName?.Contains("Vector3") == true;
-
-                bool newIsVec4 = newType.FullName?.Contains("Vector4") == true;
-                bool existingIsVec4 = existingType.FullName?.Contains("Vector4") == true;
-
-                return (newIsVec2 && existingIsVec2) ||
-                       (newIsVec3 && existingIsVec3) ||
-                       (newIsVec4 && existingIsVec4);
-            }
-
-            return false;
-        }
-        private bool IsNumericType(Type type)
-        {
-            return type == typeof(int) || type == typeof(long) ||
-                   type == typeof(float) || type == typeof(double) ||
-                   type == typeof(decimal) || type == typeof(byte) ||
-                   type == typeof(short) || type == typeof(uint) ||
-                   type == typeof(ulong) || type == typeof(ushort);
-        }
     }
 
 }

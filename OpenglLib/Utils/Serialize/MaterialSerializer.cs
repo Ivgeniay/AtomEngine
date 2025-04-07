@@ -38,7 +38,6 @@ namespace OpenglLib
                 material.ShaderRepresentationGuid,
                 material.ShaderRepresentationTypeName,
                 Values = SerializeContainers(material.GetAllContainers()),
-                material.TextureReferences
             };
 
             return JsonConvert.SerializeObject(serializableData, settings);
@@ -55,11 +54,6 @@ namespace OpenglLib
                 material.Guid = jsonObj["Guid"]?.ToString();
                 material.ShaderRepresentationGuid = jsonObj["ShaderRepresentationGuid"]?.ToString();
                 material.ShaderRepresentationTypeName = jsonObj["ShaderRepresentationTypeName"]?.ToString();
-
-                if (jsonObj["TextureReferences"] != null)
-                {
-                    material.TextureReferences = jsonObj["TextureReferences"].ToObject<Dictionary<string, string>>();
-                }
 
                 if (jsonObj["Values"] != null && jsonObj["Values"] is JArray valuesArray)
                 {
