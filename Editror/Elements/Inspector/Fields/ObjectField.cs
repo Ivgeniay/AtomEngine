@@ -65,9 +65,7 @@ namespace Editor
 
         private void InitializeComponent()
         {
-            Margin = new Thickness(4, 0);
-            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+            this.InitializeInspectorFieldLayout();
 
             _labelControl = new TextBlock
             {

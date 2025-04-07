@@ -27,72 +27,48 @@ namespace Editor
         public static readonly StyledProperty<string> FormatStringProperty =
             AvaloniaProperty.Register<FloatField, string>(nameof(FormatString), "0.###");
 
-        /// <summary>
-        /// Текст метки поля
-        /// </summary>
         public string Label
         {
             get => GetValue(LabelProperty);
             set => SetValue(LabelProperty, value);
         }
 
-        /// <summary>
-        /// Значение поля с плавающей точкой
-        /// </summary>
         public float Value
         {
             get => GetValue(ValueProperty);
             set => SetValue(ValueProperty, value);
         }
 
-        /// <summary>
-        /// Подсказка при пустом поле
-        /// </summary>
         public string Placeholder
         {
             get => GetValue(PlaceholderProperty);
             set => SetValue(PlaceholderProperty, value);
         }
 
-        /// <summary>
-        /// Только для чтения
-        /// </summary>
         public bool IsReadOnly
         {
             get => GetValue(IsReadOnlyProperty);
             set => SetValue(IsReadOnlyProperty, value);
         }
 
-        /// <summary>
-        /// Минимальное допустимое значение
-        /// </summary>
         public float? MinValue
         {
             get => GetValue(MinValueProperty);
             set => SetValue(MinValueProperty, value);
         }
 
-        /// <summary>
-        /// Максимальное допустимое значение
-        /// </summary>
         public float? MaxValue
         {
             get => GetValue(MaxValueProperty);
             set => SetValue(MaxValueProperty, value);
         }
 
-        /// <summary>
-        /// Строка форматирования для отображения
-        /// </summary>
         public string FormatString
         {
             get => GetValue(FormatStringProperty);
             set => SetValue(FormatStringProperty, value);
         }
 
-        /// <summary>
-        /// Событие изменения значения
-        /// </summary>
         public event EventHandler<float> ValueChanged;
 
         private TextBlock _labelControl;
@@ -107,9 +83,7 @@ namespace Editor
 
         private void InitializeComponent()
         {
-            Margin = new Thickness(4, 0);
-            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+            this.InitializeInspectorFieldLayout();
 
             _labelControl = new TextBlock
             {

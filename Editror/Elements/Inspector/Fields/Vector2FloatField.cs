@@ -23,54 +23,36 @@ namespace Editor
         public static readonly StyledProperty<float?> MaxValueProperty =
             AvaloniaProperty.Register<Vector2FloatField, float?>(nameof(MaxValue), null);
 
-        /// <summary>
-        /// Текст метки поля
-        /// </summary>
         public string Label
         {
             get => GetValue(LabelProperty);
             set => SetValue(LabelProperty, value);
         }
 
-        /// <summary>
-        /// Значение двумерного вектора
-        /// </summary>
         public Vector2 Value
         {
             get => GetValue(ValueProperty);
             set => SetValue(ValueProperty, value);
         }
 
-        /// <summary>
-        /// Только для чтения
-        /// </summary>
         public bool IsReadOnly
         {
             get => GetValue(IsReadOnlyProperty);
             set => SetValue(IsReadOnlyProperty, value);
         }
 
-        /// <summary>
-        /// Минимальное значение компонент вектора
-        /// </summary>
         public float? MinValue
         {
             get => GetValue(MinValueProperty);
             set => SetValue(MinValueProperty, value);
         }
 
-        /// <summary>
-        /// Максимальное значение компонент вектора
-        /// </summary>
         public float? MaxValue
         {
             get => GetValue(MaxValueProperty);
             set => SetValue(MaxValueProperty, value);
         }
 
-        /// <summary>
-        /// Событие изменения значения вектора
-        /// </summary>
         public event EventHandler<Vector2> ValueChanged;
 
         private TextBlock _labelControl;
@@ -86,9 +68,7 @@ namespace Editor
 
         private void InitializeComponent()
         {
-            Margin = new Thickness(4, 0);
-            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+            this.InitializeInspectorFieldLayout();
 
             _labelControl = new TextBlock
             {
@@ -183,7 +163,6 @@ namespace Editor
             _xInputField.TextChanged += OnTextBoxTextChanged;
             _yInputField.TextChanged += OnTextBoxTextChanged;
 
-            // Инициализация начальных значений
             _labelControl.Text = Label;
             UpdateInputFields();
             _xInputField.IsReadOnly = IsReadOnly;

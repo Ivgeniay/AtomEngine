@@ -4,9 +4,6 @@ using System;
 
 namespace Editor
 {
-    /// <summary>
-    /// Компонент для ввода строковых значений с меткой
-    /// </summary>
     public class StringField : Grid
     {
         public static readonly StyledProperty<string> LabelProperty =
@@ -24,54 +21,36 @@ namespace Editor
         public static readonly StyledProperty<int?> MaxLengthProperty =
             AvaloniaProperty.Register<StringField, int?>(nameof(MaxLength), null);
 
-        /// <summary>
-        /// Текст метки поля
-        /// </summary>
         public string Label
         {
             get => GetValue(LabelProperty);
             set => SetValue(LabelProperty, value);
         }
 
-        /// <summary>
-        /// Значение поля
-        /// </summary>
         public string Text
         {
             get => GetValue(TextProperty);
             set => SetValue(TextProperty, value);
         }
 
-        /// <summary>
-        /// Подсказка при пустом поле
-        /// </summary>
         public string Placeholder
         {
             get => GetValue(PlaceholderProperty);
             set => SetValue(PlaceholderProperty, value);
         }
 
-        /// <summary>
-        /// Только для чтения
-        /// </summary>
         public bool IsReadOnly
         {
             get => GetValue(IsReadOnlyProperty);
             set => SetValue(IsReadOnlyProperty, value);
         }
 
-        /// <summary>
-        /// Максимальная длина текста
-        /// </summary>
         public int? MaxLength
         {
             get => GetValue(MaxLengthProperty);
             set => SetValue(MaxLengthProperty, value);
         }
 
-        /// <summary>
-        /// Событие изменения текста
-        /// </summary>
         public event EventHandler<string> TextChanged;
 
         private TextBlock _labelControl;
@@ -85,9 +64,7 @@ namespace Editor
 
         private void InitializeComponent()
         {
-            Margin = new Thickness(4, 0);
-            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+            this.InitializeInspectorFieldLayout();
 
             _labelControl = new TextBlock
             {
@@ -148,7 +125,6 @@ namespace Editor
                 }
             };
 
-            // Инициализация начальных значений
             _labelControl.Text = Label;
             _inputField.Text = Text;
             _inputField.Placeholder = Placeholder;

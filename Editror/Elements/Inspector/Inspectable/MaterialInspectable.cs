@@ -19,7 +19,6 @@ namespace Editor
         public MaterialInspectable(MaterialAsset material)
         {
             _materialAsset = material;
-
             _materialFactory = ServiceHub.Get<MaterialFactory>();
             _materialAssetManager = ServiceHub.Get<EditorMaterialAssetManager>();
         }
@@ -87,39 +86,157 @@ namespace Editor
                 IsReadOnly = true
             };
 
-            if (_materialAsset.UniformValues.Count > 0)
+            // Получаем все контейнеры и обрабатываем их
+            var containers = _materialAsset.GetAllContainers();
+            foreach (var container in containers)
             {
-                // Разделитель
-                //yield return new PropertyDescriptor
-                //{
-                //    Name = "Uniforms",
-                //    Type = typeof(SectionHeader),
-                //    Value = null,
-                //    IsReadOnly = true
-                //};
-
-                foreach (var pair in _materialAsset.UniformValues)
+                foreach (var descriptor in CreatePropertyDescriptorsForContainer(container, ""))
                 {
-                    yield return CreatePropertyDescriptorForUniform(pair.Key, pair.Value);
+                    yield return descriptor;
                 }
             }
+        }
 
-            if (_materialAsset.TextureReferences.Count > 0)
+        private IEnumerable<PropertyDescriptor> CreatePropertyDescriptorsForContainer(
+            MaterialDataContainer container, string parentPath)
+        {
+            string currentPath = string.IsNullOrEmpty(parentPath)
+                ? container.Name
+                : $"{parentPath}.{container.Name}";
+
+            string displayName = string.IsNullOrEmpty(parentPath)
+                ? container.Name
+                : currentPath;
+
+            // Обработка различных типов контейнеров
+            if (container is MaterialUniformDataContainer uniformContainer)
             {
-                // Разделитель
-                //yield return new PropertyDescriptor
-                //{
-                //    Name = "Textures",
-                //    Type = typeof(SectionHeader),
-                //    Value = null,
-                //    IsReadOnly = true
-                //};
-
-                foreach (var pair in _materialAsset.TextureReferences)
+                yield return CreatePropertyDescriptorForUniform(uniformContainer, currentPath, displayName);
+            }
+            else if (container is MaterialSamplerDataContainer samplerContainer)
+            {
+                yield return CreatePropertyDescriptorForTexture(samplerContainer, currentPath, displayName);
+            }
+            else if (container is MaterialSamplerArrayDataContainer samplerArrayContainer)
+            {
+                for (int i = 0; i < samplerArrayContainer.TextureGuids.Count; i++)
                 {
-                    yield return CreatePropertyDescriptorForTexture(pair.Key, pair.Value);
+                    int capturedIndex = i; // Захватываем индекс для лямбда-выражения
+                    string arrayIndexName = $"{container.Name}[{i}]";
+                    string indexPath = string.IsNullOrEmpty(parentPath)
+                        ? arrayIndexName
+                        : $"{parentPath}.{arrayIndexName}";
+
+                    yield return new PropertyDescriptor
+                    {
+                        Name = $"{indexPath} (Texture)",
+                        Type = typeof(OpenglLib.Texture),
+                        Value = samplerArrayContainer.TextureGuids[i],
+                        OnValueChanged = newValue =>
+                        {
+                            string textureGuid = (string)newValue;
+                            if (capturedIndex < samplerArrayContainer.TextureGuids.Count)
+                            {
+                                samplerArrayContainer.TextureGuids[capturedIndex] = textureGuid;
+                                _materialFactory.SetTexture(_materialAsset, indexPath, textureGuid);
+                                _materialAssetManager.SaveMaterialAsset(_materialAsset);
+                            }
+                        }
+                    };
                 }
             }
+            else if (container is MaterialArrayDataContainer arrayContainer)
+            {
+                for (int i = 0; i < arrayContainer.Values.Count; i++)
+                {
+                    int capturedIndex = i; // Захватываем индекс для лямбда-выражения
+                    string arrayIndexName = $"{container.Name}[{i}]";
+                    string indexPath = string.IsNullOrEmpty(parentPath)
+                        ? arrayIndexName
+                        : $"{parentPath}.{arrayIndexName}";
+
+                    yield return new PropertyDescriptor
+                    {
+                        Name = indexPath,
+                        Type = arrayContainer.ElementType,
+                        Value = arrayContainer.Values[i],
+                        OnValueChanged = newValue =>
+                        {
+                            if (capturedIndex < arrayContainer.Values.Count)
+                            {
+                                arrayContainer.Values[capturedIndex] = newValue;
+                                _materialFactory.SetUniformValue(_materialAsset, indexPath, newValue);
+                                _materialAssetManager.SaveMaterialAsset(_materialAsset);
+                            }
+                        }
+                    };
+                }
+            }
+            else if (container is MaterialStructDataContainer structContainer)
+            {
+                foreach (var field in structContainer.Fields)
+                {
+                    foreach (var descriptor in CreatePropertyDescriptorsForContainer(field, currentPath))
+                    {
+                        yield return descriptor;
+                    }
+                }
+            }
+            else if (container is MaterialStructArrayDataContainer structArrayContainer)
+            {
+                for (int i = 0; i < structArrayContainer.Elements.Count; i++)
+                {
+                    string arrayIndexName = $"{container.Name}[{i}]";
+                    string elementPath = string.IsNullOrEmpty(parentPath)
+                        ? arrayIndexName
+                        : $"{parentPath}.{arrayIndexName}";
+
+                    var element = structArrayContainer.Elements[i];
+                    foreach (var field in element.Fields)
+                    {
+                        foreach (var descriptor in CreatePropertyDescriptorsForContainer(field, elementPath))
+                        {
+                            yield return descriptor;
+                        }
+                    }
+                }
+            }
+        }
+
+        private PropertyDescriptor CreatePropertyDescriptorForUniform(
+            MaterialUniformDataContainer container, string path, string displayName)
+        {
+            return new PropertyDescriptor
+            {
+                Name = displayName,
+                Type = container.Type,
+                Value = container.Value,
+                IsReadOnly = false,
+                OnValueChanged = newValue =>
+                {
+                    container.Value = newValue;
+                    _materialFactory.SetUniformValue(_materialAsset, path, newValue);
+                    _materialAssetManager.SaveMaterialAsset(_materialAsset);
+                }
+            };
+        }
+
+        private PropertyDescriptor CreatePropertyDescriptorForTexture(
+            MaterialSamplerDataContainer container, string path, string displayName)
+        {
+            return new PropertyDescriptor
+            {
+                Name = $"{displayName} (Texture)",
+                Type = typeof(OpenglLib.Texture),
+                Value = container.TextureGuid,
+                OnValueChanged = newValue =>
+                {
+                    string textureGuid = (string)newValue;
+                    container.TextureGuid = textureGuid;
+                    _materialFactory.SetTexture(_materialAsset, path, textureGuid);
+                    _materialAssetManager.SaveMaterialAsset(_materialAsset);
+                }
+            };
         }
 
         private string GetShaderDisplayName()
@@ -135,43 +252,7 @@ namespace Editor
             return Path.GetFileNameWithoutExtension(path);
         }
 
-        
-        private PropertyDescriptor CreatePropertyDescriptorForUniform(string name, object value)
-        {
-
-            Type type = value?.GetType() ?? typeof(object);
-
-            return new PropertyDescriptor
-            {
-                Name = name,
-                Type = type,
-                Value = value,
-                IsReadOnly = false,
-                OnValueChanged = newValue =>
-                {
-                    _materialFactory.SetUniformValue(_materialAsset, name, newValue);
-                    _materialAssetManager.SaveMaterialAsset(_materialAsset);
-                }
-            };
-        }
-
-        private PropertyDescriptor CreatePropertyDescriptorForTexture(string name, string textureGuid)
-        {
-            return new PropertyDescriptor
-            {
-                Name = $"{name} (Texture)",
-                Type = typeof(OpenglLib.Texture), 
-                Value = textureGuid,
-                OnValueChanged = newValue =>
-                {
-                    _materialFactory.SetTexture(_materialAsset, name, (string)newValue);
-                    _materialAssetManager.SaveMaterialAsset(_materialAsset);
-                }
-            };
-        }
-    
         public void Update() { }
-
     }
 
 }

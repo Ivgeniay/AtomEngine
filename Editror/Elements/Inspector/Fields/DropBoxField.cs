@@ -32,81 +32,50 @@ namespace Editor
         public static readonly StyledProperty<ObservableCollection<object>> ItemsProperty =
             AvaloniaProperty.Register<DropBoxField, ObservableCollection<object>>(nameof(Items));
 
-        /// <summary>
-        /// Текст метки поля
-        /// </summary>
         public string Label
         {
             get => GetValue(LabelProperty);
             set => SetValue(LabelProperty, value);
         }
 
-        /// <summary>
-        /// Выбранный элемент (для одиночного выбора)
-        /// </summary>
         public object SelectedItem
         {
             get => GetValue(SelectedItemProperty);
             set => SetValue(SelectedItemProperty, value);
         }
-
-        /// <summary>
-        /// Выбранные элементы (для множественного выбора)
-        /// </summary>
         public IList<object> SelectedItems
         {
             get => GetValue(SelectedItemsProperty);
             set => SetValue(SelectedItemsProperty, value);
         }
 
-        /// <summary>
-        /// Флаг включения режима множественного выбора
-        /// </summary>
         public bool IsMultiSelect
         {
             get => GetValue(IsMultiSelectProperty);
             set => SetValue(IsMultiSelectProperty, value);
         }
 
-        /// <summary>
-        /// Индекс выбранного элемента
-        /// </summary>
         public int SelectedIndex
         {
             get => GetValue(SelectedIndexProperty);
             set => SetValue(SelectedIndexProperty, value);
         }
-
-        /// <summary>
-        /// Подсказка при отсутствии выбранного элемента
-        /// </summary>
         public string Placeholder
         {
             get => GetValue(PlaceholderProperty);
             set => SetValue(PlaceholderProperty, value);
         }
-
-        /// <summary>
-        /// Только для чтения
-        /// </summary>
         public bool IsReadOnly
         {
             get => GetValue(IsReadOnlyProperty);
             set => SetValue(IsReadOnlyProperty, value);
         }
-
-        /// <summary>
-        /// Список элементов
-        /// </summary>
         public ObservableCollection<object> Items
         {
             get => GetValue(ItemsProperty);
             set => SetValue(ItemsProperty, value);
         }
 
-        /// <summary>
-        /// Событие изменения выбранного элемента
-        /// </summary>
         public event EventHandler<SelectionChangedEventArgs> SelectionChanged;
 
         private TextBlock _labelControl;
@@ -116,7 +85,6 @@ namespace Editor
 
         public DropBoxField()
         {
-            // Инициализируем Items новой коллекцией для каждого экземпляра
             Items = new ObservableCollection<object>();
             SelectedItems = new ObservableCollection<object>();
 
@@ -126,9 +94,7 @@ namespace Editor
 
         private void InitializeComponent()
         {
-            Margin = new Thickness(4, 0);
-            ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
-            ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Star });
+            this.InitializeInspectorFieldLayout();
 
             _labelControl = new TextBlock
             {
@@ -219,12 +185,10 @@ namespace Editor
                     _comboBox.IsVisible = !IsMultiSelect;
                     _listBox.IsVisible = IsMultiSelect;
 
-                    // Если включен мульти-выбор, инициализируем ListBox выбранными элементами
                     if (IsMultiSelect)
                     {
                         if (SelectedItem != null)
                         {
-                            // Перенос выбранного элемента из ComboBox в ListBox
                             if (SelectedItems == null)
                             {
                                 SelectedItems = new ObservableCollection<object>();
@@ -244,7 +208,6 @@ namespace Editor
                     }
                     else
                     {
-                        // Если отключаем мульти-выбор, берем первый выбранный элемент и устанавливаем его в ComboBox
                         if (SelectedItems != null && SelectedItems.Count > 0)
                         {
                             SelectedItem = SelectedItems[0];
@@ -295,7 +258,6 @@ namespace Editor
                         SelectedItems.Add(item);
                     }
 
-                    // Если есть хотя бы один выбранный элемент, устанавливаем первый как SelectedItem
                     if (SelectedItems.Count > 0)
                     {
                         SelectedItem = SelectedItems[0];
@@ -322,24 +284,15 @@ namespace Editor
             _comboBox.IsEnabled = !IsReadOnly;
             _listBox.IsEnabled = !IsReadOnly;
 
-            // Инициализация режима отображения
             _comboBox.IsVisible = !IsMultiSelect;
             _listBox.IsVisible = IsMultiSelect;
         }
 
-        /// <summary>
-        /// Добавить элемент в список
-        /// </summary>
-        /// <param name="item">Элемент для добавления</param>
         public void AddItem(object item)
         {
             Items.Add(item);
         }
 
-        /// <summary>
-        /// Добавить несколько элементов в список
-        /// </summary>
-        /// <param name="items">Коллекция элементов для добавления</param>
         public void AddItems(IEnumerable<object> items)
         {
             foreach (var item in items)
@@ -348,9 +301,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Очистить список элементов
-        /// </summary>
         public void ClearItems()
         {
             Items.Clear();
@@ -358,10 +308,6 @@ namespace Editor
             SelectedIndex = -1;
         }
 
-        /// <summary>
-        /// Установить выбранный элемент по индексу
-        /// </summary>
-        /// <param name="index">Индекс элемента</param>
         public void SetSelectedIndex(int index)
         {
             if (index >= -1 && index < Items.Count)
@@ -371,10 +317,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Установить выбранный элемент
-        /// </summary>
-        /// <param name="item">Элемент для выбора</param>
         public void SetSelectedItem(object item)
         {
             SelectedItem = item;
@@ -394,10 +336,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Установить несколько выбранных элементов (для режима множественного выбора)
-        /// </summary>
-        /// <param name="items">Коллекция элементов для выбора</param>
         public void SetSelectedItems(IEnumerable<object> items)
         {
             if (!IsMultiSelect)
@@ -437,7 +375,6 @@ namespace Editor
 
             if (!first)
             {
-                // Обновляем выделение в ListBox
                 _listBox.Selection.Clear();
                 foreach (var item in SelectedItems)
                 {
@@ -450,10 +387,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Добавить элемент к выбранным (для режима множественного выбора)
-        /// </summary>
-        /// <param name="item">Элемент для добавления к выбранным</param>
         public void AddSelectedItem(object item)
         {
             if (!IsMultiSelect)
@@ -481,7 +414,6 @@ namespace Editor
                 }
             }
 
-            // Обновляем выделение в ListBox
             int index = Items.IndexOf(item);
             if (index >= 0)
             {
@@ -489,10 +421,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Удалить элемент из выбранных (для режима множественного выбора)
-        /// </summary>
-        /// <param name="item">Элемент для удаления из выбранных</param>
         public void RemoveSelectedItem(object item)
         {
             if (!IsMultiSelect)
@@ -507,7 +435,6 @@ namespace Editor
             {
                 SelectedItems.Remove(item);
 
-                // Если удалили текущий SelectedItem, нужно обновить его
                 if (object.Equals(SelectedItem, item))
                 {
                     if (SelectedItems.Count > 0)
@@ -522,7 +449,6 @@ namespace Editor
                     }
                 }
 
-                // Обновляем выделение в ListBox
                 int index = Items.IndexOf(item);
                 if (index >= 0)
                 {
@@ -531,9 +457,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Очистить выбранные элементы
-        /// </summary>
         public void ClearSelection()
         {
             SelectedItem = null;
