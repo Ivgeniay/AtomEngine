@@ -49,10 +49,7 @@ namespace Editor
 
                 if (material.ShaderRepresentationGuid == deletedDependencyGuid)
                 {
-                    var (defaultGuid, defaultTypeName) = _materialManager.GetDefaulShaderValue();
-
-                    material.ShaderRepresentationGuid = defaultGuid;
-                    material.ShaderRepresentationTypeName = defaultTypeName;
+                    SetDefault(material);
 
                     _materialManager.SaveMaterialAsset(material);
                 }
@@ -61,6 +58,17 @@ namespace Editor
             {
                 DebLogger.Error($"Ошибка при обработке удаления зависимости шейдера для материала ({assetPath}): {ex.Message}");
             }
+        }
+
+        private void SetDefault(MaterialAsset material)
+        {
+            var (defaultGuid, defaultTypeName) = _materialManager.GetDefaulShaderValue();
+
+            material.ShaderRepresentationGuid = defaultGuid;
+            material.ShaderRepresentationTypeName = defaultTypeName;
+            material.UniformValues = new System.Collections.Generic.Dictionary<string, object>();
+            material.TextureReferences = new System.Collections.Generic.Dictionary<string, string>();
+            //_materialManager.AssignShaderToMaterial(material, defaultGuid);
         }
 
         public override void HandleDependencyAdded(string assetPath, string addedDependencyPath, FileMetadata dependencyMeta)
@@ -79,10 +87,7 @@ namespace Editor
                 string removedGuid = dependencyMeta.Guid;
                 if (material.ShaderRepresentationGuid == removedGuid)
                 {
-                    var (defaultGuid, defaultTypeName) = _materialManager.GetDefaulShaderValue();
-
-                    material.ShaderRepresentationGuid = defaultGuid;
-                    material.ShaderRepresentationTypeName = defaultTypeName;
+                    SetDefault(material);
 
                     _materialManager.SaveMaterialAsset(material);
                 }

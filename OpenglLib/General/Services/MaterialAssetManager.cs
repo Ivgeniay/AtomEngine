@@ -1,6 +1,5 @@
 ﻿using AtomEngine;
 using EngineLib;
-using System.Collections.Generic;
 
 namespace OpenglLib
 {
@@ -131,7 +130,6 @@ namespace OpenglLib
                 if (!string.IsNullOrEmpty(namespaceName) && !string.IsNullOrEmpty(className))
                 {
                     material.ShaderRepresentationTypeName = $"{namespaceName}.{className}";
-                    DebLogger.Info($"Set shader representation type: {material.ShaderRepresentationTypeName}");
                 }
                 else
                 {
@@ -139,7 +137,13 @@ namespace OpenglLib
                     DefaultGettingRepTymeName(material, filePath);
                 }
 
-                InitializeUniformsFromShaderRepresentation(material, filePath);
+                //InitializeUniformsFromShaderRepresentation(material, filePath);
+
+                var uniformContainers = ShaderRepresentationAnalyzer.AnalyzeShaderRepresentation(material.ShaderRepresentationTypeName, fileContent);
+                foreach(var container in uniformContainers)
+                {
+                    material.AddContainer(container);
+                }
 
                 string path = GetPathFromAsset(material);
                 if (!string.IsNullOrEmpty(path))
@@ -191,6 +195,7 @@ namespace OpenglLib
         {
             string json = FileLoader.LoadFile(path);
             MaterialAsset asset = MaterialSerializer.DeserializeMaterial(json);
+            //var t = MaterialSerializer.SerializeMaterial(asset);
             _cacheMaterialAssets[path] = asset;
 
             return asset;
@@ -437,4 +442,5 @@ namespace OpenglLib
                    type == typeof(ulong) || type == typeof(ushort);
         }
     }
+
 }
