@@ -118,12 +118,10 @@ namespace Editor
         {
             if (!_isInitialized)
             {
-                DebLogger.Error("Система синхронизации скриптов не инициализирована");
                 return;
             }
             try
             {
-                DebLogger.Info("Открытие проекта скриптов в IDE...");
                 if (filepath != null) ServiceHub.Get<ScriptProjectGenerator>().OpenProjectInIDE(filepath);
                 else ServiceHub.Get<ScriptProjectGenerator>().OpenProjectInIDE();
             }

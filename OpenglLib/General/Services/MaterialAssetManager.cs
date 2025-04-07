@@ -155,10 +155,10 @@ namespace OpenglLib
 
                             for (int i = 0; i < materialMeta.Dependencies.Count(); i++)
                             {
-                                assetDepencyManager.RemoveDependencyByGuid(path, temp[i]); 
+                                assetDepencyManager.RemoveDependencyFromPathByGuid(path, temp[i]); 
                             } 
                         }
-                        assetDepencyManager.AddDependencyByGuid(path, shaderRepresentationGuid);
+                        assetDepencyManager.AddDependencyFromPathByGuid(path, shaderRepresentationGuid);
                     }
                     SaveMaterialAsset(material, path);
                 }

@@ -108,7 +108,7 @@ namespace EngineLib
             }
         }
 
-        public void AddDependency(string assetPath, string dependencyPath)
+        public void AddDependencyFromPathByPath(string assetPath, string dependencyPath)
         {
             try
             {
@@ -127,28 +127,7 @@ namespace EngineLib
                 DebLogger.Error($"Ошибка при добавлении зависимости ({assetPath} -> {dependencyPath}): {ex.Message}");
             }
         }
-
-        public void RemoveDependency(string assetPath, string dependencyPath)
-        {
-            try
-            {
-                var assetMeta = _metadataManager.GetMetadata(assetPath);
-                var dependencyMeta = _metadataManager.GetMetadata(dependencyPath);
-
-                _metadataManager.RemoveDependency(assetPath, dependencyMeta.Guid);
-
-                if (_resourceDependencyHandlers.TryGetValue(assetMeta.AssetType, out var handler))
-                {
-                    handler.HandleDependencyRemoved(assetPath, dependencyPath, dependencyMeta);
-                }
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Ошибка при удалении зависимости ({assetPath} -> {dependencyPath}): {ex.Message}");
-            }
-        }
-
-        public void AddDependencyByGuid(string assetPath, string dependencyGuid)
+        public void AddDependencyFromPathByGuid(string assetPath, string dependencyGuid)
         {
             try
             {
@@ -174,8 +153,85 @@ namespace EngineLib
                 DebLogger.Error($"Ошибка при добавлении зависимости по GUID ({assetPath} -> {dependencyGuid}): {ex.Message}");
             }
         }
+        public void AddDependencyFromGuidByPath(string assetGuid, string dependencyPath)
+        {
+            try
+            {
+                string assetPath = _metadataManager.GetPathByGuid(assetGuid);
+                if (string.IsNullOrEmpty(assetPath))
+                {
+                    DebLogger.Warn($"Не удалось найти ассет с GUID: {assetGuid}");
+                    return;
+                }
 
-        public void RemoveDependencyByGuid(string assetPath, string dependencyGuid)
+                var assetMeta = _metadataManager.GetMetadata(assetPath);
+                var dependencyMeta = _metadataManager.GetMetadata(dependencyPath);
+
+                _metadataManager.AddDependency(assetPath, dependencyMeta.Guid);
+
+                if (_resourceDependencyHandlers.TryGetValue(assetMeta.AssetType, out var handler))
+                {
+                    handler.HandleDependencyAdded(assetPath, dependencyPath, dependencyMeta);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка при добавлении зависимости ({assetGuid} -> {dependencyPath}): {ex.Message}");
+            }
+        }
+        public void AddDependencyFromGuidByGuid(string assetGuid, string dependencyGuid)
+        {
+            try
+            {
+                string assetPath = _metadataManager.GetPathByGuid(assetGuid);
+                if (string.IsNullOrEmpty(assetPath))
+                {
+                    DebLogger.Warn($"Не удалось найти ассет с GUID: {assetGuid}");
+                    return;
+                }
+
+                string dependencyPath = _metadataManager.GetPathByGuid(dependencyGuid);
+                if (string.IsNullOrEmpty(dependencyPath))
+                {
+                    DebLogger.Warn($"Не удалось найти зависимость с GUID: {dependencyGuid}");
+                    return;
+                }
+
+                var assetMeta = _metadataManager.GetMetadata(assetPath);
+                var dependencyMeta = _metadataManager.GetMetadata(dependencyPath);
+
+                _metadataManager.AddDependency(assetPath, dependencyGuid);
+
+                if (_resourceDependencyHandlers.TryGetValue(assetMeta.AssetType, out var handler))
+                {
+                    handler.HandleDependencyAdded(assetPath, dependencyPath, dependencyMeta);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка при добавлении зависимости по GUID ({assetGuid} -> {dependencyGuid}): {ex.Message}");
+            }
+        }
+        public void RemoveDependencyFromPathByPath(string assetPath, string dependencyPath)
+        {
+            try
+            {
+                var assetMeta = _metadataManager.GetMetadata(assetPath);
+                var dependencyMeta = _metadataManager.GetMetadata(dependencyPath);
+
+                _metadataManager.RemoveDependency(assetPath, dependencyMeta.Guid);
+
+                if (_resourceDependencyHandlers.TryGetValue(assetMeta.AssetType, out var handler))
+                {
+                    handler.HandleDependencyRemoved(assetPath, dependencyPath, dependencyMeta);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка при удалении зависимости ({assetPath} -> {dependencyPath}): {ex.Message}");
+            }
+        }
+        public void RemoveDependencyFromPathByGuid(string assetPath, string dependencyGuid)
         {
             try
             {
@@ -193,6 +249,59 @@ namespace EngineLib
             catch (Exception ex)
             {
                 DebLogger.Error($"Ошибка при удалении зависимости по GUID ({assetPath} -> {dependencyGuid}): {ex.Message}");
+            }
+        }
+        public void RemoveDependencyFromGuidByPath(string assetGuid, string dependencyPath)
+        {
+            try
+            {
+                string assetPath = _metadataManager.GetPathByGuid(assetGuid);
+                if (string.IsNullOrEmpty(assetPath))
+                {
+                    DebLogger.Warn($"Не удалось найти ассет с GUID: {assetGuid}");
+                    return;
+                }
+
+                var assetMeta = _metadataManager.GetMetadata(assetPath);
+                var dependencyMeta = _metadataManager.GetMetadata(dependencyPath);
+
+                _metadataManager.RemoveDependency(assetPath, dependencyMeta.Guid);
+
+                if (_resourceDependencyHandlers.TryGetValue(assetMeta.AssetType, out var handler))
+                {
+                    handler.HandleDependencyRemoved(assetPath, dependencyPath, dependencyMeta);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка при удалении зависимости ({assetGuid} -> {dependencyPath}): {ex.Message}");
+            }
+        }
+        public void RemoveDependencyFromGuidByGuid(string assetGuid, string dependencyGuid)
+        {
+            try
+            {
+                string assetPath = _metadataManager.GetPathByGuid(assetGuid);
+                if (string.IsNullOrEmpty(assetPath))
+                {
+                    DebLogger.Warn($"Не удалось найти ассет с GUID: {assetGuid}");
+                    return;
+                }
+
+                var assetMeta = _metadataManager.GetMetadata(assetPath);
+
+                _metadataManager.RemoveDependency(assetPath, dependencyGuid);
+
+                string dependencyPath = _metadataManager.GetPathByGuid(dependencyGuid);
+                if (_resourceDependencyHandlers.TryGetValue(assetMeta.AssetType, out var handler) && !string.IsNullOrEmpty(dependencyPath))
+                {
+                    var dependencyMeta = _metadataManager.GetMetadata(dependencyPath);
+                    handler.HandleDependencyRemoved(assetPath, dependencyPath, dependencyMeta);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка при удалении зависимости по GUID ({assetGuid} -> {dependencyGuid}): {ex.Message}");
             }
         }
     }

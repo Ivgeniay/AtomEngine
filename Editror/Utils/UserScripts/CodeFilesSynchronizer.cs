@@ -8,17 +8,16 @@ using EngineLib;
 
 namespace Editor
 {
-    /// <summary>
-    /// Класс для синхронизации файлов кода между папкой проекта и папкой Assets
-    /// </summary>
     public class CodeFilesSynchronizer : IService, IDisposable
     {
         private readonly HashSet<string> _supportedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            ".cs", // C#
-            ".fs", // F#
-            ".js", // JavaScript
-            ".ts"  // TypeScript
+            ".cs", 
+            ".fs", 
+            ".js", 
+            ".ts",
+            ".rs",
+            ".glsl",
         };
 
         private readonly HashSet<string> _excludedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -44,9 +43,6 @@ namespace Editor
         // Хранит пары полных путей файлов, которые сейчас синхронизируются, чтобы избежать рекурсивных вызовов
         private readonly HashSet<string> _inProcessFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>
-        /// Инициализирует синхронизатор файлов кода
-        /// </summary>
         public Task InitializeAsync()
         {
             if (_isInitialized)
@@ -67,32 +63,22 @@ namespace Editor
 
                 _isInitialized = true;
 
-                DebLogger.Debug($"CodeFilesSynchronizer инициализирован. Синхронизация между папками: {_projectPath} и {_assetsPath}");
             });
         }
 
-        /// <summary>
-        /// Освобождает ресурсы синхронизатора файлов кода
-        /// </summary>
         public void Dispose()
         {
             if (!_isInitialized)
                 return;
 
-            // Отписываемся от событий AssetFileSystem
             _assetFileSystem.FileCreated -= OnAssetCreated;
             _assetFileSystem.FileChanged -= OnAssetChanged;
             _assetFileSystem.FileDeleted -= OnAssetDeleted;
             _assetFileSystem.FileRenamed -= OnAssetRenamed;
 
             _isInitialized = false;
-
-            DebLogger.Debug("CodeFilesSynchronizer остановлен");
         }
 
-        /// <summary>
-        /// Обработчик события создания файла в Assets
-        /// </summary>
         private void OnAssetCreated(FileCreateEvent assetData)
         {
             if (!IsSupportedCodeFile(assetData.FileFullPath))
@@ -109,8 +95,6 @@ namespace Editor
                 AddToProcessing(assetData.FileFullPath);
                 AddToProcessing(projectFilePath);
 
-                DebLogger.Debug($"Синхронизация (создание): {assetData} -> {projectFilePath}");
-
                 try
                 {
                     string projectFileDir = Path.GetDirectoryName(projectFilePath);
@@ -121,8 +105,6 @@ namespace Editor
 
                     string content = File.ReadAllText(assetData.FileFullPath);
                     File.WriteAllText(projectFilePath, content);
-
-                    DebLogger.Debug($"Файл скопирован из Assets в проект: {projectFilePath}");
                 }
                 finally
                 {
@@ -136,9 +118,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик события изменения файла в Assets
-        /// </summary>
         private void OnAssetChanged(FileChangedEvent assetData)
         {
             if (!IsSupportedCodeFile(assetData.FileFullPath))
@@ -154,7 +133,6 @@ namespace Editor
 
                 if (!File.Exists(projectFilePath))
                 {
-                    DebLogger.Debug($"Файл не существует в проекте, будет создан: {projectFilePath}");
                     OnAssetCreated(new FileCreateEvent()
                     {
                         FileExtension = assetData.FileExtension,
@@ -168,14 +146,10 @@ namespace Editor
                 AddToProcessing(assetData.FileFullPath);
                 AddToProcessing(projectFilePath);
 
-                DebLogger.Debug($"Синхронизация (изменение): {assetData} -> {projectFilePath}");
-
                 try
                 {
                     string content = File.ReadAllText(assetData.FileFullPath);
                     File.WriteAllText(projectFilePath, content);
-
-                    DebLogger.Debug($"Файл обновлен в проекте: {projectFilePath}");
                 }
                 finally
                 {
@@ -189,9 +163,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик события удаления файла в Assets
-        /// </summary>
         private void OnAssetDeleted(string assetPath)
         {
             if (!IsSupportedCodeFile(assetPath))
@@ -207,20 +178,15 @@ namespace Editor
 
                 if (!File.Exists(projectFilePath))
                 {
-                    DebLogger.Debug($"Файл не существует в проекте, пропускаем удаление: {projectFilePath}");
                     return;
                 }
 
                 AddToProcessing(assetPath);
                 AddToProcessing(projectFilePath);
 
-                DebLogger.Debug($"Синхронизация (удаление): {assetPath} -> удаление {projectFilePath}");
-
                 try
                 {
                     File.Delete(projectFilePath);
-
-                    DebLogger.Debug($"Файл удален из проекта: {projectFilePath}");
                 }
                 finally
                 {
@@ -234,9 +200,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик события переименования файла в Assets
-        /// </summary>
         private void OnAssetRenamed(string oldAssetPath, string newAssetPath)
         {
             if (!IsSupportedCodeFile(oldAssetPath) && !IsSupportedCodeFile(newAssetPath))
@@ -255,7 +218,6 @@ namespace Editor
 
                 if (!File.Exists(oldProjectFilePath))
                 {
-                    DebLogger.Debug($"Файл не существует в проекте, будет создан новый: {newProjectFilePath}");
                     var extension = Path.GetExtension(newAssetPath);
                     var fName = Path.GetFileName(newAssetPath);
                     OnAssetCreated(new FileCreateEvent()
@@ -272,8 +234,6 @@ namespace Editor
                 AddToProcessing(newAssetPath);
                 AddToProcessing(oldProjectFilePath);
                 AddToProcessing(newProjectFilePath);
-
-                DebLogger.Debug($"Синхронизация (переименование): {oldAssetPath} -> {newAssetPath}");
 
                 try
                 {
@@ -295,8 +255,6 @@ namespace Editor
                     {
                         File.Delete(oldProjectFilePath);
                     }
-
-                    DebLogger.Debug($"Файл перемещен в проекте: {oldProjectFilePath} -> {newProjectFilePath}");
                 }
                 finally
                 {
@@ -312,9 +270,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик события создания файла в проекте
-        /// </summary>
         public void OnProjectFileCreated(string projectFilePath)
         {
             if (!IsSupportedCodeFile(projectFilePath))
@@ -331,8 +286,6 @@ namespace Editor
                 AddToProcessing(projectFilePath);
                 AddToProcessing(assetPath);
 
-                DebLogger.Debug($"Синхронизация (создание в проекте): {projectFilePath} -> {assetPath}");
-
                 try
                 {
                     string assetDir = Path.GetDirectoryName(assetPath);
@@ -343,8 +296,6 @@ namespace Editor
 
                     string content = File.ReadAllText(projectFilePath);
                     File.WriteAllText(assetPath, content);
-
-                    DebLogger.Debug($"Файл скопирован из проекта в Assets: {assetPath}");
                 }
                 finally
                 {
@@ -358,9 +309,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик события изменения файла в проекте
-        /// </summary>
         public void OnProjectFileChanged(string projectFilePath)
         {
             if (!IsSupportedCodeFile(projectFilePath))
@@ -376,7 +324,6 @@ namespace Editor
 
                 if (!File.Exists(assetPath))
                 {
-                    DebLogger.Debug($"Файл не существует в Assets, будет создан: {assetPath}");
                     OnProjectFileCreated(projectFilePath);
                     return;
                 }
@@ -384,14 +331,10 @@ namespace Editor
                 AddToProcessing(projectFilePath);
                 AddToProcessing(assetPath);
 
-                DebLogger.Debug($"Синхронизация (изменение в проекте): {projectFilePath} -> {assetPath}");
-
                 try
                 {
                     string content = File.ReadAllText(projectFilePath);
                     File.WriteAllText(assetPath, content);
-
-                    DebLogger.Debug($"Файл обновлен в Assets: {assetPath}");
                 }
                 finally
                 {
@@ -405,9 +348,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик события удаления файла в проекте
-        /// </summary>
         public void OnProjectFileDeleted(string projectFilePath)
         {
             if (!IsSupportedCodeFile(projectFilePath))
@@ -423,19 +363,15 @@ namespace Editor
 
                 if (!File.Exists(assetPath))
                 {
-                    DebLogger.Debug($"Файл не существует в Assets, пропускаем удаление: {assetPath}");
                     return;
                 }
 
                 AddToProcessing(projectFilePath);
                 AddToProcessing(assetPath);
 
-                DebLogger.Debug($"Синхронизация (удаление в проекте): {projectFilePath} -> удаление {assetPath}");
-
                 try
                 {
                     File.Delete(assetPath);
-                    DebLogger.Debug($"Файл удален из Assets: {assetPath}");
                 }
                 finally
                 {
@@ -449,9 +385,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Обработчик события переименования файла в проекте
-        /// </summary>
         public void OnProjectFileRenamed(string oldProjectFilePath, string newProjectFilePath)
         {
             if (!IsSupportedCodeFile(oldProjectFilePath) && !IsSupportedCodeFile(newProjectFilePath))
@@ -470,7 +403,6 @@ namespace Editor
 
                 if (!File.Exists(oldAssetPath))
                 {
-                    DebLogger.Debug($"Файл не существует в Assets, будет создан новый: {newAssetPath}");
                     OnProjectFileCreated(newProjectFilePath);
                     return;
                 }
@@ -479,8 +411,6 @@ namespace Editor
                 AddToProcessing(newProjectFilePath);
                 AddToProcessing(oldAssetPath);
                 AddToProcessing(newAssetPath);
-
-                DebLogger.Debug($"Синхронизация (переименование в проекте): {oldProjectFilePath} -> {newProjectFilePath}");
 
                 try
                 {
@@ -502,8 +432,6 @@ namespace Editor
                     {
                         File.Delete(oldAssetPath);
                     }
-
-                    DebLogger.Debug($"Файл перемещен в Assets: {oldAssetPath} -> {newAssetPath}");
                 }
                 finally
                 {
@@ -519,9 +447,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Проверяет, должен ли файл синхронизироваться (на основе расширения и исключенных директорий)
-        /// </summary>
         private bool IsSupportedCodeFile(string path)
         {
             if (string.IsNullOrEmpty(path))
@@ -537,17 +462,11 @@ namespace Editor
             return !IsInExcludedDirectory(path, basePath);
         }
 
-        /// <summary>
-        /// Получает относительный путь от базовой директории
-        /// </summary>
         private string GetRelativePath(string fullPath, string basePath)
         {
             return Path.GetRelativePath(basePath, fullPath);
         }
 
-        /// <summary>
-        /// Добавляет файл в список обрабатываемых
-        /// </summary>
         private void AddToProcessing(string path)
         {
             lock (_lockObject)
@@ -556,9 +475,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Удаляет файл из списка обрабатываемых
-        /// </summary>
         private void RemoveFromProcessing(string path)
         {
             lock (_lockObject)
@@ -567,9 +483,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Проверяет, находится ли файл в процессе синхронизации
-        /// </summary>
         private bool IsFileInProcess(string path)
         {
             lock (_lockObject)
@@ -579,16 +492,11 @@ namespace Editor
         }
 
 
-        /// <summary>
-        /// Проверяет, находится ли файл в исключаемой директории
-        /// </summary>
         private bool IsInExcludedDirectory(string path, string basePath)
         {
-            // Получаем относительный путь
             string relativePath = GetRelativePath(path, basePath);
             string[] pathSegments = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-            // Проверяем каждый сегмент пути
             foreach (var segment in pathSegments)
             {
                 if (_excludedDirectories.Contains(segment))
@@ -602,23 +510,16 @@ namespace Editor
 
         internal bool IsInExcludedDirectory(string path)
         {
-            // Определяем базовую директорию
             string basePath = path.StartsWith(_projectPath) ? _projectPath : _assetsPath;
 
-            // Используем приватный метод для проверки
             return IsInExcludedDirectory(path, basePath);
         }
 
         #region SyncFilesOnStart
-        /// <summary>
-        /// Выполняет полную синхронизацию между директориями при запуске
-        /// </summary>
         private void SynchronizeDirectories()
         {
             try
             {
-                DebLogger.Info("Начинаем полную синхронизацию кодовых файлов...");
-
                 var projectFiles = GetCodeFiles(_projectPath);
                 var assetFiles = GetCodeFiles(_assetsPath);
 
@@ -632,39 +533,38 @@ namespace Editor
                     p => p
                 );
 
-                foreach (var relativePath in assetPathsDict.Keys)
-                {
-                    var assetPath = assetPathsDict[relativePath];
-
-                    if (!projectPathsDict.TryGetValue(relativePath, out string projectPath))
-                    {
-                        projectPath = Path.Combine(_projectPath, relativePath);
-                        DebLogger.Debug($"Создание файла в Project: {projectPath}");
-                        CopyFile(assetPath, projectPath);
-                    }
-                    else
-                    {
-                        if (ShouldUpdateFile(assetPath, projectPath))
-                        {
-                            DebLogger.Debug($"Обновление файла в Project: {projectPath}");
-                            CopyFile(assetPath, projectPath);
-                        }
-                    }
-                }
-
-                foreach (var relativePath in projectPathsDict.Keys)
+                var commonFiles = projectPathsDict.Keys.Intersect(assetPathsDict.Keys).ToList();
+                foreach (var relativePath in commonFiles)
                 {
                     var projectPath = projectPathsDict[relativePath];
+                    var assetPath = assetPathsDict[relativePath];
 
-                    if (!assetPathsDict.TryGetValue(relativePath, out string assetPath))
+                    var syncDirection = DetermineSyncDirection(assetPath, projectPath);
+                    if (syncDirection == SyncDirection.AssetToProject)
                     {
-                        assetPath = Path.Combine(_assetsPath, relativePath);
-                        DebLogger.Debug($"Создание файла в Assets: {assetPath}");
+                        CopyFile(assetPath, projectPath);
+                    }
+                    else if (syncDirection == SyncDirection.ProjectToAsset)
+                    {
                         CopyFile(projectPath, assetPath);
                     }
                 }
 
-                DebLogger.Info("Полная синхронизация кодовых файлов завершена");
+                var assetsOnlyFiles = assetPathsDict.Keys.Except(projectPathsDict.Keys).ToList();
+                foreach (var relativePath in assetsOnlyFiles)
+                {
+                    var assetPath = assetPathsDict[relativePath];
+                    var projectPath = Path.Combine(_projectPath, relativePath);
+                    CopyFile(assetPath, projectPath);
+                }
+
+                var projectOnlyFiles = projectPathsDict.Keys.Except(assetPathsDict.Keys).ToList();
+                foreach (var relativePath in projectOnlyFiles)
+                {
+                    var projectPath = projectPathsDict[relativePath];
+                    DeleteFile(projectPath);
+                }
+
             }
             catch (Exception ex)
             {
@@ -672,9 +572,63 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Получает список файлов кода в указанной директории
-        /// </summary>
+        private enum SyncDirection
+        {
+            NoSync,
+            AssetToProject,
+            ProjectToAsset
+        }
+
+        private SyncDirection DetermineSyncDirection(string assetPath, string projectPath)
+        {
+            try
+            {
+                var assetInfo = new FileInfo(assetPath);
+                var projectInfo = new FileInfo(projectPath);
+
+                var timeDiff = assetInfo.LastWriteTimeUtc - projectInfo.LastWriteTimeUtc;
+
+                if (Math.Abs(timeDiff.TotalSeconds) > 2)
+                {
+                    return timeDiff.TotalSeconds > 0
+                        ? SyncDirection.AssetToProject
+                        : SyncDirection.ProjectToAsset;
+                }
+
+                string assetHash = CalculateFileHash(assetPath);
+                string projectHash = CalculateFileHash(projectPath);
+
+                if (assetHash != projectHash)
+                {
+                    return assetInfo.LastWriteTimeUtc >= projectInfo.LastWriteTimeUtc
+                        ? SyncDirection.AssetToProject
+                        : SyncDirection.ProjectToAsset;
+                }
+
+                return SyncDirection.NoSync;
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Warn($"Ошибка при определении направления синхронизации между {assetPath} и {projectPath}: {ex.Message}");
+                return SyncDirection.NoSync;
+            }
+        }
+
+        private void DeleteFile(string filePath)
+        {
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка при удалении файла {filePath}: {ex.Message}");
+            }
+        }
+
         private List<string> GetCodeFiles(string directory)
         {
             var files = new List<string>();
@@ -695,9 +649,6 @@ namespace Editor
             return files;
         }
 
-        /// <summary>
-        /// Проверяет, нужно ли обновить файл (true если source новее)
-        /// </summary>
         private bool ShouldUpdateFile(string sourcePath, string targetPath)
         {
             try
@@ -722,9 +673,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Копирует файл, создавая необходимые директории
-        /// </summary>
         private void CopyFile(string sourcePath, string targetPath)
         {
             try
@@ -746,9 +694,6 @@ namespace Editor
             }
         }
 
-        /// <summary>
-        /// Рассчитывает хеш содержимого файла
-        /// </summary>
         private string CalculateFileHash(string filePath)
         {
             using (var md5 = System.Security.Cryptography.MD5.Create())

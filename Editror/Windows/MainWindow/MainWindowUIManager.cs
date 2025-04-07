@@ -245,10 +245,33 @@ namespace Editor
                 SubCategory = new string[] { "Shader" },
                 Action = async (e) =>
                 {
-                    string outputDirectoryName = e.FileName.Contains(".") ? e.FileName.Substring(0, e.FileName.IndexOf(".")) : e.FileName;
-                    outputDirectoryName = Path.Combine(e.FilePath, outputDirectoryName);
-                    await GenerateCode.Generate(e.FileFullPath, outputDirectoryName);
-                    //await GlslCodeGenerator.GenerateCode(e.FileFullPath, outputDirectoryName);
+                    CsCompileWatcher csCompiler = ServiceHub.Get<CsCompileWatcher>();
+                    csCompiler.EnableWatching(false);
+                    try
+                    {
+                        var loadingManager = ServiceHub.Get<LoadingManager>();
+                        await loadingManager.RunWithLoading(async (progress) =>
+                        {
+                            await Task.Delay(100);
+                            progress.Report((0, $"Generating from {e.FileName}..."));
+                            string outputDirectoryName = e.FileName.Contains(".") ? e.FileName.Substring(0, e.FileName.IndexOf(".")) : e.FileName;
+                            outputDirectoryName = Path.Combine(e.FilePath, outputDirectoryName);
+                            await GenerateCode.Generate(e.FileFullPath, outputDirectoryName);
+                            progress.Report((90, $"Generating from {e.FileName}..."));
+                            await Task.Delay(1000);
+                        });
+                        ProjectConfigurations pConf = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
+                        await ServiceHub.Get<ScriptSyncSystem>().RebuildProject(pConf.BuildType);
+                    }
+                    catch(Exception err)
+                    {
+                        DebLogger.Error($"Generating error {e.FilePath} \n {err.Message}");
+                    }
+                    finally
+                    {
+                        await Task.Delay(1000);
+                        csCompiler.EnableWatching(false);
+                    }
                 }
             });
             _explorerController.RegisterCustomContextMenu(new DescriptionFileCustomContextMenu
