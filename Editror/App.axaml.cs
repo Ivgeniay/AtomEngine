@@ -89,8 +89,8 @@ namespace Editor
                 // Сервис синхронизации состояния между папками пользовательских скриптов и папкой Assets
                 ServiceHub.RegisterService<CodeFilesSynchronizer>();
                 // Менеджер загрузки и сохранения состояний ресурсов
-                ServiceHub.RegisterService<EditorMaterialAssetManager>();
-                ServiceHub.AddMapping<MaterialAssetManager, EditorMaterialAssetManager>();
+                //ServiceHub.RegisterService<EditorMaterialAssetManager>();
+                //ServiceHub.AddMapping<MaterialAssetManager, EditorMaterialAssetManager>();
                 ServiceHub.RegisterService<EditorModelManager>();
                 ServiceHub.AddMapping<ModelManager, EditorModelManager>();
                 ServiceHub.RegisterService<BuildManager>();
@@ -135,6 +135,10 @@ namespace Editor
                 await loadingWindow.UpdateLoadingStatus("Компиляция проекта...");
                 await ServiceHub.Get<ScriptSyncSystem>().Compile();
                 await Task.Delay(100);
+
+                ServiceHub.RegisterService<EditorMaterialAssetManager>();
+                ServiceHub.AddMapping<MaterialAssetManager, EditorMaterialAssetManager>();
+                await ServiceHub.Get<EditorMaterialAssetManager>().InitializeAsync();
 
                 EventHub eventHub = ServiceHub.Get<EventHub>();
                 eventHub.RegisterErrorHandler<Exception>((ex, subscriber, evt) =>

@@ -1,4 +1,7 @@
-﻿using Newtonsoft.Json;
+﻿using AtomEngine;
+using EngineLib;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Silk.NET.Maths;
 using System.Numerics;
 
@@ -24,7 +27,7 @@ namespace OpenglLib
             var settings = new JsonSerializerSettings
             {
                 Formatting = Formatting.Indented,
-                TypeNameHandling = TypeNameHandling.Auto,
+                TypeNameHandling = TypeNameHandling.None,
                 NullValueHandling = NullValueHandling.Ignore,
                 ReferenceLoopHandling = ReferenceLoopHandling.Ignore
             };
@@ -34,7 +37,7 @@ namespace OpenglLib
                 material.Guid,
                 material.ShaderRepresentationGuid,
                 material.ShaderRepresentationTypeName,
-                UniformValues = ConvertUniformValuesToSerializable(material.UniformValues),
+                Values = SerializeContainers(material.GetAllContainers()),
                 material.TextureReferences
             };
 
@@ -43,52 +46,287 @@ namespace OpenglLib
 
         public static MaterialAsset DeserializeMaterial(string json)
         {
-            JsonSerializerSettings settings = new JsonSerializerSettings()
-            {
-                Formatting = Formatting.Indented,
-                TypeNameHandling = TypeNameHandling.Auto,
-                ObjectCreationHandling = ObjectCreationHandling.Replace,
-                ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
-            };
+            var material = new MaterialAsset();
 
-            var deserializedData = JsonConvert.DeserializeObject<MaterialAsset>(json, settings);
-
-            if (deserializedData.UniformValues != null)
+            try
             {
-                deserializedData.UniformValues = ConvertUniformValuesToTyped(deserializedData.UniformValues);
+                var jsonObj = JsonConvert.DeserializeObject<JObject>(json);
+
+                material.Guid = jsonObj["Guid"]?.ToString();
+                material.ShaderRepresentationGuid = jsonObj["ShaderRepresentationGuid"]?.ToString();
+                material.ShaderRepresentationTypeName = jsonObj["ShaderRepresentationTypeName"]?.ToString();
+
+                if (jsonObj["TextureReferences"] != null)
+                {
+                    material.TextureReferences = jsonObj["TextureReferences"].ToObject<Dictionary<string, string>>();
+                }
+
+                if (jsonObj["Values"] != null && jsonObj["Values"] is JArray valuesArray)
+                {
+                    var containers = DeserializeContainers(valuesArray);
+                    foreach (var container in containers)
+                    {
+                        material.AddContainer(container);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка десериализации материала: {ex.Message}");
             }
 
-            return deserializedData;
+            return material;
         }
 
-        private static Dictionary<string, object> ConvertUniformValuesToSerializable(Dictionary<string, object> values)
+        private static object[] SerializeContainers(List<MaterialDataContainer> containers)
         {
-            var result = new Dictionary<string, object>();
+            var result = new List<object>();
 
-            if (values == null)
-                return result;
-
-            foreach (var pair in values)
+            foreach (var container in containers)
             {
-                result[pair.Key] = ConvertToSerializable(pair.Value);
+                result.Add(SerializeContainer(container));
+            }
+
+            return result.ToArray();
+        }
+
+        private static object SerializeContainer(MaterialDataContainer container)
+        {
+            if (container is MaterialUniformDataContainer uniformContainer)
+            {
+                return new
+                {
+                    Type = "Uniform",
+                    container.Name,
+                    container.TypeName,
+                    Value = ConvertToSerializable(uniformContainer.Value)
+                };
+            }
+            else if (container is MaterialSamplerDataContainer samplerContainer)
+            {
+                return new
+                {
+                    Type = "Sampler",
+                    container.Name,
+                    container.TypeName,
+                    TextureGuid = samplerContainer.TextureGuid
+                };
+            }
+            else if (container is MaterialSamplerArrayDataContainer samplerArrayContainer)
+            {
+                return new
+                {
+                    Type = "SamplerArray",
+                    container.Name,
+                    container.TypeName,
+                    samplerArrayContainer.Size,
+                    TextureGuids = samplerArrayContainer.TextureGuids.ToArray()
+                };
+            }
+            else if (container is MaterialStructDataContainer structContainer)
+            {
+                return new
+                {
+                    Type = "Struct",
+                    container.Name,
+                    container.TypeName,
+                    Fields = SerializeContainers(structContainer.Fields)
+                };
+            }
+            else if (container is MaterialStructArrayDataContainer structArrayContainer)
+            {
+                var elements = new List<object>();
+                foreach (var element in structArrayContainer.Elements)
+                {
+                    elements.Add(SerializeContainer(element));
+                }
+
+                return new
+                {
+                    Type = "StructArray",
+                    container.Name,
+                    container.TypeName,
+                    ElementTypeName = structArrayContainer.ElementType?.FullName,
+                    structArrayContainer.Size,
+                    Elements = elements.ToArray()
+                };
+            }
+            else if (container is MaterialArrayDataContainer arrayContainer)
+            {
+                var serializedValues = new List<object>();
+                foreach (var value in arrayContainer.Values)
+                {
+                    serializedValues.Add(ConvertToSerializable(value));
+                }
+
+                return new
+                {
+                    Type = "Array",
+                    container.Name,
+                    container.TypeName,
+                    ElementTypeName = arrayContainer.ElementType?.FullName,
+                    arrayContainer.Size,
+                    Values = serializedValues.ToArray()
+                };
+            }
+
+            return null;
+        }
+
+        private static List<MaterialDataContainer> DeserializeContainers(JArray array)
+        {
+            var result = new List<MaterialDataContainer>();
+
+            foreach (JObject item in array)
+            {
+                var container = DeserializeContainer(item);
+                if (container != null)
+                {
+                    result.Add(container);
+                }
             }
 
             return result;
         }
 
-        private static Dictionary<string, object> ConvertUniformValuesToTyped(Dictionary<string, object> values)
+        private static MaterialDataContainer DeserializeContainer(JObject item)
         {
-            var result = new Dictionary<string, object>();
-
-            if (values == null)
-                return result;
-
-            foreach (var pair in values)
+            try
             {
-                result[pair.Key] = ConvertToTyped(pair.Value);
+                string containerType = item["Type"]?.ToString();
+                string name = item["Name"]?.ToString();
+                string typeName = item["TypeName"]?.ToString();
+
+                if (string.IsNullOrEmpty(containerType) || string.IsNullOrEmpty(name))
+                    return null;
+
+                switch (containerType)
+                {
+                    case "Uniform":
+                        Type uniformType = GetTypeFromName(typeName);
+                        if (uniformType == null)
+                            return null;
+
+                        var value = ConvertToTyped(item["Value"], uniformType);
+                        return new MaterialUniformDataContainer
+                        {
+                            Name = name,
+                            TypeName = typeName,
+                            Type = uniformType,
+                            Value = value
+                        };
+
+                    case "Sampler":
+                        string textureGuid = item["TextureGuid"]?.ToString() ?? string.Empty;
+                        return new MaterialSamplerDataContainer
+                        {
+                            Name = name,
+                            TypeName = typeName,
+                            TextureGuid = textureGuid
+                        };
+
+                    case "SamplerArray":
+                        int samplerArraySize = item["Size"]?.Value<int>() ?? 0;
+                        var textureGuids = item["TextureGuids"]?.ToObject<string[]>() ?? new string[0];
+
+                        return new MaterialSamplerArrayDataContainer
+                        {
+                            Name = name,
+                            TypeName = typeName,
+                            Size = samplerArraySize,
+                            TextureGuids = new List<string>(textureGuids)
+                        };
+
+                    case "Struct":
+                        Type structType = GetTypeFromName(typeName);
+                        if (structType == null)
+                            return null;
+
+                        var fields = DeserializeContainers(item["Fields"] as JArray ?? new JArray());
+
+                        return new MaterialStructDataContainer
+                        {
+                            Name = name,
+                            TypeName = typeName,
+                            StructType = structType,
+                            Fields = fields
+                        };
+
+                    case "StructArray":
+                        string elementTypeName = item["ElementTypeName"]?.ToString();
+                        Type elementType = GetTypeFromName(elementTypeName);
+                        if (elementType == null)
+                            return null;
+
+                        int structArraySize = item["Size"]?.Value<int>() ?? 0;
+                        var elementsArray = item["Elements"] as JArray ?? new JArray();
+                        var elements = new List<MaterialStructDataContainer>();
+
+                        foreach (JObject elementObj in elementsArray)
+                        {
+                            var element = DeserializeContainer(elementObj) as MaterialStructDataContainer;
+                            if (element != null)
+                            {
+                                elements.Add(element);
+                            }
+                        }
+
+                        return new MaterialStructArrayDataContainer
+                        {
+                            Name = name,
+                            TypeName = typeName,
+                            ElementType = elementType,
+                            Size = structArraySize,
+                            Elements = elements
+                        };
+
+                    case "Array":
+                        string arrayElementTypeName = item["ElementTypeName"]?.ToString();
+                        Type arrayElementType = GetTypeFromName(arrayElementTypeName);
+                        if (arrayElementType == null)
+                            return null;
+
+                        int arraySize = item["Size"]?.Value<int>() ?? 0;
+                        var valuesArray = item["Values"] as JArray ?? new JArray();
+                        var values = new List<object>();
+
+                        foreach (var valueToken in valuesArray)
+                        {
+                            var value_ = ConvertToTyped(valueToken, arrayElementType);
+                            values.Add(value_);
+                        }
+
+                        return new MaterialArrayDataContainer
+                        {
+                            Name = name,
+                            TypeName = typeName,
+                            ElementType = arrayElementType,
+                            Size = arraySize,
+                            Values = values
+                        };
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Debug($"Ошибка десериализации контейнера: {ex.Message}");
             }
 
-            return result;
+            return null;
+        }
+
+        private static Type GetTypeFromName(string typeName)
+        {
+            if (string.IsNullOrEmpty(typeName))
+                return null;
+
+            Type type = ServiceHub.Get<AssemblyManager>().FindType(typeName, true);
+
+            if (type == null)
+            {
+                type = Type.GetType(typeName);
+            }
+
+            return type;
         }
 
         private static object ConvertToSerializable(object value)
@@ -130,59 +368,67 @@ namespace OpenglLib
             return value;
         }
 
-        private static object ConvertToTyped(object value)
+        private static object ConvertToTyped(JToken token, Type targetType)
         {
-            if (value == null)
+            if (token == null)
                 return null;
 
-            if (value is Newtonsoft.Json.Linq.JObject jObj)
+            try
             {
-                if (jObj["X"] != null && jObj["Y"] != null)
+                if (targetType == typeof(float))
+                    return token.Value<float>();
+                else if (targetType == typeof(int))
+                    return token.Value<int>();
+                else if (targetType == typeof(bool))
+                    return token.Value<bool>();
+                else if (targetType == typeof(double))
+                    return token.Value<double>();
+                else if (targetType == typeof(string))
+                    return token.Value<string>();
+                else if (targetType == typeof(Vector2D<float>))
                 {
-                    if (jObj["Z"] != null)
+                    var obj = token as JObject;
+                    if (obj != null && obj["X"] != null && obj["Y"] != null)
                     {
-                        if (jObj["W"] != null)
-                        {
-                            float x4 = jObj["X"].ToObject<float>();
-                            float y4 = jObj["Y"].ToObject<float>();
-                            float z4 = jObj["Z"].ToObject<float>();
-                            float w4 = jObj["W"].ToObject<float>();
-                            return new Silk.NET.Maths.Vector4D<float>(x4, y4, z4, w4);
-                        }
-                        else
-                        {
-                            float x3 = jObj["X"].ToObject<float>();
-                            float y3 = jObj["Y"].ToObject<float>();
-                            float z3 = jObj["Z"].ToObject<float>();
-                            return new Silk.NET.Maths.Vector3D<float>(x3, y3, z3);
-                        }
-                    }
-                    else
-                    {
-                        float x2 = jObj["X"].ToObject<float>();
-                        float y2 = jObj["Y"].ToObject<float>();
-                        return new Silk.NET.Maths.Vector2D<float>(x2, y2);
+                        return new Vector2D<float>(
+                            obj["X"].Value<float>(),
+                            obj["Y"].Value<float>()
+                        );
                     }
                 }
-                else if (jObj["Values"] != null)
+                else if (targetType == typeof(Vector3D<float>))
                 {
-                    var values = jObj["Values"].ToObject<float[]>();
-                    if (values.Length == 16)
+                    var obj = token as JObject;
+                    if (obj != null && obj["X"] != null && obj["Y"] != null && obj["Z"] != null)
                     {
-                        return new Matrix4X4<float>(
-                            values[0], values[1], values[2], values[3],
-                            values[4], values[5], values[6], values[7],
-                            values[8], values[9], values[10], values[11],
-                            values[12], values[13], values[14], values[15]
+                        return new Vector3D<float>(
+                            obj["X"].Value<float>(),
+                            obj["Y"].Value<float>(),
+                            obj["Z"].Value<float>()
+                        );
+                    }
+                }
+                else if (targetType == typeof(Vector4D<float>))
+                {
+                    var obj = token as JObject;
+                    if (obj != null && obj["X"] != null && obj["Y"] != null && obj["Z"] != null && obj["W"] != null)
+                    {
+                        return new Vector4D<float>(
+                            obj["X"].Value<float>(),
+                            obj["Y"].Value<float>(),
+                            obj["Z"].Value<float>(),
+                            obj["W"].Value<float>()
                         );
                     }
                 }
 
-                return jObj;
+                return token.ToObject(targetType);
             }
-
-            return value;
+            catch (Exception ex)
+            {
+                DebLogger.Debug($"Ошибка преобразования типа {targetType.Name}: {ex.Message}");
+                return null;
+            }
         }
-
     }
 }

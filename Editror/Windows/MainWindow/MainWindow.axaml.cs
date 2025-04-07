@@ -68,7 +68,7 @@ namespace Editor
             _uIManager.RegisterController(MainControllers.Graph, nodeGraphController);
             _uIManager.RegisterController(MainControllers.Documentation, docController);
             _uIManager.RegisterController(MainControllers.GlslEditor, glslEditor);
-
+            
             _uIManager.Initialize();
 
             _toolbar = new EditorToolbar(ToolbarContainer);
