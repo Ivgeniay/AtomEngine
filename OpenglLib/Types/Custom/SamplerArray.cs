@@ -6,9 +6,8 @@ namespace OpenglLib
     {
         private readonly GL _gl;
         private readonly int _size;
-        private readonly string _target;
-        private readonly int _baseTextureUnit;
         private readonly Texture[] _textures;
+        private readonly Shader _shader;
         public bool IsDirty { get; set; } = true;
 
         public int Location { get; set; }
@@ -17,12 +16,11 @@ namespace OpenglLib
             _textures = new Texture[size];
         }
 
-        public SamplerArray(GL gl, int size, string target, int baseTextureUnit)
+        public SamplerArray(GL gl, int size, Shader shader)
         {
             _gl = gl;
             _size = size;
-            _target = target;
-            _baseTextureUnit = baseTextureUnit;
+            _shader = shader;
             _textures = new Texture[size];
         }
 
@@ -41,19 +39,41 @@ namespace OpenglLib
                     SetTextureAtIndex(index, value);
                     IsDirty = true;
                 }
+
+                if (_gl == null &&  Location == -1)
+                {
+                    _textures[index] = value;
+                }
             }
         }
 
         private void SetTextureAtIndex(int index, Texture texture)
         {
-            int unitIndex = _baseTextureUnit + index;
-            TextureUnit unit = TextureUnit.Texture0 + unitIndex;
-            TextureTarget target = Enum.Parse<TextureTarget>(_target);
+            _shader?.SetTexture(Location + index, texture);
+        }
 
-            texture.Target = target;
-            texture.Bind(unit);
+        public void Apply()
+        {
+            if (!IsDirty || _gl == null || Location == -1)
+                return;
 
-            _gl.Uniform1(Location + index, unitIndex);
+            for (int i = 0; i < _size; i++)
+            {
+                if (_textures[i] != null)
+                {
+                    SetTextureAtIndex(i, _textures[i]);
+                }
+            }
+
+            IsDirty = false;
+        }
+        public void Clear()
+        {
+            for (int i = 0; i < _size; i++)
+            {
+                _textures[i] = null;
+            }
+            IsDirty = true;
         }
     }
 }

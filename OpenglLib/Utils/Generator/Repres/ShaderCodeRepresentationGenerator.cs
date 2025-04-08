@@ -100,11 +100,11 @@ namespace OpenglLib
                 {
                     if (arraySize.HasValue)
                     {
-                        SimpleTypeArrayCase(fieldsBuilder, constructorBodyBuilder, csharpType, type, name, locationName, arraySize.Value, getSamplerIndex, uniform);
+                        SimpleTypeArrayCase(fieldsBuilder, constructorBodyBuilder, csharpType, type, name, locationName, arraySize.Value);
                     }
                     else
                     {
-                        SimpleTypeCase(fieldsBuilder, constructorBodyBuilder, type, csharpType, name, locationName, getSamplerIndex, uniform);
+                        SimpleTypeCase(fieldsBuilder, constructorBodyBuilder, type, csharpType, name, locationName, binding);
                     }
                 }
             }
@@ -298,7 +298,7 @@ namespace OpenglLib
             fieldsBuilder.AppendLine();
             fieldsBuilder.AppendLine();
 
-            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new {csharpType}(_gl);");
+            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new {csharpType}(_gl, this);");
         }
 
         private static void CustomTypeArrayCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string csharpType, string name, int arraySize)
@@ -313,17 +313,11 @@ namespace OpenglLib
             fieldsBuilder.AppendLine();
             fieldsBuilder.AppendLine();
 
-            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new StructArray<{csharpType}>({arraySize}, _gl);");
+            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new StructArray<{csharpType}>({arraySize}, _gl, this);");
         }
 
-        private static void SimpleTypeCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string type, string csharpType, string name, string locationName, Func<UniformModel, int> getSamplerIndex, UniformModel uniform)
+        private static void SimpleTypeCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string type, string csharpType, string name, string locationName, int? bindind)
         {
-            //if (GlslParser.IsSamplerType(type))
-            //{
-            //    int sampler = getSamplerIndex(uniform);
-            //    fieldsBuilder.AppendLine($"        public void {name}_SetTexture(OpenglLib.Texture texture) => SetTexture(\"Texture{sampler}\", \"{GlslParser.GetTextureTarget(type)}\", {locationName}, {sampler}, texture);");
-            //}
-
             string cashFieldName = $"_{name}";
             var _unsafe = type.StartsWith("mat") ? "unsafe " : "";
 
@@ -331,8 +325,6 @@ namespace OpenglLib
 
             if (GlslParser.IsSamplerType(type))
             {
-                int samplerIndex = getSamplerIndex(uniform);
-
                 fieldsBuilder.AppendLine($"        private OpenglLib.Texture _{name};");
                 fieldsBuilder.AppendLine($"        public OpenglLib.Texture {name}");
                 fieldsBuilder.AppendLine("        {");
@@ -342,10 +334,15 @@ namespace OpenglLib
                 fieldsBuilder.AppendLine($"                if (value != null && {locationName} != -1)");
                 fieldsBuilder.AppendLine($"                {{");
                 fieldsBuilder.AppendLine($"                    _{name} = value;");
-                fieldsBuilder.AppendLine($"                    SetTexture(\"Texture{samplerIndex}\", \"{GlslParser.GetTextureTarget(type)}\", {locationName}, {samplerIndex}, value);");
+                fieldsBuilder.AppendLine($"                    SetTexture({locationName}, value);");
                 fieldsBuilder.AppendLine($"                }}");
                 fieldsBuilder.AppendLine("            }");
                 fieldsBuilder.AppendLine("        }");
+
+                if (bindind.HasValue)
+                {
+                    constructorBodyBuilder.AppendLine($"            ReserveTextureUnit({locationName}, {bindind.Value});");
+                }
             }
             else
             {
@@ -359,20 +356,12 @@ namespace OpenglLib
             fieldsBuilder.AppendLine();
         }
 
-        private static void SimpleTypeArrayCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string csharpType, string type, string name, string locationName, int arraySize, Func<UniformModel, int> getSamplerIndex, UniformModel uniform)
+        private static void SimpleTypeArrayCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, string csharpType, string type, string name, string locationName, int arraySize)
         {
             string cashFieldName = $"_{name}";
 
             if (GlslParser.IsSamplerType(type))
             {
-                int baseSamplerIndex = 0;
-
-                for(int i = 0; i < arraySize; i++)
-                {
-                    if (i == 0) baseSamplerIndex = getSamplerIndex(uniform);
-                    getSamplerIndex(uniform);
-                }
-
                 fieldsBuilder.AppendLine($"        private SamplerArray {cashFieldName};");
                 fieldsBuilder.AppendLine($"        public SamplerArray {name}");
                 fieldsBuilder.AppendLine("        {");
@@ -386,7 +375,7 @@ namespace OpenglLib
                 fieldsBuilder.AppendLine($"            set => {name}.Location = value;");
                 fieldsBuilder.AppendLine("        }");
 
-                constructorBodyBuilder.AppendLine($"            {cashFieldName} = new SamplerArray(_gl, {arraySize}, \"{GlslParser.GetTextureTarget(type)}\", {baseSamplerIndex});");
+                constructorBodyBuilder.AppendLine($"            {cashFieldName} = new SamplerArray(_gl, {arraySize}, this);");
             }
             else
             {

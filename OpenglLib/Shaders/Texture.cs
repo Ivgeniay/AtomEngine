@@ -10,7 +10,7 @@ using SixLabors.ImageSharp.Processing;
 
 namespace OpenglLib
 {
-    public class Texture : IDisposable
+    public sealed class Texture : IDisposable
     {
         private uint _handle;
         private GL _gl;
@@ -21,6 +21,7 @@ namespace OpenglLib
         public TextureType Type { get; }
 
 
+        public TextureUnit TextureUnit { get; private set; } = TextureUnit.Texture0;
         public TextureTarget Target { get; set; } = TextureTarget.Texture2D;
         public Silk.NET.OpenGL.TextureWrapMode WrapS { get; set; } = Silk.NET.OpenGL.TextureWrapMode.Repeat;
         public Silk.NET.OpenGL.TextureWrapMode WrapT { get; set; } = Silk.NET.OpenGL.TextureWrapMode.Repeat;
@@ -175,6 +176,7 @@ namespace OpenglLib
 
         public unsafe void Bind(TextureUnit textureSlot = TextureUnit.Texture0)
         {
+            this.TextureUnit = textureSlot;
             _gl.ActiveTexture(textureSlot);
             _gl.BindTexture(Target, _handle);
             if (!_isBound && _image != null)

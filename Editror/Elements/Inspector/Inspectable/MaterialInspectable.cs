@@ -121,7 +121,7 @@ namespace Editor
             {
                 for (int i = 0; i < samplerArrayContainer.TextureGuids.Count; i++)
                 {
-                    int capturedIndex = i; // Захватываем индекс для лямбда-выражения
+                    int capturedIndex = i;
                     string arrayIndexName = $"{container.Name}[{i}]";
                     string indexPath = string.IsNullOrEmpty(parentPath)
                         ? arrayIndexName
@@ -149,7 +149,7 @@ namespace Editor
             {
                 for (int i = 0; i < arrayContainer.Values.Count; i++)
                 {
-                    int capturedIndex = i; // Захватываем индекс для лямбда-выражения
+                    int capturedIndex = i;
                     string arrayIndexName = $"{container.Name}[{i}]";
                     string indexPath = string.IsNullOrEmpty(parentPath)
                         ? arrayIndexName

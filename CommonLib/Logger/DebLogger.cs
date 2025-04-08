@@ -1,4 +1,6 @@
-﻿namespace AtomEngine
+﻿using CommonLib;
+
+namespace AtomEngine
 {
     public static class DebLogger
     {
@@ -51,7 +53,11 @@
         private static void AddLogEntry(LogLevel level, params object[] args)
         {
             string message = string.Join(" ", args);
-            var logEntry = new LogEntry(message, level);
+
+            var callerInfo = StackTraceHelper.GetCallerInfo(3);
+            var logEntry = new LogEntry(message, level, callerInfo);
+
+            //var logEntry = new LogEntry(message, level);
 
             if (logEntries.Count > MaxCacheEntry)
             {
@@ -66,6 +72,8 @@
             public LogLevel Level { get; set; }
             public DateTime Timestamp { get; set; }
 
+            public CallerInfo CallerInfo { get; set; }
+
             public LogEntry(string message, LogLevel level)
             {
                 Message = message;
@@ -73,15 +81,12 @@
                 Timestamp = DateTime.Now;
             }
 
-            public string GetTimestampString()
-            {
-                return Timestamp.ToString("HH:mm:ss.fff");
-            }
+            public LogEntry(string message, LogLevel level, CallerInfo callerInfo) : this(message, level) =>
+                CallerInfo = callerInfo;
 
-            public string GetLevelString()
-            {
-                return Level.ToString().ToUpper();
-            }
+            public string GetTimestampString() => Timestamp.ToString("HH:mm:ss.fff");
+            public string GetLevelString() => Level.ToString().ToUpper();
+            public bool HasSourceInfo() => CallerInfo.IsValid;
         }
     }
 }

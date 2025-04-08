@@ -297,7 +297,7 @@ namespace OpenglLib
                 fieldsBuilder.AppendLine($"        public {csTypeName} {fieldName};");
             }
 
-            constructorBuilder.AppendLine($"            {fieldName} = new {csTypeName}(null);");
+            constructorBuilder.AppendLine($"            {fieldName} = new {csTypeName}(null, null);");
 
             if (isDirtySupport)
             {

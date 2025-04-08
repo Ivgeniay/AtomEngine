@@ -10,6 +10,9 @@ namespace OpenglLib
     public class Shader : ShaderBase
     {
         public readonly GL _gl;
+
+        protected readonly ShaderTextureManager _shaderTextureManager;
+
         protected readonly Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
         protected readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
         protected readonly Dictionary<string, UniformInfo> _uniformInfo = new Dictionary<string, UniformInfo>();
@@ -19,8 +22,9 @@ namespace OpenglLib
         protected string FragmentSource;
 
         public Shader(GL gl, string vertexSource = "", string fragmentSource = "")
-        { 
+        {
             _gl = gl;
+            _shaderTextureManager = new ShaderTextureManager(this);
         }
 
         public void SetUpShader(string vertexSource = "", string fragmentSource = "")
@@ -59,9 +63,20 @@ namespace OpenglLib
 
         public override void SetUniform(string name, object value)
         {
+            if (name == null)
+            {
+#if DEBUG
+                DebLogger.Error("Uniform name cannot be null");
+#endif
+                return;
+            }
+
             if (!_uniformLocations.TryGetValue(name, out int location))
             {
+#if DEBUG
                 DebLogger.Error($"Uniform {name} not found in shader program");
+#endif
+                return;
             }
 
             switch (_uniformInfo[name].Type)
@@ -210,6 +225,133 @@ namespace OpenglLib
             }
         }
 
+        #region Textures
+        public void SetTexture(string uniformName, Texture texture)
+        {
+            if (texture == null || string.IsNullOrEmpty(uniformName))
+            {
+#if DEBUG
+                DebLogger.Error($"Texture or uniform name cannot be null");
+#endif
+                return;
+            }
+
+            if (!_uniformLocations.TryGetValue(uniformName, out _))
+            {
+#if DEBUG
+                DebLogger.Error($"Uniform {uniformName} not found in shader program");
+#endif
+                return;
+            }
+
+            Use();
+            _shaderTextureManager.BindTexture(uniformName, texture);
+        }
+        public void SetTexture(int location, Texture texture)
+        {
+            if (texture == null)
+            {
+#if DEBUG
+                DebLogger.Error($"Texture for uniform at location {location} cannot be null");
+#endif
+                return;
+            }
+
+            if (location < 0)
+            {
+#if DEBUG
+                DebLogger.Error($"Uniform at location for Texture cannot be {location}");
+#endif
+                return;
+            }
+
+            string uniformName = null;
+            foreach (var pair in _uniformLocations)
+            {
+                if (pair.Value == location)
+                {
+                    uniformName = pair.Key;
+                    break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(uniformName))
+            {
+#if DEBUG
+                DebLogger.Error($"Uniform domainName cannot be white space or null");
+#endif
+            }
+            else
+            {
+                SetTexture(uniformName, texture);
+            }
+        }
+        public void SetTextureByDomainName(string name, object value)
+        {
+            if (name == null)
+            {
+#if DEBUG
+                DebLogger.Error("Uniform name cannot be null");
+#endif
+                return;
+            }
+            if (value == null)
+            {
+#if DEBUG
+                DebLogger.Error($"Value for uniform {name} cannot be null");
+#endif
+                return;
+            }
+            if (!_uniformLocations.TryGetValue(name, out int location))
+            {
+#if DEBUG
+                DebLogger.Error($"Uniform {name} not found in shader program");
+#endif
+                return;
+            }
+            
+            switch (_uniformInfo[name].Type)
+            {
+                case UniformType.Sampler1D:
+                case UniformType.Sampler2D:
+                case UniformType.Sampler3D:
+                case UniformType.SamplerCube:
+                case UniformType.Sampler1DShadow:
+                case UniformType.Sampler2DShadow:
+                case UniformType.SamplerCubeShadow:
+                    try
+                    {
+                        _gl.Uniform1(location, Convert.ToInt32(value));
+                    }
+                    catch (Exception ex)
+                    {
+#if DEBUG
+                        DebLogger.Error($"Failed to convert value for uniform {name}: {ex.Message}");
+#endif
+                    }
+                    break;
+
+                default:
+                    throw new ArgumentException(
+                        $"Unsupported uniform type. Uniform: {name}, Type: {_uniformInfo[name].Type}");
+            }
+
+        }
+        public void ResetTextureUnits()
+        {
+            _shaderTextureManager.Reset();
+        }
+        #endregion
+
+        public int GetUniformLocation(string uniformName)
+        {
+            if (_uniformLocations.TryGetValue(uniformName, out int location)) 
+            { 
+                return location; 
+            }
+            return -1;
+        }
+
         internal IReadOnlyDictionary<string, UniformInfo> GetAllUniformInfo()
         {
             return _uniformInfo;
@@ -314,6 +456,114 @@ namespace OpenglLib
 
         
         public static explicit operator uint(Shader shader) => shader.handle;
+        public void ReserveTextureUnit(string uniformName, int textureUnit) => 
+            _shaderTextureManager.ReserveTextureUnit(uniformName, textureUnit);
+        public void ReserveTextureUnit(int location, int textureUnit) => 
+            _shaderTextureManager.ReserveTextureUnit(location, textureUnit);
+
+        protected class ShaderTextureManager
+        {
+            private Shader _shader;
+            private readonly Dictionary<string, int> _textureUnitMap = new Dictionary<string, int>();
+            private readonly HashSet<int> _reservedUnits = new HashSet<int>();
+            private int _nextTextureUnit = 0;
+            private const int MaxTextureUnits = 32;
+
+            public ShaderTextureManager(Shader shader)
+            {
+                _shader = shader;
+            }
+
+            public void ReserveTextureUnit(string uniformName, int textureUnit)
+            {
+                if (textureUnit < 0 || textureUnit >= MaxTextureUnits)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(textureUnit),
+                        $"Texture unit must be between 0 and {MaxTextureUnits - 1}");
+                }
+
+                if (_reservedUnits.Contains(textureUnit) && !_textureUnitMap.ContainsKey(uniformName))
+                {
+#if DEBUG
+                    DebLogger.Warn($"Texture unit {textureUnit} is already reserved by another uniform");
+#endif
+                }
+
+                _textureUnitMap[uniformName] = textureUnit;
+                _reservedUnits.Add(textureUnit);
+            }
+            public void ReserveTextureUnit(int location, int textureUnit)
+            {
+                if (location == -1)
+                {
+                    return;
+                }
+
+                string uniformName = null;
+                foreach (var pair in _shader._uniformLocations)
+                {
+                    if (pair.Value == location)
+                    {
+                        uniformName = pair.Key;
+                        break;
+                    }
+                }
+
+                if (uniformName != null)
+                {
+                    ReserveTextureUnit(uniformName, textureUnit);
+                }
+                else
+                {
+#if DEBUG
+                    DebLogger.Warn($"Could not find uniform name for location {location}");
+#endif
+                }
+            }
+
+            public TextureUnit GetTextureUnitForUniform(string uniformName)
+            {
+                if (!_textureUnitMap.TryGetValue(uniformName, out int unitIndex))
+                {
+                    while (_nextTextureUnit < MaxTextureUnits && _reservedUnits.Contains(_nextTextureUnit))
+                    {
+                        _nextTextureUnit++;
+                    }
+
+                    if (_nextTextureUnit >= MaxTextureUnits)
+                        throw new InvalidOperationException("Превышено максимальное количество текстурных блоков");
+
+                    unitIndex = _nextTextureUnit++;
+                    _textureUnitMap[uniformName] = unitIndex;
+                    _reservedUnits.Add(unitIndex);
+                }
+
+                return TextureUnit.Texture0 + unitIndex;
+            }
+
+            public void BindTexture(string uniformName, Texture texture)
+            {
+                TextureUnit unit = GetTextureUnitForUniform(uniformName);
+                if (!_shader._uniformLocations.TryGetValue(uniformName, out int location))
+                {
+#if DEBUG
+                    DebLogger.Error($"Not exist {uniformName} into {_shader}");
+#endif
+                    return;
+                }
+
+                _shader._gl.ActiveTexture(unit);
+                texture.Bind();
+                _shader._gl.Uniform1(location, unit - TextureUnit.Texture0);
+            }
+
+            public void Reset()
+            {
+                _textureUnitMap.Clear();
+                _reservedUnits.Clear();
+                _nextTextureUnit = 0;
+            }
+        }
     }
 
     public struct UniformBlockData

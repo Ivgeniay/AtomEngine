@@ -1,4 +1,4 @@
-using Avalonia.Controls.Primitives;
+﻿using Avalonia.Controls.Primitives;
 using System.Collections.Generic;
 using Avalonia.Threading;
 using Avalonia.Controls;
@@ -8,6 +8,8 @@ using System.Linq;
 using AtomEngine;
 using Avalonia;
 using System;
+using CommonLib;
+using EngineLib;
 
 namespace Editor
 {
@@ -23,6 +25,11 @@ namespace Editor
         private List<LogEntry> _logEntries = new List<LogEntry>();
         private bool _isOpen = false;
 
+        private Border _lastClickedContainer;
+        private DateTime _lastClickTime;
+        private int _clickCount;
+        private readonly TimeSpan _doubleClickThreshold = TimeSpan.FromMilliseconds(500);
+
         public LogLevel LogLevel { get; set; } = LogLevel.All;
 
         public Action<object> OnClose { get; set; }
@@ -31,7 +38,7 @@ namespace Editor
         private class LogEntry : AtomEngine.DebLogger.LogEntry
         {
             public LogEntry(string message, LogLevel level) : base(message, level) { }
-
+            public LogEntry(string message, LogLevel level, CallerInfo callerInfo) : base(message, level, callerInfo) { }
             public IBrush GetColor()
             {
                 return Level switch
@@ -232,7 +239,7 @@ namespace Editor
         {
             if (string.IsNullOrWhiteSpace(command)) return;
 
-            Log($"> {command}", LogLevel.Debug);
+            DebLogger.Debug($"> {command}", LogLevel.Debug);
 
             if (command.StartsWith("/"))
             {
@@ -288,12 +295,23 @@ namespace Editor
             ScrollToEnd();
         }
 
-        public void Log(string message, LogLevel logLevel)
+        public void Log(string message, LogLevel logLevel) => Log(message, logLevel, null);
+        public void Log(string message, LogLevel logLevel, DebLogger.LogEntry _entry = null)
         {
             if (message == null) return;
             if ((logLevel & LogLevel) == 0) return;
 
             var entry = new LogEntry(message, logLevel);
+            if (_entry != null)
+            {
+                entry.CallerInfo = _entry.CallerInfo;
+            }
+            else
+            {
+                try { entry.CallerInfo = StackTraceHelper.GetCallerInfo(3); }
+                catch { }
+            }
+
             _logEntries.Add(entry);
 
 
@@ -321,27 +339,103 @@ namespace Editor
 
         private void AddLogEntryToPanelCore(LogEntry entry)
         {
+            var logText = new SelectableTextBlock
+            {
+                Text = $"[{entry.GetTimestampString()}] [{entry.GetLevelString()}] {entry.Message}",
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = entry.GetColor(),
+                FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
+                FontSize = 12,
+                HorizontalAlignment = HorizontalAlignment.Stretch
+            };
+
             var container = new Border
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 Margin = new Thickness(0, 0, 0, 1),
+                Padding = new Thickness(5),
+                Background = new SolidColorBrush(Colors.Transparent),
+                Child = logText
             };
 
-            var logText = new TextBox
-            {
-                Text = $"[{entry.GetTimestampString()}] [{entry.GetLevelString()}] {entry.Message}",
-                TextWrapping = TextWrapping.Wrap,
-                IsReadOnly = true,
-                AcceptsReturn = true,
-                AcceptsTab = true,
-                CaretBrush = Brushes.Transparent,
-                Foreground = entry.GetColor(),
-                FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
-                HorizontalAlignment = HorizontalAlignment.Stretch
-            };
+            container.Tag = entry;
+            container.PointerPressed += Container_PointerPressed;
 
-            container.Child = logText;
             _logPanel.Children.Add(container);
+
+
+            //var container = new Border
+            //{
+            //    HorizontalAlignment = HorizontalAlignment.Stretch,
+            //    Margin = new Thickness(0, 0, 0, 1),
+            //};
+            //var logText = new TextBox
+            //{
+            //    Text = $"[{entry.GetTimestampString()}] [{entry.GetLevelString()}] {entry.Message}",
+            //    TextWrapping = TextWrapping.Wrap,
+            //    IsReadOnly = true,
+            //    AcceptsReturn = true,
+            //    AcceptsTab = true,
+            //    CaretBrush = Brushes.Transparent,
+            //    Foreground = entry.GetColor(),
+            //    FontFamily = new FontFamily("Consolas, Menlo, Monospace"),
+            //    HorizontalAlignment = HorizontalAlignment.Stretch
+            //};
+            //logText.Tag = entry;
+            //logText.PointerPressed += LogText_PointerPressed;
+            //container.Child = logText;
+            //_logPanel.Children.Add(container);
+        }
+        
+        private void Container_PointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+        {
+            var container = sender as Border;
+            if (container == null) return;
+
+            var currentTime = DateTime.Now;
+            if (container == _lastClickedContainer &&
+                (currentTime - _lastClickTime) < _doubleClickThreshold)
+            {
+                _clickCount++;
+
+                if (_clickCount >= 3)
+                {
+                    if (container.Tag is LogEntry entry && entry.CallerInfo.IsValid)
+                    {
+                        _clickCount = 0;
+                        OpenSourceInIDE(entry.CallerInfo);
+                    }
+                }
+            }
+            else
+            {
+                _clickCount = 1;
+                _lastClickedContainer = container;
+            }
+
+            _lastClickTime = currentTime;
+        }
+
+        
+        private void OpenSourceInIDE(CallerInfo callerInfo)
+        {
+            if (string.IsNullOrEmpty(callerInfo.FilePath) || callerInfo.LineNumber <= 0)
+            {
+                Log("Невозможно открыть файл: недостаточно информации о месте вызова", LogLevel.Warn);
+                return;
+            }
+            try
+            {
+                var scriptGenerator = ServiceHub.Get<ScriptProjectGenerator>();
+                if (scriptGenerator != null)
+                {
+                    scriptGenerator.OpenProjectInIDE(callerInfo.FilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Ошибка при открытии файла в IDE: {ex.Message}", LogLevel.Error);
+            }
         }
 
         private void ScrollToEnd()
@@ -408,7 +502,7 @@ namespace Editor
                 {
                     if (log != null)
                     {
-                        Log(log.Message, log.Level);
+                        Log(log.Message, log.Level, log);
                     }
                 }
             }));

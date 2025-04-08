@@ -470,8 +470,6 @@ namespace Editor
                         });
                         break;
                 }
-
-                DebLogger.Debug($"Открыт файл в IDE: {projectFilePath}");
             }
             catch (Exception ex)
             {

@@ -133,7 +133,7 @@ namespace OpenglLib
 
         public virtual void SaveMaterialAsset(MaterialAsset material)
         {
-            string path = _cacheMaterialAssets.Where(e => e.Value == material).FirstOrDefault().Key;
+            string path = _cacheMaterialAssets.Where(e => e.Value.Guid == material.Guid).FirstOrDefault().Key;
             if (path != null)
             {
                 SaveMaterialAsset(material, path);

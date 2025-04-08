@@ -6,9 +6,6 @@ using EngineLib;
 
 namespace Editor
 {
-    /// <summary>
-    /// Статический класс для отслеживания файлов кода в папке проекта
-    /// </summary>
     public class ProjectFileWatcher : IService, IDisposable
     { 
         private System.IO.FileSystemWatcher _watcher;
@@ -17,9 +14,6 @@ namespace Editor
         private bool _isInitialized = false;
         CodeFilesSynchronizer _synchronizer;
 
-        /// <summary>
-        /// Инициализирует вотчер файлов проекта
-        /// </summary>
         public Task InitializeAsync()
         {
             if (_isInitialized)
@@ -49,9 +43,6 @@ namespace Editor
             });
         }
 
-        /// <summary>
-        /// Освобождает ресурсы вотчера файлов
-        /// </summary>
         public void Dispose()
         {
             if (!_isInitialized)

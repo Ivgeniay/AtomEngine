@@ -27,17 +27,20 @@ namespace OpenglLib
 
         public int Location = -1;
         private T[] array;
-        private GL _gl;
+        private readonly GL _gl;
+        private readonly Mat _shader;
 
-        public StructArray(int size, GL gL = null)
+        public StructArray(int size, GL gL = null, Mat shader = null)
         {
+            _gl = gL;
+            _shader = shader;
+
             array = new T[size];
             Type t = typeof(T);
             for (int i = 0; i < size; i++)
             {
-                array[i] = (T)Activator.CreateInstance(t, gL);
+                array[i] = (T)Activator.CreateInstance(t, gL, shader);
             }
-            _gl = gL;
         }
 
         public T this[int index]

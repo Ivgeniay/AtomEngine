@@ -9,17 +9,6 @@ namespace OpenglLib
         public Mat(GL gl) : base(gl) {
         }
 
-        protected void SetTexture(string textureUnit, string texTarget, int location, int index, Texture texture)
-        {
-            TextureUnit unit = Enum.Parse<TextureUnit>(textureUnit);
-            TextureTarget target = Enum.Parse<TextureTarget>(texTarget);
-
-            texture.Target = target;
-            texture.Bind(unit);
-            int textureIndex = (int)(unit - TextureUnit.Texture0);
-            _gl.Uniform1(location, textureIndex);
-        }
-
         protected void SetupUniformLocations()
         {
             foreach (var uniform in _uniformLocations)

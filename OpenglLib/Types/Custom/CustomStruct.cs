@@ -10,6 +10,8 @@ namespace OpenglLib
      */
     public abstract class CustomStruct : IDirty
     {
+        protected readonly Mat _shader;
+        protected readonly GL _gl;
         protected bool _isDirty = true;
         public virtual bool IsDirty
         {
@@ -17,8 +19,11 @@ namespace OpenglLib
             set => _isDirty = value;
         }
 
-        protected GL _gl;
-        public CustomStruct(GL gl) => this._gl = gl;
+        public CustomStruct(GL gl, Mat shader = null)
+        {
+            this._gl = gl;
+            this._shader = shader;
+        }
 
         public virtual void SetClean()
         {

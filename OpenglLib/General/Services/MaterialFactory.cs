@@ -6,7 +6,7 @@ using EngineLib;
 
 namespace OpenglLib
 {
-    public class Material
+    public sealed class Material
     {
         public readonly Shader Shader;
         internal readonly MaterialAsset MaterialAsset;
@@ -14,32 +14,54 @@ namespace OpenglLib
         internal MaterialFactory factory;
         public bool IsValid { get => GLContext != null && Shader != null && Shader.Handle > 0; }
 
-        public void SetUniform(string name, object value)
-        {
-            if (IsValid)
-            {
-                DebLogger.Error("Called material is not valid");
-                return;
-            }
-            Shader.SetUniform(name, value);
-        }
-
-        public Material(
-            GL glContext, 
-            Shader shader,  
-            MaterialAsset materialAsset)
+        public Material(GL glContext, Shader shader, MaterialAsset materialAsset)
         {
             GLContext = glContext;
             Shader = shader; 
             MaterialAsset = materialAsset;
         }
 
-        public Shader Copy() =>
-            (Shader)factory.GetShaderFromMaterialAsset(GLContext, MaterialAsset);
-        public Material Share() =>
-            factory.GetMaterialInstanceFromAsset(GLContext,MaterialAsset);
-        internal void Dispose() =>
-            Shader.Dispose();
+        internal void Use() => Shader.Use();
+        public void SetUniform(string name, object value)
+        {
+            if (IsValid)
+            {
+#if DEBUG
+                DebLogger.Error("Called material is not valid");
+#endif
+                return;
+            }
+            Shader.SetUniform(name, value);
+        }
+        public void SetTexture(string uniformName, Texture texture)
+        {
+            if (IsValid)
+            {
+#if DEBUG
+                DebLogger.Error("Called material is not valid");
+#endif
+                return;
+            }
+            Shader.SetTexture(uniformName, texture);
+        }
+
+
+        public Shader Copy() => (Shader)factory.GetShaderFromMaterialAsset(GLContext, MaterialAsset);
+        public Material Share() => factory.GetMaterialInstanceFromAsset(GLContext,MaterialAsset);
+        internal void Dispose() => Shader.Dispose();
+
+        public static implicit operator uint(Material material)
+        {
+            if (material == null) return 0;
+            if (material.Shader == null) return 0;
+            return material.Shader;
+        }
+        public static implicit operator int(Material material)
+        {
+            if (material == null) return 0;
+            if (material.Shader == null) return 0;
+            return material.Shader;
+        }
     }
 
     public class MaterialFactory : IService, IDisposable
@@ -319,6 +341,8 @@ namespace OpenglLib
 
             try
             {
+                material.SetUniform(name, value);
+
                 //material.MaterialAsset.UniformValues[name] = value;
                 //if (material.IsValid)
                 //{
@@ -392,6 +416,12 @@ namespace OpenglLib
 
             try
             {
+                if (material.IsValid)
+                {
+                    Texture texture = _textureFactory.CreateTextureFromGuid(material.GLContext, textureGuid, material);
+                    material.Use();
+                    material.SetTexture(samplerName, texture);
+                }
                 //material.MaterialAsset.TextureReferences[samplerName] = textureGuid;
                 //if (material.IsValid)
                 //{

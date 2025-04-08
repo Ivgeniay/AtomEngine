@@ -13,66 +13,6 @@ namespace OpenglLib
 
         private static HashSet<string> _generatedTypes = new HashSet<string>();
 
-        //public static List<string> GenerateStructs(string shaderSourceCode, string outputDirectory, string sourceGuid = null)
-        //{
-        //    _generatedTypes = new HashSet<string>();
-        //    var pendingStructures = new List<GlslStructModel>();
-        //    var result = new List<string>();
-
-        //    var structures = GlslParser.ExtractGlslStructures(shaderSourceCode);
-        //    pendingStructures.AddRange(structures);
-
-        //    while (pendingStructures.Count > 0)
-        //    {
-        //        bool processedAny = false;
-        //        var remainingStructures = new List<GlslStructModel>();
-
-        //        foreach (var structure in pendingStructures)
-        //        {
-        //            if (CanProcessStructure(structure, _generatedTypes))
-        //            {
-        //                if (!_generatedTypes.Add(structure.Name))
-        //                {
-        //                    continue;
-        //                }
-
-        //                var modelCode = GenerateModelClass(structure, sourceGuid);
-        //                var filePath = Path.Combine(outputDirectory, $"GlslStruct.{structure.Name}.g.cs");
-        //                File.WriteAllText(filePath, modelCode, Encoding.UTF8);
-
-        //                result.Add(structure.Name);
-        //                processedAny = true;
-        //            }
-        //            else
-        //            {
-        //                remainingStructures.Add(structure);
-        //            }
-        //        }
-
-        //        if (!processedAny && remainingStructures.Count > 0)
-        //        {
-        //            var circularDeps = string.Join(", ", remainingStructures.Select(s => s.Name));
-        //            throw new Exception($"Circular dependencies detected between structures: {circularDeps}");
-        //        }
-
-        //        pendingStructures = remainingStructures;
-        //    }
-
-        //    return result;
-        //}
-
-        //private static bool CanProcessStructure(GlslStructModel structure, HashSet<string> generatedTypes)
-        //{
-        //    foreach (var field in structure.Fields)
-        //    {
-        //        if (!GlslParser.IsGlslBaseType(field.Type) && !generatedTypes.Contains(field.Type))
-        //        {
-        //            return false;
-        //        }
-        //    }
-        //    return true;
-        //}
-
         public static string GenerateModelClass(GlslStructModel structure, string sourceStructGuid = null)
         {
             if (string.IsNullOrEmpty(structure.TypeMappingId))
@@ -242,7 +182,7 @@ namespace OpenglLib
 
         private static void GenerateConstructor(StringBuilder builder, string className)
         {
-            builder.AppendLine($"        public {className}(Silk.NET.OpenGL.GL gl) : base(gl)");
+            builder.AppendLine($"        public {className}(Silk.NET.OpenGL.GL gl, OpenglLib.Mat shader) : base(gl, shader)");
             builder.AppendLine("        {");
             builder.AppendLine(CONSTRUCTOR_BODY_PLACEHOLDER);
             builder.AppendLine("        }");
@@ -252,42 +192,83 @@ namespace OpenglLib
         {
             string cashFieldName = $"_{name}";
             string locationName = $"{name}Location";
-            var _unsafe = glslType.StartsWith("mat") ? "unsafe " : "";
-
             fieldsBuilder.AppendLine($"        public int {locationName} " + "{" + " get ; set; } = -1;");
 
-            fieldsBuilder.AppendLine($"        private {csharpType} {cashFieldName};");
+            if (GlslParser.IsSamplerType(glslType))
+            {
+                fieldsBuilder.AppendLine($"        private OpenglLib.Texture _{name};");
+                fieldsBuilder.AppendLine($"        public OpenglLib.Texture {name}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"            get => _{name};");
+                fieldsBuilder.AppendLine("            set");
+                fieldsBuilder.AppendLine("            {");
+                fieldsBuilder.AppendLine($"                if (value != null && {locationName} != -1)");
+                fieldsBuilder.AppendLine($"                {{");
+                fieldsBuilder.AppendLine($"                    _{name} = value;");
+                fieldsBuilder.AppendLine($"                    _shader?.SetTexture({locationName}, value);");
+                fieldsBuilder.AppendLine($"                }}");
+                fieldsBuilder.AppendLine("            }");
+                fieldsBuilder.AppendLine("        }");
+            }
+            else
+            {
+                var _unsafe = glslType.StartsWith("mat") ? "unsafe " : "";
 
-            fieldsBuilder.AppendLine($"        public {_unsafe}{csharpType} {name}");
-            fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"        private {csharpType} {cashFieldName};");
 
-            fieldsBuilder.Append(GetSetter(glslType, locationName, cashFieldName));
-            fieldsBuilder.AppendLine("        }");
-            fieldsBuilder.AppendLine();
-            fieldsBuilder.AppendLine();
+                fieldsBuilder.AppendLine($"        public {_unsafe}{csharpType} {name}");
+                fieldsBuilder.AppendLine("        {");
+
+                fieldsBuilder.Append(GetSetter(glslType, locationName, cashFieldName));
+                fieldsBuilder.AppendLine("        }");
+                fieldsBuilder.AppendLine();
+                fieldsBuilder.AppendLine();
+            }
+
         }
 
         private static void SimpleTypeArrayCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, StringBuilder isDirtyGetterBuilder, StringBuilder isDirtySetterBuilder, StringBuilder setCleanBuilder, string csharpType, string glslType, string name, int arraySize)
         {
             string cashFieldName = $"_{name}";
             string locationName = $"{name}Location";
+            if (GlslParser.IsSamplerType(glslType))
+            {
+                int baseSamplerIndex = 0;
 
-            var localeProperty = GetPropertyForLocaleArray(csharpType, name, locationName);
-            fieldsBuilder.Append(localeProperty);
+                fieldsBuilder.AppendLine($"        private SamplerArray {cashFieldName};");
+                fieldsBuilder.AppendLine($"        public SamplerArray {name}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"            get => {cashFieldName};");
+                fieldsBuilder.AppendLine("        }");
+                fieldsBuilder.AppendLine();
 
-            fieldsBuilder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
+                fieldsBuilder.AppendLine($"        public int {locationName}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.AppendLine($"            get => {name}.Location;");
+                fieldsBuilder.AppendLine($"            set => {name}.Location = value;");
+                fieldsBuilder.AppendLine("        }");
 
-            fieldsBuilder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
-            fieldsBuilder.AppendLine("        {");
-            fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
-            fieldsBuilder.AppendLine("        }");
-            fieldsBuilder.AppendLine();
+                constructorBodyBuilder.AppendLine($"            {cashFieldName} = new SamplerArray(_gl, {arraySize}, _shader);");
+            }
+            else
+            {
+                var localeProperty = GetPropertyForLocaleArray(csharpType, name, locationName);
+                fieldsBuilder.Append(localeProperty);
 
-            constructorBodyBuilder.AppendLine($"            {cashFieldName}  = new LocaleArray<{csharpType}>({arraySize}, _gl);");
+                fieldsBuilder.AppendLine($"        private LocaleArray<{csharpType}> {cashFieldName};");
 
-            isDirtyGetterBuilder.AppendLine($"                if ({cashFieldName} != null && {cashFieldName}.IsDirty) return true;");
-            isDirtySetterBuilder.AppendLine($"                if ({cashFieldName} != null) {cashFieldName}.IsDirty = value;");
-            setCleanBuilder.AppendLine($"            if ({cashFieldName} != null) {cashFieldName}.SetClean();");
+                fieldsBuilder.AppendLine($"        public LocaleArray<{csharpType}> {name}");
+                fieldsBuilder.AppendLine("        {");
+                fieldsBuilder.Append(GetSimpleGetter(cashFieldName));
+                fieldsBuilder.AppendLine("        }");
+                fieldsBuilder.AppendLine();
+
+                constructorBodyBuilder.AppendLine($"            {cashFieldName}  = new LocaleArray<{csharpType}>({arraySize}, _gl);");
+
+                isDirtyGetterBuilder.AppendLine($"                if ({cashFieldName} != null && {cashFieldName}.IsDirty) return true;");
+                isDirtySetterBuilder.AppendLine($"                if ({cashFieldName} != null) {cashFieldName}.IsDirty = value;");
+                setCleanBuilder.AppendLine($"            if ({cashFieldName} != null) {cashFieldName}.SetClean();");
+            }
         }
 
         private static void CustomTypeCase(StringBuilder fieldsBuilder, StringBuilder constructorBodyBuilder, StringBuilder isDirtyGetterBuilder, StringBuilder isDirtySetterBuilder, StringBuilder setCleanBuilder, string csharpType, string name)
@@ -303,7 +284,7 @@ namespace OpenglLib
             fieldsBuilder.AppendLine("        }");
             fieldsBuilder.AppendLine();
 
-            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new {csharpType}(_gl);");
+            constructorBodyBuilder.AppendLine($"            {cashFieldName} = new {csharpType}(_gl, _shader);");
 
             isDirtyGetterBuilder.AppendLine($"                if ({cashFieldName} != null && {cashFieldName}.IsDirty) return true;");
             isDirtySetterBuilder.AppendLine($"                if ({cashFieldName} != null) {cashFieldName}.IsDirty = value;");
@@ -322,7 +303,7 @@ namespace OpenglLib
             fieldsBuilder.AppendLine("        }");
             fieldsBuilder.AppendLine();
 
-            constructorBodyBuilder.AppendLine($"            {cashFieldName}  = new StructArray<{csharpType}>({arraySize}, _gl);");
+            constructorBodyBuilder.AppendLine($"            {cashFieldName}  = new StructArray<{csharpType}>({arraySize}, _gl, _shader);");
 
             isDirtyGetterBuilder.AppendLine($"                if ({cashFieldName} != null && {cashFieldName}.IsDirty) return true;");
             isDirtySetterBuilder.AppendLine($"                if ({cashFieldName} != null) {cashFieldName}.IsDirty = value;");
