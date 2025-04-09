@@ -18,10 +18,9 @@ namespace OpenglLib
             return Task.CompletedTask;
         }
 
-        public MeshBase CreateMeshInstanceFromPath(GL gl, string modelPath, object context, Shader shader = null)
+        public MeshBase CreateMeshInstanceFromPath(GL gl, string modelPath, int meshIndex, Shader shader = null)
         {
             if (_assimp == null) _assimp = Assimp.GetApi();
-            int meshIndex = (int)context;
             uint shaderId = shader?.Handle ?? 0;
 
             if (_meshCache.TryGetValue((modelPath, meshIndex, shaderId), out var cachedMesh))
@@ -76,7 +75,7 @@ namespace OpenglLib
             }
         }
 
-        public MeshBase CreateMeshInstanceFromGuid(GL gl, string meshGuid, object context, Shader shader = null)
+        public MeshBase CreateMeshInstanceFromGuid(GL gl, string meshGuid, int meshIndex, Shader shader = null)
         {
             try
             {
@@ -87,7 +86,7 @@ namespace OpenglLib
                     return null;
                 }
 
-                return CreateMeshInstanceFromPath(gl, materialPath, context, shader);
+                return CreateMeshInstanceFromPath(gl, materialPath, meshIndex, shader);
             }
             catch (Exception ex)
             {

@@ -8,6 +8,8 @@ using System.IO;
 using Avalonia;
 using System;
 using EngineLib;
+using Avalonia.Threading;
+using System.Threading.Tasks;
 
 namespace Editor
 {
@@ -340,77 +342,76 @@ namespace Editor
 
             await loadingManager.RunWithLoading(async (progress) =>
             {
-                var nodePathToEntityId = new Dictionary<string, uint>();
-                var entityIdToIndex = new Dictionary<uint, int>();
-
-                string baseModelName = Path.GetFileNameWithoutExtension(modelFileName);
-
-                var sortedNodes = metadata.MeshesData
-                    .OrderBy(node => GetNodeLevel(node.MeshPath))
-                    .ToList();
-
-                uint rootEntityId = uint.MaxValue;
-
-                // Создаем корневой объект только если нужно
-                if (createRoot)
+                await Task.Delay(100);
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    string rootName = string.IsNullOrWhiteSpace(baseModelName)
-                        ? _operations.GetUniqueName("Model")
-                        : _operations.GetUniqueName(baseModelName);
+                    var nodePathToEntityId = new Dictionary<string, uint>();
+                    var entityIdToIndex = new Dictionary<uint, int>();
 
-                    progress.Report((0, "Creating root"));
-                    _hierarchyController.CreateNewEntity(rootName);
+                    string baseModelName = Path.GetFileNameWithoutExtension(modelFileName);
 
-                    var rootEntity = _hierarchyController.Entities.LastOrDefault();
-                    if (rootEntity == EntityHierarchyItem.Null)
-                        return;
+                    var sortedNodes = metadata.MeshesData
+                        .OrderBy(node => GetNodeLevel(node.MeshPath))
+                        .ToList();
 
-                    rootEntityId = rootEntity.Id;
-                    nodePathToEntityId[""] = rootEntityId;
-                    entityIdToIndex[rootEntityId] = 0;
-                }
-
-                int full = sortedNodes.Count + 1;
-                int counter = 1;
-
-                for (int i = 0; i < sortedNodes.Count; i++)
-                {
-                    var nodeData = sortedNodes[i];
-
-                    progress.Report(((int)full / counter + i, $"Creating {nodeData.MeshName}"));
-
-                    string nodeName = string.IsNullOrWhiteSpace(nodeData.MeshName)
-                        ? _operations.GetUniqueName($"Node_{i + 1}")
-                        : _operations.GetUniqueName(nodeData.MeshName);
-
-                    _hierarchyController.CreateNewEntity(nodeName);
-
-                    var createdEntity = _hierarchyController.Entities.LastOrDefault();
-                    if (createdEntity == EntityHierarchyItem.Null)
-                        continue;
-
-                    uint entityId = createdEntity.Id;
-                    nodePathToEntityId[nodeData.MeshPath] = entityId;
-                    entityIdToIndex[entityId] = i + 1;
-
-                    // Если это корневой элемент модели и мы не создавали отдельный корневой объект
-                    if (!createRoot && string.IsNullOrEmpty(nodeData.MeshPath))
+                    uint rootEntityId = uint.MaxValue;
+                    if (createRoot)
                     {
-                        rootEntityId = entityId;
+                        string rootName = string.IsNullOrWhiteSpace(baseModelName)
+                            ? _operations.GetUniqueName("Model")
+                            : _operations.GetUniqueName(baseModelName);
+
+                        _hierarchyController.CreateNewEntity(rootName);
+
+                        var rootEntity = _hierarchyController.Entities.LastOrDefault();
+                        if (rootEntity == EntityHierarchyItem.Null)
+                            return;
+
+                        rootEntityId = rootEntity.Id;
                         nodePathToEntityId[""] = rootEntityId;
+                        entityIdToIndex[rootEntityId] = 0;
                     }
 
-                    // Устанавливаем родителя и трансформацию
-                    string parentPath = GetParentPath(nodeData.MeshPath);
-                    if (nodePathToEntityId.TryGetValue(parentPath, out uint parentId) && parentId != uint.MaxValue)
+                    int full = sortedNodes.Count + 1;
+                    int counter = 1;
+
+                    for (int i = 0; i < sortedNodes.Count; i++)
                     {
-                        _hierarchyController.SetParent(entityId, parentId);
-                    }
+                        var nodeData = sortedNodes[i];
+                        string nodeName = string.IsNullOrWhiteSpace(nodeData.MeshName)
+                            ? _operations.GetUniqueName($"Node_{i + 1}")
+                            : _operations.GetUniqueName(nodeData.MeshName);
 
-                    ApplyTransformation(entityId, nodeData.Matrix);
-                    AddMeshComponent(entityId, metadata, nodeData);
-                }
-            }, "Creating entities");
+                        _hierarchyController.CreateNewEntity(nodeName);
+
+                        var createdEntity = _hierarchyController.Entities.LastOrDefault();
+                        if (createdEntity == EntityHierarchyItem.Null)
+                            continue;
+
+                        uint entityId = createdEntity.Id;
+                        nodePathToEntityId[nodeData.MeshPath] = entityId;
+                        entityIdToIndex[entityId] = i + 1;
+
+                        if (!createRoot && string.IsNullOrEmpty(nodeData.MeshPath))
+                        {
+                            rootEntityId = entityId;
+                            nodePathToEntityId[""] = rootEntityId;
+                        }
+
+                        string parentPath = GetParentPath(nodeData.MeshPath);
+                        if (nodePathToEntityId.TryGetValue(parentPath, out uint parentId) && parentId != uint.MaxValue)
+                        {
+                            if (!SceneManager.EntityCompProvider.HasComponent<HierarchyComponent>(entityId))
+                                _sceneManager.AddComponent(entityId, typeof(HierarchyComponent));
+
+                            _hierarchyController.SetParent(entityId, parentId);
+                        }
+
+                        ApplyTransformation(entityId, nodeData.Matrix);
+                        AddMeshComponent(entityId, metadata, nodeData);
+                    }
+                });
+            }, $"Creating entities {modelFileName}");
         }
 
         private void AddMeshComponent(uint entityId, ModelMetadata metadata, NodeModelData nodeData)
@@ -418,7 +419,14 @@ namespace Editor
             if (nodeData.Index < 0) return;
 
             if (!SceneManager.EntityCompProvider.HasComponent<MeshComponent>(entityId))
-                _sceneManager.AddComponent(entityId, typeof(MeshComponent));
+            {
+                if (Dispatcher.UIThread.CheckAccess())
+                    _sceneManager.AddComponent(entityId, typeof(MeshComponent));
+                else
+                    Dispatcher.UIThread.InvokeAsync(() => _sceneManager.AddComponent(entityId, typeof(MeshComponent))).Wait();
+                //_sceneManager.AddComponent(entityId, typeof(MeshComponent));
+
+            }    
 
             ref MeshComponent meshComponent = ref SceneManager.EntityCompProvider.GetComponent<MeshComponent>(entityId);
 

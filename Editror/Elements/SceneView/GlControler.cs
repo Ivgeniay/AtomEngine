@@ -3,6 +3,7 @@ using Avalonia.OpenGL;
 using Silk.NET.OpenGL;
 using AtomEngine;
 using System;
+using Avalonia.VisualTree;
 
 namespace Editor
 {
@@ -39,7 +40,16 @@ namespace Editor
         {
             _isInitialized = false;
             OnGLDeInitialized?.Invoke();
+
+            _gl?.Dispose();
             _gl = null;
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
+            base.OnOpenGlDeinit(gl);
         }
 
         protected override void OnOpenGlRender(GlInterface gl, int fb)
@@ -47,7 +57,30 @@ namespace Editor
             if (!_isInitialized || _gl == null)
                 return;
 
-            OnRender?.Invoke(_gl);
+            try
+            {
+                var error = _gl.GetError();
+                if (error != GLEnum.NoError)
+                {
+                    DebLogger.Warn($"GL error before rendering: {error}");
+                    _gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+                    return;
+                }
+
+                OnRender?.Invoke(_gl);
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка во время GL-рендеринга: {ex.Message}");
+
+                try
+                {
+                    _gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+                }
+                catch
+                {
+                }
+            }
         }
 
         public void ForceRender()
@@ -59,14 +92,24 @@ namespace Editor
         {
             _isInitialized = false;
             OnGLDeInitialized?.Invoke();
+            _gl?.Dispose();
             _gl = null;
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
+
 
         internal void Invalidate()
         {
             try
             {
-                this.RequestNextFrameRendering();
+                if (this.GetVisualRoot() != null)
+                {
+                    this.RequestNextFrameRendering();
+                }
             }
             catch (Exception ex)
             {

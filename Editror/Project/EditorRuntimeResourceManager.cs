@@ -1,12 +1,5 @@
-﻿using System.Collections.Generic;
-using Silk.NET.OpenGL;
+﻿using System.Threading.Tasks;
 using OpenglLib;
-using System;
-
-using Texture = OpenglLib.Texture;
-using System.Threading.Tasks;
-using AtomEngine.RenderEntity;
-using EngineLib;
 
 namespace Editor
 {

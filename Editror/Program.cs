@@ -2,6 +2,7 @@
 using Avalonia.OpenGL;
 using Avalonia;
 using System;
+using AtomEngine;
 
 namespace Editor
 {
@@ -10,6 +11,19 @@ namespace Editor
         [STAThread]
         public static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+            {
+                var exception = e.ExceptionObject as Exception;
+                if (exception is ExecutionEngineException)
+                {
+                    if (!e.IsTerminating)
+                    {
+                        
+                    }
+                }
+            };
+
+
             BuildAvaloniaApp()
                 .StartWithClassicDesktopLifetime(args);
         }

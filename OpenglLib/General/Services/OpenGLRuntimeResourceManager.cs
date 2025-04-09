@@ -44,7 +44,7 @@ namespace OpenglLib
             }
             else if (meta.AssetType == MetadataType.Model)
             {
-                return LoadMeshResource(guid, context);
+                return LoadMeshResource(guid, (int)context);
             }
             else if (meta.AssetType == MetadataType.Shader)
             {
@@ -54,7 +54,7 @@ namespace OpenglLib
             return null;
         }
 
-        protected virtual Texture LoadTextureResource(string guid, object context = null)
+        public virtual Texture LoadTextureResource(string guid, object context = null)
         {
             if (!_isGLInitialized || _gl == null)
                 return null;
@@ -75,7 +75,7 @@ namespace OpenglLib
             }
         }
 
-        protected virtual Material LoadMaterialResource(string guid)
+        public virtual Material LoadMaterialResource(string guid)
         {
             if (!_isGLInitialized || _gl == null)
                 return null;
@@ -84,7 +84,7 @@ namespace OpenglLib
             return material;
         }
 
-        protected virtual ShaderBase LoadShaderResource(string guid, object context)
+        public virtual ShaderBase LoadShaderResource(string guid, object context)
         {
             if (!_isGLInitialized || _gl == null)
                 return null;
@@ -93,12 +93,12 @@ namespace OpenglLib
             return shader;
         }
 
-        protected virtual MeshBase LoadMeshResource(string guid, object context)
+        public virtual MeshBase LoadMeshResource(string guid, int index, Shader shader = null)
         {
             if (!_isGLInitialized || _gl == null)
                 return null;
 
-            var mesh = _meshFactory.CreateMeshInstanceFromGuid(_gl, guid, context);
+            var mesh = _meshFactory.CreateMeshInstanceFromGuid(_gl, guid, index, shader);
             return mesh;
         }
 

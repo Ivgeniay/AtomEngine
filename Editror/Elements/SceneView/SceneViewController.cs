@@ -19,6 +19,7 @@ using KeyEventArgs = Avalonia.Input.KeyEventArgs;
 using MouseButton = Avalonia.Input.MouseButton;
 using OpenglLib;
 using EngineLib;
+using System.Threading;
 
 namespace Editor
 {
@@ -53,6 +54,7 @@ namespace Editor
         private bool _isOpen = false;
         private bool _isGlInitialized = false;
         private bool _isDataInitialized = false;
+        private bool _isRendering = false;
 
         private bool _isPreparingClose = false;
         private TaskCompletionSource<bool> _disposeTcs;
@@ -138,10 +140,10 @@ namespace Editor
             {
                 Interval = TimeSpan.FromMilliseconds(16)
             };
-            _renderTimer.Tick += (sender, args) =>
-            {
-                Render();
-            };
+            //_renderTimer.Tick += (sender, args) =>
+            //{
+            //    Render();
+            //};
         }
 
         private void SetScene(ProjectScene scene)
@@ -321,6 +323,7 @@ namespace Editor
             });
         }
 
+        private CancellationTokenSource _renderLoopCts;
         public void Open()
         {
             if (_glController == null)
@@ -336,9 +339,6 @@ namespace Editor
             }
 
             _materialFactory.SetSceneViewController(this);
-
-            //_sceneManager.OnSceneBeforeSave += PrepareToSave;
-            //_sceneManager.OnSceneAfterSave += UpdateEntitiesFromScene;
 
             _sceneManager.OnComponentChange += ComponentChange;
             _sceneManager.OnComponentAdded += ComponentAdded;
@@ -376,10 +376,45 @@ namespace Editor
                 }
             };
 
-            _renderTimer.Start();
+            _renderLoopCts = new CancellationTokenSource();
+            var token = _renderLoopCts.Token;
+            Task.Run(async () =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    await Task.Delay(16, token);
+
+                    if (_isOpen && _isGlInitialized)
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            if (!_isRendering)
+                            {
+                                _isRendering = true;
+                                try
+                                {
+                                    _glController?.RequestNextFrameRendering();
+                                }
+                                catch (Exception ex)
+                                {
+                                    DebLogger.Error($"Ошибка при запросе перерисовки: {ex.Message}");
+                                }
+                                finally
+                                {
+                                    _isRendering = false;
+                                }
+                            }
+                        }, DispatcherPriority.Render);
+                    }
+                }
+            }, token);
+
+
+            //_renderTimer.Start();
             _isOpen = true;
             this.Focus();
         }
+
 
         public void Close() { }
 
@@ -404,12 +439,16 @@ namespace Editor
                 DebLogger.Error($"Failed to initialize scene renderer: {ex.Message}");
             }
         }
-        
+
         private void OnRender(GL gl)
         {
+            if (_isRendering)
+                return;
+
             try
             {
                 if (!_isGlInitialized) return;
+                _isRendering = true;
 
                 var error = gl.GetError();
                 if (error != GLEnum.NoError)
@@ -445,6 +484,10 @@ namespace Editor
             catch (Exception ex)
             {
                 DebLogger.Error($"Ошибка рендеринга сцены: {ex.Message}");
+            }
+            finally
+            {
+                _isRendering = false;
             }
         }
 
@@ -607,6 +650,7 @@ namespace Editor
             _isDataInitialized = false;
 
             _editorCameraEntity = new Entity(uint.MaxValue, uint.MaxValue);
+            materialMapping.Clear();
         }
 
         public void EntityCreated(uint worldId, uint entityId)
@@ -741,73 +785,13 @@ namespace Editor
             });
         }
 
-
+        private Dictionary<uint, Material> materialMapping = new Dictionary<uint, Material>();
         private void ProcessGLDependentComponent(World world, Entity entity, ref IComponent component)
         {
             var componentType = component.GetType();
             
             if (IsGLDependableComponent(component))
             {
-                //var shaderFields = FindFieldsByBaseType(componentType, typeof(ShaderBase));
-                //foreach (var shaderField in shaderFields)
-                //{
-                //    var shaderGuidField = componentType.GetField(shaderField.Name + "GUID",
-                //        BindingFlags.NonPublic | BindingFlags.Instance);
-
-                //    if (shaderGuidField != null)
-                //    {
-                //        string shaderGuid = (string)shaderGuidField.GetValue(component);
-                //        if (!string.IsNullOrEmpty(shaderGuid))
-                //        {
-                //            var shader = _resourceManager.GetResource<ShaderBase>(shaderGuid);
-                //            if (shader != null)
-                //            {
-                //                world.ModifyComponent(entity.Id, componentType, (e) =>
-                //                {
-                //                    shaderField.SetValue(e, shader);
-                //                    return e;
-                //                });
-                //            }
-                //        }
-                //    }
-                //}
-
-
-                var meshFields = FindFieldsByBaseType(componentType, typeof(MeshBase));
-                foreach (var meshField in meshFields)
-                {
-                    var meshGuidField = componentType.GetField(meshField.Name + "GUID",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-                    var meshIndexatorField = componentType.GetField(meshField.Name + "InternalIndex",
-                        BindingFlags.NonPublic | BindingFlags.Instance);
-
-                    if (meshGuidField != null && meshIndexatorField != null)
-                    {
-                        string meshGuid = (string)meshGuidField.GetValue(component);
-                        string strIndex = (string)meshIndexatorField.GetValue(component);
-
-                        if (!string.IsNullOrEmpty(meshGuid) && !string.IsNullOrEmpty(strIndex))
-                        {
-                            int index = int.Parse(strIndex);
-
-                            var mesh = _resourceManager.GetResource<MeshBase>(meshGuid, index);
-                            if (mesh != null)
-                            {
-                                world.ModifyComponent(entity.Id, componentType, (e) =>
-                                {
-                                    meshField.SetValue(e, mesh);
-                                    return e;
-                                });
-
-                                if (mesh.BoundingVolume != null)
-                                {
-                                    BVHTree.Instance.AddEntity(entity.Id);
-                                }
-                            }
-                        }
-                    }
-                }
-
                 var materialFields = FindFieldsByBaseType(componentType, typeof(Material));
                 foreach (var materialField in materialFields)
                 {
@@ -819,7 +803,7 @@ namespace Editor
                         string materialGuid = (string)materialGuidField.GetValue(component);
                         if (!string.IsNullOrEmpty(materialGuid))
                         {
-                            var material = _resourceManager.GetResource<Material>(materialGuid);
+                            var material = _resourceManager.LoadMaterialResource(materialGuid);
                             if (material != null)
                             {
                                 world.ModifyComponent(entity.Id, componentType, (e) =>
@@ -827,11 +811,45 @@ namespace Editor
                                     materialField.SetValue(e, material);
                                     return e;
                                 });
+                                materialMapping[entity.Id] = material;
                             }
                         }
                     }
                 }
 
+                if (materialMapping.TryGetValue(entity.Id, out Material outMaterial))
+                {
+                    var meshFields = FindFieldsByBaseType(componentType, typeof(MeshBase));
+                    foreach (var meshField in meshFields)
+                    {
+                        var meshGuidField = componentType.GetField(meshField.Name + "GUID",
+                            BindingFlags.NonPublic | BindingFlags.Instance);
+                        var meshIndexatorField = componentType.GetField(meshField.Name + "InternalIndex",
+                            BindingFlags.NonPublic | BindingFlags.Instance);
+
+                        if (meshGuidField != null && meshIndexatorField != null)
+                        {
+                            string meshGuid = (string)meshGuidField.GetValue(component);
+                            string strIndex = (string)meshIndexatorField.GetValue(component);
+
+                            if (!string.IsNullOrEmpty(meshGuid) && !string.IsNullOrEmpty(strIndex))
+                            {
+                                int index = int.Parse(strIndex);
+
+                                var mesh = _resourceManager.LoadMeshResource(meshGuid, index, outMaterial.Shader);
+                                if (mesh != null)
+                                {
+                                    world.ModifyComponent(entity.Id, componentType, (e) =>
+                                    {
+                                        meshField.SetValue(e, mesh);
+                                        return e;
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                }
             }
         }
 
@@ -980,6 +998,14 @@ namespace Editor
         public void Dispose()
         {
             FreeCache();
+
+            if (_renderLoopCts != null)
+            {
+                _renderLoopCts.Cancel();
+                _renderLoopCts.Dispose();
+                _renderLoopCts = null;
+            }
+
             _materialFactory.SetSceneViewController(null);
             _sceneManager.DisposeAllReservedId();
             _isDataInitialized = false;
@@ -1002,6 +1028,7 @@ namespace Editor
             }
 
             _isGlInitialized = false;
+            _isRendering = false;
 
             _resourceManager?.Dispose();
             //_sceneManager.OnSceneBeforeSave -= PrepareToSave;
@@ -1017,11 +1044,14 @@ namespace Editor
             _sceneManager.OnSystemRemovedFromWorld -= SystemRemovedFromWorld;
 
 
-            _renderTimer.Stop();
+            _renderTimer?.Stop();
             _isOpen = false;
             _isGlInitialized = false;
 
             BVHTree.Instance?.FreeCache();
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
 
         public async Task PrepareForCloseAsync()

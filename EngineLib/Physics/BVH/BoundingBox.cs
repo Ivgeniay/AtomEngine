@@ -77,7 +77,7 @@ namespace AtomEngine
 
         public static BoundingBox ComputeBoundingBox(Vertex[] vertices)
         {
-            if (vertices.Length == 0)
+            if (vertices == null || vertices.Length == 0)
                 return new BoundingBox(Vector3.Zero, Vector3.Zero);
 
             var min = vertices[0].Position;
@@ -94,7 +94,7 @@ namespace AtomEngine
 
         public static BoundingBox ComputeBoundingBox(Vector3[] vertices)
         {
-            if (vertices.Length == 0)
+            if (vertices == null || vertices.Length == 0)
                 return new BoundingBox(Vector3.Zero, Vector3.Zero);
 
             var min = vertices[0];

@@ -82,9 +82,7 @@ namespace Editor
         public string Message { get; set; } = string.Empty;
         public string FilePath { get; set; } = string.Empty;
         public StringBuilder Log { get; set; } = new StringBuilder();
-        //private Model model;
         private ModelData modelData;
-
         public ModelData ModelData
         {
             get => modelData;
@@ -98,13 +96,6 @@ namespace Editor
                     TextureCounter += mesh.TextureInfos.Count();
             }
         }
-        //public Model Model { get => model; set
-        //    {
-        //        model = value;
-        //        MeshCounter = model.Meshes.Count();
-        //        TextureCounter = model._texturesLoaded.Count();
-        //    }
-        //}
         public int MeshCounter { get; set; } = 0;
         public int TextureCounter { get; set; } = 0;
 

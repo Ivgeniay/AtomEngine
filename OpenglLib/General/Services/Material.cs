@@ -21,7 +21,7 @@ namespace OpenglLib
         internal void Use() => Shader.Use();
         public void SetUniform(string name, object value)
         {
-            if (IsValid)
+            if (!IsValid)
             {
 #if DEBUG
                 DebLogger.Error("Called material is not valid");
@@ -32,7 +32,7 @@ namespace OpenglLib
         }
         public void SetTexture(string uniformName, Texture texture)
         {
-            if (IsValid)
+            if (!IsValid)
             {
 #if DEBUG
                 DebLogger.Error("Called material is not valid");

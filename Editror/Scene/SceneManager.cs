@@ -61,210 +61,522 @@ namespace Editor
 
         internal void AddComponent(uint entityId, Type typeComponent)
         {
-            var instance = CurrentScene.AddComponent(entityId, typeComponent);
-            OnComponentAdded?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
-            OnSceneDirty?.Invoke(CurrentScene);
-            OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentAdded);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                var instance = CurrentScene.AddComponent(entityId, typeComponent);
+                OnComponentAdded?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
+                OnSceneDirty?.Invoke(CurrentScene);
+                OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentAdded);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    var instance = CurrentScene.AddComponent(entityId, typeComponent);
+                    OnComponentAdded?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                    OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentAdded);
+                });
+            }
         }
         internal void RemoveComponent(uint entityId, Type typeComponent)
         {
-            var instance = CurrentScene.RemoveComponent(entityId, typeComponent);
-            OnComponentRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
-            OnSceneDirty?.Invoke(CurrentScene);
-            OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentRemoved);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                var instance = CurrentScene.RemoveComponent(entityId, typeComponent);
+                OnComponentRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
+                OnSceneDirty?.Invoke(CurrentScene);
+                OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentRemoved);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    var instance = CurrentScene.RemoveComponent(entityId, typeComponent);
+                    OnComponentRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                    OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentRemoved);
+                });
+            }
         }
         internal void ComponentChange(uint entityId, IComponent component, bool withIgnoreSceneView)
         {
-            Dispatcher.UIThread.Post(() =>
+            if (Dispatcher.UIThread.CheckAccess())
             {
                 OnComponentChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, component, withIgnoreSceneView);
                 OnSceneDirty?.Invoke(CurrentScene);
                 OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentValueChange);
-            });
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    OnComponentChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, component, withIgnoreSceneView);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                    OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentValueChange);
+                });
+            }
         }
 
         internal void AddEntity(string entityName)
         {
-            uint id = CurrentScene.AddEntity(entityName);
-            OnEntityCreated?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
-            OnSceneDirty?.Invoke(CurrentScene);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                uint id = CurrentScene.AddEntity(entityName);
+                OnEntityCreated?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
+                OnSceneDirty?.Invoke(CurrentScene);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    uint id = CurrentScene.AddEntity(entityName);
+                    OnEntityCreated?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                });
+            }
         }
         internal void AddDuplicateEntity(EntityHierarchyItem hierarchyEntity)
         {
-            uint id = CurrentScene.AddDuplicateEntity(hierarchyEntity);
-            OnEntityDuplicated?.Invoke(CurrentScene.CurrentWorldData.WorldId, hierarchyEntity.Id, id);
-            OnSceneDirty?.Invoke(CurrentScene);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                uint id = CurrentScene.AddDuplicateEntity(hierarchyEntity);
+                OnEntityDuplicated?.Invoke(CurrentScene.CurrentWorldData.WorldId, hierarchyEntity.Id, id);
+                OnSceneDirty?.Invoke(CurrentScene);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    uint id = CurrentScene.AddDuplicateEntity(hierarchyEntity);
+                    OnEntityDuplicated?.Invoke(CurrentScene.CurrentWorldData.WorldId, hierarchyEntity.Id, id);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                });
+            }
         }
         internal void RemoveEntity(EntityHierarchyItem entity)
         {
-            uint id = CurrentScene.DeleteEntity(entity);
-            OnEntityRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
-            OnSceneDirty?.Invoke(CurrentScene);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                uint id = CurrentScene.DeleteEntity(entity);
+                OnEntityRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
+                OnSceneDirty?.Invoke(CurrentScene);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    uint id = CurrentScene.DeleteEntity(entity);
+                    OnEntityRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                });
+            }
         }
         internal void RenameEntity(EntityHierarchyItem entity)
         {
-            uint id = CurrentScene.RenameEntity(entity);
-            OnEntityRenamed?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
-            OnSceneDirty?.Invoke(CurrentScene);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                uint id = CurrentScene.RenameEntity(entity);
+                OnEntityRenamed?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
+                OnSceneDirty?.Invoke(CurrentScene);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    uint id = CurrentScene.RenameEntity(entity);
+                    OnEntityRenamed?.Invoke(CurrentScene.CurrentWorldData.WorldId, id);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                });
+            }
         }
 
         internal void RenameWorld((string, string) worldNameLastCurrent)
         {
-            CurrentScene.RenameWorld(worldNameLastCurrent);
-            OnWorldRename?.Invoke(CurrentScene.CurrentWorldData.WorldId, worldNameLastCurrent.Item1, worldNameLastCurrent.Item2);
-            OnSceneDirty?.Invoke(CurrentScene);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                CurrentScene.RenameWorld(worldNameLastCurrent);
+                OnWorldRename?.Invoke(CurrentScene.CurrentWorldData.WorldId, worldNameLastCurrent.Item1, worldNameLastCurrent.Item2);
+                OnSceneDirty?.Invoke(CurrentScene);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    CurrentScene.RenameWorld(worldNameLastCurrent);
+                    OnWorldRename?.Invoke(CurrentScene.CurrentWorldData.WorldId, worldNameLastCurrent.Item1, worldNameLastCurrent.Item2);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                });
+            }
         }
         internal void RemoveWorld(string worldName)
         {
-            var deletedWorld = CurrentScene.RemoveWorld(worldName);
-            OnWorldRemove?.Invoke(deletedWorld.WorldId, worldName);
-            OnSceneDirty?.Invoke(CurrentScene);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                var deletedWorld = CurrentScene.RemoveWorld(worldName);
+                OnWorldRemove?.Invoke(deletedWorld.WorldId, worldName);
+                OnSceneDirty?.Invoke(CurrentScene);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    var deletedWorld = CurrentScene.RemoveWorld(worldName);
+                    OnWorldRemove?.Invoke(deletedWorld.WorldId, worldName);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                });
+            }
         }
         internal void CreateWorld(string worldName)
         {
-            var newWorldData = CurrentScene.CreateWorld(worldName);
-            OnWorldCreate?.Invoke(newWorldData.WorldId, worldName);
-            OnSceneDirty?.Invoke(CurrentScene);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                var newWorldData = CurrentScene.CreateWorld(worldName);
+                OnWorldCreate?.Invoke(newWorldData.WorldId, worldName);
+                OnSceneDirty?.Invoke(CurrentScene);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    var newWorldData = CurrentScene.CreateWorld(worldName);
+                    OnWorldCreate?.Invoke(newWorldData.WorldId, worldName);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                });
+            }
         }
         internal void SelecteWorld(string worldName)
         {
-            CurrentScene.SelecteWorld(worldName);
-            OnWorldSelected?.Invoke(CurrentScene.CurrentWorldData.WorldId, CurrentScene.CurrentWorldData.WorldName);
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                CurrentScene.SelecteWorld(worldName);
+                OnWorldSelected?.Invoke(CurrentScene.CurrentWorldData.WorldId, CurrentScene.CurrentWorldData.WorldName);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    CurrentScene.SelecteWorld(worldName);
+                    OnWorldSelected?.Invoke(CurrentScene.CurrentWorldData.WorldId, CurrentScene.CurrentWorldData.WorldName);
+                });
+            }
         }
 
 
         internal void AddSystem(Type systemType, SystemCategory category)
         {
-            var systemData = new SystemData
+            if (Dispatcher.UIThread.CheckAccess())
             {
-                SystemFullTypeName = systemType.FullName,
-                Category = category,
-                ExecutionOrder = -1
-            };
+                var systemData = new SystemData
+                {
+                    SystemFullTypeName = systemType.FullName,
+                    Category = category,
+                    ExecutionOrder = -1
+                };
 
-            CurrentScene.Systems.Add(systemData);
-            OnSystemAdded?.Invoke(systemData);
-            OnSceneDirty?.Invoke(CurrentScene);
+                CurrentScene.Systems.Add(systemData);
+                OnSystemAdded?.Invoke(systemData);
+                OnSceneDirty?.Invoke(CurrentScene);
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    var systemData = new SystemData
+                    {
+                        SystemFullTypeName = systemType.FullName,
+                        Category = category,
+                        ExecutionOrder = -1
+                    };
+
+                    CurrentScene.Systems.Add(systemData);
+                    OnSystemAdded?.Invoke(systemData);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                });
+            }
         }
         internal void RemoveSystem(SystemData system)
         {
-            foreach (var s in CurrentScene.Systems)
+            if (Dispatcher.UIThread.CheckAccess())
             {
-                if (s.Dependencies.Any(d => d.SystemFullTypeName == system.SystemFullTypeName))
+                foreach (var s in CurrentScene.Systems)
                 {
-                    var dependencyToRemove = s.Dependencies.FirstOrDefault(d =>
-                        d.SystemFullTypeName == system.SystemFullTypeName);
-
-                    if (dependencyToRemove != null)
+                    if (s.Dependencies.Any(d => d.SystemFullTypeName == system.SystemFullTypeName))
                     {
-                        s.Dependencies.Remove(dependencyToRemove);
+                        var dependencyToRemove = s.Dependencies.FirstOrDefault(d =>
+                            d.SystemFullTypeName == system.SystemFullTypeName);
+
+                        if (dependencyToRemove != null)
+                        {
+                            s.Dependencies.Remove(dependencyToRemove);
+                        }
                     }
                 }
+
+                var systemToRemove = CurrentScene.Systems.FirstOrDefault(s =>
+                    s.SystemFullTypeName == system.SystemFullTypeName);
+
+                if (systemToRemove != null)
+                {
+                    CurrentScene.Systems.Remove(systemToRemove);
+                    OnSystemRemoved?.Invoke(systemToRemove);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                }
             }
-
-            var systemToRemove = CurrentScene.Systems.FirstOrDefault(s =>
-                s.SystemFullTypeName == system.SystemFullTypeName);
-
-            if (systemToRemove != null)
+            else
             {
-                CurrentScene.Systems.Remove(systemToRemove);
-                OnSystemRemoved?.Invoke(systemToRemove);
-                OnSceneDirty?.Invoke(CurrentScene);
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    foreach (var s in CurrentScene.Systems)
+                    {
+                        if (s.Dependencies.Any(d => d.SystemFullTypeName == system.SystemFullTypeName))
+                        {
+                            var dependencyToRemove = s.Dependencies.FirstOrDefault(d =>
+                                d.SystemFullTypeName == system.SystemFullTypeName);
+
+                            if (dependencyToRemove != null)
+                            {
+                                s.Dependencies.Remove(dependencyToRemove);
+                            }
+                        }
+                    }
+
+                    var systemToRemove = CurrentScene.Systems.FirstOrDefault(s =>
+                        s.SystemFullTypeName == system.SystemFullTypeName);
+
+                    if (systemToRemove != null)
+                    {
+                        CurrentScene.Systems.Remove(systemToRemove);
+                        OnSystemRemoved?.Invoke(systemToRemove);
+                        OnSceneDirty?.Invoke(CurrentScene);
+                    }
+                });
             }
         }
         internal void AddSystemDependency(SystemData system, SystemData dependency)
         {
-            var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
-                s.SystemFullTypeName == system.SystemFullTypeName);
-
-            if (systemToUpdate != null)
+            if (Dispatcher.UIThread.CheckAccess())
             {
-                var dependencyToAdd = CurrentScene.Systems.FirstOrDefault(s =>
-                    s.SystemFullTypeName == dependency.SystemFullTypeName);
+                var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                    s.SystemFullTypeName == system.SystemFullTypeName);
 
-                if (dependencyToAdd != null && !systemToUpdate.Dependencies.Any(d =>
-                    d.SystemFullTypeName == dependencyToAdd.SystemFullTypeName))
+                if (systemToUpdate != null)
                 {
-                    systemToUpdate.Dependencies.Add(dependencyToAdd);
-                    OnSystemDependencyAdded?.Invoke(systemToUpdate, dependencyToAdd);
-                    OnSceneDirty?.Invoke(CurrentScene);
+                    var dependencyToAdd = CurrentScene.Systems.FirstOrDefault(s =>
+                        s.SystemFullTypeName == dependency.SystemFullTypeName);
+
+                    if (dependencyToAdd != null && !systemToUpdate.Dependencies.Any(d =>
+                        d.SystemFullTypeName == dependencyToAdd.SystemFullTypeName))
+                    {
+                        systemToUpdate.Dependencies.Add(dependencyToAdd);
+                        OnSystemDependencyAdded?.Invoke(systemToUpdate, dependencyToAdd);
+                        OnSceneDirty?.Invoke(CurrentScene);
+                    }
                 }
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                        s.SystemFullTypeName == system.SystemFullTypeName);
+
+                    if (systemToUpdate != null)
+                    {
+                        var dependencyToAdd = CurrentScene.Systems.FirstOrDefault(s =>
+                            s.SystemFullTypeName == dependency.SystemFullTypeName);
+
+                        if (dependencyToAdd != null && !systemToUpdate.Dependencies.Any(d =>
+                            d.SystemFullTypeName == dependencyToAdd.SystemFullTypeName))
+                        {
+                            systemToUpdate.Dependencies.Add(dependencyToAdd);
+                            OnSystemDependencyAdded?.Invoke(systemToUpdate, dependencyToAdd);
+                            OnSceneDirty?.Invoke(CurrentScene);
+                        }
+                    }
+                });
             }
         }
         internal void RemoveSystemDependency(SystemData system, SystemData dependency)
         {
-            var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
-                s.SystemFullTypeName == system.SystemFullTypeName);
-
-            if (systemToUpdate != null)
+            if (Dispatcher.UIThread.CheckAccess())
             {
-                var dependencyToRemove = systemToUpdate.Dependencies.FirstOrDefault(d =>
-                    d.SystemFullTypeName == dependency.SystemFullTypeName);
+                var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                    s.SystemFullTypeName == system.SystemFullTypeName);
 
-                if (dependencyToRemove != null)
+                if (systemToUpdate != null)
                 {
-                    systemToUpdate.Dependencies.Remove(dependencyToRemove);
-                    OnSystemDependencyRemoved?.Invoke(systemToUpdate, dependency);
-                    OnSceneDirty?.Invoke(CurrentScene);
+                    var dependencyToRemove = systemToUpdate.Dependencies.FirstOrDefault(d =>
+                        d.SystemFullTypeName == dependency.SystemFullTypeName);
+
+                    if (dependencyToRemove != null)
+                    {
+                        systemToUpdate.Dependencies.Remove(dependencyToRemove);
+                        OnSystemDependencyRemoved?.Invoke(systemToUpdate, dependency);
+                        OnSceneDirty?.Invoke(CurrentScene);
+                    }
                 }
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                        s.SystemFullTypeName == system.SystemFullTypeName);
+
+                    if (systemToUpdate != null)
+                    {
+                        var dependencyToRemove = systemToUpdate.Dependencies.FirstOrDefault(d =>
+                            d.SystemFullTypeName == dependency.SystemFullTypeName);
+
+                        if (dependencyToRemove != null)
+                        {
+                            systemToUpdate.Dependencies.Remove(dependencyToRemove);
+                            OnSystemDependencyRemoved?.Invoke(systemToUpdate, dependency);
+                            OnSceneDirty?.Invoke(CurrentScene);
+                        }
+                    }
+                });
             }
         }
         internal void AddSystemToWorld(SystemData system, uint worldId)
         {
-            var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
-                s.SystemFullTypeName == system.SystemFullTypeName);
-
-            if (systemToUpdate != null && !systemToUpdate.IncludInWorld.Contains(worldId))
+            if (Dispatcher.UIThread.CheckAccess())
             {
-                systemToUpdate.IncludInWorld.Add(worldId);
-                OnSystemAddedToWorld?.Invoke(systemToUpdate, worldId);
-                OnSceneDirty?.Invoke(CurrentScene);
+                var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                    s.SystemFullTypeName == system.SystemFullTypeName);
 
-                var world = CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
-                if (world != null)
+                if (systemToUpdate != null && !systemToUpdate.IncludInWorld.Contains(worldId))
                 {
-                    Status.SetStatus($"Added system to world: {system.SystemFullTypeName} -> {world.WorldName}");
+                    systemToUpdate.IncludInWorld.Add(worldId);
+                    OnSystemAddedToWorld?.Invoke(systemToUpdate, worldId);
+                    OnSceneDirty?.Invoke(CurrentScene);
+
+                    var world = CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                    if (world != null)
+                    {
+                        Status.SetStatus($"Added system to world: {system.SystemFullTypeName} -> {world.WorldName}");
+                    }
                 }
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                        s.SystemFullTypeName == system.SystemFullTypeName);
+
+                    if (systemToUpdate != null && !systemToUpdate.IncludInWorld.Contains(worldId))
+                    {
+                        systemToUpdate.IncludInWorld.Add(worldId);
+                        OnSystemAddedToWorld?.Invoke(systemToUpdate, worldId);
+                        OnSceneDirty?.Invoke(CurrentScene);
+
+                        var world = CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                        if (world != null)
+                        {
+                            Status.SetStatus($"Added system to world: {system.SystemFullTypeName} -> {world.WorldName}");
+                        }
+                    }
+                });
             }
         }
         internal void RemoveSystemFromWorld(SystemData system, uint worldId)
         {
-            var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
-                s.SystemFullTypeName == system.SystemFullTypeName);
-
-            if (systemToUpdate != null && systemToUpdate.IncludInWorld.Contains(worldId))
+            if (Dispatcher.UIThread.CheckAccess())
             {
-                systemToUpdate.IncludInWorld.Remove(worldId);
-                OnSystemRemovedFromWorld?.Invoke(systemToUpdate, worldId);
-                OnSceneDirty?.Invoke(CurrentScene);
-                var world = CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
-                if (world != null)
+                var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                    s.SystemFullTypeName == system.SystemFullTypeName);
+
+                if (systemToUpdate != null && systemToUpdate.IncludInWorld.Contains(worldId))
                 {
-                    Status.SetStatus($"Removed system from world: {system.SystemFullTypeName} -> {world.WorldName}");
+                    systemToUpdate.IncludInWorld.Remove(worldId);
+                    OnSystemRemovedFromWorld?.Invoke(systemToUpdate, worldId);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                    var world = CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                    if (world != null)
+                    {
+                        Status.SetStatus($"Removed system from world: {system.SystemFullTypeName} -> {world.WorldName}");
+                    }
                 }
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                        s.SystemFullTypeName == system.SystemFullTypeName);
+
+                    if (systemToUpdate != null && systemToUpdate.IncludInWorld.Contains(worldId))
+                    {
+                        systemToUpdate.IncludInWorld.Remove(worldId);
+                        OnSystemRemovedFromWorld?.Invoke(systemToUpdate, worldId);
+                        OnSceneDirty?.Invoke(CurrentScene);
+                        var world = CurrentScene.Worlds.FirstOrDefault(w => w.WorldId == worldId);
+                        if (world != null)
+                        {
+                            Status.SetStatus($"Removed system from world: {system.SystemFullTypeName} -> {world.WorldName}");
+                        }
+                    }
+                });
             }
         }
         internal void ChangeSystemExecutionOrder(SystemData system, int newOrder)
         {
-            var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
-                s.SystemFullTypeName == system.SystemFullTypeName);
-
-            if (systemToUpdate != null && systemToUpdate.ExecutionOrder != newOrder)
+            if (Dispatcher.UIThread.CheckAccess())
             {
-                systemToUpdate.ExecutionOrder = newOrder;
-                OnSystemExecutionOrderChanged?.Invoke(systemToUpdate, newOrder);
-                OnSceneDirty?.Invoke(CurrentScene);
-                Status.SetStatus($"Changed execution order for system: {system.SystemFullTypeName} -> {newOrder}");
+                var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                    s.SystemFullTypeName == system.SystemFullTypeName);
+
+                if (systemToUpdate != null && systemToUpdate.ExecutionOrder != newOrder)
+                {
+                    systemToUpdate.ExecutionOrder = newOrder;
+                    OnSystemExecutionOrderChanged?.Invoke(systemToUpdate, newOrder);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                    Status.SetStatus($"Changed execution order for system: {system.SystemFullTypeName} -> {newOrder}");
+                }
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    var systemToUpdate = CurrentScene.Systems.FirstOrDefault(s =>
+                        s.SystemFullTypeName == system.SystemFullTypeName);
+
+                    if (systemToUpdate != null && systemToUpdate.ExecutionOrder != newOrder)
+                    {
+                        systemToUpdate.ExecutionOrder = newOrder;
+                        OnSystemExecutionOrderChanged?.Invoke(systemToUpdate, newOrder);
+                        OnSceneDirty?.Invoke(CurrentScene);
+                        Status.SetStatus($"Changed execution order for system: {system.SystemFullTypeName} -> {newOrder}");
+                    }
+                });
             }
         }
         internal void ReorderSystems(List<SystemData> systems)
         {
-            if (systems != null && systems.Count > 0)
+            if (Dispatcher.UIThread.CheckAccess())
             {
-                OnSystemsReordered?.Invoke(systems);
-                OnSceneDirty?.Invoke(CurrentScene);
+                if (systems != null && systems.Count > 0)
+                {
+                    OnSystemsReordered?.Invoke(systems);
+                    OnSceneDirty?.Invoke(CurrentScene);
+                }
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    if (systems != null && systems.Count > 0)
+                    {
+                        OnSystemsReordered?.Invoke(systems);
+                        OnSceneDirty?.Invoke(CurrentScene);
+                    }
+                });
             }
         }
+
+
         internal List<SystemData> GetSystems()
         {
             if (CurrentScene == null)
