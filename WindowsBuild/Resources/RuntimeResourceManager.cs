@@ -10,7 +10,8 @@ namespace WindowsBuild
         private readonly Dictionary<string, Texture> _textures = new();
         private readonly Dictionary<string, MeshBase> _meshes = new();
         private readonly Dictionary<string, ShaderBase> _materials = new();
-        private readonly Dictionary<string, Model> _modelCache = new Dictionary<string, Model>();
+        //private readonly Dictionary<string, Model> _modelCache = new Dictionary<string, Model>();
+        private readonly Dictionary<string, ModelData> _modelCache = new Dictionary<string, ModelData>();
 
         public int TextureCount => _textures.Count;
         public int MeshCount => _meshes.Count;
@@ -21,10 +22,14 @@ namespace WindowsBuild
             _textures[guid] = texture;
         }
 
-        public void RegisterModel(string guid, Model model)
+        public void RegisterModel(string guid, ModelData model)
         {
             _modelCache[guid] = model;
         }
+        //public void RegisterModel(string guid, Model model)
+        //{
+        //    _modelCache[guid] = model;
+        //}
 
         public void RegisterMesh(string guid, MeshBase mesh)
         {
@@ -36,10 +41,14 @@ namespace WindowsBuild
             _materials[guid] = material;
         }
 
-        public Model GetModel(string guid)
+        public ModelData GetModel(string guid)
         {
             return _modelCache.TryGetValue(guid, out var model) ? model : null;
         }
+        //public Model GetModel(string guid)
+        //{
+        //    return _modelCache.TryGetValue(guid, out var model) ? model : null;
+        //}
 
         public Texture GetTexture(string guid)
         {

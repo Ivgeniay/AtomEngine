@@ -143,8 +143,9 @@ namespace OpenglLib
                 textures.AddRange(heightMaps);
 
             // return a mesh object created from the extracted mesh data
-            var result = Mesh.CreateStandardMesh(_gl, BuildVertices(vertices), BuildIndices(indices), textures);
-            return result;
+            //var result = Mesh.CreateStandardMesh(_gl, BuildVertices(vertices), BuildIndices(indices), textures);
+            //return result;
+            return null;
         }
 
         private unsafe List<Texture> LoadMaterialTextures(Silk.NET.Assimp.Material* mat, TextureType type, string typeName)

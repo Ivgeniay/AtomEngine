@@ -62,8 +62,8 @@ namespace Editor
 
                     Assimp assimp = Assimp.GetApi();
 
-                    var mb_Model = ModelLoader.LoadModel(e.FileFullPath, gl, assimp, false);
-                    result.Model = mb_Model.Unwrap();
+                    var mb_Model = ModelLoader.LoadModel(e.FileFullPath, assimp, false);
+                    result.ModelData = mb_Model.Unwrap();
                     result.Success = true;
                 }
             }
@@ -82,14 +82,29 @@ namespace Editor
         public string Message { get; set; } = string.Empty;
         public string FilePath { get; set; } = string.Empty;
         public StringBuilder Log { get; set; } = new StringBuilder();
-        private Model model;
-        public Model Model { get => model; set
+        //private Model model;
+        private ModelData modelData;
+
+        public ModelData ModelData
+        {
+            get => modelData;
+            set
             {
-                model = value;
-                MeshCounter = model.Meshes.Count();
-                TextureCounter = model._texturesLoaded.Count();
+                modelData = value;
+                MeshCounter = modelData.Meshes.Count;
+
+                TextureCounter = 0;
+                foreach (var mesh in modelData.Meshes)
+                    TextureCounter += mesh.TextureInfos.Count();
             }
         }
+        //public Model Model { get => model; set
+        //    {
+        //        model = value;
+        //        MeshCounter = model.Meshes.Count();
+        //        TextureCounter = model._texturesLoaded.Count();
+        //    }
+        //}
         public int MeshCounter { get; set; } = 0;
         public int TextureCounter { get; set; } = 0;
 

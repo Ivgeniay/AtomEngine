@@ -263,11 +263,12 @@ namespace WindowsBuild
 
                         if (typeof(MeshBase).IsAssignableFrom(resourceType))
                         {
-                            var model = resourceManager.GetModel(guidValue);
+                            ModelData model = resourceManager.GetModel(guidValue);
                             var indexatorField = fields.FirstOrDefault(f => f.Name.Equals(resourceFieldName + "InternalIndex", StringComparison.OrdinalIgnoreCase));
                             var obj_value = indexatorField?.GetValue(componentData) ?? 0;
                             int index = int.Parse(obj_value.ToString());
                             resource = model.Meshes[index];
+                            throw new Exception("Теперь мы работаем с ModelData, а не Model. Переделай через MeshBuilder и шейдеры");
                         }
                         else if (typeof(ShaderBase).IsAssignableFrom(resourceType))
                         {

@@ -144,10 +144,12 @@ namespace WindowsBuild
                     }
                     try
                     {
-                        Model model = resourceManager.GetModel(guid);
+                        //Model model = resourceManager.GetModel(guid);
+                        ModelData model = resourceManager.GetModel(guid);
                         if (model == null)
                         {
-                            var mb_model = ModelLoader.LoadModel(fullPath, gl, assimp, false);
+                            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            var mb_model = ModelLoader.LoadModel(fullPath, assimp, false);
                             if (mb_model.IsOk())
                             {
                                 model = mb_model.Unwrap();

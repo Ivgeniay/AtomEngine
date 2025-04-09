@@ -2,6 +2,7 @@
 using System.Numerics;
 using AtomEngine;
 using EngineLib;
+using OpenglLib;
 
 namespace Editor
 {
@@ -13,7 +14,7 @@ namespace Editor
         }
 
         public List<NodeModelData> MeshesData = new List<NodeModelData>();
-        public List<string> Textures = new List<string>();
+        public List<TextureInfo> Textures = new List<TextureInfo>();
     }
 
     public class NodeModelData : IDataSerializable

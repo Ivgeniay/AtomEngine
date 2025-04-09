@@ -61,23 +61,17 @@ namespace Editor
 
         internal void AddComponent(uint entityId, Type typeComponent)
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                var instance = CurrentScene.AddComponent(entityId, typeComponent);
-                OnComponentAdded?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
-                OnSceneDirty?.Invoke(CurrentScene);
-                OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentAdded);
-            });
+            var instance = CurrentScene.AddComponent(entityId, typeComponent);
+            OnComponentAdded?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
+            OnSceneDirty?.Invoke(CurrentScene);
+            OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentAdded);
         }
         internal void RemoveComponent(uint entityId, Type typeComponent)
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                var instance = CurrentScene.RemoveComponent(entityId, typeComponent);
-                OnComponentRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
-                OnSceneDirty?.Invoke(CurrentScene);
-                OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentRemoved);
-            });
+            var instance = CurrentScene.RemoveComponent(entityId, typeComponent);
+            OnComponentRemoved?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, (IComponent)instance);
+            OnSceneDirty?.Invoke(CurrentScene);
+            OnEntityChange?.Invoke(CurrentScene.CurrentWorldData.WorldId, entityId, EntityChange.ComponentRemoved);
         }
         internal void ComponentChange(uint entityId, IComponent component, bool withIgnoreSceneView)
         {

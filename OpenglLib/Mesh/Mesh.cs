@@ -1,133 +1,33 @@
 ﻿using AtomEngine.RenderEntity;
-using AtomEngine;
-using EngineLib;
 using OpenglLib.Buffers;
-using Silk.NET.OpenGL;
 using System.Numerics;
+using Silk.NET.OpenGL;
+using AtomEngine;
 
 namespace OpenglLib
 {
     public class Mesh : MeshBase
     {
-        public IReadOnlyList<Texture> Textures { get; private set; }
         public VertexArrayObject<float, uint> VAO { get; set; }
         public BufferObject<float> VBO { get; set; }
         public BufferObject<uint> EBO { get; set; }
         public GL GL { get; }
+        public Shader OptimizedShader { get; private set; }
+
         private readonly PrimitiveType _primitiveType;
         private VertexFormat _format;
 
-        public Mesh(GL gl, float[] vertices, uint[] indices, VertexFormat format, List<Texture> textures = null, PrimitiveType primitiveType = PrimitiveType.Triangles)
+        public Mesh(GL gl, float[] vertices, uint[] indices, VertexFormat format, Shader optimizedShader = null, PrimitiveType primitiveType = PrimitiveType.Triangles)
         {
             GL = gl;
             _format = format;
             _primitiveType = primitiveType;
+            OptimizedShader = optimizedShader;
             Vertices = vertices;
             Indices = indices;
-            Textures = textures ?? new List<Texture>();
-            FillingVertices(vertices, indices);
 
             SetupMesh();
-
             BoundingVolume = new BoundingBox(this);
-        }
-
-
-        private void FillingVertices(float[] vertices, uint[] indices)
-        {
-            if (_format == null)
-            {
-                _format = new VertexFormat();
-                _format.AddAttribute("position", 0, 3);
-            }
-
-            int componentsPerVertex = 3;
-            int vertexCount = vertices.Length / componentsPerVertex;
-
-            Vertices_ = new Vertex[vertexCount];
-
-            for (int i = 0; i < vertexCount; i++)
-            {
-                int baseIndex = i * componentsPerVertex;
-
-                Vertices_[i] = new Vertex
-                {
-                    Index = i,
-                    Position = new Vector3(
-                        vertices[baseIndex],
-                        vertices[baseIndex + 1],
-                        vertices[baseIndex + 2]
-                    )
-                };
-            }
-        }
-
-        public static Mesh CreateWireframeMesh(GL gl, Vector3[] vertices, uint[] indices, List<Texture> textures = null)
-        {
-            List<float> verticesList = new List<float>();
-            foreach (var vertex in vertices)
-            {
-                verticesList.Add(vertex.X);
-                verticesList.Add(vertex.Y);
-                verticesList.Add(vertex.Z);
-            }
-
-            var format = new VertexFormat();
-            format.AddAttribute("position", 0, 3);
-            return Mesh.CreateWireframeMesh(gl, verticesList.ToArray(), indices, textures);
-        }
-        public static Mesh CreateWireframeMesh(GL gl, float[] vertices, uint[] indices, List<Texture> textures = null)
-        {
-            var format = new VertexFormat();
-            format.AddAttribute("position", 0, 3);
-
-            return new Mesh(gl, vertices, indices, format, textures, PrimitiveType.Triangles);
-        }
-        public static Mesh CreateStandardMesh(GL gl, float[] vertices, uint[] indices, List<Texture> textures = null)
-        {
-            var format = new VertexFormat();
-            format.AddAttribute("position", 0, 3);
-            format.AddAttribute("normal", 1, 3);  
-            format.AddAttribute("texCoord", 2, 2);
-
-            return new Mesh(gl, vertices, indices, format, textures);
-        }
-
-        public VertexFormat AdaptToShader(Shader shader)
-        {
-            var shaderAttributes = shader.GetAllAttributeLocations();
-            var adaptedFormat = new VertexFormat();
-
-            foreach (var attr in shaderAttributes)
-            {
-                var matchingAttribute = _format.Attributes
-                    .FirstOrDefault(a => a.Name.Equals(attr.Key, StringComparison.OrdinalIgnoreCase));
-
-                if (matchingAttribute != null)
-                {
-                    adaptedFormat.AddAttribute(
-                        matchingAttribute.Name,
-                        attr.Value,
-                        matchingAttribute.Size,
-                        matchingAttribute.Type
-                    );
-                }
-                else
-                {
-                    // Логирование несоответствия или генерация дефолтного атрибута
-                    DebLogger.Warn($"Attribute {attr.Key} not found in mesh");
-                }
-            }
-
-            return adaptedFormat;
-        }
-
-        public bool IsCompatibleWithShader(Shader shader)
-        {
-            var shaderAttributes = shader.GetAllAttributeLocations();
-            return shaderAttributes.All(attr =>
-                _format.Attributes.Any(a =>
-                    a.Name.Equals(attr.Key, StringComparison.OrdinalIgnoreCase)));
         }
         private unsafe void SetupMesh()
         {
@@ -150,41 +50,30 @@ namespace OpenglLib
             VBO.Unbind();
             EBO.Unbind();
         }
-
-        public void Bind()
+        public void Bind() => VAO.Bind();
+        public unsafe override void Draw() => DrawAs(OptimizedShader, _primitiveType);
+        public unsafe override void Draw(ShaderBase shader) => DrawAs(shader, _primitiveType);
+        public unsafe void DrawAs(ShaderBase shader, PrimitiveType primitiveType)
         {
-            VAO.Bind();
+            if (shader != null)
+            {
+                shader?.Use();
+                VAO.Bind();
+                GL.DrawElements(primitiveType, (uint)Indices.Length, DrawElementsType.UnsignedInt, null);
+                VAO.Unbind();
+            }
+            else
+            {
+#if DEBUG
+                DebLogger.Error("There is no shader for drawing mesh");
+#endif
+            }
         }
-
         public override void Dispose()
         {
-            if (Textures != null && Textures.Count > 0)
-            {
-                foreach (var texture in Textures)
-                {
-                    texture.Dispose();
-                }
-            }
-            Textures = null;
             VAO.Dispose();
             VBO.Dispose();
             EBO.Dispose();
-        }
-
-        public unsafe override void Draw(ShaderBase shader)
-        {
-            shader.Use();
-            VAO.Bind();
-            GL.DrawElements(_primitiveType, (uint)Indices.Length, DrawElementsType.UnsignedInt, null);
-            VAO.Unbind();
-        }
-
-        public unsafe void DrawAs(ShaderBase shader, PrimitiveType primitiveType)
-        {
-            shader.Use();
-            VAO.Bind();
-            GL.DrawElements(primitiveType, (uint)Indices.Length, DrawElementsType.UnsignedInt, null);
-            VAO.Unbind();
         }
     }
 
@@ -236,4 +125,5 @@ namespace OpenglLib
             };
         }
     }
+
 }

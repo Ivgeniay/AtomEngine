@@ -15,12 +15,13 @@ namespace Editor
             _metadataManager = ServiceHub.Get<EditorMetadataManager>();
 
             _eventHub = ServiceHub.Get<EventHub>();
-            _eventHub.Subscribe<MetadataCreateEvent>(CreateMetadataEventHandler);
+            //_eventHub.Subscribe<MetadataCreateEvent>(CreateMetadataEventHandler);
+            _eventHub.Subscribe<MetadataCachedEvent>(CreateMetadataEventHandler);
 
             return Task.CompletedTask;
         }
 
-        private void CreateMetadataEventHandler(MetadataCreateEvent metadataCreateEvent)
+        private void CreateMetadataEventHandler(MetadataCachedEvent metadataCreateEvent)
         {
             if (metadataCreateEvent == null || metadataCreateEvent.Metadata == null) return;
             if (metadataCreateEvent.Metadata.AssetType != MetadataType.Model) return;
@@ -39,7 +40,7 @@ namespace Editor
 
             }
 
-            var result =MeshCompiler.TryToCompile(new FileEvent
+            var result = MeshCompiler.TryToCompile(new FileEvent
             {
                 FilePath = relativePath,
                 FileName = name,
@@ -49,16 +50,16 @@ namespace Editor
 
             if (result != null && result.Success)
             {
-                for( var i = 0; i< result.Model._texturesLoaded.Count; i++)
+                foreach(var mesh in result.ModelData.Meshes)
                 {
-                    modelData.Textures.Add(i.ToString());
+                    modelData.Textures.AddRange(mesh.TextureInfos);
                 }
 
-                foreach(var kvpStringMeshNode in result.Model.NodeMap)
+                foreach (var kvpStringMeshNode in result.ModelData.NodeMap)
                 {
                     NodeModelData nodeModelData = new NodeModelData
                     {
-                        MeshPath = result.Model.GetNodePath(kvpStringMeshNode.Value),
+                        MeshPath = result.ModelData.GetNodePath(kvpStringMeshNode.Value),
                         MeshName = kvpStringMeshNode.Key,
                         Matrix = kvpStringMeshNode.Value.Transformation,
                     };

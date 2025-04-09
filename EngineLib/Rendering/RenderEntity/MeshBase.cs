@@ -12,6 +12,7 @@ namespace AtomEngine.RenderEntity
         public IBoundingVolume BoundingVolume { get; protected set; }
 
         public abstract void Dispose();
+        public abstract void Draw();
         public abstract void Draw(ShaderBase shaderBase);
     }
 }
