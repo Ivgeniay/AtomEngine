@@ -406,31 +406,6 @@ namespace Editor
             foreach (var prop in baseProps) {
                 yield return prop;
             }
-
-            if (_metadata.IsGenerator)
-            {
-                yield return new PropertyDescriptor
-                {
-                    Name = "Auto Generation",
-                    Type = typeof(bool),
-                    Value = _metadata.AutoGeneration,
-                    IsReadOnly = false,
-                    OnValueChanged = (e) =>
-                    {
-                        _metadata.AutoGeneration = (bool)e;
-
-                        Save();
-                    },
-                };
-
-                yield return new PropertyDescriptor
-                {
-                    Name = "Generated Assets",
-                    Type = typeof(IEnumerable<string>),
-                    Value = _metadata.GeneratedAssets,
-                    IsReadOnly = true,
-                };
-            }
         }
 
         public override void Update()

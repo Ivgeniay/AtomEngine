@@ -62,6 +62,7 @@ namespace OpenglLib
             return material;
         }
 
+
         public void AssignShaderToMaterial(MaterialAsset material, string shaderRepresentationGuid)
         {
             if (material == null)
@@ -79,6 +80,23 @@ namespace OpenglLib
                 return;
             }
 
+            if (Path.HasExtension(filePath))
+            {
+                var extension = Path.GetExtension(filePath);
+                if (extension.Contains("cs"))
+                {
+                    AssignShaderToMaterialFromCS(material, shaderRepresentationGuid, metadataManager, filePath);
+                }
+
+                if (extension.Contains("glsl"))
+                {
+
+                }
+            }
+        }
+
+        private void AssignShaderToMaterialFromCS(MaterialAsset material, string shaderRepresentationGuid, MetadataManager metadataManager, string filePath)
+        {
             material.ShaderRepresentationGuid = shaderRepresentationGuid;
 
             try
@@ -98,7 +116,7 @@ namespace OpenglLib
                 }
 
                 var uniformContainers = ShaderRepresentationAnalyzer.AnalyzeShaderRepresentation(material.ShaderRepresentationTypeName, fileContent);
-                foreach(var container in uniformContainers)
+                foreach (var container in uniformContainers)
                 {
                     material.AddContainer(container);
                 }
@@ -117,8 +135,8 @@ namespace OpenglLib
 
                             for (int i = 0; i < materialMeta.Dependencies.Count(); i++)
                             {
-                                assetDepencyManager.RemoveDependencyFromPathByGuid(path, temp[i]); 
-                            } 
+                                assetDepencyManager.RemoveDependencyFromPathByGuid(path, temp[i]);
+                            }
                         }
                         assetDepencyManager.AddDependencyFromPathByGuid(path, shaderRepresentationGuid);
                     }

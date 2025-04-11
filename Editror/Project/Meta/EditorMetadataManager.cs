@@ -20,6 +20,8 @@ namespace Editor
             if (_isInitialized)
                 return Task.CompletedTask;
 
+            GlslCompiler.OnCompiled += OnShaderCompile;
+
             return Task.Run(async () =>
             {
                 await base.InitializeAsync();
@@ -37,7 +39,6 @@ namespace Editor
             });
         }
 
-
         protected override FileMetadata CreateMetadata(string filePath)
         {
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
@@ -47,16 +48,18 @@ namespace Editor
         }
         protected override FileMetadata CreateMetadataWithType(string filePath, MetadataType type)
         {
-            FileMetadata metadata = type switch
-            {
-                MetadataType.Texture => new TextureMetadata(),
-                MetadataType.Model => new ModelMetadata(),
-                MetadataType.Audio => new AudioMetadata(),
-                MetadataType.ShaderSource => new ShaderSourceMetadata(),
-                MetadataType.Script => new ScriptMetadata(),
-                MetadataType.Shader => new ShaderMetadata(),
-                _ => new FileMetadata()
-            };
+            //FileMetadata metadata = type switch
+            //{
+            //    MetadataType.Texture => new TextureMetadata(),
+            //    MetadataType.Model => new ModelMetadata(),
+            //    MetadataType.Audio => new AudioMetadata(),
+            //    MetadataType.ShaderSource => new ShaderSourceMetadata(),
+            //    MetadataType.Script => new ScriptMetadata(),
+            //    MetadataType.Shader => new ShaderMetadata(),
+            //    _ => new FileMetadata()
+            //};
+            Type metadataType = ConverterMetadata.GetTypeByMetadataType(type);
+            FileMetadata metadata = (FileMetadata)Activator.CreateInstance(metadataType);
 
             metadata.Guid = Guid.NewGuid().ToString();
             metadata.AssetType = type;
@@ -334,6 +337,30 @@ namespace Editor
             return null;
         }
 
+        private void OnShaderCompile(CompilationGlslCodeResult result)
+        {
+            if (result == null) return;
+            if (result.File == null) return;
+
+            switch (result.File.FileExtension)
+            {
+                case ".glsl":
+                    var meta = GetMetadata(result.File.FilePath);
+                    FileMetadata newMeta;
+                    if (result.Success)
+                    {
+                        newMeta = ConverterMetadata.Convert(meta, MetadataType.Shader);
+                        newMeta.IsTypeExplicitlySet = true;
+                    }
+                    else
+                    {
+                        newMeta = ConverterMetadata.Convert(meta, MetadataType.ShaderSource);
+                        newMeta.IsTypeExplicitlySet = false;
+                    } 
+                    CacheMetadata(newMeta, result.File.FileFullPath);
+                    break;
+            }
+        }
 
         private void ScanAssetsDirectory()
         {
@@ -392,6 +419,60 @@ namespace Editor
                     File.Delete(metaFilePath);
                 }
             }
+        }
+    }
+
+    public static class ConverterMetadata
+    {
+        private static readonly Dictionary<MetadataType, Type> _typeMap = new Dictionary<MetadataType, Type>
+        {
+            { MetadataType.Unknown, typeof(FileMetadata) },
+            { MetadataType.Texture, typeof(TextureMetadata) },
+            { MetadataType.Model, typeof(ModelMetadata) },
+            { MetadataType.Audio, typeof(AudioMetadata) },
+            { MetadataType.ShaderSource, typeof(ShaderSourceMetadata) },
+            { MetadataType.Script, typeof(ScriptMetadata) },
+            { MetadataType.Shader, typeof(ShaderMetadata) }
+        };
+
+        public static Type GetTypeByMetadataType(MetadataType metadataType)
+        {
+            if (_typeMap.TryGetValue(metadataType, out Type type))
+            {
+                return type;
+            }
+
+            return typeof(FileMetadata);
+        }
+
+        public static FileMetadata Convert(FileMetadata sourceMetadata, MetadataType targetType)
+        {
+            if (sourceMetadata == null)
+                throw new ArgumentNullException(nameof(sourceMetadata));
+
+            if (sourceMetadata.AssetType == targetType)
+                return sourceMetadata;
+
+            Type targetMetadataType = GetTypeByMetadataType(targetType);
+
+            FileMetadata targetMetadata = (FileMetadata)Activator.CreateInstance(targetMetadataType);
+
+            targetMetadata.Guid = sourceMetadata.Guid;
+            targetMetadata.Name = sourceMetadata.Name;
+            targetMetadata.AssetType = targetType;
+            targetMetadata.IsTypeExplicitlySet = true;
+            targetMetadata.LastModified = DateTime.UtcNow;
+            targetMetadata.Version = sourceMetadata.Version + 1;
+            targetMetadata.Dependencies = new List<string>(sourceMetadata.Dependencies);
+            targetMetadata.Tags = new List<string>(sourceMetadata.Tags);
+            targetMetadata.ContentHash = sourceMetadata.ContentHash;
+
+            foreach (var setting in sourceMetadata.ImportSettings)
+            {
+                targetMetadata.ImportSettings[setting.Key] = setting.Value;
+            }
+
+            return targetMetadata;
         }
     }
 

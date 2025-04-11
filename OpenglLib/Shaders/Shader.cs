@@ -27,6 +27,12 @@ namespace OpenglLib
             _shaderTextureManager = new ShaderTextureManager(this);
         }
 
+        public void SetUpShader(string fullShader)
+        {
+            var (sourceVertex, sourceFragment) = GlslParser.ExtractShaderSources(fullShader);
+            SetUpShader(sourceVertex, sourceFragment);
+        }
+
         public void SetUpShader(string vertexSource = "", string fragmentSource = "")
         {
             vertexSource = string.IsNullOrEmpty(vertexSource) ? VertexSource : vertexSource;
@@ -441,12 +447,6 @@ namespace OpenglLib
                     _uniformBlocks.Add(new UniformBlockData(name, blockIndex));
                 }
             }
-        }
-
-        protected uint GetBlockIndex(string name)
-        {
-            var uniform = _uniformBlocks.FirstOrDefault(block => block.Name == name);
-            return uniform.BlockIndex;
         }
 
         public override void Dispose()

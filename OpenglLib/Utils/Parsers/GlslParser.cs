@@ -1731,8 +1731,8 @@ namespace OpenglLib
     public class GlslShaderModel
     {
         public string FullText { get; set; } = string.Empty;
-        public VertexShaderModel? Vertex { get; set; }
-        public FragmentShaderModel? Fragment { get; set; }
+        public VertexShaderModel Vertex { get; set; } = new VertexShaderModel();
+        public FragmentShaderModel Fragment { get; set; } = new FragmentShaderModel();
         public List<RSFileInfo> RSFiles { get; set; } = new List<RSFileInfo>();
     }
 

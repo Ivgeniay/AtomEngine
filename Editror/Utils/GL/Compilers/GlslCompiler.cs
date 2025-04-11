@@ -1,19 +1,21 @@
-﻿using Silk.NET.Windowing;
+﻿using System.Collections.Generic;
+using Silk.NET.Windowing;
 using Silk.NET.OpenGL;
-using System.IO;
-using System;
 using System.Text;
 using OpenglLib;
-using System.Collections.Generic;
+using System.IO;
+using System;
 
 namespace Editor
 {
     internal static class GlslCompiler
     {
+        public static Action<CompilationGlslCodeResult>? OnCompiled;
+
         internal unsafe static CompilationGlslCodeResult TryToCompile(FileEvent e)
         {
             CompilationGlslCodeResult result = new CompilationGlslCodeResult();
-            result.FilePath = e.FileFullPath;
+            result.File = e;
             GL gl = null;
 
             try
@@ -41,22 +43,11 @@ namespace Editor
                 result.Log.AppendLine("full shader");
 
                 var shader = GlslExtractor.ExtractShaderModel(e.FileFullPath);
-                //List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, e.FileFullPath);
-
-
-                //shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, e.FileFullPath);
-                //shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
-
-                //shaderSource = GlslPlacementResolver.ResolveUniformBlockPlacement(shaderSource, RSParser.GetUniformsBlocksFromRsFileInfos(rsFiles));
-                //shaderSource = GlslPlacementResolver.ResolveUniformPlacement(shaderSource, RSParser.GetUniformsFromRsFileInfos(rsFiles));
-                //shaderSource = GlslPlacementResolver.ResolveStructInstancePlacement(shaderSource, RSParser.GetStructuresInstanceFromFileInfos(rsFiles));
-                //shaderSource = GlslPlacementResolver.ResolveStructurePlacement(shaderSource, RSParser.GetStructuresFromFileInfos(rsFiles));
-                //shaderSource = GlslPlacementResolver.ResolveConstantPlacement(shaderSource, RSParser.GetConstFromFileInfos(rsFiles));
-                //shaderSource = GlslPlacementResolver.ResolveMethodPlacement(shaderSource, RSParser.GetMethodsFromRsFileInfos(rsFiles));
-
-                //var (vertexSource, fragmentSource) = GlslParser.ExtractShaderSources(shaderSource);
+                
                 string vertexSource = shader.Vertex.FullText;
                 string fragmentSource = shader.Fragment.FullText;
+                result.Vertex = vertexSource;
+                result.Fragment = fragmentSource;
 
                 var options = WindowOptions.Default;
                 options.Size = new Silk.NET.Maths.Vector2D<int>(1, 1);
@@ -84,6 +75,9 @@ namespace Editor
                     result.Log.AppendLine($"OpenGL версия: {*glVersion}");
                     result.Log.AppendLine($"GLSL версия: {*shaderVersion}");
 
+                    result.ShaderVersion = (*shaderVersion).ToString();
+                    result.GlVersion = (*glVersion).ToString();
+
                     uint vertexShader = CompileShader(gl, vertexSource, ShaderType.VertexShader, result);
                     if (vertexShader == 0)
                     {
@@ -92,6 +86,7 @@ namespace Editor
                         result.Log.AppendLine(vertexSource);
                         return result;
                     }
+                    result.VertexIsSucces = true;
 
                     uint fragmentShader = CompileShader(gl, fragmentSource, ShaderType.FragmentShader, result);
                     if (fragmentShader == 0)
@@ -103,6 +98,7 @@ namespace Editor
                         result.Log.AppendLine(fragmentSource);
                         return result;
                     }
+                    result.FragmentIsSucces = true;
 
                     result.Log.Append("Starting creating shader programm: ");
                     uint program = gl.CreateProgram();
@@ -128,6 +124,7 @@ namespace Editor
 
                     CacheAttributes(gl, program, result);
                     CacheUniforms(gl, program, result);
+                    CacheUniformBlocks(gl, program, result);
 
                     gl.DeleteShader(vertexShader);
                     gl.DeleteShader(fragmentShader);
@@ -147,12 +144,13 @@ namespace Editor
             catch (Exception ex)
             {
                 result.Success = false;
-                result.Message = "Произошла ошибка: " + ex.Message;
+                result.Message = ex.Message;
                 return result;
             }
             finally
             {
                 gl?.Dispose();
+                OnCompiled?.Invoke(result);
             }
         }
 
@@ -197,6 +195,8 @@ namespace Editor
             {
                 string attributeName = gl.GetActiveAttrib(handle, i, out int size, out AttributeType type);
                 uint location = (uint)gl.GetAttribLocation(handle, attributeName);
+
+                result.AttributeLocations[attributeName] = location;
                 result.Log.AppendLine($"Attribute:{attributeName} Location:{location} Type:{type}");
             }
             result.Log.AppendLine("\n");
@@ -211,19 +211,58 @@ namespace Editor
                 string uniformName = gl.GetActiveUniform(handle, (uint)i, out int size, out UniformType type);
                 int location = gl.GetUniformLocation(handle, uniformName);
 
+                result.UniformLocations[uniformName] = location;
+                result.UniformInfo[uniformName] = new UniformInfo
+                {
+                    Location = location,
+                    Size = size,
+                    Type = type,
+                    Name = uniformName
+                };
+
                 result.Log.AppendLine($"Name:{uniformName} Location:{location} Size:{size} Type:{type}");
             }
             result.Log.AppendLine($"===================");
+        }
+        private static unsafe void CacheUniformBlocks(GL gl, uint handle, CompilationGlslCodeResult result)
+        {
+            gl.GetProgram(handle, GLEnum.ActiveUniformBlocks, out int uniformBlockCount);
+
+            for (uint i = 0; i < uniformBlockCount; i++)
+            {
+                byte[] nameBuffer = new byte[256];
+                uint nameLength = 0;
+
+                fixed (byte* namePtr = nameBuffer)
+                {
+                    gl.GetActiveUniformBlockName(handle, i, (uint)nameBuffer.Length, &nameLength, namePtr);
+                    string name = Encoding.ASCII.GetString(nameBuffer, 0, (int)nameLength);
+                    uint blockIndex = gl.GetUniformBlockIndex(handle, name);
+                    result.UniformBlocks.Add(new UniformBlockData(name, blockIndex));
+                }
+            }
         }
 
     }
 
     public class CompilationGlslCodeResult
     {
+        public readonly Dictionary<string, int> UniformLocations = new Dictionary<string, int>();
+        public readonly Dictionary<string, uint> AttributeLocations = new Dictionary<string, uint>();
+        public readonly Dictionary<string, UniformInfo> UniformInfo = new Dictionary<string, UniformInfo>();
+        public readonly List<UniformBlockData> UniformBlocks = new List<UniformBlockData>();
         public bool Success { get; set; }
+        public string ShaderVersion { get; set; } = string.Empty;
+        public string GlVersion { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
-        public string FilePath { get; set; } = string.Empty;
+        public bool VertexIsSucces { get; set; } = false;
+        public string Vertex {  get; set; } = string.Empty;
+        public bool FragmentIsSucces { get; set; } = false;
+        public string Fragment { get; set; } = string.Empty;
+        public FileEvent? File { get; set; }
         public StringBuilder Log { get; set; } = new StringBuilder();
+
+
 
         public override string ToString()
         {
