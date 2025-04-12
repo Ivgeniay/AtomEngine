@@ -12,7 +12,7 @@ namespace Editor
     {
         public static Action<CompilationGlslCodeResult>? OnCompiled;
 
-        internal unsafe static CompilationGlslCodeResult TryToCompile(FileEvent e)
+        internal unsafe static CompilationGlslCodeResult TryToCompile(FileEvent e, bool withAvoke = true)
         {
             CompilationGlslCodeResult result = new CompilationGlslCodeResult();
             result.File = e;
@@ -149,7 +149,7 @@ namespace Editor
             finally
             {
                 gl?.Dispose();
-                OnCompiled?.Invoke(result);
+                if (withAvoke) OnCompiled?.Invoke(result);
             }
         }
 
@@ -225,21 +225,114 @@ namespace Editor
         }
         private static unsafe void CacheUniformBlocks(GL gl, uint handle, CompilationGlslCodeResult result)
         {
-            gl.GetProgram(handle, GLEnum.ActiveUniformBlocks, out int uniformBlockCount);
+            //gl.GetProgram(handle, GLEnum.ActiveUniformBlocks, out int uniformBlockCount);
 
+            //for (uint i = 0; i < uniformBlockCount; i++)
+            //{
+            //    byte[] nameBuffer = new byte[256];
+            //    uint nameLength = 0;
+
+            //    fixed (byte* namePtr = nameBuffer)
+            //    {
+            //        gl.GetActiveUniformBlockName(handle, i, (uint)nameBuffer.Length, &nameLength, namePtr);
+            //        string name = Encoding.ASCII.GetString(nameBuffer, 0, (int)nameLength);
+            //        uint blockIndex = gl.GetUniformBlockIndex(handle, name);
+            //        result.UniformBlocks.Add(new UniformBlockData(name, blockIndex));
+            //    }
+            //}
+
+            gl.GetProgram(handle, GLEnum.ActiveUniformBlocks, out int uniformBlockCount);
             for (uint i = 0; i < uniformBlockCount; i++)
             {
                 byte[] nameBuffer = new byte[256];
                 uint nameLength = 0;
-
                 fixed (byte* namePtr = nameBuffer)
                 {
                     gl.GetActiveUniformBlockName(handle, i, (uint)nameBuffer.Length, &nameLength, namePtr);
                     string name = Encoding.ASCII.GetString(nameBuffer, 0, (int)nameLength);
                     uint blockIndex = gl.GetUniformBlockIndex(handle, name);
-                    result.UniformBlocks.Add(new UniformBlockData(name, blockIndex));
+
+                    int blockSize = 0;
+                    gl.GetActiveUniformBlock(handle, i, GLEnum.UniformBlockDataSize, &blockSize);
+
+                    int activeUniforms = 0;
+                    gl.GetActiveUniformBlock(handle, i, GLEnum.UniformBlockActiveUniforms, &activeUniforms);
+
+                    int[] uniformIndices = new int[activeUniforms];
+                    gl.GetActiveUniformBlock(handle, i, GLEnum.UniformBlockActiveUniformIndices, uniformIndices);
+
+                    List<UniformMemberData> members = new List<UniformMemberData>();
+
+                    for (int j = 0; j < uniformIndices.Length; j++)
+                    {
+                        int uniformIndex = uniformIndices[j];
+
+                        byte[] uniformNameBuffer = new byte[256];
+                        uint uniformNameLength = 0;
+                        fixed (byte* uniformNamePtr = uniformNameBuffer)
+                        {
+                            gl.GetActiveUniformName(handle, (uint)uniformIndex, (uint)uniformNameBuffer.Length, &uniformNameLength, uniformNamePtr);
+                            string uniformName = Encoding.ASCII.GetString(uniformNameBuffer, 0, (int)uniformNameLength);
+
+                            int[] offsets = new int[1];
+                            fixed (int* offsetsPtr = offsets)
+                            {
+                                uint[] indices = new uint[] { (uint)uniformIndex };
+                                fixed (uint* indicesPtr = indices)
+                                {
+                                    gl.GetActiveUniforms(handle, 1, indicesPtr, GLEnum.UniformOffset, offsetsPtr);
+                                }
+                            }
+                            int offset = offsets[0];
+
+                            gl.GetActiveUniform(handle, (uint)uniformIndex, out int size, out UniformType type);
+
+                            int[] arrayStrides = new int[1];
+                            fixed (int* arrayStridesPtr = arrayStrides)
+                            {
+                                uint[] indices = new uint[] { (uint)uniformIndex };
+                                fixed (uint* indicesPtr = indices)
+                                {
+                                    gl.GetActiveUniforms(handle, 1, indicesPtr, GLEnum.UniformArrayStride, arrayStridesPtr);
+                                }
+                            }
+                            int arrayStride = arrayStrides[0];
+
+                            int[] matrixStrides = new int[1];
+                            fixed (int* matrixStridesPtr = matrixStrides)
+                            {
+                                uint[] indices = new uint[] { (uint)uniformIndex };
+                                fixed (uint* indicesPtr = indices)
+                                {
+                                    gl.GetActiveUniforms(handle, 1, indicesPtr, GLEnum.UniformMatrixStride, matrixStridesPtr);
+                                }
+                            }
+                            int matrixStride = matrixStrides[0];
+
+                            members.Add(new UniformMemberData(
+                                uniformName,
+                                (uint)uniformIndex,
+                                offset,
+                                size,
+                                type,
+                                arrayStride,
+                                matrixStride
+                            ));
+                        }
+                    }
+
+                    var blockData = new UniformBlockData(
+                        name,
+                        blockIndex,
+                        blockSize,
+                        activeUniforms,
+                        members
+                    );
+
+                    result.UniformBlocks.Add(blockData);
                 }
             }
+
         }
 
     }

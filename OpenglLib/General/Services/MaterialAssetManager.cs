@@ -65,16 +65,6 @@ namespace OpenglLib
         }
 
 
-        public void AssignShaderToMaterialFromGLSL(MaterialAsset material, string filePath)
-        {
-            if (material == null)
-            {
-                DebLogger.Error("Error assign shader to material. Material asset is not exist");
-                return;
-            }
-
-            
-        }
 
         public void AssignShaderToMaterialFromCS(MaterialAsset material, string shaderRepresentationGuid)
         {
@@ -143,6 +133,71 @@ namespace OpenglLib
                 DebLogger.Error($"Error processing shader representation file: {ex.Message}");
             }
         }
+        public void AssignShaderToMaterialFromGLSL(MaterialAsset material, string filePath)
+        {
+            if (material == null)
+            {
+                DebLogger.Error("Error assign shader to material. Material asset is not exist");
+                return;
+            }
+
+            if (!File.Exists(filePath))
+            {
+                DebLogger.Warn($"Shader file not found: {filePath}");
+                return;
+            }
+
+            try
+            {
+                string shaderGuid = metadataManager.GetMetadataByGuid(filePath).Guid;
+                if (string.IsNullOrWhiteSpace(shaderGuid))
+                {
+                    DebLogger.Error($"Impossible to create material from {filePath}");
+                }
+
+                var shaderModel = GlslExtractor.ExtractShaderModel(filePath);
+
+                material.ShaderRepresentationGuid = shaderGuid;
+                material.ClearContainers();
+
+                //ProcessUniforms(material, shaderModel.Vertex.Uniforms);
+                //ProcessUniforms(material, shaderModel.Fragment.Uniforms);
+
+                //ProcessUniformBlocks(material, shaderModel.Vertex.UniformsBlocks);
+                //ProcessUniformBlocks(material, shaderModel.Fragment.UniformsBlocks);
+
+                //ProcessStructInstances(material, shaderModel.Vertex.StructureInstances, shaderModel.Vertex.Structures);
+                //ProcessStructInstances(material, shaderModel.Fragment.StructureInstances, shaderModel.Fragment.Structures);
+
+                string path = GetPathFromAsset(material);
+                if (!string.IsNullOrEmpty(path))
+                {
+                    var materialMeta = metadataManager.GetMetadata(path);
+                    if (materialMeta == null || !materialMeta.Dependencies.Contains(shaderGuid))
+                    {
+                        var assetDepencyManager = ServiceHub.Get<AssetDependencyManager>();
+                        if (materialMeta != null && materialMeta.Dependencies.Count() > 0)
+                        {
+                            string[] temp = new string[materialMeta.Dependencies.Count()];
+                            materialMeta.Dependencies.CopyTo(temp);
+
+                            for (int i = 0; i < materialMeta.Dependencies.Count(); i++)
+                            {
+                                assetDepencyManager.RemoveDependencyFromPathByGuid(path, temp[i]);
+                            }
+                        }
+                        assetDepencyManager.AddDependencyFromPathByGuid(path, shaderGuid);
+                    }
+                    SaveMaterialAsset(material, path);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Error processing GLSL shader file: {ex.Message}");
+            }
+        }
+
+
 
         public virtual void SaveMaterialAsset(MaterialAsset material)
         {

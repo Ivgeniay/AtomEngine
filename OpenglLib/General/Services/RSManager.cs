@@ -13,7 +13,8 @@ namespace OpenglLib
         private ConcurrentDictionary<string, Dictionary<string, RSUBOTypeInfo>> _ubosByName = new ConcurrentDictionary<string, Dictionary<string, RSUBOTypeInfo>>();
         private ConcurrentDictionary<string, RSFileInfo> _processedRSFiles = new ConcurrentDictionary<string, RSFileInfo>();
 
-        
+        private AssemblyManager assemblyManager;
+
         public string OutputDirectory { get; set; } = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "GeneratedCode");
 
         public Task InitializeAsync()
@@ -22,6 +23,8 @@ namespace OpenglLib
             {
                 Directory.CreateDirectory(OutputDirectory);
             }
+
+            assemblyManager = ServiceHub.Get<AssemblyManager>();
             return Task.CompletedTask;
         }
 
@@ -360,23 +363,48 @@ namespace OpenglLib
                     rsFileInfo = RSParser.ParseContent(rsContent, rsFilePath);
                 }
 
+                if (rsFileInfo.UniformBlocks.Count() == 0 &&
+                    rsFileInfo.Uniforms.Count() == 0 &&
+                    rsFileInfo.StructureInstances.Count() == 0)
+                {
+                    return;
+                }
+
                 UpdateRSFileTypesWithGeneratedNames(rsFileInfo);
                 if (!Directory.Exists(OutputDirectory))  Directory.CreateDirectory(OutputDirectory);
 
-                string interfaceCode = InterfaceGenerator.GenerateInterface(rsFileInfo);
-                string interfacePath = Path.Combine(OutputDirectory, $"{registration.InterfaceName}.cs");
-                await Task.Delay(200);
-                File.WriteAllText(interfacePath, interfaceCode);
+                bool interfaceExists = assemblyManager.FindType(typeName: registration.InterfaceName, isFullName: false) != null ||
+                              assemblyManager.FindType(typeName: registration.InterfaceName, isFullName: true) != null;
 
-                string componentCode = ComponentGenerator.GenerateComponentTemplate(rsFileInfo);
-                string componentPath = Path.Combine(OutputDirectory, $"{registration.ComponentName}.cs");
-                await Task.Delay(200);
-                File.WriteAllText(componentPath, componentCode);
+                if (!interfaceExists)
+                {
+                    string interfaceCode = InterfaceGenerator.GenerateInterface(rsFileInfo);
+                    string interfacePath = Path.Combine(OutputDirectory, $"{registration.InterfaceName}.cs");
+                    await Task.Delay(200);
+                    File.WriteAllText(interfacePath, interfaceCode);
+                }
 
-                string systemCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rsFileInfo);
-                string systemPath = Path.Combine(OutputDirectory, $"{registration.SystemName}.cs");
-                await Task.Delay(200);
-                File.WriteAllText(systemPath, systemCode);
+                bool componentExists = assemblyManager.FindType(typeName: registration.ComponentName, isFullName: false) != null ||
+                              assemblyManager.FindType(typeName: registration.ComponentName, isFullName: true) != null;
+
+                if (!componentExists)
+                {
+                    string componentCode = ComponentGenerator.GenerateComponentTemplate(rsFileInfo);
+                    string componentPath = Path.Combine(OutputDirectory, $"{registration.ComponentName}.cs");
+                    await Task.Delay(200);
+                    File.WriteAllText(componentPath, componentCode);
+                }
+
+                bool systemExists = assemblyManager.FindType(typeName: registration.SystemName, isFullName: false) != null ||
+                           assemblyManager.FindType(typeName: registration.SystemName, isFullName: true) != null;
+
+                if (!systemExists)
+                {
+                    string systemCode = RenderSystemGenerator.GenerateRenderSystemTemplate(rsFileInfo);
+                    string systemPath = Path.Combine(OutputDirectory, $"{registration.SystemName}.cs");
+                    await Task.Delay(200);
+                    File.WriteAllText(systemPath, systemCode);
+                }
             }
             catch (Exception ex)
             {

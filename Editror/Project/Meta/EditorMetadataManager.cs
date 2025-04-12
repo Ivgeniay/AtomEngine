@@ -345,7 +345,7 @@ namespace Editor
             switch (result.File.FileExtension)
             {
                 case ".glsl":
-                    var meta = GetMetadata(result.File.FilePath);
+                    var meta = GetMetadata(result.File.FileFullPath);
                     FileMetadata newMeta;
                     if (result.Success)
                     {

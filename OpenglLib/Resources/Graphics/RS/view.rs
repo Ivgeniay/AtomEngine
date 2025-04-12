@@ -1,6 +1,6 @@
 ﻿[InterfaceName:IViewRender]
 [ComponentName:ViewComponent]
-[SystemName:ViewRenderSystem]
+[SystemName:ViewSetterRenderSystem]
 [RequiredComponent:MeshComponent]
 [PlaceTarget:Vertex]
 uniform mat4 model;

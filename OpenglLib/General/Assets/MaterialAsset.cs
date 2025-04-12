@@ -1,5 +1,4 @@
 ﻿using EngineLib;
-using Silk.NET.Maths;
 
 namespace OpenglLib
 {
