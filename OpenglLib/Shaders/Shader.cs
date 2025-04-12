@@ -3,6 +3,7 @@ using AtomEngine.RenderEntity;
 using EngineLib;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace OpenglLib

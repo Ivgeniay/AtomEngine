@@ -120,7 +120,6 @@ namespace OpenglLib
                     throw new InvalidOperationError("No available binding points for the program.");
                 }
 
-                // Берем точку привязки с наименьшим номером для эффективного использования
                 uint bindingPoint = bindingPool.Min();
                 bindingPool.Remove(bindingPoint);
                 return bindingPoint;
