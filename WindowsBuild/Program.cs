@@ -35,6 +35,7 @@ namespace WindowsBuild
             ServiceHub.RegisterService<ShaderTypeManager>();
             ServiceHub.RegisterService<RuntimeResourceManager>();
             ServiceHub.RegisterService<EventHub>();
+            ServiceHub.RegisterService<BindingPointService>();
             ServiceHub.RegisterService<DirectoryExplorer>(); //Нужно создать экземпляр для WindowsBuild, создать модели, зарегать все сраные пути из router
             ServiceHub.RegisterService<OpenGlExcludeSerializationTypeService>();
             ServiceHub.AddMapping<ExcludeSerializationTypeService, OpenGlExcludeSerializationTypeService>();
@@ -56,6 +57,7 @@ namespace WindowsBuild
 
             app.OnLoaded += (gl) =>
             {
+                ServiceHub.Get<BindingPointService>().UpdateMaxBindingPoints(gl); 
                 ResourceLoader.LoadResources(app.Gl, app.Assimp, router, assemblyManager, resourceManager);
                 sceneLoader.InitializeScene(scene, resourceManager);
             };

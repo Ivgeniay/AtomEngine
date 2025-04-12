@@ -12,6 +12,7 @@ namespace OpenglLib
         public readonly GL _gl;
 
         protected readonly ShaderTextureManager _shaderTextureManager;
+        protected readonly BindingPointService _bindingPointService;
 
         protected readonly Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
         protected readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
@@ -25,6 +26,7 @@ namespace OpenglLib
         {
             _gl = gl;
             _shaderTextureManager = new ShaderTextureManager(this);
+            _bindingPointService = ServiceHub.Get<BindingPointService>();
         }
 
         public void SetUpShader(string fullShader)
@@ -452,6 +454,9 @@ namespace OpenglLib
                     int blockSize = 0;
                     _gl.GetActiveUniformBlock(handle, i, GLEnum.UniformBlockDataSize, &blockSize);
 
+                    int bindingPoint = -1;
+                    _gl.GetActiveUniformBlock(handle, i, GLEnum.UniformBlockBinding, &bindingPoint);
+
                     int activeUniforms = 0;
                     _gl.GetActiveUniformBlock(handle, i, GLEnum.UniformBlockActiveUniforms, &activeUniforms);
 
@@ -532,24 +537,6 @@ namespace OpenglLib
         
         }
 
-        //private unsafe void CacheUniformBlocks()
-        //{
-        //    _gl.GetProgram(handle, GLEnum.ActiveUniformBlocks, out int uniformBlockCount);
-
-        //    for (uint i = 0; i < uniformBlockCount; i++)
-        //    {
-        //        byte[] nameBuffer = new byte[256];
-        //        uint nameLength = 0;
-
-        //        fixed (byte* namePtr = nameBuffer)
-        //        {
-        //            _gl.GetActiveUniformBlockName(handle, i, (uint)nameBuffer.Length, &nameLength, namePtr);
-        //            string name = Encoding.ASCII.GetString(nameBuffer, 0, (int)nameLength);
-        //            uint blockIndex = _gl.GetUniformBlockIndex(handle, name);
-        //            _uniformBlocks.Add(new UniformBlockData(name, blockIndex));
-        //        }
-        //    }
-        //}
 
         public override void Dispose()
         {
@@ -675,13 +662,15 @@ namespace OpenglLib
         public readonly int BlockSize;
         public readonly int ActiveUniforms;
         public readonly List<UniformMemberData> Members;
+        public readonly int BindingPoint;
 
         public UniformBlockData(
             string name,
             uint blockIndex,
             int blockSize,
             int activeUniforms,
-            List<UniformMemberData> members)
+            List<UniformMemberData> members,
+            int bindingPoint = -1)
         {
             Name = name;
             BlockIndex = blockIndex;

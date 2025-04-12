@@ -20,6 +20,7 @@ using MouseButton = Avalonia.Input.MouseButton;
 using OpenglLib;
 using EngineLib;
 using System.Threading;
+using Silk.NET.OpenGLES;
 
 namespace Editor
 {
@@ -428,6 +429,7 @@ namespace Editor
             try
             {
                 _gl = gl;
+                ServiceHub.Get<BindingPointService>().UpdateMaxBindingPoints(gl);
                 _isGlInitialized = true;
                 if (_sceneManager.CurrentScene != null)
                 {
