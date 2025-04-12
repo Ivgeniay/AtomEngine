@@ -43,11 +43,10 @@ namespace Editor
                 result.Log.AppendLine("full shader");
 
                 var shader = GlslExtractor.ExtractShaderModel(e.FileFullPath);
+                result.ShadeModel = shader;
                 
                 string vertexSource = shader.Vertex.FullText;
                 string fragmentSource = shader.Fragment.FullText;
-                result.Vertex = vertexSource;
-                result.Fragment = fragmentSource;
 
                 var options = WindowOptions.Default;
                 options.Size = new Silk.NET.Maths.Vector2D<int>(1, 1);
@@ -256,9 +255,8 @@ namespace Editor
         public string GlVersion { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public bool VertexIsSucces { get; set; } = false;
-        public string Vertex {  get; set; } = string.Empty;
         public bool FragmentIsSucces { get; set; } = false;
-        public string Fragment { get; set; } = string.Empty;
+        public GlslShaderModel ShadeModel { get; set; }
         public FileEvent? File { get; set; }
         public StringBuilder Log { get; set; } = new StringBuilder();
 

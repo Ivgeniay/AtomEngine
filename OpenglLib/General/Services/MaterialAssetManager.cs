@@ -9,11 +9,13 @@ namespace OpenglLib
         public const string MATERIAL_EXT_MASK = "*.mat";
 
         protected EventHub eventHub;
+        protected MetadataManager metadataManager;
         protected Dictionary<string, MaterialAsset> _cacheMaterialAssets = new Dictionary<string, MaterialAsset>();
 
         public virtual Task InitializeAsync()
         {
             eventHub = ServiceHub.Get<EventHub>();
+            metadataManager = ServiceHub.Get<MetadataManager>();
             return Task.CompletedTask;
         }
 
@@ -33,7 +35,7 @@ namespace OpenglLib
                     );
                 }
                 var material = CreateEmptyMaterialAsset(directory, nameWithoutExt);
-                AssignShaderToMaterial(material, shaderRepresentationGuid);
+                AssignShaderToMaterialFromCS(material, shaderRepresentationGuid);
             }
             else
             {
@@ -63,7 +65,7 @@ namespace OpenglLib
         }
 
 
-        public void AssignShaderToMaterial(MaterialAsset material, string shaderRepresentationGuid)
+        public void AssignShaderToMaterialFromGLSL(MaterialAsset material, string filePath)
         {
             if (material == null)
             {
@@ -71,7 +73,17 @@ namespace OpenglLib
                 return;
             }
 
-            MetadataManager metadataManager = ServiceHub.Get<MetadataManager>();
+            
+        }
+
+        public void AssignShaderToMaterialFromCS(MaterialAsset material, string shaderRepresentationGuid)
+        {
+            if (material == null)
+            {
+                DebLogger.Error("Error assign shader to material. Material asset is not exist");
+                return;
+            }
+
             string filePath = metadataManager.GetPathByGuid(shaderRepresentationGuid);
 
             if (!File.Exists(filePath))
@@ -80,23 +92,6 @@ namespace OpenglLib
                 return;
             }
 
-            if (Path.HasExtension(filePath))
-            {
-                var extension = Path.GetExtension(filePath);
-                if (extension.Contains("cs"))
-                {
-                    AssignShaderToMaterialFromCS(material, shaderRepresentationGuid, metadataManager, filePath);
-                }
-
-                if (extension.Contains("glsl"))
-                {
-
-                }
-            }
-        }
-
-        private void AssignShaderToMaterialFromCS(MaterialAsset material, string shaderRepresentationGuid, MetadataManager metadataManager, string filePath)
-        {
             material.ShaderRepresentationGuid = shaderRepresentationGuid;
 
             try

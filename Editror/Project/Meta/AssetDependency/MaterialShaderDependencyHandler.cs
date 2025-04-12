@@ -28,7 +28,7 @@ namespace Editor
 
                 if (material.ShaderRepresentationGuid == dependencyMeta.Guid)
                 {
-                    _materialManager.AssignShaderToMaterial(material, dependencyMeta.Guid);
+                    _materialManager.AssignShaderToMaterialFromCS(material, dependencyMeta.Guid);
                 }
             }
             catch (Exception ex)

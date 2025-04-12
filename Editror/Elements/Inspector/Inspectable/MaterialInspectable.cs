@@ -1,12 +1,9 @@
 ﻿using System.Collections.Generic;
 using Avalonia.Controls;
-using System.IO;
-using System;
 using Avalonia.Layout;
-using AtomEngine;
+using System.IO;
 using EngineLib;
 using OpenglLib;
-using System.Linq;
 
 namespace Editor
 {
@@ -54,7 +51,7 @@ namespace Editor
                     var metadata = metaService.GetMetadata(selectedValue as string);
                     if (metadata != null && metadata is ShaderMetadata shaderMeta)
                     {
-                        _materialAssetManager.AssignShaderToMaterial(_materialAsset, metadata.Guid);
+                        _materialAssetManager.AssignShaderToMaterialFromCS(_materialAsset, metadata.Guid);
                     }
                 };
 
@@ -108,7 +105,6 @@ namespace Editor
                 ? container.Name
                 : currentPath;
 
-            // Обработка различных типов контейнеров
             if (container is MaterialUniformDataContainer uniformContainer)
             {
                 yield return CreatePropertyDescriptorForUniform(uniformContainer, currentPath, displayName);

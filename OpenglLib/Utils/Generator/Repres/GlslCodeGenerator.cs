@@ -1,13 +1,19 @@
-﻿using AtomEngine;
+﻿using System.Collections.Concurrent;
+using AtomEngine;
 using EngineLib;
-using System.Collections.Concurrent;
 
 namespace OpenglLib
 {
     public static class GlslCodeGenerator
     {
-        public async static Task<string> GenerateCode(string sourcePath, string outputDirectory, string sourceGuid = null)
+        public async static Task GenerateCode(string sourcePath, string outputDirectory, ShaderUniformCacheData uniformCacheData, string sourceGuid = null)
         {
+            if (uniformCacheData == null)
+            {
+                DebLogger.Error("Impossible generate shader C# representation withou uniform data");
+                return;
+            }
+
             if (!Directory.Exists(outputDirectory))
             {
                 Directory.CreateDirectory(outputDirectory);
@@ -176,19 +182,23 @@ namespace OpenglLib
                     shaderModel: shader,
                     rsFiles: shader.RSFiles);
 
-                return resultRepresentationName;
-
-
             }
             catch (Exception ex)
             {
                 DebLogger.Error($"{ex.Message}");
-                return null;
+                return;
             }
         }
 
     }
 
+    public class ShaderUniformCacheData
+    {
+        public Dictionary<string, int> UniformLocations = new Dictionary<string, int>();
+        public Dictionary<string, uint> AttributeLocations = new Dictionary<string, uint>();
+        public Dictionary<string, UniformInfo> UniformInfo = new Dictionary<string, UniformInfo>();
+        public List<UniformBlockData> UniformBlocks = new List<UniformBlockData>();
+    }
 
     public static class ShaderStructureInstanceProcessor
     {

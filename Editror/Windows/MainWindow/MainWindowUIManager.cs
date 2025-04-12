@@ -256,9 +256,35 @@ namespace Editor
                             progress.Report((0, $"Generating from {e.FileName}..."));
                             string outputDirectoryName = e.FileName.Contains(".") ? e.FileName.Substring(0, e.FileName.IndexOf(".")) : e.FileName;
                             outputDirectoryName = Path.Combine(e.FilePath, outputDirectoryName);
-                            await GenerateCode.Generate(e.FileFullPath, outputDirectoryName);
-                            progress.Report((90, $"Generating from {e.FileName}..."));
-                            await Task.Delay(1000);
+
+                            string assetpath = ServiceHub.Get<DirectoryExplorer>().GetPath<AssetsDirectory>();
+                            FileEvent fileEvent = new FileEvent();
+                            fileEvent.FileFullPath = e.FileFullPath;
+                            fileEvent.FileName = Path.GetFileNameWithoutExtension(e.FileFullPath);
+                            fileEvent.FileExtension = Path.GetExtension(e.FileFullPath);
+                            fileEvent.FilePath = e.FileFullPath.Substring(assetpath.Length);
+
+                            var result = GlslCompiler.TryToCompile(fileEvent);
+                            if (result.Success)
+                            {
+                                progress.Report((90, $"Generating from {e.FileName}..."));
+                                await Task.Delay(1000);
+
+                                DebLogger.Info(result.Log);
+                                ShaderUniformCacheData uniformCacheData = new ShaderUniformCacheData()
+                                {
+                                    AttributeLocations = result.AttributeLocations,
+                                    UniformLocations = result.UniformLocations,
+                                    UniformBlocks = result.UniformBlocks,
+                                    UniformInfo = result.UniformInfo,
+                                };
+                                await GlslCodeGenerator.GenerateCode(e.FileFullPath, outputDirectoryName, uniformCacheData);
+                            }
+                            else
+                            {
+                                DebLogger.Error(result.Log);
+                            }
+
                         });
                         ProjectConfigurations pConf = ServiceHub.Get<Configuration>().GetConfiguration<ProjectConfigurations>(ConfigurationSource.ProjectConfigs);
                         await ServiceHub.Get<ScriptSyncSystem>().RebuildProject(pConf.BuildType);
