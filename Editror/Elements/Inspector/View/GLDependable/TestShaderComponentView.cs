@@ -16,7 +16,10 @@ namespace Editor
         public override Control GetView()
         {
             EntityInspectorContext context = (EntityInspectorContext)descriptor.Context;
-            context.EntityId;
+            //context.EntityId;
+
+
+            return null;
         }
     }
 }

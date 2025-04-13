@@ -11,11 +11,15 @@ namespace OpenglLib
         protected List<Material> _materials = new List<Material>();
         protected TextureFactory _textureFactory;
         protected AssemblyManager _assemblyManager;
+        protected MaterialAssetManager _materialAssetManager;
+        protected MetadataManager _metadataManager;
 
         public virtual Task InitializeAsync()
         {
             _textureFactory = ServiceHub.Get<TextureFactory>();
             _assemblyManager = ServiceHub.Get<AssemblyManager>();
+            _materialAssetManager = ServiceHub.Get<MaterialAssetManager>();
+            _metadataManager = ServiceHub.Get<MetadataManager>();
 
             return Task.CompletedTask;
         }
@@ -44,7 +48,8 @@ namespace OpenglLib
         {
             try
             {
-                MaterialAsset materialAsset = ServiceHub.Get<MaterialAssetManager>().GetMaterialAssetByPath(materialAssetPath);
+                if (_materialAssetManager == null) _materialAssetManager = ServiceHub.Get<MaterialAssetManager>();
+                MaterialAsset materialAsset = _materialAssetManager.GetMaterialAssetByPath(materialAssetPath);
                 if (materialAsset == null)
                 {
                     DebLogger.Error($"Не удалось загрузить material asset из пути: {materialAssetPath}");
@@ -86,56 +91,13 @@ namespace OpenglLib
             }
         }
 
-        public virtual Material GetMaterialInstanceFromAsset(GL gl, MaterialAsset materialAsset)
-        {
-            if (materialAsset == null)
-            {
-                DebLogger.Error("MaterialAsset is null");
-                return null;
-            }
-
-            Material? material = _materials.FirstOrDefault(e => 
-                    e.MaterialAsset.Guid == materialAsset.Guid &&
-                    e.GLContext == gl
-                    );
-
-            if (material != null)
-            {
-                return material;
-            }
-
-            try
-            {
-                if (!materialAsset.HasValidShader)
-                {
-                    DebLogger.Warn($"Material {materialAsset} doesn't have a valid shader assigned.");
-                    return null;
-                }
-
-                var instance = CreateShaderRepresentationInstance(gl, materialAsset.ShaderRepresentationTypeName);
-                if (instance == null)
-                {
-                    return null;
-                }
-                material = new Material(gl, instance, materialAsset);
-                _materials.Add(material);
-                //SetUniformValues(instance, materialAsset.UniformValues);
-                //SetTextures(material, materialAsset.TextureReferences);
-
-                return material;
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Ошибка создания экземпляра материала: {ex.Message}");
-                return null;
-            }
-        }
 
         public virtual Material GetMaterialInstanceFromAssetPath(GL gl, string materialPath)
         {
             try
             {
-                MaterialAsset material = ServiceHub.Get<MaterialAssetManager>().GetMaterialAssetByPath(materialPath);
+                if (_materialAssetManager == null) _materialAssetManager = ServiceHub.Get<MaterialAssetManager>();
+                MaterialAsset material = _materialAssetManager.GetMaterialAssetByPath(materialPath);
                 if (material == null)
                 {
                     DebLogger.Error($"Не удалось загрузить material asset из пути: {materialPath}");
@@ -171,6 +133,63 @@ namespace OpenglLib
             }
         }
 
+        public virtual Material GetMaterialInstanceFromAsset(GL gl, MaterialAsset materialAsset)
+        {
+            if (materialAsset == null)
+            {
+                DebLogger.Error("MaterialAsset is null");
+                return null;
+            }
+
+            Material? material = _materials.FirstOrDefault(e => 
+                    e.MaterialAsset.Guid == materialAsset.Guid &&
+                    e.GLContext == gl
+                    );
+
+            if (material != null)
+            {
+                return material;
+            }
+
+            try
+            {
+                if (!materialAsset.HasValidShader)
+                {
+                    DebLogger.Warn($"Material {materialAsset} doesn't have a valid shader assigned.");
+                    return null;
+                }
+
+                OpenglLib.Shader instance = null;
+                if (string.IsNullOrWhiteSpace(materialAsset.ShaderRepresentationTypeName))
+                {
+                    instance = CreateShaderInstance(gl, materialAsset);
+                }
+                else
+                {
+                    instance = CreateShaderRepresentationInstance(gl, materialAsset.ShaderRepresentationTypeName);
+                }
+
+
+                if (instance == null)
+                {
+                    return null;
+                }
+                material = new Material(gl, instance, materialAsset);
+                material.Factory = this;
+                _materials.Add(material);
+
+                //SetUniformValues(instance, materialAsset.UniformValues);
+                //SetTextures(material, materialAsset.TextureReferences);
+
+                return material;
+            }
+            catch (Exception ex)
+            {
+                DebLogger.Error($"Ошибка создания экземпляра материала: {ex.Message}");
+                return null;
+            }
+        }
+
         protected IEnumerable<Material> GetMaterialsFrom(string materialAssetGuid)
         {
             foreach(var material in _materials)
@@ -178,6 +197,25 @@ namespace OpenglLib
                 if (material.IsValid && material.MaterialAsset.Guid == materialAssetGuid)
                     yield return material;
             }
+        }
+
+
+        protected virtual Shader CreateShaderInstance(GL gl, MaterialAsset materialAsset)
+        {
+            try
+            {
+                var shaderPath = _metadataManager.GetPathByGuid(materialAsset.ShaderGuid);
+                var shaderModel = GlslExtractor.ExtractShaderModel(shaderPath);
+                Shader shader = new Shader(gl);
+                shader.SetUpShader(shaderModel.Vertex.FullText, shaderModel.Fragment.FullText);
+                return shader;
+            }
+            catch
+            {
+                DebLogger.Error("Error creation shader instance");
+                return null;
+            }
+
         }
 
         protected virtual Shader CreateShaderRepresentationInstance(GL gl, string typeName)
@@ -283,21 +321,8 @@ namespace OpenglLib
 
             try
             {
+                material.Use();
                 material.SetUniform(name, value);
-
-                //material.MaterialAsset.UniformValues[name] = value;
-                //if (material.IsValid)
-                //{
-                //    //material.Shader.SetUniform(name, value);
-                //    PropertyInfo property = shaderType.GetProperty(name);
-                //    if (property != null && property.CanWrite)
-                //    {
-                //        object convertedValue = ConvertValueToTargetType(value, property.PropertyType);
-                //        Type type = convertedValue.GetType();
-                //        material.Shader.Use();
-                //        property.SetValue(material.Shader, convertedValue);
-                //    }
-                //}
             }
             catch (Exception ex)
             {

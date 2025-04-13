@@ -8,6 +8,7 @@ using Avalonia;
 using System;
 using Avalonia.Controls.Templates;
 using Avalonia.Controls.Primitives;
+using EngineLib;
 
 
 namespace Editor

@@ -5,6 +5,7 @@ using AtomEngine;
 using EngineLib;
 using Avalonia;
 using System;
+using OpenglLib;
 
 namespace Editor
 {

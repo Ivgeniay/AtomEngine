@@ -91,7 +91,7 @@ namespace OpenglLib
                 }
                 else if (extension.Contains("glsl"))
                 {
-                    AssignShaderToMaterialFromGLSL(material, shaderRepresentationGuid);
+                    AssignShaderToMaterialFromGLSL(material, filePath);
                 }
             }
         }

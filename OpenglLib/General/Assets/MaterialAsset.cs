@@ -4,9 +4,9 @@ namespace OpenglLib
 {
     public class MaterialAsset : Asset
     {
-        public string ShaderRepresentationGuid { get; set; } = string.Empty;
-        public string ShaderRepresentationTypeName { get; set; } = string.Empty;
-        public bool HasValidShader => !string.IsNullOrEmpty(ShaderRepresentationGuid);
+        public string ShaderGuid { get; set; } = string.Empty;
+        public string? ShaderRepresentationTypeName { get; set; } = string.Empty;
+        public bool HasValidShader => !string.IsNullOrEmpty(ShaderGuid);
 
         public Dictionary<string, string> TextureReferences { get; set; } = new Dictionary<string, string>();
 

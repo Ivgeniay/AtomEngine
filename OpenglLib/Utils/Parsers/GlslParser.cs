@@ -3,6 +3,7 @@ using System.Text;
 using AtomEngine;
 using EngineLib;
 using Silk.NET.OpenGL;
+using Silk.NET.Maths;
 
 namespace OpenglLib
 {
@@ -585,6 +586,291 @@ namespace OpenglLib
                     return false;
             }
         }
+
+        public static bool IsMatrixType(UniformType type)
+        {
+            switch (type) {
+                case UniformType.FloatMat2:
+                case UniformType.FloatMat3:
+                case UniformType.FloatMat4:
+                case UniformType.FloatMat2x3:
+                case UniformType.FloatMat2x4:
+                case UniformType.FloatMat3x2:
+                case UniformType.FloatMat3x4:
+                case UniformType.FloatMat4x2:
+                case UniformType.FloatMat4x3:
+                case UniformType.DoubleMat2:
+                case UniformType.DoubleMat3:
+                case UniformType.DoubleMat4:
+                case UniformType.DoubleMat2x3:
+                case UniformType.DoubleMat2x4:
+                case UniformType.DoubleMat3x2:
+                case UniformType.DoubleMat3x4:
+                case UniformType.DoubleMat4x2:
+                case UniformType.DoubleMat4x3:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+        public static Type MapUniformTypeToSystemType(UniformType uniformType)
+        {
+            switch (uniformType)
+            {
+                case UniformType.Int:
+                    return typeof(int);
+                case UniformType.UnsignedInt:
+                    return typeof(uint);
+                case UniformType.Float:
+                    return typeof(float);
+                case UniformType.Double:
+                    return typeof(double);
+                case UniformType.Bool:
+                    return typeof(bool);
+
+                case UniformType.FloatVec2:
+                    return typeof(Vector2D<float>);
+                case UniformType.FloatVec3:
+                    return typeof(Vector3D<float>);
+                case UniformType.FloatVec4:
+                    return typeof(Vector4D<float>);
+
+                case UniformType.IntVec2:
+                    return typeof(Vector2D<int>);
+                case UniformType.IntVec3:
+                    return typeof(Vector3D<int>);
+                case UniformType.IntVec4:
+                    return typeof(Vector4D<int>);
+
+                case UniformType.UnsignedIntVec2:
+                    return typeof(Vector2D<uint>);
+                case UniformType.UnsignedIntVec3:
+                    return typeof(Vector3D<uint>);
+                case UniformType.UnsignedIntVec4:
+                    return typeof(Vector4D<uint>);
+
+                case UniformType.DoubleVec2:
+                    return typeof(Vector2D<double>);
+                case UniformType.DoubleVec3:
+                    return typeof(Vector3D<double>);
+                case UniformType.DoubleVec4:
+                    return typeof(Vector4D<double>);
+
+                case UniformType.FloatMat2:
+                    return typeof(Matrix2X2<float>);
+                case UniformType.FloatMat3:
+                    return typeof(Matrix3X3<float>);
+                case UniformType.FloatMat4:
+                    return typeof(Matrix4X4<float>);
+                case UniformType.FloatMat2x3:
+                    return typeof(Matrix2X3<float>);
+                case UniformType.FloatMat2x4:
+                    return typeof(Matrix2X4<float>);
+                case UniformType.FloatMat3x2:
+                    return typeof(Matrix3X2<float>);
+                case UniformType.FloatMat3x4:
+                    return typeof(Matrix3X4<float>);
+                case UniformType.FloatMat4x2:
+                    return typeof(Matrix4X2<float>);
+                case UniformType.FloatMat4x3:
+                    return typeof(Matrix4X3<float>);
+
+                case UniformType.DoubleMat2:
+                    return typeof(Matrix2X2<double>);
+                case UniformType.DoubleMat3:
+                    return typeof(Matrix3X3<double>);
+                case UniformType.DoubleMat4:
+                    return typeof(Matrix4X4<double>);
+                case UniformType.DoubleMat2x3:
+                    return typeof(Matrix2X3<double>);
+                case UniformType.DoubleMat2x4:
+                    return typeof(Matrix2X4<double>);
+                case UniformType.DoubleMat3x2:
+                    return typeof(Matrix3X2<double>);
+                case UniformType.DoubleMat3x4:
+                    return typeof(Matrix3X4<double>);
+                case UniformType.DoubleMat4x2:
+                    return typeof(Matrix4X2<double>);
+                case UniformType.DoubleMat4x3:
+                    return typeof(Matrix4X3<double>);
+
+                case UniformType.Sampler1D:
+                case UniformType.Sampler2D:
+                case UniformType.Sampler3D:
+                case UniformType.SamplerCube:
+                case UniformType.Sampler1DShadow:
+                case UniformType.Sampler2DShadow:
+                case UniformType.Sampler2DRect:
+                case UniformType.Sampler2DRectShadow:
+                case UniformType.Sampler1DArray:
+                case UniformType.Sampler2DArray:
+                case UniformType.SamplerBuffer:
+                case UniformType.Sampler1DArrayShadow:
+                case UniformType.Sampler2DArrayShadow:
+                case UniformType.SamplerCubeShadow:
+                case UniformType.IntSampler1D:
+                case UniformType.IntSampler2D:
+                case UniformType.IntSampler3D:
+                case UniformType.IntSamplerCube:
+                case UniformType.IntSampler2DRect:
+                case UniformType.IntSampler1DArray:
+                case UniformType.IntSampler2DArray:
+                case UniformType.IntSamplerBuffer:
+                case UniformType.UnsignedIntSampler1D:
+                case UniformType.UnsignedIntSampler2D:
+                case UniformType.UnsignedIntSampler3D:
+                case UniformType.UnsignedIntSamplerCube:
+                case UniformType.UnsignedIntSampler2DRect:
+                case UniformType.UnsignedIntSampler1DArray:
+                case UniformType.UnsignedIntSampler2DArray:
+                case UniformType.UnsignedIntSamplerBuffer:
+                case UniformType.SamplerCubeMapArray:
+                case UniformType.SamplerCubeMapArrayShadow:
+                case UniformType.IntSamplerCubeMapArray:
+                case UniformType.UnsignedIntSamplerCubeMapArray:
+                case UniformType.Sampler2DMultisample:
+                case UniformType.IntSampler2DMultisample:
+                case UniformType.UnsignedIntSampler2DMultisample:
+                case UniformType.Sampler2DMultisampleArray:
+                case UniformType.IntSampler2DMultisampleArray:
+                case UniformType.UnsignedIntSampler2DMultisampleArray:
+                    return typeof(string);
+
+                default:
+                    return typeof(float);
+            }
+        }
+
+        public static object GetDefaultValueForType(UniformType uniformType)
+        {
+            switch (uniformType)
+            {
+                case UniformType.Int:
+                    return 0;
+                case UniformType.UnsignedInt:
+                    return 0u;
+                case UniformType.Float:
+                    return 0.0f;
+                case UniformType.Double:
+                    return 0.0;
+                case UniformType.Bool:
+                    return false;
+
+                case UniformType.FloatVec2:
+                    return new Vector2D<float>(0, 0);
+                case UniformType.FloatVec3:
+                    return new Vector3D<float>(0, 0, 0);
+                case UniformType.FloatVec4:
+                    return new Vector4D<float>(0, 0, 0, 0);
+
+                case UniformType.IntVec2:
+                    return new Vector2D<int>(0, 0);
+                case UniformType.IntVec3:
+                    return new Vector3D<int>(0, 0, 0);
+                case UniformType.IntVec4:
+                    return new Vector4D<int>(0, 0, 0, 0);
+
+                case UniformType.UnsignedIntVec2:
+                    return new Vector2D<uint>(0, 0);
+                case UniformType.UnsignedIntVec3:
+                    return new Vector3D<uint>(0, 0, 0);
+                case UniformType.UnsignedIntVec4:
+                    return new Vector4D<uint>(0, 0, 0, 0);
+
+
+                case UniformType.DoubleVec2:
+                    return new Vector2D<double>(0, 0);
+                case UniformType.DoubleVec3:
+                    return new Vector3D<double>(0, 0, 0);
+                case UniformType.DoubleVec4:
+                    return new Vector4D<double>(0, 0, 0, 0);
+
+                case UniformType.FloatMat2:
+                    return Matrix2X2<float>.Identity;
+                case UniformType.FloatMat3:
+                    return Matrix3X3<float>.Identity;
+                case UniformType.FloatMat4:
+                    return Matrix4X4<float>.Identity;
+                case UniformType.FloatMat2x3:
+                    return Matrix2X3<float>.Identity;
+                case UniformType.FloatMat2x4:
+                    return Matrix2X4<float>.Identity;
+                case UniformType.FloatMat3x2:
+                    return Matrix3X2<float>.Identity;
+                case UniformType.FloatMat3x4:
+                    return Matrix3X4<float>.Identity;
+                case UniformType.FloatMat4x2:
+                    return Matrix4X2<float>.Identity;
+                case UniformType.FloatMat4x3:
+                    return Matrix4X3<float>.Identity;
+
+                case UniformType.DoubleMat2:
+                    return Matrix2X2<double>.Identity;
+                case UniformType.DoubleMat3:
+                    return Matrix3X3<double>.Identity;
+                case UniformType.DoubleMat4:
+                    return Matrix4X4<double>.Identity;
+                case UniformType.DoubleMat2x3:
+                    return Matrix2X3<double>.Identity;
+                case UniformType.DoubleMat2x4:
+                    return Matrix2X4<double>.Identity;
+                case UniformType.DoubleMat3x2:
+                    return Matrix3X2<double>.Identity;
+                case UniformType.DoubleMat3x4:
+                    return Matrix3X4<double>.Identity;
+                case UniformType.DoubleMat4x2:
+                    return Matrix4X2<double>.Identity;
+                case UniformType.DoubleMat4x3:
+                    return Matrix4X3<double>.Identity;
+
+                case UniformType.Sampler1D:
+                case UniformType.Sampler2D:
+                case UniformType.Sampler3D:
+                case UniformType.SamplerCube:
+                case UniformType.Sampler1DShadow:
+                case UniformType.Sampler2DShadow:
+                case UniformType.Sampler2DRect:
+                case UniformType.Sampler2DRectShadow:
+                case UniformType.Sampler1DArray:
+                case UniformType.Sampler2DArray:
+                case UniformType.SamplerBuffer:
+                case UniformType.Sampler1DArrayShadow:
+                case UniformType.Sampler2DArrayShadow:
+                case UniformType.SamplerCubeShadow:
+                case UniformType.IntSampler1D:
+                case UniformType.IntSampler2D:
+                case UniformType.IntSampler3D:
+                case UniformType.IntSamplerCube:
+                case UniformType.IntSampler2DRect:
+                case UniformType.IntSampler1DArray:
+                case UniformType.IntSampler2DArray:
+                case UniformType.IntSamplerBuffer:
+                case UniformType.UnsignedIntSampler1D:
+                case UniformType.UnsignedIntSampler2D:
+                case UniformType.UnsignedIntSampler3D:
+                case UniformType.UnsignedIntSamplerCube:
+                case UniformType.UnsignedIntSampler2DRect:
+                case UniformType.UnsignedIntSampler1DArray:
+                case UniformType.UnsignedIntSampler2DArray:
+                case UniformType.UnsignedIntSamplerBuffer:
+                case UniformType.SamplerCubeMapArray:
+                case UniformType.SamplerCubeMapArrayShadow:
+                case UniformType.IntSamplerCubeMapArray:
+                case UniformType.UnsignedIntSamplerCubeMapArray:
+                case UniformType.Sampler2DMultisample:
+                case UniformType.IntSampler2DMultisample:
+                case UniformType.UnsignedIntSampler2DMultisample:
+                case UniformType.Sampler2DMultisampleArray:
+                case UniformType.IntSampler2DMultisampleArray:
+                case UniformType.UnsignedIntSampler2DMultisampleArray:
+                    return string.Empty;
+
+                default:
+                    return 0.0f;
+            }
+        }
+
 
         public static int? ResolveArraySizeIdentifier(string sourceCode, string identifier)
         {

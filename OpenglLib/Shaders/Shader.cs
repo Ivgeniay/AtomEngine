@@ -26,18 +26,17 @@ namespace OpenglLib
         protected string VertexSource;
         protected string FragmentSource;
 
-        public Shader(GL gl, string vertexSource = "", string fragmentSource = "")
+        public Shader(GL gl)
         {
             _gl = gl;
             _shaderTextureManager = new ShaderTextureManager(this);
             _bindingPointService = ServiceHub.Get<BindingPointService>();
         }
 
-        public void SetUpShader(string fullShader)
-        {
-            var (sourceVertex, sourceFragment) = GlslParser.ExtractShaderSources(fullShader);
-            SetUpShader(sourceVertex, sourceFragment);
-        }
+        //public void SetUpShaderFromGlsl(string vertexSource, string fragmentSource)
+        //{
+        //    SetUpShader(vertexSource, fragmentSource);
+        //}
 
         public void SetUpShader(string vertexSource = "", string fragmentSource = "")
         {

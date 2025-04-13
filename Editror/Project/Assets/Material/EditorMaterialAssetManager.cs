@@ -1,12 +1,11 @@
 ﻿using System.Threading.Tasks;
-using System.Numerics;
 using System.Linq;
 using AtomEngine;
 using System.IO;
 using EngineLib;
 using OpenglLib;
 using System;
-using System.ComponentModel;
+using Silk.NET.Maths;
 
 namespace Editor
 {
@@ -102,7 +101,7 @@ namespace Editor
 
             try
             {
-                string shaderGuid = metadataManager.GetMetadataByGuid(filePath).Guid;
+                string shaderGuid = metadataManager.GetMetadata(filePath).Guid;
                 if (string.IsNullOrWhiteSpace(shaderGuid))
                 {
                     DebLogger.Error($"Impossible to create material from {filePath}");
@@ -110,7 +109,8 @@ namespace Editor
 
                 var shaderModel = GlslExtractor.ExtractShaderModel(filePath);
 
-                material.ShaderRepresentationGuid = shaderGuid;
+                material.ShaderRepresentationTypeName = string.Empty;
+                material.ShaderGuid = shaderGuid;
                 material.ClearContainers();
 
                 string assetpath = ServiceHub.Get<DirectoryExplorer>().GetPath<AssetsDirectory>();
@@ -121,16 +121,35 @@ namespace Editor
                 fileEvent.FilePath = filePath.Substring(assetpath.Length);
                 var result = GlslCompiler.TryToCompile(fileEvent, false);
 
-                foreach (var item in result.UniformLocations)
+                foreach (var uniformItem in result.UniformInfo)
                 {
+                    if (GlslParser.IsSamplerType(uniformItem.Value.Type))
+                        continue;
+
+                    if (GlslParser.IsMatrixType(uniformItem.Value.Type))
+                        continue;
+
+                    Type t = GlslParser.MapUniformTypeToSystemType(uniformItem.Value.Type);
                     material.AddContainer(new MaterialUniformDataContainer()
                     {
-                        Name = item.Key,
-                        Value = 0,
-                        Location = item.Value
+                        Name = uniformItem.Key,
+                        TypeName = t.ToString(),
+                        Location = uniformItem.Value.Location,
+                        Type = t,
+                        Value = GlslParser.GetDefaultValueForType(uniformItem.Value.Type)
                     });
                 }
 
+                foreach (var samplerItem in result.SamplerInfo)
+                {
+                    material.AddContainer(new MaterialSamplerDataContainer()
+                    {
+                        Name = samplerItem.Key,
+                        TypeName = samplerItem.Value.Type.ToString(),
+                        Location = samplerItem.Value.Location,
+                        TextureGuid = string.Empty
+                    });
+                }
 
                 string path = GetPathFromAsset(material);
                 if (!string.IsNullOrEmpty(path))
@@ -176,7 +195,7 @@ namespace Editor
                 return;
             }
 
-            material.ShaderRepresentationGuid = shaderRepresentationGuid;
+            material.ShaderGuid = shaderRepresentationGuid;
 
             try
             {
@@ -193,6 +212,7 @@ namespace Editor
                     DebLogger.Warn($"Could not extract namespace or class name from file: {filePath}");
                     DefaultGettingRepTymeName(material, filePath);
                 }
+                material.ClearContainers();
 
                 var uniformContainers = ShaderRepresentationAnalyzer.AnalyzeShaderRepresentation(material.ShaderRepresentationTypeName, fileContent);
                 foreach (var container in uniformContainers)

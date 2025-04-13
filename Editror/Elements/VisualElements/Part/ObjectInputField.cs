@@ -7,6 +7,7 @@ using Avalonia;
 using System;
 using System.Linq;
 using System.IO;
+using EngineLib;
 
 namespace Editor
 {

@@ -26,7 +26,7 @@ namespace Editor
                     return;
                 }
 
-                if (material.ShaderRepresentationGuid == dependencyMeta.Guid)
+                if (material.ShaderGuid == dependencyMeta.Guid)
                 {
                     _materialManager.AssignShaderToMaterialFromCS(material, dependencyMeta.Guid);
                 }
@@ -47,7 +47,7 @@ namespace Editor
                     return;
                 }
 
-                if (material.ShaderRepresentationGuid == deletedDependencyGuid)
+                if (material.ShaderGuid == deletedDependencyGuid)
                 {
                     SetDefault(material);
 
@@ -64,7 +64,7 @@ namespace Editor
         {
             var (defaultGuid, defaultTypeName) = _materialManager.GetDefaulShaderValue();
 
-            material.ShaderRepresentationGuid = defaultGuid;
+            material.ShaderGuid = defaultGuid;
             material.ShaderRepresentationTypeName = defaultTypeName;
             material.ClearContainers();
             //_materialManager.AssignShaderToMaterial(material, defaultGuid);
@@ -84,7 +84,7 @@ namespace Editor
                 }
 
                 string removedGuid = dependencyMeta.Guid;
-                if (material.ShaderRepresentationGuid == removedGuid)
+                if (material.ShaderGuid == removedGuid)
                 {
                     SetDefault(material);
 

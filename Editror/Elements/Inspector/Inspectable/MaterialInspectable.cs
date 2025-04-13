@@ -237,14 +237,14 @@ namespace Editor
 
         private string GetShaderDisplayName()
         {
-            if (string.IsNullOrEmpty(_materialAsset.ShaderRepresentationGuid))
+            if (string.IsNullOrEmpty(_materialAsset.ShaderGuid))
                 return "None";
 
-            var metadata = ServiceHub.Get<EditorMetadataManager>().GetMetadataByGuid(_materialAsset.ShaderRepresentationGuid);
+            var metadata = ServiceHub.Get<EditorMetadataManager>().GetMetadataByGuid(_materialAsset.ShaderGuid);
             if (metadata == null)
                 return _materialAsset.ShaderRepresentationTypeName;
 
-            string path = ServiceHub.Get<EditorMetadataManager>().GetPathByGuid(_materialAsset.ShaderRepresentationGuid);
+            string path = ServiceHub.Get<EditorMetadataManager>().GetPathByGuid(_materialAsset.ShaderGuid);
             return Path.GetFileNameWithoutExtension(path);
         }
 

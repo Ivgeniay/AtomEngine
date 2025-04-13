@@ -8,7 +8,7 @@ namespace OpenglLib
         public readonly Shader Shader;
         internal readonly MaterialAsset MaterialAsset;
         internal GL GLContext;
-        internal MaterialFactory factory;
+        internal MaterialFactory Factory;
         public bool IsValid { get => GLContext != null && Shader != null && Shader.Handle > 0; }
 
         public Material(GL glContext, Shader shader, MaterialAsset materialAsset)
@@ -43,8 +43,8 @@ namespace OpenglLib
         }
 
 
-        public Shader Copy() => (Shader)factory.GetShaderFromMaterialAsset(GLContext, MaterialAsset);
-        public Material Share() => factory.GetMaterialInstanceFromAsset(GLContext,MaterialAsset);
+        public Shader Copy() => (Shader)Factory.GetShaderFromMaterialAsset(GLContext, MaterialAsset);
+        public Material Share() => Factory.GetMaterialInstanceFromAsset(GLContext,MaterialAsset);
         internal void Dispose() => Shader.Dispose();
 
         public static implicit operator uint(Material material)
