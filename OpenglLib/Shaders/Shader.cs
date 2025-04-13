@@ -1,9 +1,9 @@
 ﻿using AtomEngine;
 using AtomEngine.RenderEntity;
 using EngineLib;
+using OpenglLib.Buffers;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace OpenglLib
@@ -19,6 +19,9 @@ namespace OpenglLib
         protected readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
         protected readonly Dictionary<string, UniformInfo> _uniformInfo = new Dictionary<string, UniformInfo>();
         protected readonly List<UniformBlockData> _uniformBlocks = new List<UniformBlockData>();
+        protected readonly Dictionary<string, UniformInfo> _samplerUniforms = new Dictionary<string, UniformInfo>();
+
+        protected AutoUBOHub autoUBOHub;
 
         protected string VertexSource;
         protected string FragmentSource;
@@ -56,6 +59,15 @@ namespace OpenglLib
             CacheAttributes();
             CacheUniforms();
             CacheUniformBlocks();
+
+            if (_uniformBlocks.Count > 0)
+            {
+                autoUBOHub = new AutoUBOHub(_gl, handle);
+                foreach (var uniformBlock in _uniformBlocks)
+                {
+                    autoUBOHub.RegisterUBO(uniformBlock);
+                }
+            }
 
             DebLogger.Info("==================SHADER_ATTRIBUTES=================");
             foreach (var item in _attributeLocations) DebLogger.Info(item.Key, " : ", item.Value);
@@ -538,9 +550,31 @@ namespace OpenglLib
         
         }
 
+        private void CacheSamplerUniforms()
+        {
+            _gl.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformCount);
+
+            for (uint i = 0; i < uniformCount; i++)
+            {
+                string uniformName = _gl.GetActiveUniform(handle, i, out int size, out UniformType type);
+                int location = _gl.GetUniformLocation(handle, uniformName);
+
+                if (GlslParser.IsSamplerType(type))
+                {
+                    _samplerUniforms[uniformName] = new UniformInfo
+                    {
+                        Location = location,
+                        Size = size,
+                        Type = type,
+                        Name = uniformName
+                    };
+                }
+            }
+        }
 
         public override void Dispose()
         {
+            autoUBOHub?.Dispose();
             _gl.DeleteProgram(handle);
         }
 
@@ -550,6 +584,8 @@ namespace OpenglLib
             _shaderTextureManager.ReserveTextureUnit(uniformName, textureUnit);
         public void ReserveTextureUnit(int location, int textureUnit) => 
             _shaderTextureManager.ReserveTextureUnit(location, textureUnit);
+
+
 
         protected class ShaderTextureManager
         {
@@ -653,6 +689,7 @@ namespace OpenglLib
                 _reservedUnits.Clear();
                 _nextTextureUnit = 0;
             }
+
         }
     }
 

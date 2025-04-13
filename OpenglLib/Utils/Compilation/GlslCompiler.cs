@@ -1,18 +1,15 @@
-﻿using System.Collections.Generic;
-using Silk.NET.Windowing;
+﻿using Silk.NET.Windowing;
 using Silk.NET.OpenGL;
 using System.Text;
-using OpenglLib;
-using System.IO;
-using System;
+using EngineLib;
 
-namespace Editor
+namespace OpenglLib
 {
-    internal static class GlslCompiler
+    public static class GlslCompiler
     {
         public static Action<CompilationGlslCodeResult>? OnCompiled;
 
-        internal unsafe static CompilationGlslCodeResult TryToCompile(FileEvent e, bool withAvoke = true)
+        public unsafe static CompilationGlslCodeResult TryToCompile(FileEvent e, bool withAvoke = true)
         {
             CompilationGlslCodeResult result = new CompilationGlslCodeResult();
             result.File = e;
@@ -44,7 +41,7 @@ namespace Editor
 
                 var shader = GlslExtractor.ExtractShaderModel(e.FileFullPath);
                 result.ShadeModel = shader;
-                
+
                 string vertexSource = shader.Vertex.FullText;
                 string fragmentSource = shader.Fragment.FullText;
 
@@ -124,6 +121,7 @@ namespace Editor
                     CacheAttributes(gl, program, result);
                     CacheUniforms(gl, program, result);
                     CacheUniformBlocks(gl, program, result);
+                    CacheSamplerUniforms(gl, program, result);
 
                     gl.DeleteShader(vertexShader);
                     gl.DeleteShader(fragmentShader);
@@ -225,22 +223,6 @@ namespace Editor
         }
         private static unsafe void CacheUniformBlocks(GL gl, uint handle, CompilationGlslCodeResult result)
         {
-            //gl.GetProgram(handle, GLEnum.ActiveUniformBlocks, out int uniformBlockCount);
-
-            //for (uint i = 0; i < uniformBlockCount; i++)
-            //{
-            //    byte[] nameBuffer = new byte[256];
-            //    uint nameLength = 0;
-
-            //    fixed (byte* namePtr = nameBuffer)
-            //    {
-            //        gl.GetActiveUniformBlockName(handle, i, (uint)nameBuffer.Length, &nameLength, namePtr);
-            //        string name = Encoding.ASCII.GetString(nameBuffer, 0, (int)nameLength);
-            //        uint blockIndex = gl.GetUniformBlockIndex(handle, name);
-            //        result.UniformBlocks.Add(new UniformBlockData(name, blockIndex));
-            //    }
-            //}
-
             gl.GetProgram(handle, GLEnum.ActiveUniformBlocks, out int uniformBlockCount);
             for (uint i = 0; i < uniformBlockCount; i++)
             {
@@ -334,6 +316,27 @@ namespace Editor
             }
 
         }
+        private static void CacheSamplerUniforms(GL _gl, uint handle, CompilationGlslCodeResult result)
+        {
+            _gl.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformCount);
+
+            for (uint i = 0; i < uniformCount; i++)
+            {
+                string uniformName = _gl.GetActiveUniform(handle, i, out int size, out UniformType type);
+                int location = _gl.GetUniformLocation(handle, uniformName);
+
+                if (GlslParser.IsSamplerType(type))
+                {
+                    result.SamplerInfo[uniformName] = new UniformInfo
+                    {
+                        Location = location,
+                        Size = size,
+                        Type = type,
+                        Name = uniformName
+                    };
+                }
+            }
+        }
 
     }
 
@@ -342,6 +345,7 @@ namespace Editor
         public readonly Dictionary<string, int> UniformLocations = new Dictionary<string, int>();
         public readonly Dictionary<string, uint> AttributeLocations = new Dictionary<string, uint>();
         public readonly Dictionary<string, UniformInfo> UniformInfo = new Dictionary<string, UniformInfo>();
+        public readonly Dictionary<string, UniformInfo> SamplerInfo = new Dictionary<string, UniformInfo>();
         public readonly List<UniformBlockData> UniformBlocks = new List<UniformBlockData>();
         public bool Success { get; set; }
         public string ShaderVersion { get; set; } = string.Empty;

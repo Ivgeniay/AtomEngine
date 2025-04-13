@@ -1,7 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-
-namespace Editor
+namespace EngineLib
 {
     public class FileEvent
     {
@@ -26,7 +25,6 @@ namespace Editor
 
     public class DragDropEventArgs : FileEvent
     {
-        //public ExpandableFileItemChild ChildItem { get; set; }
         public object Context { get; set; } = null;
     }
 }

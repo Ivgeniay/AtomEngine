@@ -65,190 +65,28 @@ namespace OpenglLib.Buffers
                 return;
             }
 
-            if (name.Contains("[") && name.Contains("]"))
-            {
-                ParseArrayAccess(name, value);
-            }
-            else if (name.Contains("."))
-            {
-                ParseStructAccess(name, value);
-            }
-            else
-            {
-                SetDirectValue(name, value);
-            }
-        }
-
-        private void ParseArrayAccess(string name, object value)
-        {
-            int start = name.IndexOf('[');
-            if (start < 0)
-            {
-                SetDirectValue(name, value);
-                return;
-            }
-
-            int end = name.IndexOf(']', start);
-            if (end < 0)
-            {
-                DebLogger.Error($"Invalid array access syntax for {name}");
-                return;
-            }
-
-            string baseName = name.Substring(0, start);
-            string indexStr = name.Substring(start + 1, end - start - 1);
-
-            if (!int.TryParse(indexStr, out int index))
-            {
-                DebLogger.Error($"Invalid array index in {name}");
-                return;
-            }
-
-            string remaining = end + 1 < name.Length ? name.Substring(end + 1) : "";
-
-            if (string.IsNullOrEmpty(remaining))
-            {
-                SetArrayElement(baseName, index, value);
-            }
-            else if (remaining.StartsWith("."))
-            {
-                string structMember = remaining.Substring(1);
-                SetArrayStructElement(baseName, index, structMember, value);
-            }
-            else if (remaining.StartsWith("["))
-            {
-                string elementName = $"{baseName}[{index}]{remaining}";
-                ParseArrayAccess(elementName, value);
-            }
-            else
-            {
-                DebLogger.Error($"Invalid syntax after array index in {name}");
-            }
-        }
-
-        private void ParseStructAccess(string name, object value)
-        {
-            string[] parts = name.Split('.');
-            if (parts.Length < 2)
-            {
-                SetDirectValue(name, value);
-                return;
-            }
-
-            string structName = parts[0];
-
-            if (structName.Contains("["))
-            {
-                ParseArrayAccess(name, value);
-                return;
-            }
-
-            string memberPath = string.Join(".", parts.Skip(1));
-
-            if (!_members.TryGetValue(structName + "." + memberPath, out _))
-            {
-                DebLogger.Error($"Member {structName}.{memberPath} not found in uniform block {_blockName}");
-                return;
-            }
-
-            SetDirectValue(structName + "." + memberPath, value);
-        }
-
-        private void SetDirectValue(string name, object value)
-        {
-            if (!_members.TryGetValue(name, out var member))
-            {
-                DebLogger.Error($"Member {name} not found in uniform block {_blockName}");
-                return;
-            }
-
-            unsafe
-            {
-                WriteValueToBuffer(member.Offset, member.Type, value, member.MatrixStride);
-            }
-
-            _isDirty = true;
-        }
-
-        private void SetArrayElement(string name, int index, object value)
-        {
-            if (!_members.TryGetValue(name, out var member))
-            {
-                DebLogger.Error($"Member {name} not found in uniform block {_blockName}");
-                return;
-            }
-
-            if (member.ArrayStride <= 0)
-            {
-                DebLogger.Error($"Member {name} is not an array in uniform block {_blockName}");
-                return;
-            }
-
-            int elementOffset = member.Offset + index * member.ArrayStride;
-
-            if (elementOffset >= _blockSize)
-            {
-                DebLogger.Error($"Index {index} is out of bounds for member {name} in uniform block {_blockName}");
-                return;
-            }
-
-            unsafe
-            {
-                WriteValueToBuffer(elementOffset, member.Type, value, member.MatrixStride);
-            }
-
-            _isDirty = true;
-        }
-
-        private void SetArrayStructElement(string arrayName, int arrayIndex, string memberName, object value)
-        {
-            string fullName = $"{arrayName}[{arrayIndex}].{memberName}";
-
-            if (_members.TryGetValue(fullName, out var member))
+            if (_members.TryGetValue(name, out var member))
             {
                 unsafe
                 {
                     WriteValueToBuffer(member.Offset, member.Type, value, member.MatrixStride);
                 }
                 _isDirty = true;
-                return;
             }
-
-            if (!_members.TryGetValue(arrayName, out var arrayMember))
+            else
             {
-                DebLogger.Error($"Array {arrayName} not found in uniform block {_blockName}");
-                return;
+                DebLogger.Error($"Member {name} not found in uniform block {_blockName}");
             }
+        }
 
-            if (arrayMember.ArrayStride <= 0)
+        public bool HasUniform(string name)
+        {
+            if (string.IsNullOrEmpty(name))
             {
-                DebLogger.Error($"Member {arrayName} is not an array in uniform block {_blockName}");
-                return;
+                return false;
             }
 
-            string structMemberName = $"{arrayName}.{memberName}";
-            if (!_members.TryGetValue(structMemberName, out var structMember))
-            {
-                DebLogger.Error($"Member {memberName} not found in struct {arrayName} in uniform block {_blockName}");
-                return;
-            }
-
-            int baseOffset = arrayMember.Offset + arrayIndex * arrayMember.ArrayStride;
-            int memberOffset = structMember.Offset - arrayMember.Offset;
-            int elementOffset = baseOffset + memberOffset;
-
-            if (elementOffset >= _blockSize)
-            {
-                DebLogger.Error($"Index {arrayIndex} is out of bounds for member {arrayName} in uniform block {_blockName}");
-                return;
-            }
-
-            unsafe
-            {
-                WriteValueToBuffer(elementOffset, structMember.Type, value, structMember.MatrixStride);
-            }
-
-            _isDirty = true;
+            return _members.ContainsKey(name);
         }
 
         private unsafe void WriteValueToBuffer(int offset, UniformType type, object value, int matrixStride)
@@ -987,11 +825,6 @@ namespace OpenglLib.Buffers
         }
 
 
-        public bool ContainsMember(string name)
-        {
-            return _members.ContainsKey(name) || name.Contains("[") || name.Contains(".");
-        }
-
         public void Update()
         {
             if (_isDirty)
@@ -1030,4 +863,65 @@ namespace OpenglLib.Buffers
         }
     }
 
+    public class AutoUBOHub : IDisposable
+    {
+        private readonly List<AutoUBO> _uboList = new List<AutoUBO>();
+        private readonly GL _gl;
+        private readonly uint _program;
+        private bool _isDirty = false;
+
+        public AutoUBOHub(GL gl, uint program)
+        {
+            _gl = gl;
+            _program = program;
+        }
+
+        public AutoUBO RegisterUBO(UniformBlockData blockData)
+        {
+            var ubo = new AutoUBO(_gl, _program, blockData);
+            _uboList.Add(ubo);
+            return ubo;
+        }
+
+        public bool SetUniform(string name, object value)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return false;
+            }
+
+            foreach (var ubo in _uboList)
+            {
+                if (ubo.HasUniform(name))
+                {
+                    ubo.SetUniform(name, value);
+                    _isDirty = true;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public void Update()
+        {
+            if (!_isDirty) return;
+
+            foreach (var ubo in _uboList)
+            {
+                ubo.Update();
+            }
+
+            _isDirty = false;
+        }
+
+        public void Dispose()
+        {
+            foreach (var ubo in _uboList)
+            {
+                ubo.Dispose();
+            }
+            _uboList.Clear();
+        }
+    }
 }

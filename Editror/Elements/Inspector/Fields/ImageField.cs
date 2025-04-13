@@ -8,6 +8,7 @@ using Avalonia;
 using System;
 using System.IO;
 using System.Numerics;
+using EngineLib;
 
 namespace Editor
 {

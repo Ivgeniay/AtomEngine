@@ -20,7 +20,6 @@ using MouseButton = Avalonia.Input.MouseButton;
 using OpenglLib;
 using EngineLib;
 using System.Threading;
-using Silk.NET.OpenGLES;
 
 namespace Editor
 {

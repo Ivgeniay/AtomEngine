@@ -1,4 +1,6 @@
-﻿namespace Editor
+﻿using EngineLib;
+
+namespace Editor
 {
     public class FileEventCommand
     {

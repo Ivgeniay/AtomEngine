@@ -1,6 +1,6 @@
 ﻿namespace EngineLib
 {
-    public class FileEventRenamed : FileEvent
+    public class FileEventRenamed : FileEventEH
     {
         private readonly string? _oldName;
         private readonly string _oldFullPath;

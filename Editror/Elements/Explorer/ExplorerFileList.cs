@@ -9,6 +9,7 @@ using Avalonia;
 using System;
 using MouseButton = Avalonia.Input.MouseButton;
 using Avalonia.VisualTree;
+using EngineLib;
 
 
 namespace Editor

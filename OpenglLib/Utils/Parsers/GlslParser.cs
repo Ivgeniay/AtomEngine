@@ -2,6 +2,7 @@
 using System.Text;
 using AtomEngine;
 using EngineLib;
+using Silk.NET.OpenGL;
 
 namespace OpenglLib
 {
@@ -534,6 +535,56 @@ namespace OpenglLib
             glslType != "Matrix2X2<float>" && glslType != "Matrix3X3<float>" && glslType != "Matrix4X4<float>" && glslType != "Matrix2X2<float>" &&
             glslType != "Matrix2X3<float>" && glslType != "Matrix2X4<float>" && glslType != "Matrix3X2<float>" && glslType != "Matrix3X3<float>" &&
             glslType != "Matrix3X4<float>" && glslType != "Matrix4X2<float>" && glslType != "Matrix4X3<float>" && glslType != "Matrix4X4<float>";
+
+        public static bool IsSamplerType(UniformType type)
+        {
+            switch (type)
+            {
+                case UniformType.Sampler1D:
+                case UniformType.Sampler2D:
+                case UniformType.Sampler3D:
+                case UniformType.SamplerCube:
+                case UniformType.Sampler1DShadow:
+                case UniformType.Sampler2DShadow:
+                case UniformType.Sampler2DRect:
+                case UniformType.Sampler2DRectShadow:
+                case UniformType.Sampler1DArray:
+                case UniformType.Sampler2DArray:
+                case UniformType.SamplerBuffer:
+                case UniformType.Sampler1DArrayShadow:
+                case UniformType.Sampler2DArrayShadow:
+                case UniformType.SamplerCubeShadow:
+                case UniformType.IntSampler1D:
+                case UniformType.IntSampler2D:
+                case UniformType.IntSampler3D:
+                case UniformType.IntSamplerCube:
+                case UniformType.IntSampler2DRect:
+                case UniformType.IntSampler1DArray:
+                case UniformType.IntSampler2DArray:
+                case UniformType.IntSamplerBuffer:
+                case UniformType.UnsignedIntSampler1D:
+                case UniformType.UnsignedIntSampler2D:
+                case UniformType.UnsignedIntSampler3D:
+                case UniformType.UnsignedIntSamplerCube:
+                case UniformType.UnsignedIntSampler2DRect:
+                case UniformType.UnsignedIntSampler1DArray:
+                case UniformType.UnsignedIntSampler2DArray:
+                case UniformType.UnsignedIntSamplerBuffer:
+                case UniformType.SamplerCubeMapArray:
+                case UniformType.SamplerCubeMapArrayShadow:
+                case UniformType.IntSamplerCubeMapArray:
+                case UniformType.UnsignedIntSamplerCubeMapArray:
+                case UniformType.Sampler2DMultisample:
+                case UniformType.IntSampler2DMultisample:
+                case UniformType.UnsignedIntSampler2DMultisample:
+                case UniformType.Sampler2DMultisampleArray:
+                case UniformType.IntSampler2DMultisampleArray:
+                case UniformType.UnsignedIntSampler2DMultisampleArray:
+                    return true;
+                default:
+                    return false;
+            }
+        }
 
         public static int? ResolveArraySizeIdentifier(string sourceCode, string identifier)
         {

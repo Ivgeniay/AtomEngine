@@ -66,7 +66,7 @@ namespace OpenglLib
 
 
 
-        public void AssignShaderToMaterialFromCS(MaterialAsset material, string shaderRepresentationGuid)
+        public virtual void AssignShaderToMaterial(MaterialAsset material, string shaderRepresentationGuid)
         {
             if (material == null)
             {
@@ -82,119 +82,26 @@ namespace OpenglLib
                 return;
             }
 
-            material.ShaderRepresentationGuid = shaderRepresentationGuid;
-
-            try
-            {
-                string fileContent = File.ReadAllText(filePath);
-                string namespaceName = CSRepresentationParser.ExtractNamespace(fileContent);
-                string className = CSRepresentationParser.ExtractClassName(fileContent);
-
-                if (!string.IsNullOrEmpty(namespaceName) && !string.IsNullOrEmpty(className))
+            var extension = Path.GetExtension(filePath);
+            if (!string.IsNullOrWhiteSpace(extension))
+            { 
+                if (extension.Contains("cs"))
                 {
-                    material.ShaderRepresentationTypeName = $"{namespaceName}.{className}";
+                    AssignShaderToMaterialFromCS(material, shaderRepresentationGuid);
                 }
-                else
+                else if (extension.Contains("glsl"))
                 {
-                    DebLogger.Warn($"Could not extract namespace or class name from file: {filePath}");
-                    DefaultGettingRepTymeName(material, filePath);
+                    AssignShaderToMaterialFromGLSL(material, shaderRepresentationGuid);
                 }
-
-                var uniformContainers = ShaderRepresentationAnalyzer.AnalyzeShaderRepresentation(material.ShaderRepresentationTypeName, fileContent);
-                foreach (var container in uniformContainers)
-                {
-                    material.AddContainer(container);
-                }
-
-                string path = GetPathFromAsset(material);
-                if (!string.IsNullOrEmpty(path))
-                {
-                    var materialMeta = metadataManager.GetMetadata(path);
-                    if (materialMeta == null || !materialMeta.Dependencies.Contains(shaderRepresentationGuid))
-                    {
-                        var assetDepencyManager = ServiceHub.Get<AssetDependencyManager>();
-                        if (materialMeta != null && materialMeta.Dependencies.Count() > 0)
-                        {
-                            string[] temp = new string[materialMeta.Dependencies.Count()];
-                            materialMeta.Dependencies.CopyTo(temp);
-
-                            for (int i = 0; i < materialMeta.Dependencies.Count(); i++)
-                            {
-                                assetDepencyManager.RemoveDependencyFromPathByGuid(path, temp[i]);
-                            }
-                        }
-                        assetDepencyManager.AddDependencyFromPathByGuid(path, shaderRepresentationGuid);
-                    }
-                    SaveMaterialAsset(material, path);
-                }
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Error processing shader representation file: {ex.Message}");
             }
         }
-        public void AssignShaderToMaterialFromGLSL(MaterialAsset material, string filePath)
+        public virtual void AssignShaderToMaterialFromCS(MaterialAsset material, string shaderRepresentationGuid)
         {
-            if (material == null)
-            {
-                DebLogger.Error("Error assign shader to material. Material asset is not exist");
-                return;
-            }
-
-            if (!File.Exists(filePath))
-            {
-                DebLogger.Warn($"Shader file not found: {filePath}");
-                return;
-            }
-
-            try
-            {
-                string shaderGuid = metadataManager.GetMetadataByGuid(filePath).Guid;
-                if (string.IsNullOrWhiteSpace(shaderGuid))
-                {
-                    DebLogger.Error($"Impossible to create material from {filePath}");
-                }
-
-                var shaderModel = GlslExtractor.ExtractShaderModel(filePath);
-
-                material.ShaderRepresentationGuid = shaderGuid;
-                material.ClearContainers();
-
-                //ProcessUniforms(material, shaderModel.Vertex.Uniforms);
-                //ProcessUniforms(material, shaderModel.Fragment.Uniforms);
-
-                //ProcessUniformBlocks(material, shaderModel.Vertex.UniformsBlocks);
-                //ProcessUniformBlocks(material, shaderModel.Fragment.UniformsBlocks);
-
-                //ProcessStructInstances(material, shaderModel.Vertex.StructureInstances, shaderModel.Vertex.Structures);
-                //ProcessStructInstances(material, shaderModel.Fragment.StructureInstances, shaderModel.Fragment.Structures);
-
-                string path = GetPathFromAsset(material);
-                if (!string.IsNullOrEmpty(path))
-                {
-                    var materialMeta = metadataManager.GetMetadata(path);
-                    if (materialMeta == null || !materialMeta.Dependencies.Contains(shaderGuid))
-                    {
-                        var assetDepencyManager = ServiceHub.Get<AssetDependencyManager>();
-                        if (materialMeta != null && materialMeta.Dependencies.Count() > 0)
-                        {
-                            string[] temp = new string[materialMeta.Dependencies.Count()];
-                            materialMeta.Dependencies.CopyTo(temp);
-
-                            for (int i = 0; i < materialMeta.Dependencies.Count(); i++)
-                            {
-                                assetDepencyManager.RemoveDependencyFromPathByGuid(path, temp[i]);
-                            }
-                        }
-                        assetDepencyManager.AddDependencyFromPathByGuid(path, shaderGuid);
-                    }
-                    SaveMaterialAsset(material, path);
-                }
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Error processing GLSL shader file: {ex.Message}");
-            }
+            throw new NotImplementedException();
+        }
+        public virtual void AssignShaderToMaterialFromGLSL(MaterialAsset material, string filePath)
+        {
+            throw new NotImplementedException();
         }
 
 

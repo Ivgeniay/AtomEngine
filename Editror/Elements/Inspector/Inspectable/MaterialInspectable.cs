@@ -51,7 +51,7 @@ namespace Editor
                     var metadata = metaService.GetMetadata(selectedValue as string);
                     if (metadata != null && metadata is ShaderMetadata shaderMeta)
                     {
-                        _materialAssetManager.AssignShaderToMaterialFromCS(_materialAsset, metadata.Guid);
+                        _materialAssetManager.AssignShaderToMaterial(_materialAsset, metadata.Guid);
                     }
                 };
 
