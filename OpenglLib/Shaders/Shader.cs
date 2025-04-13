@@ -33,11 +33,6 @@ namespace OpenglLib
             _bindingPointService = ServiceHub.Get<BindingPointService>();
         }
 
-        //public void SetUpShaderFromGlsl(string vertexSource, string fragmentSource)
-        //{
-        //    SetUpShader(vertexSource, fragmentSource);
-        //}
-
         public void SetUpShader(string vertexSource = "", string fragmentSource = "")
         {
             vertexSource = string.IsNullOrEmpty(vertexSource) ? VertexSource : vertexSource;
@@ -57,7 +52,7 @@ namespace OpenglLib
 
             CacheAttributes(_gl, handle, _attributeLocations);
             CacheUniforms(_gl, handle, _uniformLocations, _uniformInfo);
-            CacheSamplerUniforms(_gl, handle, _samplerUniforms);
+            CacheSamplerUniforms(_gl, handle, _samplerUniforms, _uniformLocations);
             CacheUniformBlocks(_gl, handle, _uniformBlocks);
 
             if (_uniformBlocks.Count > 0)
@@ -68,13 +63,6 @@ namespace OpenglLib
                     autoUBOHub.RegisterUBO(uniformBlock);
                 }
             }
-
-            DebLogger.Info("==================SHADER_ATTRIBUTES=================");
-            foreach (var item in _attributeLocations) DebLogger.Info(item.Key, " : ", item.Value);
-            DebLogger.Info("===================SHADER_UNIFORMS==================");
-            foreach (var item in _uniformLocations) DebLogger.Info(item.Key, " : ", item.Value);
-            DebLogger.Info("===================UNIFORM_BLOCKS==================");
-            foreach (var item in _uniformBlocks) DebLogger.Info(item);
         }
 
         public override void Use()
@@ -82,6 +70,11 @@ namespace OpenglLib
             _gl.UseProgram(handle);
         }
 
+        public override void SetUbo(Dictionary<string, object> uniformValues)
+        {
+            autoUBOHub?.SetUniformCollection(uniformValues);
+            autoUBOHub?.Update();
+        }
         public override void SetUniform(string name, object value)
         {
             if (name == null)
@@ -98,6 +91,14 @@ namespace OpenglLib
                 DebLogger.Error($"Uniform {name} not found in shader program");
 #endif
                 return;
+            }
+            if (location < 0)
+            {
+                autoUBOHub?.SetUniform(name, value);
+                if (autoUBOHub.IsDirty)
+                {
+                    autoUBOHub.Update();
+                }
             }
 
             switch (_uniformInfo[name].Type)
@@ -257,7 +258,7 @@ namespace OpenglLib
                 return;
             }
 
-            if (!_uniformLocations.TryGetValue(uniformName, out _))
+            if (!_uniformLocations.TryGetValue(uniformName, out int location))
             {
 #if DEBUG
                 DebLogger.Error($"Uniform {uniformName} not found in shader program");
@@ -611,7 +612,8 @@ namespace OpenglLib
         internal static void CacheSamplerUniforms(
             GL _gl, 
             uint handle,
-            Dictionary<string, UniformInfo> _samplerUniforms
+            Dictionary<string, UniformInfo> _samplerUniforms,
+            Dictionary<string, int> _uniformLocations
             )
         {
             _gl.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformCount);
@@ -621,16 +623,17 @@ namespace OpenglLib
                 string uniformName = _gl.GetActiveUniform(handle, i, out int size, out UniformType type);
                 int location = _gl.GetUniformLocation(handle, uniformName);
 
-                if (GlslParser.IsSamplerType(type))
+                if (!GlslParser.IsSamplerType(type)) continue;
+
+                _uniformLocations[uniformName] = location;
+                _samplerUniforms[uniformName] = new UniformInfo
                 {
-                    _samplerUniforms[uniformName] = new UniformInfo
-                    {
-                        Location = location,
-                        Size = size,
-                        Type = type,
-                        Name = uniformName
-                    };
-                }
+                    Location = location,
+                    Size = size,
+                    Type = type,
+                    Name = uniformName
+                };
+                
             }
         }
 

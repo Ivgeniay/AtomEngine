@@ -16,7 +16,7 @@ namespace OpenglLib.Buffers
         private int _blockSize;
         private readonly Dictionary<string, UniformMemberData> _members = new Dictionary<string, UniformMemberData>();
         private byte[] _buffer;
-        private bool _isDirty = false;
+        public bool IsDirty { get; set; } = false;
 
         public AutoUBO(GL gl, uint program, UniformBlockData blockData)
         {
@@ -71,7 +71,7 @@ namespace OpenglLib.Buffers
                 {
                     WriteValueToBuffer(member.Offset, member.Type, value, member.MatrixStride);
                 }
-                _isDirty = true;
+                IsDirty = true;
             }
             else
             {
@@ -827,7 +827,7 @@ namespace OpenglLib.Buffers
 
         public void Update()
         {
-            if (_isDirty)
+            if (IsDirty)
             {
                 Bind();
                 unsafe
@@ -837,7 +837,7 @@ namespace OpenglLib.Buffers
                         _gl.BufferSubData(BufferTargetARB.UniformBuffer, 0, (nuint)_buffer.Length, bufferPtr);
                     }
                 }
-                _isDirty = false;
+                IsDirty = false;
             }
         }
 
@@ -868,7 +868,7 @@ namespace OpenglLib.Buffers
         private readonly List<AutoUBO> _uboList = new List<AutoUBO>();
         private readonly GL _gl;
         private readonly uint _program;
-        private bool _isDirty = false;
+        public bool IsDirty { get; private set; } = false;
 
         public AutoUBOHub(GL gl, uint program)
         {
@@ -895,7 +895,7 @@ namespace OpenglLib.Buffers
                 if (ubo.HasUniform(name))
                 {
                     ubo.SetUniform(name, value);
-                    _isDirty = true;
+                    IsDirty = true;
                     return true;
                 }
             }
@@ -905,14 +905,14 @@ namespace OpenglLib.Buffers
 
         public void Update()
         {
-            if (!_isDirty) return;
+            if (!IsDirty) return;
 
             foreach (var ubo in _uboList)
             {
                 ubo.Update();
             }
 
-            _isDirty = false;
+            IsDirty = false;
         }
 
         public void Dispose()
@@ -922,6 +922,12 @@ namespace OpenglLib.Buffers
                 ubo.Dispose();
             }
             _uboList.Clear();
+        }
+
+        internal void SetUniformCollection(Dictionary<string, object> uniformValues)
+        {
+            foreach(var uniformValue in uniformValues)
+                SetUniform(uniformValue.Key, uniformValue.Value);
         }
     }
 }

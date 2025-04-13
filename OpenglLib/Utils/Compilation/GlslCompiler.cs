@@ -204,8 +204,7 @@ namespace OpenglLib
             }
             result.Log.AppendLine($"===================");
         }
-
-        private static unsafe void CacheUniformBlocks(GL gl, uint handle, CompilationGlslCodeResult result)
+        private static void CacheUniformBlocks(GL gl, uint handle, CompilationGlslCodeResult result)
         {
             Shader.CacheUniformBlocks(gl, handle, result.UniformBlocks);
 
@@ -219,7 +218,7 @@ namespace OpenglLib
         }
         private static void CacheSamplerUniforms(GL gl, uint handle, CompilationGlslCodeResult result)
         {
-            Shader.CacheSamplerUniforms(gl, handle, result.SamplerInfo);
+            Shader.CacheSamplerUniforms(gl, handle, result.SamplerInfo, result.UniformLocations);
 
             result.Log.AppendLine($"======== UNIFORM BLOCKS ======");
             foreach (var kvp in result.SamplerInfo)
