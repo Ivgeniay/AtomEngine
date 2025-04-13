@@ -185,157 +185,49 @@ namespace OpenglLib
         }
         private static void CacheAttributes(GL gl, uint handle, CompilationGlslCodeResult result)
         {
-            gl.GetProgram(handle, GLEnum.ActiveAttributes, out int attributeCount);
-
+            Shader.CacheAttributes(gl, handle, result.AttributeLocations);
             result.Log.AppendLine($"======== ATTRIBUTES ======");
-            for (uint i = 0; i < attributeCount; i++)
+            foreach (var attribute in result.AttributeLocations)
             {
-                string attributeName = gl.GetActiveAttrib(handle, i, out int size, out AttributeType type);
-                uint location = (uint)gl.GetAttribLocation(handle, attributeName);
-
-                result.AttributeLocations[attributeName] = location;
-                result.Log.AppendLine($"Attribute:{attributeName} Location:{location} Type:{type}");
+                result.Log.AppendLine($"Attribute:{attribute.Key} Location:{attribute.Value}");
             }
-            result.Log.AppendLine("\n");
+
         }
         private static void CacheUniforms(GL gl, uint handle, CompilationGlslCodeResult result)
         {
+            Shader.CacheUniforms(gl, handle, result.UniformLocations, result.UniformInfo);
+
             result.Log.AppendLine($"======== UNIFORMS ======");
-            gl.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformCount);
-
-            for (int i = 0; i < uniformCount; i++)
+            foreach (var kvp in result.UniformInfo)
             {
-                string uniformName = gl.GetActiveUniform(handle, (uint)i, out int size, out UniformType type);
-                int location = gl.GetUniformLocation(handle, uniformName);
-
-                result.UniformLocations[uniformName] = location;
-                result.UniformInfo[uniformName] = new UniformInfo
-                {
-                    Location = location,
-                    Size = size,
-                    Type = type,
-                    Name = uniformName
-                };
-
-                result.Log.AppendLine($"Name:{uniformName} Location:{location} Size:{size} Type:{type}");
+                result.Log.AppendLine($"Name:{kvp.Key} Location:{kvp.Value.Location} Size:{kvp.Value.Size} Type:{kvp.Value.Type}");
             }
             result.Log.AppendLine($"===================");
         }
+
         private static unsafe void CacheUniformBlocks(GL gl, uint handle, CompilationGlslCodeResult result)
         {
-            gl.GetProgram(handle, GLEnum.ActiveUniformBlocks, out int uniformBlockCount);
-            for (uint i = 0; i < uniformBlockCount; i++)
+            Shader.CacheUniformBlocks(gl, handle, result.UniformBlocks);
+
+            result.Log.AppendLine($"======== UNIFORM BLOCKS ======");
+            foreach (var uniform in result.UniformBlocks)
             {
-                byte[] nameBuffer = new byte[256];
-                uint nameLength = 0;
-                fixed (byte* namePtr = nameBuffer)
-                {
-                    gl.GetActiveUniformBlockName(handle, i, (uint)nameBuffer.Length, &nameLength, namePtr);
-                    string name = Encoding.ASCII.GetString(nameBuffer, 0, (int)nameLength);
-                    uint blockIndex = gl.GetUniformBlockIndex(handle, name);
-
-                    int blockSize = 0;
-                    gl.GetActiveUniformBlock(handle, i, GLEnum.UniformBlockDataSize, &blockSize);
-
-                    int activeUniforms = 0;
-                    gl.GetActiveUniformBlock(handle, i, GLEnum.UniformBlockActiveUniforms, &activeUniforms);
-
-                    int[] uniformIndices = new int[activeUniforms];
-                    gl.GetActiveUniformBlock(handle, i, GLEnum.UniformBlockActiveUniformIndices, uniformIndices);
-
-                    List<UniformMemberData> members = new List<UniformMemberData>();
-
-                    for (int j = 0; j < uniformIndices.Length; j++)
-                    {
-                        int uniformIndex = uniformIndices[j];
-
-                        byte[] uniformNameBuffer = new byte[256];
-                        uint uniformNameLength = 0;
-                        fixed (byte* uniformNamePtr = uniformNameBuffer)
-                        {
-                            gl.GetActiveUniformName(handle, (uint)uniformIndex, (uint)uniformNameBuffer.Length, &uniformNameLength, uniformNamePtr);
-                            string uniformName = Encoding.ASCII.GetString(uniformNameBuffer, 0, (int)uniformNameLength);
-
-                            int[] offsets = new int[1];
-                            fixed (int* offsetsPtr = offsets)
-                            {
-                                uint[] indices = new uint[] { (uint)uniformIndex };
-                                fixed (uint* indicesPtr = indices)
-                                {
-                                    gl.GetActiveUniforms(handle, 1, indicesPtr, GLEnum.UniformOffset, offsetsPtr);
-                                }
-                            }
-                            int offset = offsets[0];
-
-                            gl.GetActiveUniform(handle, (uint)uniformIndex, out int size, out UniformType type);
-
-                            int[] arrayStrides = new int[1];
-                            fixed (int* arrayStridesPtr = arrayStrides)
-                            {
-                                uint[] indices = new uint[] { (uint)uniformIndex };
-                                fixed (uint* indicesPtr = indices)
-                                {
-                                    gl.GetActiveUniforms(handle, 1, indicesPtr, GLEnum.UniformArrayStride, arrayStridesPtr);
-                                }
-                            }
-                            int arrayStride = arrayStrides[0];
-
-                            int[] matrixStrides = new int[1];
-                            fixed (int* matrixStridesPtr = matrixStrides)
-                            {
-                                uint[] indices = new uint[] { (uint)uniformIndex };
-                                fixed (uint* indicesPtr = indices)
-                                {
-                                    gl.GetActiveUniforms(handle, 1, indicesPtr, GLEnum.UniformMatrixStride, matrixStridesPtr);
-                                }
-                            }
-                            int matrixStride = matrixStrides[0];
-
-                            members.Add(new UniformMemberData(
-                                uniformName,
-                                (uint)uniformIndex,
-                                offset,
-                                size,
-                                type,
-                                arrayStride,
-                                matrixStride
-                            ));
-                        }
-                    }
-
-                    var blockData = new UniformBlockData(
-                        name,
-                        blockIndex,
-                        blockSize,
-                        activeUniforms,
-                        members
-                    );
-
-                    result.UniformBlocks.Add(blockData);
-                }
+                result.Log.AppendLine($"Name:{uniform.Name} BlockIndex:{uniform.BlockIndex} Size:{uniform.BlockSize} ActiveUniforms:{uniform.ActiveUniforms}");
             }
+            result.Log.AppendLine($"===================");
 
         }
-        private static void CacheSamplerUniforms(GL _gl, uint handle, CompilationGlslCodeResult result)
+        private static void CacheSamplerUniforms(GL gl, uint handle, CompilationGlslCodeResult result)
         {
-            _gl.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformCount);
+            Shader.CacheSamplerUniforms(gl, handle, result.SamplerInfo);
 
-            for (uint i = 0; i < uniformCount; i++)
+            result.Log.AppendLine($"======== UNIFORM BLOCKS ======");
+            foreach (var kvp in result.SamplerInfo)
             {
-                string uniformName = _gl.GetActiveUniform(handle, i, out int size, out UniformType type);
-                int location = _gl.GetUniformLocation(handle, uniformName);
-
-                if (GlslParser.IsSamplerType(type))
-                {
-                    result.SamplerInfo[uniformName] = new UniformInfo
-                    {
-                        Location = location,
-                        Size = size,
-                        Type = type,
-                        Name = uniformName
-                    };
-                }
+                result.Log.AppendLine($"Name:{kvp.Key} Location:{kvp.Value.Location} Size:{kvp.Value.Size} Type:{kvp.Value.Type}");
             }
+            result.Log.AppendLine($"===================");
+
         }
 
     }

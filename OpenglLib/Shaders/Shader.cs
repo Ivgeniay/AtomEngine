@@ -55,9 +55,10 @@ namespace OpenglLib
             LinkProgram();
             CleanupResources(vertexShader, fragmentShader);
 
-            CacheAttributes();
-            CacheUniforms();
-            CacheUniformBlocks();
+            CacheAttributes(_gl, handle, _attributeLocations);
+            CacheUniforms(_gl, handle, _uniformLocations, _uniformInfo);
+            CacheSamplerUniforms(_gl, handle, _samplerUniforms);
+            CacheUniformBlocks(_gl, handle, _uniformBlocks);
 
             if (_uniformBlocks.Count > 0)
             {
@@ -418,7 +419,10 @@ namespace OpenglLib
             }
         }
 
-        private void CacheAttributes()
+        internal static void CacheAttributes(
+            GL _gl, 
+            uint handle, 
+            Dictionary<string, uint> _attributeLocations)
         {
             _gl.GetProgram(handle, GLEnum.ActiveAttributes, out int attributeCount);
 
@@ -430,15 +434,23 @@ namespace OpenglLib
             }
         }
 
-        private void CacheUniforms()
+
+        internal static void CacheUniforms(
+            GL _gl, 
+            uint handle, 
+            Dictionary<string, int> _uniformLocations,
+            Dictionary<string, UniformInfo> _uniformInfo)
         {
             _gl.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformCount);
+            Dictionary<string, (int location, int size, UniformType type)> arrayInfo = new Dictionary<string, (int, int, UniformType)>();
 
             for (int i = 0; i < uniformCount; i++)
             {
                 string uniformName = _gl.GetActiveUniform(handle, (uint)i, out int size, out UniformType type);
                 int location = _gl.GetUniformLocation(handle, uniformName);
 
+                if (GlslParser.IsSamplerType(type)) continue;
+                
                 _uniformLocations[uniformName] = location;
                 _uniformInfo[uniformName] = new UniformInfo
                 {
@@ -447,10 +459,57 @@ namespace OpenglLib
                     Type = type,
                     Name = uniformName
                 };
+
+                if (location >= 0 && uniformName.EndsWith("[0]"))
+                {
+                    ProcessArrayElements(uniformName, location, size, type, _uniformLocations, _uniformInfo);
+                }
             }
         }
 
-        private unsafe void CacheUniformBlocks()
+        internal static void ProcessArrayElements(
+            string uniformName, 
+            int baseLocation, 
+            int size, 
+            UniformType type,
+            Dictionary<string, int> _uniformLocations,
+            Dictionary<string, UniformInfo> _uniformInfo)
+        {
+            if (size <= 1)
+                return;
+
+            string baseName;
+
+            if (uniformName.EndsWith("[0]"))
+            {
+                baseName = uniformName.Substring(0, uniformName.Length - 3);
+            }
+            else
+            {
+                int lastOpenBracket = uniformName.LastIndexOf("[0");
+                baseName = uniformName.Substring(0, lastOpenBracket + 1); 
+            }
+
+            for (int i = 1; i < size; i++)
+            {
+                string elementName = baseName + "[" + i + "]";
+                int elementLocation = baseLocation + i;
+
+                _uniformLocations[elementName] = elementLocation;
+                _uniformInfo[elementName] = new UniformInfo
+                {
+                    Location = elementLocation,
+                    Size = 1,
+                    Type = type,
+                    Name = elementName
+                };
+            }
+        }
+
+        internal static unsafe void CacheUniformBlocks(
+            GL _gl, 
+            uint handle,
+            List<UniformBlockData> _uniformBlocks)
         {
             _gl.GetProgram(handle, GLEnum.ActiveUniformBlocks, out int uniformBlockCount);
             for (uint i = 0; i < uniformBlockCount; i++)
@@ -549,7 +608,11 @@ namespace OpenglLib
         
         }
 
-        private void CacheSamplerUniforms()
+        internal static void CacheSamplerUniforms(
+            GL _gl, 
+            uint handle,
+            Dictionary<string, UniformInfo> _samplerUniforms
+            )
         {
             _gl.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformCount);
 
