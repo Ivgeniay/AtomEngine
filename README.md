@@ -1,17 +1,19 @@
 # 🎮 ECS OpenGL Engine
 
-Игровой движок на C# с архитектурой Entity-Component-System (ECS) и рендерингом через OpenGL.
+A C# game engine with Entity-Component-System (ECS) architecture and OpenGL rendering.
 
-## 📌 Возможности
+!["Scrshot"](scrshot.png)
 
-1. 🔥 Гибкая и модульная ECS-система.
+## 📌 Possibilities
 
-2. 🏎 Высокопроизводительный рендеринг через OpenGL (Ыilk.net).
+1. 🔥 Flexible and modular ECS system.
 
-3. 🎭 Поддержка 3D-объектов, шейдеров и текстур. (Использование генератора для создания экземпляра шейдерного представления на C#)
+2. 🏎 High-performance rendering via OpenGL (Silk.net).
 
-4. 🎵 Управление звуком (OpenAL).
+3. 🎭 Support for 3D objects, shaders and textures. (Using a generator to create an instance of a shader representation in C#)
 
-5. 🎮 Поддержка ввода с клавиатуры, мыши и геймпада.
+4. 🎵 Sound management (OpenAL).
 
-6. 🔄 Простая система обновления объектов и обработки событий.
+5. 🎮 Support for keyboard, mouse and gamepad input.
+
+6. 🔄 Simple object update and event handling system.
