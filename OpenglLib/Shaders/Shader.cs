@@ -95,10 +95,8 @@ namespace OpenglLib
             if (location < 0)
             {
                 autoUBOHub?.SetUniform(name, value);
-                if (autoUBOHub.IsDirty)
-                {
-                    autoUBOHub.Update();
-                }
+                autoUBOHub?.Update();
+                return;
             }
 
             switch (_uniformInfo[name].Type)
@@ -595,12 +593,13 @@ namespace OpenglLib
                         }
                     }
 
-                    var blockData = new UniformBlockData(
+                     var blockData = new UniformBlockData(
                         name,
                         blockIndex,
                         blockSize,
                         activeUniforms,
-                        members
+                        members,
+                        bindingPoint
                     );
 
                     _uniformBlocks.Add(blockData);
@@ -780,6 +779,7 @@ namespace OpenglLib
             BlockSize = blockSize;
             ActiveUniforms = activeUniforms;
             Members = members;
+            BindingPoint = bindingPoint;
         }
 
         public override string ToString()

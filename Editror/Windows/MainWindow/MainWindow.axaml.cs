@@ -58,6 +58,8 @@ namespace Editor
             var docController = new DocumentationController();
             var glslEditor = new GlslEditorController();
 
+            var test = new GLTestController();
+
             _uIManager.RegisterController(MainControllers.Hierarchy, hierarhy);
             _uIManager.RegisterController(MainControllers.Inspector, inspector);
             _uIManager.RegisterController(MainControllers.World, worlds);
@@ -69,6 +71,7 @@ namespace Editor
             _uIManager.RegisterController(MainControllers.Graph, nodeGraphController);
             _uIManager.RegisterController(MainControllers.Documentation, docController);
             _uIManager.RegisterController(MainControllers.GlslEditor, glslEditor);
+            _uIManager.RegisterController(MainControllers.Test, test);
             
             _uIManager.Initialize();
 
@@ -371,6 +374,12 @@ namespace Editor
                         Text = "About",
                         Description = "",
                         Action = () => { DebLogger.Debug("About"); }
+                    },
+                    new EditorToolbarButton()
+                    {
+                        Text = "Test",
+                        Description = "",
+                        Action = () => { _uIManager.OpenWindow(MainControllers.Test); }
                     },
                 }
             };

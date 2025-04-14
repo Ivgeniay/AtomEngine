@@ -2,6 +2,7 @@
 using Silk.NET.OpenGL;
 using AtomEngine;
 using EngineLib;
+using Silk.NET.Assimp;
 
 namespace OpenglLib
 {
@@ -178,6 +179,39 @@ namespace OpenglLib
                 material.Factory = this;
                 _materials.Add(material);
 
+                var containers = materialAsset.GetAllContainers();
+                Dictionary<string, object> forUbos = new Dictionary<string, object>();
+                foreach (var container in containers)
+                {
+                    if (container is MaterialUniformDataContainer materialUniformDataContainer)
+                    {
+                        if (
+                            !string.IsNullOrWhiteSpace(materialUniformDataContainer.Name) &&
+                            materialUniformDataContainer.Value != null
+                            )
+                            material.SetUniform(materialUniformDataContainer.Name, materialUniformDataContainer.Value);
+                    }
+                    else if (container is MaterialUboUniformDataContainer materialUboUniformDataContainer)
+                    {
+                        if (
+                            !string.IsNullOrWhiteSpace(materialUboUniformDataContainer.Name) &&
+                            materialUboUniformDataContainer.Value != null
+                            )
+                            forUbos[materialUboUniformDataContainer.Name] = materialUboUniformDataContainer.Value;
+                    }
+                    else if (container is MaterialSamplerDataContainer materialSamplerDataContainer)
+                    {
+                        if (
+                            !string.IsNullOrWhiteSpace(materialSamplerDataContainer.Name) &&
+                            !string.IsNullOrWhiteSpace(materialSamplerDataContainer.TextureGuid)
+                            )
+                        {
+                            SetTexture(material, materialSamplerDataContainer.Name, materialSamplerDataContainer.TextureGuid);
+                        }
+                    }
+                }
+                if (forUbos.Count() > 0) material.Shader.SetUbo(forUbos);
+
                 //SetUniformValues(instance, materialAsset.UniformValues);
                 //SetTextures(material, materialAsset.TextureReferences);
 
@@ -208,6 +242,7 @@ namespace OpenglLib
                 var shaderModel = GlslExtractor.ExtractShaderModel(shaderPath);
                 Shader shader = new Shader(gl);
                 shader.SetUpShader(shaderModel.Vertex.FullText, shaderModel.Fragment.FullText);
+
                 return shader;
             }
             catch

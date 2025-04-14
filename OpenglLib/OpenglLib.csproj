@@ -34,6 +34,9 @@
     <AdditionalFiles Remove="Resources\Geometry\Standart\Models\torus.obj" />
     <AdditionalFiles Remove="Resources\Geometry\Standart\Textures\icon-light-bulb.png" />
     <AdditionalFiles Remove="Resources\Geometry\Standart\Textures\wood.jpg" />
+    <AdditionalFiles Remove="Resources\Graphics\RS\Const.rs" />
+    <AdditionalFiles Remove="Resources\Graphics\RS\Light.rs" />
+    <AdditionalFiles Remove="Resources\Graphics\RS\pbr_utils.rs" />
     <AdditionalFiles Remove="Resources\Graphics\RS\StructureInstanceDetectionTest.rs" />
     <AdditionalFiles Remove="Resources\Graphics\RS\VertexAttributes.rs" />
     <AdditionalFiles Remove="Resources\Graphics\RS\view.rs" />

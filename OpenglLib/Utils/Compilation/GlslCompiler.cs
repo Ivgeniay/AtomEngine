@@ -2,6 +2,7 @@
 using Silk.NET.OpenGL;
 using System.Text;
 using EngineLib;
+using AtomEngine;
 
 namespace OpenglLib
 {
@@ -179,7 +180,7 @@ namespace OpenglLib
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Исключение при компиляции {type}: {ex.Message}");
+                DebLogger.Error($"Исключение при компиляции {type}: {ex.Message}");
                 return 0;
             }
         }

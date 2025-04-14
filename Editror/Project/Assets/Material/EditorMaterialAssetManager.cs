@@ -6,6 +6,7 @@ using EngineLib;
 using OpenglLib;
 using System;
 using Silk.NET.Maths;
+using System.Collections.Generic;
 
 namespace Editor
 {
@@ -121,8 +122,29 @@ namespace Editor
                 fileEvent.FilePath = filePath.Substring(assetpath.Length);
                 var result = GlslCompiler.TryToCompile(fileEvent, false);
 
+                List<string> exeptionUniformList = new List<string>();
+                foreach (var item in result.UniformBlocks)
+                {
+                    foreach(var member in item.Members)
+                    {
+                        if (GlslParser.IsMatrixType(member.Type))
+                            continue;
+
+                        Type t = GlslParser.MapUniformTypeToSystemType(member.Type);
+                        material.AddContainer(new MaterialUboUniformDataContainer()
+                        {
+                            Name = member.Name,
+                            Value = GlslParser.GetDefaultValueForType(member.Type),
+                            TypeName = t.ToString(),
+                        });
+                        exeptionUniformList.Add(member.Name);
+                    }
+                }
+
                 foreach (var uniformItem in result.UniformInfo)
                 {
+                    if (exeptionUniformList.Contains(uniformItem.Key)) continue;
+
                     if (GlslParser.IsSamplerType(uniformItem.Value.Type))
                         continue;
 
@@ -134,7 +156,6 @@ namespace Editor
                     {
                         Name = uniformItem.Key,
                         TypeName = t.ToString(),
-                        Location = uniformItem.Value.Location,
                         Type = t,
                         Value = GlslParser.GetDefaultValueForType(uniformItem.Value.Type)
                     });
@@ -146,7 +167,6 @@ namespace Editor
                     {
                         Name = samplerItem.Key,
                         TypeName = samplerItem.Value.Type.ToString(),
-                        Location = samplerItem.Value.Location,
                         TextureGuid = string.Empty
                     });
                 }

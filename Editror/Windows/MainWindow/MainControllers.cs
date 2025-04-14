@@ -14,5 +14,6 @@
         Graph,
         Documentation,
         GlslEditor,
+        Test,
     }
 }

@@ -20,6 +20,8 @@ namespace Editor
 
         protected override void OnOpenGlInit(GlInterface gl)
         {
+            base.OnOpenGlInit(gl);
+
             _gl = GL.GetApi(gl.GetProcAddress);
             _isInitialized = true;
 
@@ -38,18 +40,6 @@ namespace Editor
 
         protected override void OnOpenGlDeinit(GlInterface gl)
         {
-            _isInitialized = false;
-            OnGLDeInitialized?.Invoke();
-
-            _gl?.Dispose();
-            _gl = null;
-
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-
-            base.OnOpenGlDeinit(gl);
         }
 
         protected override void OnOpenGlRender(GlInterface gl, int fb)
@@ -72,7 +62,6 @@ namespace Editor
             catch (Exception ex)
             {
                 DebLogger.Error($"Ошибка во время GL-рендеринга: {ex.Message}");
-
                 try
                 {
                     _gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -95,6 +84,8 @@ namespace Editor
             _gl?.Dispose();
             _gl = null;
 
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();

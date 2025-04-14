@@ -1,5 +1,5 @@
-﻿using EngineLib;
-using Silk.NET.OpenGL;
+﻿using Silk.NET.OpenGL;
+using EngineLib;
 
 namespace OpenglLib
 {

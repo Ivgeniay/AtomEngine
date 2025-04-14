@@ -172,12 +172,21 @@ namespace OpenglLib
     {
         public string Name { get; set; } = string.Empty;
         public string TypeName { get; set; } = string.Empty;
-        public int Location { get; set; } = -1;
     }
     public class MaterialUniformDataContainer : MaterialDataContainer
     {
         public Type Type { get; set; }
         public object Value { get; set; }
+    }
+    public class MaterialUboUniformDataContainer : MaterialDataContainer
+    {
+        public Type Type { get; set; }
+        public object Value { get; set; }
+        public uint Index { get; set; }
+        public int Offset { get; set; }
+        public int Size { get; set; }
+        public int ArrayStride {  get; set; }
+        public int MatrixStride { get; set; }
     }
     public class MaterialSamplerDataContainer : MaterialDataContainer
     {

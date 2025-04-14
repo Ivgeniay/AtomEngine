@@ -15,7 +15,6 @@ using AtomEngine;
 using Avalonia;
 using System;
 
-using KeyEventArgs = Avalonia.Input.KeyEventArgs;
 using MouseButton = Avalonia.Input.MouseButton;
 using OpenglLib;
 using EngineLib;

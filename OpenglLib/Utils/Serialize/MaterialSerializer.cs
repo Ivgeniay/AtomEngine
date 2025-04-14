@@ -169,6 +169,16 @@ namespace OpenglLib
                     Value = ConvertToSerializable(uniformContainer.Value)
                 };
             }
+            else if (container is MaterialUboUniformDataContainer samplerUboContainer)
+            {
+                return new
+                {
+                    Type = "UniformUbo",
+                    container.Name,
+                    container.TypeName,
+                    Value = ConvertToSerializable(samplerUboContainer.Value)
+                };
+            }
             else if (container is MaterialSamplerDataContainer samplerContainer)
             {
                 return new
@@ -284,7 +294,7 @@ namespace OpenglLib
                         if (uniformType == null)
                         {
                             DebLogger.Warn($"Не удалось найти тип {typeName} для uniform-контейнера {name}");
-                            uniformType = typeof(float);
+                            return null;
                         }
 
                         var value = ConvertToTyped(item["Value"], uniformType);
@@ -294,6 +304,23 @@ namespace OpenglLib
                             TypeName = typeName,
                             Type = uniformType,
                             Value = value ?? GetDefaultValueForType(uniformType)
+                        };
+
+                    case "UniformUbo":
+                        Type uniformUboType = GetTypeFromName(typeName);
+                        if (uniformUboType == null)
+                        {
+                            DebLogger.Warn($"Не удалось найти тип {typeName} для uniform-контейнера {name}");
+                            return null;
+                        }
+
+                        var univormUbovalue = ConvertToTyped(item["Value"], uniformUboType);
+                        return new MaterialUboUniformDataContainer
+                        {
+                            Name = name,
+                            TypeName = typeName,
+                            Type = uniformUboType,
+                            Value = univormUbovalue ?? GetDefaultValueForType(uniformUboType)
                         };
 
                     case "Sampler":

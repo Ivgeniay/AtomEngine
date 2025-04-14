@@ -83,7 +83,6 @@ namespace Editor
                 IsReadOnly = true
             };
 
-            // Получаем все контейнеры и обрабатываем их
             var containers = _materialAsset.GetAllContainers();
             foreach (var container in containers)
             {
@@ -108,6 +107,10 @@ namespace Editor
             if (container is MaterialUniformDataContainer uniformContainer)
             {
                 yield return CreatePropertyDescriptorForUniform(uniformContainer, currentPath, displayName);
+            }
+            else if (container is MaterialUboUniformDataContainer uniformUboContainer)
+            {
+                yield return CreatePropertyDescriptorForUBOUniform(uniformUboContainer, currentPath, displayName);
             }
             else if (container is MaterialSamplerDataContainer samplerContainer)
             {
@@ -201,6 +204,24 @@ namespace Editor
 
         private PropertyDescriptor CreatePropertyDescriptorForUniform(
             MaterialUniformDataContainer container, string path, string displayName)
+        {
+            return new PropertyDescriptor
+            {
+                Name = displayName,
+                Type = container.Type,
+                Value = container.Value,
+                IsReadOnly = false,
+                OnValueChanged = newValue =>
+                {
+                    container.Value = newValue;
+                    _materialFactory.SetUniformValue(_materialAsset, path, newValue);
+                    _materialAssetManager.SaveMaterialAsset(_materialAsset);
+                }
+            };
+        }
+
+        private PropertyDescriptor CreatePropertyDescriptorForUBOUniform(
+            MaterialUboUniformDataContainer container, string path, string displayName)
         {
             return new PropertyDescriptor
             {
