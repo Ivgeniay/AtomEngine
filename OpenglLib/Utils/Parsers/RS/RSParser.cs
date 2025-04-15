@@ -60,7 +60,9 @@ namespace OpenglLib
 
             if (!string.IsNullOrEmpty(sourcePath))
             {
-                shaderSource = IncludeProcessor.ProcessIncludes(shaderSource, sourcePath, processedPaths, out rsFiles);
+                //shaderSource = IncludeProcessor.ProcessIncludes(shaderSource, sourcePath, processedPaths, out rsFiles);
+                //shaderSource = IncludeProcessor.ProcessIncludesWithoutDuplication(shaderSource, sourcePath, out rsFiles);
+                shaderSource = IncludeProcessor.ProcessShaderWithSections(shaderSource, sourcePath, out rsFiles);
             }
             else
             {
@@ -214,7 +216,6 @@ namespace OpenglLib
                         structs.Add(inst);
                     }
                 }
-                //structs.AddRange(rsInfo.StructureInstances);
             }
             return structs;
         }

@@ -1,5 +1,5 @@
 ﻿#include "embedded:Resources/Graphics/RS/Light.rs"
-const float PI = 3.14159265359;
+#include "embedded:Resources/Graphics/RS/Const.rs"
 
 struct PBRMaterial {
     vec3 albedo;

@@ -10,6 +10,7 @@ using Avalonia;
 using System;
 using CommonLib;
 using EngineLib;
+using System.IO;
 
 namespace Editor
 {
@@ -313,6 +314,20 @@ namespace Editor
             }
 
             _logEntries.Add(entry);
+
+            //string filePAth = "D:\\Programming\\CS\\AtomEngine\\Editror\\bin\\Debug\\net9.0\\Cache\\Log.txt";
+            //if (!File.Exists(filePAth))
+            //{
+            //    File.Create(filePAth);
+            //}
+            //File.AppendAllLines(
+            //    filePAth, 
+            //    new List<string> { 
+            //    entry.Timestamp.ToString(), 
+            //    entry.Level.ToString(), 
+            //    entry.Message,
+            //}, encoding: System.Text.Encoding.UTF8);
+
 
 
             Dispatcher.UIThread.Invoke(new Action(() =>

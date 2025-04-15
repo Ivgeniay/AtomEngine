@@ -23,10 +23,17 @@ namespace Editor
                 }
             };
 
-
-            BuildAvaloniaApp()
-                .StartWithClassicDesktopLifetime(args);
-        }
+            try
+            {
+                BuildAvaloniaApp()
+                    .StartWithClassicDesktopLifetime(args);
+            }
+            catch (Exception e)
+            {
+                BuildAvaloniaApp()
+                    .StartWithClassicDesktopLifetime(args);
+            }
+        } 
 
         public static AppBuilder BuildAvaloniaApp()
             => AppBuilder.Configure<App>()

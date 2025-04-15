@@ -19,6 +19,7 @@ namespace OpenglLib
             List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, sourcePath);
 
             shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, sourcePath);
+            //shaderSource = IncludeProcessor.ProcessShaderWithSections(shaderSource, sourcePath, out List<RSFileInfo> rsFiless);
             shaderSource = RSParser.RemoveServiceMarkers(shaderSource);
             shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
 
@@ -264,7 +265,8 @@ namespace OpenglLib
         public static string ProcessIncludesRecursively(string source, string sourcePath, HashSet<string> processedPaths = null)
         {
             processedPaths ??= new HashSet<string>();
-            return IncludeProcessor.ProcessIncludes(source, sourcePath, processedPaths);
+            //return IncludeProcessor.ProcessIncludes(source, sourcePath, processedPaths);
+            return IncludeProcessor.ProcessIncludesWithoutDuplication(source, sourcePath);
         }
 
         public static string CleanComments(string source)
