@@ -1,6 +1,7 @@
 ﻿using AtomEngine;
 using AtomEngine.RenderEntity;
 using EngineLib;
+using OpenglLib.Buffers;
 using Silk.NET.OpenGL;
 
 namespace OpenglLib
@@ -12,12 +13,14 @@ namespace OpenglLib
         protected TextureFactory _textureFactory;
         protected MeshFactory _meshFactory;
         protected MaterialFactory _materialFactory;
+        protected UboService _uboService;
 
         public override Task InitializeAsync()
         {
             _textureFactory = ServiceHub.Get<TextureFactory>();
             _meshFactory = ServiceHub.Get<MeshFactory>();
             _materialFactory = ServiceHub.Get<MaterialFactory>();
+            _uboService = ServiceHub.Get<UboService>();
 
             return base.InitializeAsync();
         }
@@ -25,6 +28,7 @@ namespace OpenglLib
         protected virtual void OnGLInitialized(GL gl)
         {
             _gl = gl;
+            _uboService.SetGL(gl);
             _isGLInitialized = true;
         }
 
@@ -108,6 +112,7 @@ namespace OpenglLib
             _textureFactory.Dispose();
             _meshFactory.Dispose();
             _materialFactory.Dispose();
+            _uboService.Dispose();
 
             _resourceCache.Clear();
             _objectToGuidCache.Clear();
@@ -133,7 +138,7 @@ namespace OpenglLib
         //}
 
         public virtual void Dispose() { 
-        
+            
         }
 
 

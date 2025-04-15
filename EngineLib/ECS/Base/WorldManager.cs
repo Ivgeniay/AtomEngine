@@ -51,9 +51,9 @@ namespace AtomEngine
             CurrentWorld.Update(deltaTime);
         }
 
-        public void Render(double deltaTime)
+        public void Render(double deltaTime, object? context)
         {
-            CurrentWorld.Render(deltaTime);
+            CurrentWorld.Render(deltaTime, context);
         }
 
         public void FixedUpdate()

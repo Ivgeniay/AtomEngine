@@ -12,6 +12,7 @@ using OpenglLib;
 using System.Reflection;
 using System.Collections.Generic;
 using System.Xml.Linq;
+using OpenglLib.Buffers;
 
 namespace Editor
 {
@@ -113,6 +114,7 @@ namespace Editor
                 ServiceHub.RegisterService<InspectorDistributor>();
                 ServiceHub.RegisterService<ComponentService>();
                 ServiceHub.RegisterService<LoadingManager>();
+                ServiceHub.RegisterService<UboService>();
                 ServiceHub.RegisterService<BindingPointService>();
 
                 ServiceHub.RegisterService<OpenGlExcludeSerializationTypeService>();

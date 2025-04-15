@@ -6,7 +6,7 @@ namespace AtomEngine
     {
         public void UpdateSingeThread(double deltaTime);
         public void Update(double deltaTime);
-        public void Render(double deltaTime);
+        public void Render(double deltaTime, object? context);
         public void FixedUpdate();
 
         public ref T GetComponent<T>(Entity entity) where T : struct, IComponent;

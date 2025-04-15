@@ -2,7 +2,6 @@
 using Silk.NET.OpenGL;
 using AtomEngine;
 using EngineLib;
-using Silk.NET.Assimp;
 
 namespace OpenglLib
 {
@@ -424,22 +423,6 @@ namespace OpenglLib
                     material.Use();
                     material.SetTexture(samplerName, texture);
                 }
-                //material.MaterialAsset.TextureReferences[samplerName] = textureGuid;
-                //if (material.IsValid)
-                //{
-                //    Type type = material.Shader.GetType();
-                //    PropertyInfo setter = type.GetProperty(samplerName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                //    if (setter != null)
-                //    {
-                //        Texture texture = _textureFactory.CreateTextureFromGuid(material.GLContext, textureGuid);
-                //        if (texture != null)
-                //        {
-                //            material.Shader.Use();
-                //            setter.SetValue(material.Shader, texture);
-                //            DebLogger.Debug($"Применена текстура {samplerName} к материалу {type.Name}");
-                //        }
-                //    }
-                //}
             }
             catch (Exception ex)
             {

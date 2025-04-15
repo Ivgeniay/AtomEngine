@@ -22,7 +22,7 @@ namespace OpenglLib
 
         public void Initialize() { }
 
-        public void Render(double deltaTime)
+        public void Render(double deltaTime, object? context)
         {
             var queryRenderersEntity = shaderEntityQuery.Build();
             if (queryRenderersEntity.Count() == 0) return;

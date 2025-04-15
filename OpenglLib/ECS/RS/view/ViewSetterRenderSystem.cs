@@ -21,7 +21,7 @@ namespace OpenglLib
         }
 
 
-        public void Render(double deltaTime)
+        public void Render(double deltaTime, object? context)
         {
             Entity[] rendererEntities = queryRendererEntities.Build();
             if (rendererEntities.Length == 0)

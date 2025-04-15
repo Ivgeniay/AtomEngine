@@ -1,6 +1,7 @@
 ﻿using AtomEngine;
 using EngineLib;
 using OpenglLib;
+using OpenglLib.Buffers;
 using System.Reflection;
 
 namespace WindowsBuild
@@ -40,6 +41,7 @@ namespace WindowsBuild
             ServiceHub.RegisterService<OpenGlExcludeSerializationTypeService>();
             ServiceHub.AddMapping<ExcludeSerializationTypeService, OpenGlExcludeSerializationTypeService>();
             ServiceHub.RegisterService<BindingPointService>();
+            ServiceHub.RegisterService<UboService>();
 
             ServiceHub.Initialize().Wait();
 
@@ -54,9 +56,11 @@ namespace WindowsBuild
 
             var options = new AppOptions() { Width = 800, Height = 600, Debug = false };
             using App app = new App(options);
+            object context = null;
 
             app.OnLoaded += (gl) =>
             {
+                context = gl;
                 ServiceHub.Get<BindingPointService>().UpdateMaxBindingPoints(gl); 
                 ResourceLoader.LoadResources(app.Gl, app.Assimp, router, assemblyManager, resourceManager);
                 sceneLoader.InitializeScene(scene, resourceManager);
@@ -74,7 +78,7 @@ namespace WindowsBuild
 
             app.OnRendered += (deltaTime) =>
             {
-                worldManager.Render(deltaTime);
+                worldManager.Render(deltaTime, context);
             };
 
             app.OnFixedUpdate += () =>

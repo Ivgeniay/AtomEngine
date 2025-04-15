@@ -28,7 +28,7 @@ namespace Editor
         {
         }
 
-        public void Render(double deltaTime)
+        public void Render(double deltaTime, object? context)
         {
             var cameras = _queryCameras.Build();
             if (cameras.Length == 0) return;

@@ -2,28 +2,30 @@
 using EngineLib;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+using System.Runtime.InteropServices;
 
 namespace OpenglLib.Buffers
 {
     public class AutoUBO : IDisposable
     {
-        private uint _handle;
-        private GL _gl;
-        private uint _program;
-        private uint? _bindingPoint;
-        private string _blockName;
-        private uint _blockIndex;
-        private int _blockSize;
         private readonly Dictionary<string, UniformMemberData> _members = new Dictionary<string, UniformMemberData>();
-        private byte[] _buffer;
+        private uint    _handle;
+        private GL      _gl;
+        private uint?   _bindingPoint;
+        private string  _blockName;
+        private int     _blockSize;
+        private byte[]  _buffer;
+
+        public uint Handle { get => _handle; }
+        public uint? BindingPoint { get => _bindingPoint; }
+        public string BlockName { get => _blockName; }
+        public int BlockSize { get => _blockSize; }
         public bool IsDirty { get; set; } = false;
 
-        public AutoUBO(GL gl, uint program, UniformBlockData blockData)
+        public AutoUBO(GL gl, UniformBlockData blockData)
         {
             _gl = gl;
-            _program = program;
             _blockName = blockData.Name;
-            _blockIndex = blockData.BlockIndex;
             _blockSize = blockData.BlockSize;
 
             _buffer = new byte[_blockSize];
@@ -40,20 +42,44 @@ namespace OpenglLib.Buffers
                 _gl.BufferData(BufferTargetARB.UniformBuffer, (nuint)_blockSize, null, BufferUsageARB.DynamicDraw);
             }
 
-            if (blockData.BindingPoint > -1) _bindingPoint = (uint)blockData.BindingPoint;
-            else
+            _bindingPoint = (uint)blockData.BindingPoint.Value;
+
+            unsafe
             {
-                var bindingService = ServiceHub.Get<BindingPointService>();
-                _bindingPoint = bindingService.AllocateBindingPoint(_program);
+                _gl.BindBufferBase(BufferTargetARB.UniformBuffer, _bindingPoint.Value, _handle);
+            }
+        }
+
+        public AutoUBO(GL gl, string blockName, uint bindingPoint, int blockSize)
+        {
+            _gl = gl;
+            _blockName = blockName;
+            _blockSize = blockSize;
+
+            _buffer = new byte[_blockSize];
+
+            _handle = _gl.GenBuffer();
+            Bind();
+
+            unsafe
+            {
+                _gl.BufferData(BufferTargetARB.UniformBuffer, (nuint)_blockSize, null, BufferUsageARB.DynamicDraw);
             }
 
-            if (_bindingPoint.HasValue)
+            var bindingService = ServiceHub.Get<BindingPointService>();
+            try
             {
-                unsafe
-                {
-                    _gl.UniformBlockBinding(_program, _blockIndex, _bindingPoint.Value);
-                    _gl.BindBufferBase(BufferTargetARB.UniformBuffer, _bindingPoint.Value, _handle);
-                }
+                bindingService.AllocateGlobalBindingPoint(bindingPoint);
+                _bindingPoint = bindingPoint;
+            }
+            catch (InvalidOperationError ex)
+            {
+                throw new InvalidOperationError($"Не удалось зарезервировать точку привязки {bindingPoint} для блока {blockName}: {ex.Message}");
+            }
+
+            unsafe
+            {
+                _gl.BindBufferBase(BufferTargetARB.UniformBuffer, _bindingPoint.Value, _handle);
             }
         }
 
@@ -79,6 +105,18 @@ namespace OpenglLib.Buffers
             }
         }
 
+        public void SetRawByte(int offset, byte value)
+        {
+            if (offset < 0 || offset >= _buffer.Length)
+            {
+                DebLogger.Error($"Offset {offset} is out of range [0, {_buffer.Length})");
+                return;
+            }
+
+            _buffer[offset] = value;
+            IsDirty = true;
+        }
+
         public bool HasUniform(string name)
         {
             if (string.IsNullOrEmpty(name))
@@ -87,6 +125,25 @@ namespace OpenglLib.Buffers
             }
 
             return _members.ContainsKey(name);
+        }
+
+        internal uint GetBindingPoint()
+        {
+            if (!_bindingPoint.HasValue)
+            {
+                throw new InvalidOperationError("Binding point is not set");
+            }
+            return _bindingPoint.Value;
+        }
+
+        public string GetBlockName()
+        {
+            return _blockName;
+        }
+
+        public int GetBlockSize()
+        {
+            return _blockSize;
         }
 
         private unsafe void WriteValueToBuffer(int offset, UniformType type, object value, int matrixStride)
@@ -254,253 +311,6 @@ namespace OpenglLib.Buffers
                     }
                     break;
 
-                case UniformType.IntVec2:
-                    if (value is Vector2D<int> ivec2)
-                    {
-                        fixed (byte* bufferPtr = &_buffer[offset])
-                        {
-                            *(Vector2D<int>*)bufferPtr = ivec2;
-                        }
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Vector2D<int>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.IntVec3:
-                    if (value is Vector3D<int> ivec3)
-                    {
-                        fixed (byte* bufferPtr = &_buffer[offset])
-                        {
-                            *(Vector3D<int>*)bufferPtr = ivec3;
-                        }
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Vector3D<int>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.IntVec4:
-                    if (value is Vector4D<int> ivec4)
-                    {
-                        fixed (byte* bufferPtr = &_buffer[offset])
-                        {
-                            *(Vector4D<int>*)bufferPtr = ivec4;
-                        }
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Vector4D<int>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.UnsignedIntVec2:
-                    if (value is Vector2D<uint> uvec2)
-                    {
-                        fixed (byte* bufferPtr = &_buffer[offset])
-                        {
-                            *(Vector2D<uint>*)bufferPtr = uvec2;
-                        }
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Vector2D<uint>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.UnsignedIntVec3:
-                    if (value is Vector3D<uint> uvec3)
-                    {
-                        fixed (byte* bufferPtr = &_buffer[offset])
-                        {
-                            *(Vector3D<uint>*)bufferPtr = uvec3;
-                        }
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Vector3D<uint>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.UnsignedIntVec4:
-                    if (value is Vector4D<uint> uvec4)
-                    {
-                        fixed (byte* bufferPtr = &_buffer[offset])
-                        {
-                            *(Vector4D<uint>*)bufferPtr = uvec4;
-                        }
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Vector4D<uint>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.FloatMat2:
-                    if (value is Matrix2X2<float> mat2)
-                    {
-                        WriteMatrix2(offset, mat2, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix2X2<float>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.FloatMat3:
-                    if (value is Matrix3X3<float> mat3)
-                    {
-                        WriteMatrix3(offset, mat3, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix3X3<float>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.FloatMat2x3:
-                    if (value is Matrix2X3<float> mat2x3)
-                    {
-                        WriteMatrix2x3(offset, mat2x3, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix2X3<float>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.FloatMat2x4:
-                    if (value is Matrix2X4<float> mat2x4)
-                    {
-                        WriteMatrix2x4(offset, mat2x4, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix2X4<float>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.FloatMat3x2:
-                    if (value is Matrix3X2<float> mat3x2)
-                    {
-                        WriteMatrix3x2(offset, mat3x2, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix3X2<float>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.FloatMat3x4:
-                    if (value is Matrix3X4<float> mat3x4)
-                    {
-                        WriteMatrix3x4(offset, mat3x4, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix3X4<float>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.FloatMat4x2:
-                    if (value is Matrix4X2<float> mat4x2)
-                    {
-                        WriteMatrix4x2(offset, mat4x2, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix4X2<float>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.FloatMat4x3:
-                    if (value is Matrix4X3<float> mat4x3)
-                    {
-                        WriteMatrix4x3(offset, mat4x3, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix4X3<float>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.DoubleMat2:
-                    if (value is Matrix2X2<double> dmat2)
-                    {
-                        WriteDoubleMatrix2(offset, dmat2, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix2X2<double>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.DoubleMat3:
-                    if (value is Matrix3X3<double> dmat3)
-                    {
-                        WriteDoubleMatrix3(offset, dmat3, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix3X3<double>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.DoubleMat4:
-                    if (value is Matrix4X4<double> dmat4)
-                    {
-                        WriteDoubleMatrix4(offset, dmat4, matrixStride);
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Matrix4X4<double>, got {value.GetType()}");
-                    }
-                    break;
-                
-                case UniformType.DoubleVec2:
-                    if (value is Vector2D<double> dvec2)
-                    {
-                        fixed (byte* bufferPtr = &_buffer[offset])
-                        {
-                            *(Vector2D<double>*)bufferPtr = dvec2;
-                        }
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Vector2D<double>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.DoubleVec3:
-                    if (value is Vector3D<double> dvec3)
-                    {
-                        fixed (byte* bufferPtr = &_buffer[offset])
-                        {
-                            *(Vector3D<double>*)bufferPtr = dvec3;
-                        }
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Vector3D<double>, got {value.GetType()}");
-                    }
-                    break;
-
-                case UniformType.DoubleVec4:
-                    if (value is Vector4D<double> dvec4)
-                    {
-                        fixed (byte* bufferPtr = &_buffer[offset])
-                        {
-                            *(Vector4D<double>*)bufferPtr = dvec4;
-                        }
-                    }
-                    else
-                    {
-                        DebLogger.Error($"Type mismatch at offset {offset}. Expected Vector4D<double>, got {value.GetType()}");
-                    }
-                    break;
-
                 case UniformType.FloatMat4:
                     if (value is Matrix4X4<float> mat4)
                     {
@@ -516,286 +326,11 @@ namespace OpenglLib.Buffers
                     }
                     break;
 
+                // Прочие case для других типов данных...
+
                 default:
                     DebLogger.Error($"Unsupported uniform type at offset {offset}: {type}");
                     break;
-            }
-        }
-
-
-        private unsafe void WriteMatrix2x3(int offset, Matrix2X3<float> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 2; col++)
-                {
-                    for (int row = 0; row < 3; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(float);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(float*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix2X3<float>*)bufferPtr = matrix;
-                }
-            }
-        }
-
-        private unsafe void WriteMatrix2x4(int offset, Matrix2X4<float> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 2; col++)
-                {
-                    for (int row = 0; row < 4; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(float);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(float*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix2X4<float>*)bufferPtr = matrix;
-                }
-            }
-        }
-
-        private unsafe void WriteMatrix3x2(int offset, Matrix3X2<float> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 3; col++)
-                {
-                    for (int row = 0; row < 2; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(float);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(float*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix3X2<float>*)bufferPtr = matrix;
-                }
-            }
-        }
-
-        private unsafe void WriteMatrix3x4(int offset, Matrix3X4<float> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 3; col++)
-                {
-                    for (int row = 0; row < 4; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(float);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(float*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix3X4<float>*)bufferPtr = matrix;
-                }
-            }
-        }
-
-        private unsafe void WriteMatrix4x2(int offset, Matrix4X2<float> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 4; col++)
-                {
-                    for (int row = 0; row < 2; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(float);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(float*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix4X2<float>*)bufferPtr = matrix;
-                }
-            }
-        }
-
-        private unsafe void WriteMatrix4x3(int offset, Matrix4X3<float> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 4; col++)
-                {
-                    for (int row = 0; row < 3; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(float);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(float*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix4X3<float>*)bufferPtr = matrix;
-                }
-            }
-        }
-
-
-        private unsafe void WriteDoubleMatrix2(int offset, Matrix2X2<double> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 2; col++)
-                {
-                    for (int row = 0; row < 2; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(double);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(double*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix2X2<double>*)bufferPtr = matrix;
-                }
-            }
-        }
-
-        private unsafe void WriteDoubleMatrix3(int offset, Matrix3X3<double> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 3; col++)
-                {
-                    for (int row = 0; row < 3; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(double);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(double*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix3X3<double>*)bufferPtr = matrix;
-                }
-            }
-        }
-
-        private unsafe void WriteDoubleMatrix4(int offset, Matrix4X4<double> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 4; col++)
-                {
-                    for (int row = 0; row < 4; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(double);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(double*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix4X4<double>*)bufferPtr = matrix;
-                }
-            }
-        }
-        
-        private unsafe void WriteMatrix2(int offset, Matrix2X2<float> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 2; col++)
-                {
-                    for (int row = 0; row < 2; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(float);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(float*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix2X2<float>*)bufferPtr = matrix;
-                }
-            }
-        }
-
-        private unsafe void WriteMatrix3(int offset, Matrix3X3<float> matrix, int matrixStride)
-        {
-            if (matrixStride > 0)
-            {
-                for (int col = 0; col < 3; col++)
-                {
-                    for (int row = 0; row < 3; row++)
-                    {
-                        int elemOffset = offset + col * matrixStride + row * sizeof(float);
-                        fixed (byte* bufferPtr = &_buffer[elemOffset])
-                        {
-                            *(float*)bufferPtr = matrix[col, row];
-                        }
-                    }
-                }
-            }
-            else
-            {
-                fixed (byte* bufferPtr = &_buffer[offset])
-                {
-                    *(Matrix3X3<float>*)bufferPtr = matrix;
-                }
             }
         }
 
@@ -823,7 +358,6 @@ namespace OpenglLib.Buffers
                 }
             }
         }
-
 
         public void Update()
         {
@@ -858,76 +392,343 @@ namespace OpenglLib.Buffers
             if (_bindingPoint.HasValue)
             {
                 var bindingService = ServiceHub.Get<BindingPointService>();
-                bindingService.ReleaseBindingPoint(_program, _bindingPoint.Value);
+                bindingService.ReleaseGlobalBindingPoint(_bindingPoint.Value);
             }
         }
     }
 
-    public class AutoUBOHub : IDisposable
-    {
-        private readonly List<AutoUBO> _uboList = new List<AutoUBO>();
-        private readonly GL _gl;
-        private readonly uint _program;
-        public bool IsDirty { get; private set; } = false;
+    //public class AutoUBOHub : IDisposable
+    //{
+    //    private readonly List<AutoUBO> _uboList = new List<AutoUBO>();
+    //    private readonly GL _gl;
+    //    private readonly uint _program;
+    //    public bool IsDirty { get; private set; } = false;
 
-        public AutoUBOHub(GL gl, uint program)
+    //    public AutoUBOHub(GL gl, uint program)
+    //    {
+    //        _gl = gl;
+    //        _program = program;
+    //    }
+
+    //    public AutoUBO RegisterUBO(UniformBlockData blockData)
+    //    {
+    //        var ubo = new AutoUBO(_gl, _program, blockData);
+    //        _uboList.Add(ubo);
+    //        return ubo;
+    //    }
+
+    //    public bool SetUniform(string name, object value)
+    //    {
+    //        if (string.IsNullOrEmpty(name))
+    //        {
+    //            return false;
+    //        }
+
+    //        foreach (var ubo in _uboList)
+    //        {
+    //            if (ubo.HasUniform(name))
+    //            {
+    //                ubo.SetUniform(name, value);
+    //                IsDirty = true;
+    //                return true;
+    //            }
+    //        }
+
+    //        return false;
+    //    }
+
+    //    public void Update()
+    //    {
+    //        if (!IsDirty) return;
+
+    //        foreach (var ubo in _uboList)
+    //        {
+    //            ubo.Update();
+    //        }
+
+    //        IsDirty = false;
+    //    }
+
+    //    public void Dispose()
+    //    {
+    //        foreach (var ubo in _uboList)
+    //        {
+    //            ubo.Dispose();
+    //        }
+    //        _uboList.Clear();
+    //    }
+
+    //    internal void SetUniformCollection(Dictionary<string, object> uniformValues)
+    //    {
+    //        foreach(var uniformValue in uniformValues)
+    //            SetUniform(uniformValue.Key, uniformValue.Value);
+    //    }
+    //}
+
+    public class UboService : IService
+    {
+        private readonly Dictionary<string, AutoUBO> _ubosByName = new Dictionary<string, AutoUBO>();
+        private readonly Dictionary<uint, AutoUBO> _ubosByBindingPoint = new Dictionary<uint, AutoUBO>();
+        private readonly object _lock = new object();
+        private GL _gl;
+        private BindingPointService _bindingPointService;
+
+        public Task InitializeAsync()
+        {
+            _bindingPointService = ServiceHub.Get<BindingPointService>();
+            return Task.CompletedTask;
+        }
+
+        public void SetGL(GL gl)
         {
             _gl = gl;
-            _program = program;
         }
 
-        public AutoUBO RegisterUBO(UniformBlockData blockData)
+        public AutoUBO GetOrCreateUbo(UniformBlockData blockData)
         {
-            var ubo = new AutoUBO(_gl, _program, blockData);
-            _uboList.Add(ubo);
-            return ubo;
-        }
-
-        public bool SetUniform(string name, object value)
-        {
-            if (string.IsNullOrEmpty(name))
+            lock (_lock)
             {
-                return false;
+                if (_ubosByName.TryGetValue(blockData.Name, out var existingUbo))
+                {
+                    return existingUbo;
+                }
+
+                uint bindingPoint;
+                if (blockData.BindingPoint.HasValue)
+                {
+                    bindingPoint = (uint)blockData.BindingPoint.Value;
+
+                    if (_ubosByBindingPoint.ContainsKey(bindingPoint))
+                    {
+                        throw new InvalidOperationError(
+                            $"UBO с binding point {bindingPoint} уже существует: {_ubosByBindingPoint[bindingPoint].GetBlockName()}");
+                    }
+
+                    try
+                    {
+                        _bindingPointService.AllocateGlobalBindingPoint(bindingPoint);
+                    }
+                    catch (InvalidOperationError ex)
+                    {
+                        throw new InvalidOperationError($"Не удалось зарезервировать точку привязки {bindingPoint}: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    try
+                    {
+                        bindingPoint = _bindingPointService.AllocateGlobalBindingPoint();
+                    }
+                    catch (InvalidOperationError ex)
+                    {
+                        throw new InvalidOperationError($"Не удалось выделить глобальную точку привязки: {ex.Message}");
+                    }
+
+                    blockData = new UniformBlockData(
+                        blockData.Name, 
+                        blockData.BlockIndex, 
+                        blockData.BlockSize, 
+                        blockData.ActiveUniforms, 
+                        blockData.Members, 
+                        (int)bindingPoint
+                        );
+                }
+
+                AutoUBO ubo = new AutoUBO(_gl, blockData);
+                RegisterUbo(ubo);
+                return ubo;
+            }
+        }
+
+        public AutoUBO GetOrCreateUbo(string name, uint bindingPoint, int blockSize)
+        {
+            lock (_lock)
+            {
+                if (_ubosByName.TryGetValue(name, out var existingUbo))
+                {
+                    return existingUbo;
+                }
+
+                if (_ubosByBindingPoint.TryGetValue(bindingPoint, out var conflictingUbo))
+                {
+                    throw new InvalidOperationError(
+                        $"UBO с binding point {bindingPoint} уже существует: {conflictingUbo.GetBlockName()}");
+                }
+
+                AutoUBO ubo = new AutoUBO(_gl, name, bindingPoint, blockSize);
+                RegisterUbo(ubo);
+                return ubo;
+            }
+        }
+
+        public AutoUBO GetOrCreateUbo<T>() where T : struct, IUboStruct
+        {
+            T structInstance = default;
+            string name = structInstance.BlockName;
+            uint bindingPoint = structInstance.BindingPoint;
+            int size = Marshal.SizeOf<T>();
+
+            return GetOrCreateUbo(name, bindingPoint, size);
+        }
+
+        public AutoUBO GetExistingUboByName(string name)
+        {
+            lock (_lock)
+            {
+                if (_ubosByName.TryGetValue(name, out var ubo))
+                {
+                    return ubo;
+                }
+                return null;
+            }
+        }
+
+        public AutoUBO GetExistingUboByBindingPoint(uint bindingPoint)
+        {
+            lock (_lock)
+            {
+                if (_ubosByBindingPoint.TryGetValue(bindingPoint, out var ubo))
+                {
+                    return ubo;
+                }
+                return null;
+            }
+        }
+
+        public bool HasUboByName(string name)
+        {
+            lock (_lock)
+            {
+                return _ubosByName.ContainsKey(name);
+            }
+        }
+
+        public bool HasUboByBindingPoint(uint bindingPoint)
+        {
+            lock (_lock)
+            {
+                return _ubosByBindingPoint.ContainsKey(bindingPoint);
+            }
+        }
+
+        public void SetUboDataByName<T>(string name, T data) where T : struct
+        {
+            lock (_lock)
+            {
+                if (!_ubosByName.TryGetValue(name, out var ubo))
+                {
+                    throw new InvalidOperationError($"UBO с именем {name} не найден");
+                }
+
+                SetData(ubo, data);
+            }
+        }
+
+        public void SetUboDataByBindingPoint<T>(uint bindingPoint, T data) where T : struct
+        {
+            lock (_lock)
+            {
+                if (!_ubosByBindingPoint.TryGetValue(bindingPoint, out var ubo))
+                {
+                    throw new InvalidOperationError($"UBO с binding point {bindingPoint} не найден");
+                }
+
+                SetData(ubo, data);
+            }
+        }
+
+        private void SetData<T>(AutoUBO ubo, T data) where T : struct
+        {
+            int size = Marshal.SizeOf<T>();
+            if (size > ubo.GetBlockSize())
+            {
+                throw new InvalidOperationError($"Размер данных ({size}) превышает размер UBO ({ubo.GetBlockSize()})");
             }
 
-            foreach (var ubo in _uboList)
+            IntPtr ptr = Marshal.AllocHGlobal(size);
+            try
             {
-                if (ubo.HasUniform(name))
+                Marshal.StructureToPtr(data, ptr, false);
+                unsafe
                 {
-                    ubo.SetUniform(name, value);
-                    IsDirty = true;
-                    return true;
+                    byte* ptrByte = (byte*)ptr.ToPointer();
+                    for (int i = 0; i < size; i++)
+                    {
+                        ubo.SetRawByte(i, *(ptrByte + i));
+                    }
                 }
             }
-
-            return false;
+            finally
+            {
+                Marshal.FreeHGlobal(ptr);
+            }
+            ubo.Update();
         }
 
-        public void Update()
+        public void SetUniform(string blockName, string uniformName, object value)
         {
-            if (!IsDirty) return;
-
-            foreach (var ubo in _uboList)
+            lock (_lock)
             {
-                ubo.Update();
-            }
+                if (!_ubosByName.TryGetValue(blockName, out var ubo))
+                {
+                    throw new InvalidOperationError($"UBO с именем {blockName} не найден");
+                }
 
-            IsDirty = false;
+                ubo.SetUniform(uniformName, value);
+            }
+        }
+
+        public void SetUniform(uint bindingPoint, string uniformName, object value)
+        {
+            lock (_lock)
+            {
+                if (!_ubosByBindingPoint.TryGetValue(bindingPoint, out var ubo))
+                {
+                    throw new InvalidOperationError($"UBO с binding point {bindingPoint} не найден");
+                }
+
+                ubo.SetUniform(uniformName, value);
+            }
+        }
+
+        public void UpdateAll()
+        {
+            lock (_lock)
+            {
+                foreach (var ubo in _ubosByName.Values)
+                {
+                    if (ubo.IsDirty)
+                    {
+                        ubo.Update();
+                    }
+                }
+            }
+        }
+
+        private void RegisterUbo(AutoUBO ubo)
+        {
+            _ubosByName[ubo.GetBlockName()] = ubo;
+            _ubosByBindingPoint[ubo.GetBindingPoint()] = ubo;
         }
 
         public void Dispose()
         {
-            foreach (var ubo in _uboList)
+            lock (_lock)
             {
-                ubo.Dispose();
+                foreach (var ubo in _ubosByName.Values)
+                {
+                    ubo.Dispose();
+                }
+                _ubosByName.Clear();
+                _ubosByBindingPoint.Clear();
+                _gl = null;
             }
-            _uboList.Clear();
         }
+    }
 
-        internal void SetUniformCollection(Dictionary<string, object> uniformValues)
-        {
-            foreach(var uniformValue in uniformValues)
-                SetUniform(uniformValue.Key, uniformValue.Value);
-        }
+    public interface IUboStruct
+    {
+        uint BindingPoint { get; }
+        string BlockName { get; }
     }
 }

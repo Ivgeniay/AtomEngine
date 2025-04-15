@@ -25,8 +25,8 @@ namespace OpenglLib.Buffers
             }
             _gl.BindBufferBase(BufferTargetARB.UniformBuffer, bindingPoint, _handle);
 
-            var bindingService = ServiceHub.Get<BindingPointService>();
-            bindingService.AllocateBindingPoint(_program, bindingPoint);
+            //var bindingService = ServiceHub.Get<BindingPointService>();
+            //bindingService.AllocateBindingPoint(_program, bindingPoint);
         }
 
 
@@ -40,8 +40,8 @@ namespace OpenglLib.Buffers
             if (blockIndex != uint.MaxValue)
             {
                 var bindingService = ServiceHub.Get<BindingPointService>();
-                _bindingPoint = bindingService.AllocateBindingPoint(_program);
-                _gl.UniformBlockBinding(_program, blockIndex, _bindingPoint.Value);
+                //_bindingPoint = bindingService.AllocateBindingPoint(_program);
+                //_gl.UniformBlockBinding(_program, blockIndex, _bindingPoint.Value);
             }
             Bind();
 
@@ -82,8 +82,8 @@ namespace OpenglLib.Buffers
             _gl.DeleteBuffer(_handle);
             if (_bindingPoint.HasValue)
             {
-                var bindingService = ServiceHub.Get<BindingPointService>();
-                bindingService.ReleaseBindingPoint(_program, _bindingPoint.Value);
+                //var bindingService = ServiceHub.Get<BindingPointService>();
+                //bindingService.ReleaseBindingPoint(_program, _bindingPoint.Value);
             }
         }
     }

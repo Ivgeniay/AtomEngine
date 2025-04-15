@@ -47,7 +47,7 @@ namespace Editor
 
         public void Initialize() { }
 
-        public void Render(double deltaTime)
+        public void Render(double deltaTime, object? context)
         {
             if (_shader == null)
                 return;

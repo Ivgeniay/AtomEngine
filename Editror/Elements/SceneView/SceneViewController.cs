@@ -473,7 +473,7 @@ namespace Editor
                 }
 
                 _worldManager.UpdateSingeThread(0.016);
-                _worldManager.Render(0.016);
+                _worldManager.Render(0.016, _gl);
 
                 Input.Update();
                 if (_isPreparingClose)
@@ -804,7 +804,7 @@ namespace Editor
                         if (!string.IsNullOrEmpty(materialGuid))
                         {
                             var material = _resourceManager.LoadMaterialResource(materialGuid);
-                            if (material != null)
+                            if (material != null && material.Shader != null)
                             {
                                 world.ModifyComponent(entity.Id, componentType, (e) =>
                                 {

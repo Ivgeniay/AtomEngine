@@ -460,7 +460,7 @@ namespace AtomEngine
                 system.FixedUpdate();
         }
 
-        public void Render(double deltaTime)
+        public void Render(double deltaTime, object? context)
         {
             if (initialize_render_systems.Count > 0)
             {
@@ -480,7 +480,7 @@ namespace AtomEngine
                 .ToList();
 
             foreach (var system in sortedRenderSystems)
-                system.Render(deltaTime);
+                system.Render(deltaTime, context);
         }
         public void Resize(Vector2 size)
         {

@@ -1,10 +1,14 @@
 ﻿using AtomEngine;
 using AtomEngine.RenderEntity;
 using EngineLib;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using OpenglLib.Buffers;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+using System.Collections.ObjectModel;
 using System.Text;
+using System.Xml.Linq;
 
 namespace OpenglLib
 {
@@ -14,6 +18,7 @@ namespace OpenglLib
 
         protected readonly ShaderTextureManager _shaderTextureManager;
         protected readonly BindingPointService _bindingPointService;
+        protected readonly UboService _uboService;
 
         protected readonly Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
         protected readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
@@ -21,7 +26,7 @@ namespace OpenglLib
         protected readonly List<UniformBlockData> _uniformBlocks = new List<UniformBlockData>();
         protected readonly Dictionary<string, UniformInfo> _samplerUniforms = new Dictionary<string, UniformInfo>();
 
-        protected AutoUBOHub autoUBOHub;
+        //protected AutoUBOHub autoUBOHub;
 
         protected string VertexSource;
         protected string FragmentSource;
@@ -31,6 +36,7 @@ namespace OpenglLib
             _gl = gl;
             _shaderTextureManager = new ShaderTextureManager(this);
             _bindingPointService = ServiceHub.Get<BindingPointService>();
+            _uboService = ServiceHub.Get<UboService>();
         }
 
         public void SetUpShader(string vertexSource = "", string fragmentSource = "")
@@ -57,10 +63,21 @@ namespace OpenglLib
 
             if (_uniformBlocks.Count > 0)
             {
-                autoUBOHub = new AutoUBOHub(_gl, handle);
-                foreach (var uniformBlock in _uniformBlocks)
+                for(int i = 0;  i < _uniformBlocks.Count; i++)
                 {
-                    autoUBOHub.RegisterUBO(uniformBlock);
+                    var str = _uniformBlocks[i].ToString();
+                    var ubo = _uboService.GetOrCreateUbo(_uniformBlocks[i]);
+                    if (!_uniformBlocks[i].BindingPoint.HasValue)
+                    {
+                        _uniformBlocks[i] = new UniformBlockData(
+                            _uniformBlocks[i].Name,
+                            _uniformBlocks[i].BlockIndex,
+                            _uniformBlocks[i].BlockSize,
+                            _uniformBlocks[i].ActiveUniforms,
+                            _uniformBlocks[i].Members,
+                            _uniformBlocks[i].BindingPoint
+                            );
+                    }
                 }
             }
         }
@@ -72,9 +89,26 @@ namespace OpenglLib
 
         public override void SetUbo(Dictionary<string, object> uniformValues)
         {
-            autoUBOHub?.SetUniformCollection(uniformValues);
-            autoUBOHub?.Update();
+            bool anyFound = false;
+
+            foreach (var kvp in uniformValues)
+            {
+                foreach(var block in _uniformBlocks)
+                {
+                    foreach (var member in block.Members)
+                    {
+                        if (member.Name == kvp.Key)
+                        {
+                            _uboService.SetUniform(block.Name, kvp.Key, kvp.Value);
+                            anyFound = true;
+                        }
+                    }
+                }
+            }
+
+            if (anyFound) _uboService.UpdateAll();
         }
+
         public override void SetUniform(string name, object value)
         {
             if (name == null)
@@ -92,10 +126,23 @@ namespace OpenglLib
 #endif
                 return;
             }
+
             if (location < 0)
             {
-                autoUBOHub?.SetUniform(name, value);
-                autoUBOHub?.Update();
+                foreach (var block in _uniformBlocks)
+                {
+                    foreach (var member in block.Members)
+                    {
+                        if (member.Name == name)
+                        {
+                            _uboService.SetUniform(block.Name, name, value);
+                            _uboService.UpdateAll();
+                            return;
+                        }
+                    }
+                }
+
+                DebLogger.Error($"Uniform {name} not found in any uniform block");
                 return;
             }
 
@@ -599,7 +646,7 @@ namespace OpenglLib
                         blockSize,
                         activeUniforms,
                         members,
-                        bindingPoint
+                        bindingPoint > -1 ? bindingPoint : null
                     );
 
                     _uniformBlocks.Add(blockData);
@@ -638,7 +685,7 @@ namespace OpenglLib
 
         public override void Dispose()
         {
-            autoUBOHub?.Dispose();
+            //autoUBOHub?.Dispose();
             _gl.DeleteProgram(handle);
         }
 
@@ -764,7 +811,7 @@ namespace OpenglLib
         public readonly int BlockSize;
         public readonly int ActiveUniforms;
         public readonly List<UniformMemberData> Members;
-        public readonly int BindingPoint;
+        public readonly int? BindingPoint;
 
         public UniformBlockData(
             string name,
@@ -772,7 +819,7 @@ namespace OpenglLib
             int blockSize,
             int activeUniforms,
             List<UniformMemberData> members,
-            int bindingPoint = -1)
+            int? bindingPoint = null)
         {
             Name = name;
             BlockIndex = blockIndex;
@@ -784,7 +831,12 @@ namespace OpenglLib
 
         public override string ToString()
         {
-            return $"{Name} BlockIndex:{BlockIndex} Size:{BlockSize} ActiveUniforms:{ActiveUniforms}";
+            string res = string.Empty;
+            foreach(var mem in Members)
+            {
+                res += mem.ToString();
+            }
+            return $"{Name} BlockIndex:{BlockIndex} Size:{BlockSize} ActiveUniforms:{ActiveUniforms}\n{res}";
         }
     }
 
@@ -818,7 +870,7 @@ namespace OpenglLib
 
         public override string ToString()
         {
-            return $"{Name} Offset:{Offset} Type:{Type} Size:{Size}";
+            return JsonConvert.SerializeObject(this);
         }
     }
 }

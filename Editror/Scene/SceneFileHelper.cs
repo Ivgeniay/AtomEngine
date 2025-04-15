@@ -159,6 +159,39 @@ namespace Editor
                                     Rotation = new Vector3(0, -90, 0),
                                     Scale = new Vector3(1, 1, 1),
                                 }
+                            },
+                            {
+                                typeof(LightComponent).FullName,
+                                new LightComponent
+                                {
+                                    Color = new Vector3(1,1,1),
+                                    Intensity = 10,
+                                    Enabled = 1,
+                                    CastShadows = true,
+                                    LightId = 0,
+                                    IsDirty = true
+                                }
+                            }
+                        }
+                    },
+                    new EntityData
+                    {
+                        Id = 1,
+                        Name = "GlobalLightSettings",
+                        Version = 0,
+                        Components = new Dictionary<string, IComponent>
+                        {
+                            {
+                                typeof(GlobalLightSettingsComponent).FullName,
+                                new GlobalLightSettingsComponent
+                                {
+                                    AmbientColor = new Vector3(1,1,1),
+                                    AmbientIntensity = 1,
+                                    ShadowBias = 0.085f,
+                                    PcfKernelSize = 3,
+                                    ShadowIntensity = 0.7f,
+                                    IsDirty = true
+                                }
                             }
                         }
                     },

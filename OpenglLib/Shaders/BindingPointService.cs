@@ -76,7 +76,80 @@ namespace OpenglLib
             }
         }
 
-        public void AllocateBindingPoint(uint programHandle, uint bindingPoint)
+        //public void AllocateBindingPoint(uint programHandle, uint bindingPoint)
+        //{
+        //    lock (_lock)
+        //    {
+        //        if (bindingPoint >= _maxBindingPoints)
+        //        {
+        //            throw new ArgumentOutOfRangeException(nameof(bindingPoint),
+        //                $"Binding point must be less than {_maxBindingPoints}");
+        //        }
+
+        //        if (_globallyReservedBindingPoints.Contains(bindingPoint))
+        //        {
+        //            throw new InvalidOperationError($"Binding point {bindingPoint} is globally reserved.");
+        //        }
+
+        //        var bindingPool = GetOrCreateBindingPool(programHandle);
+
+        //        if (bindingPool.Count == 0)
+        //        {
+        //            throw new InvalidOperationError("No available binding points for the program.");
+        //        }
+
+        //        if (bindingPool.Contains(bindingPoint))
+        //        {
+        //            bindingPool.Remove(bindingPoint);
+        //        }
+        //        else
+        //        {
+        //            throw new InvalidOperationError($"Binding point {bindingPoint} has already been allocated for this program.");
+        //        }
+        //    }
+        //}
+
+        //public uint AllocateBindingPoint(uint programHandle)
+        //{
+        //    lock (_lock)
+        //    {
+        //        var bindingPool = GetOrCreateBindingPool(programHandle);
+
+        //        if (bindingPool.Count == 0)
+        //        {
+        //            throw new InvalidOperationError("No available binding points for the program.");
+        //        }
+
+        //        uint bindingPoint = bindingPool.Min();
+        //        bindingPool.Remove(bindingPoint);
+        //        return bindingPoint;
+        //    }
+        //}
+
+        public uint AllocateGlobalBindingPoint()
+        {
+            lock (_lock)
+            {
+                for (uint i = 0; i < _maxBindingPoints; i++)
+                {
+                    if (!_globallyReservedBindingPoints.Contains(i))
+                    {
+                        _globallyReservedBindingPoints.Add(i);
+
+                        foreach (var pool in _programBindingPools.Values)
+                        {
+                            pool.Remove(i);
+                        }
+
+                        return i;
+                    }
+                }
+
+                throw new InvalidOperationError("Нет доступных глобальных точек привязки");
+            }
+        }
+
+        public void AllocateGlobalBindingPoint(uint bindingPoint)
         {
             lock (_lock)
             {
@@ -88,41 +161,15 @@ namespace OpenglLib
 
                 if (_globallyReservedBindingPoints.Contains(bindingPoint))
                 {
-                    throw new InvalidOperationError($"Binding point {bindingPoint} is globally reserved.");
+                    throw new InvalidOperationError($"Binding point {bindingPoint} is already globally reserved");
                 }
 
-                var bindingPool = GetOrCreateBindingPool(programHandle);
+                _globallyReservedBindingPoints.Add(bindingPoint);
 
-                if (bindingPool.Count == 0)
+                foreach (var pool in _programBindingPools.Values)
                 {
-                    throw new InvalidOperationError("No available binding points for the program.");
+                    pool.Remove(bindingPoint);
                 }
-
-                if (bindingPool.Contains(bindingPoint))
-                {
-                    bindingPool.Remove(bindingPoint);
-                }
-                else
-                {
-                    throw new InvalidOperationError($"Binding point {bindingPoint} has already been allocated for this program.");
-                }
-            }
-        }
-
-        public uint AllocateBindingPoint(uint programHandle)
-        {
-            lock (_lock)
-            {
-                var bindingPool = GetOrCreateBindingPool(programHandle);
-
-                if (bindingPool.Count == 0)
-                {
-                    throw new InvalidOperationError("No available binding points for the program.");
-                }
-
-                uint bindingPoint = bindingPool.Min();
-                bindingPool.Remove(bindingPoint);
-                return bindingPoint;
             }
         }
 
@@ -265,90 +312,5 @@ namespace OpenglLib
             return Task.CompletedTask;
         }
     }
-
-    //public class BindingPointService : IService
-    //{
-    //    private readonly Dictionary<uint, HashSet<uint>> _programBindingPools = new Dictionary<uint, HashSet<uint>>();
-    //    private uint MaxBindingPoints = 30;
-
-    //    public void SetMaxBindingPoints(uint maxBindinPoints) =>
-    //        MaxBindingPoints = maxBindinPoints;
-
-    //    public void AllocateBindingPoint(uint programHandle, uint bindingPoint)
-    //    {
-    //        if (!_programBindingPools.TryGetValue(programHandle, out var bindingPool))
-    //        {
-    //            bindingPool = new HashSet<uint>();
-    //            for (uint i = 0; i < MaxBindingPoints; i++)
-    //            {
-    //                bindingPool.Add(i);
-    //            }
-    //            _programBindingPools[programHandle] = bindingPool;
-    //        }
-
-    //        if (bindingPool.Count == 0)
-    //        {
-    //            throw new InvalidOperationError("No available binding points for the program.");
-    //        }
-    //        if (bindingPool.Contains(bindingPoint))
-    //        { 
-    //            bindingPool.Remove(bindingPoint);
-    //        }
-    //        else
-    //        {
-    //            throw new InvalidOperationError($"{bindingPoint} has already used.");
-    //        }
-
-    //    }
-
-    //    public uint AllocateBindingPoint(uint programHandle)
-    //    {
-    //        if (!_programBindingPools.TryGetValue(programHandle, out var bindingPool))
-    //        {
-    //            bindingPool = new HashSet<uint>();
-    //            for (uint i = 0; i < MaxBindingPoints; i++)
-    //            {
-    //                bindingPool.Add(i);
-    //            }
-    //            _programBindingPools[programHandle] = bindingPool;
-    //        }
-
-    //        if (bindingPool.Count == 0)
-    //        {
-    //            throw new InvalidOperationError("No available binding points for the program.");
-    //        }
-
-    //        uint bindingPoint = bindingPool.First();
-    //        bindingPool.Remove(bindingPoint);
-
-    //        return bindingPoint;
-    //    }
-
-
-    //    public void ReleaseBindingPoint(uint programHandle, uint bindingPoint)
-    //    {
-    //        if (_programBindingPools.TryGetValue(programHandle, out var bindingPool))
-    //        {
-    //            bindingPool.Add(bindingPoint);
-    //        }
-    //    }
-
-    //    public void ReleaseAllBindingPoints(uint programHandle)
-    //    {
-    //        if (_programBindingPools.TryGetValue(programHandle, out var bindingPool))
-    //        {
-    //            bindingPool.Clear();
-    //            for (uint i = 0; i < MaxBindingPoints; i++)
-    //            {
-    //                bindingPool.Add(i);
-    //            }
-    //        }
-    //    }
-
-    //    public Task InitializeAsync()
-    //    {
-    //        return Task.CompletedTask;
-    //    }
-    //}
 
 }

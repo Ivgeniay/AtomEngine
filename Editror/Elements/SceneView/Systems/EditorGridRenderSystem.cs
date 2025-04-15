@@ -32,7 +32,7 @@ namespace Editor
             _gridEntity = World.CreateEntity();
         }
 
-        public void Render(double deltaTime)
+        public void Render(double deltaTime, object? context)
         {
             var cameras = _queryEditorCameras.Build();
             if (cameras.Length == 0) return;
