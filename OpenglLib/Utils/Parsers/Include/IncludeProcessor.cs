@@ -2,6 +2,7 @@
 using System.Reflection;
 using EngineLib;
 using AtomEngine;
+using System.Text;
 
 namespace OpenglLib
 {
@@ -59,8 +60,9 @@ namespace OpenglLib
 
                 if (vertexPos < fragmentPos)
                 {
-                    string vertexSection = shaderSource.Substring(vertexPos + 7, fragmentPos - vertexPos - 7);
-                    string fragmentSection = shaderSource.Substring(fragmentPos + 9);
+                    string vertexMarker = "#vertex";
+                    string vertexSection = shaderSource.Substring(vertexPos + vertexMarker.Length, fragmentPos - vertexPos - vertexMarker.Length);
+                    string fragmentSection = shaderSource.Substring(fragmentPos + "#fragment".Length);
 
                     List<RSFileInfo> vertexRsFiles;
                     List<RSFileInfo> fragmentRsFiles;
@@ -75,8 +77,9 @@ namespace OpenglLib
                 }
                 else
                 {
-                    string fragmentSection = shaderSource.Substring(fragmentPos + 9, vertexPos - fragmentPos - 9);
-                    string vertexSection = shaderSource.Substring(vertexPos + 7);
+                    string fragmentMarker = "#fragment";
+                    string fragmentSection = shaderSource.Substring(fragmentPos + fragmentMarker.Length, vertexPos - fragmentPos - fragmentMarker.Length);
+                    string vertexSection = shaderSource.Substring(vertexPos + "#vertex".Length);
 
                     List<RSFileInfo> vertexRsFiles;
                     List<RSFileInfo> fragmentRsFiles;
@@ -289,9 +292,11 @@ namespace OpenglLib
                 return;
             }
 
-            var matches = IncludeRegex.Matches(source);
-
+            // Помечаем узел как анализируемый перед началом анализа
+            // чтобы избежать циклической рекурсии
             node.IncludesAnalyzed = true;
+
+            var matches = IncludeRegex.Matches(source);
 
             foreach (Match match in matches)
             {
@@ -304,35 +309,33 @@ namespace OpenglLib
                     fullPath = FileLoader.ResolvePath(sourcePath, includePath);
 
                     graph.AddDependency(sourcePath, fullPath);
-
                     graph.AddIncludeLocation(fullPath, sourcePath, match.Index, match);
 
-                    if (graph.GetNodes().TryGetValue(fullPath, out var existingNode))
+                    // Проверяем, существует ли узел для этого включения
+                    if (!graph.GetNodes().TryGetValue(fullPath, out var existingNode))
                     {
-                        if (!existingNode.IncludesAnalyzed)
+                        // Загружаем содержимое файла
+                        includeContent = FileLoader.LoadFile(fullPath);
+
+                        if (fullPath.EndsWith(".rs", StringComparison.OrdinalIgnoreCase))
                         {
-                            AnalyzeIncludes(existingNode.Content, fullPath, graph, rsFiles);
+                            var rsInfo = RSParser.ParseContent(includeContent, fullPath);
+                            rsFiles.Add(rsInfo);
+
+                            // Создаем новый узел с исходным содержимым
+                            var newNode = graph.AddNode(fullPath, includeContent);
+                            graph.UpdateNodeWithRsInfo(fullPath, rsInfo);
+
+                            // ВАЖНО: Анализируем включения в исходном содержимом файла RS, 
+                            // а не в обработанном (rsInfo.ProcessedCode)
+                            AnalyzeIncludes(includeContent, fullPath, graph, rsFiles);
                         }
-
-                        continue;
-                    }
-
-                    includeContent = FileLoader.LoadFile(fullPath);
-
-                    if (fullPath.EndsWith(".rs", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var rsInfo = RSParser.ParseContent(includeContent, fullPath);
-                        rsFiles.Add(rsInfo);
-
-                        var newNode = graph.AddNode(fullPath, includeContent);
-                        graph.UpdateNodeWithRsInfo(fullPath, rsInfo);
-
-                        AnalyzeIncludes(includeContent, fullPath, graph, rsFiles);
-                    }
-                    else
-                    {
-                        graph.AddNode(fullPath, includeContent);
-                        AnalyzeIncludes(includeContent, fullPath, graph, rsFiles);
+                        else
+                        {
+                            // Для обычных файлов просто добавляем узел и рекурсивно обрабатываем
+                            graph.AddNode(fullPath, includeContent);
+                            AnalyzeIncludes(includeContent, fullPath, graph, rsFiles);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -347,6 +350,7 @@ namespace OpenglLib
             var result = new System.Text.StringBuilder();
             var nodes = graph.GetNodes();
 
+            // Сначала добавляем все файлы, используемые более одного раза
             foreach (var node in nodes.Values)
             {
                 int usageCount = graph.GetUsageCount(node.Path);
@@ -361,6 +365,7 @@ namespace OpenglLib
                 }
             }
 
+            // Затем обрабатываем исходный файл
             ProcessSourceWithIncludes(source, sourcePath, graph, result);
 
             return result.ToString();
@@ -368,11 +373,13 @@ namespace OpenglLib
 
         private static void ProcessSourceWithIncludes(string source, string sourcePath, IncludeDependencyGraph graph, System.Text.StringBuilder result)
         {
+            // Заменяем все включения непосредственно в исходном тексте
             int currentPos = 0;
             var matches = IncludeRegex.Matches(source);
 
             foreach (Match match in matches)
             {
+                // Добавляем текст до текущего включения
                 result.Append(source.Substring(currentPos, match.Index - currentPos));
 
                 var includePath = match.Groups[1].Value;
@@ -384,10 +391,12 @@ namespace OpenglLib
 
                     if (graph.IsIncludedInResult(fullPath))
                     {
+                        // Файл уже включен, заменяем директиву комментарием
                         result.AppendLine($"// #include \"{includePath}\" (already included)");
                     }
                     else if (graph.GetNodes().TryGetValue(fullPath, out var node))
                     {
+                        // Однократно используемый файл - включаем его содержимое
                         result.AppendLine($"// Included from: {includePath}");
                         result.Append(node.ProcessedContent);
 
@@ -395,22 +404,26 @@ namespace OpenglLib
                     }
                     else
                     {
+                        // Файл не найден, оставляем директиву без изменений
                         result.Append(match.Value);
                     }
                 }
                 catch
                 {
+                    // В случае ошибки оставляем директиву
                     result.Append(match.Value);
                 }
 
                 currentPos = match.Index + match.Length;
             }
 
+            // Добавляем оставшийся текст
             if (currentPos < source.Length)
             {
                 result.Append(source.Substring(currentPos));
             }
         }
+
     }
 
 

@@ -16,10 +16,9 @@ namespace OpenglLib
 
             bool isComplete = GlslParser.IsCompleteShaderFile(shaderSource);
 
-            List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, sourcePath);
-
-            shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, sourcePath);
-            //shaderSource = IncludeProcessor.ProcessShaderWithSections(shaderSource, sourcePath, out List<RSFileInfo> rsFiless);
+            //List<RSFileInfo> rsFiles = RSParser.ProcessIncludes(shaderSource, sourcePath);
+            //shaderSource = GlslParser.ProcessIncludesRecursively(shaderSource, sourcePath);
+            shaderSource = IncludeProcessor.ProcessShaderWithSections(shaderSource, sourcePath, out List<RSFileInfo> rsFiles);
             shaderSource = RSParser.RemoveServiceMarkers(shaderSource);
             shaderSource = GlslParser.RemoveAllAttributes(shaderSource);
 
