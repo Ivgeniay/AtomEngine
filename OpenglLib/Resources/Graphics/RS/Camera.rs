@@ -2,27 +2,18 @@
 
 struct Camera {
     vec3 position;
-    float enabled;
-    vec3 direction;
-    float padding1;
+    vec3 front;
     vec3 up;
-    float padding2;
-    mat4 view;
-    mat4 projection;
-    mat4 inverseView;
     float fov;
-    float aspect;
-    float near;
-    float far;
-    float calculateViewDirPerPixel;
-    float drawDistance;
-    int cameraId;
-    float padding3;
+    float aspectRatio;
+    float nearPlane;
+    float farPlane;
+    float enabled;
+    mat4 viewMatrix;
+    mat4 projectionMatrix;
 };
 
 layout(std140, binding = 3) uniform CamerasUBO {
     Camera cameras[MAX_CAMERAS];
     int activeCameraIndex;
-    int numActiveCameras;
-    vec2 padding;
-} scene;
+} cameraData;

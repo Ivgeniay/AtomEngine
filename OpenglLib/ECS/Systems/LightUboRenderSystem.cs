@@ -58,11 +58,6 @@ namespace OpenglLib
 
         public void Render(double deltaTime, object? context)
         {
-            if (context == null)
-                return;
-
-            GL gl = (GL)context;
-
             if (!_uboService.HasUboByBindingPoint(1))
                 return;
 
@@ -188,7 +183,6 @@ namespace OpenglLib
             directionalLight.Enabled = light.Enabled;
             directionalLight.LightId = light.LightId;
 
-            // Записываем обратно в UBO
             switch (index)
             {
                 case 0: _uboData.DirectionalLight0 = directionalLight; break;
@@ -200,10 +194,7 @@ namespace OpenglLib
 
         private void UpdatePointLight(ref LightComponent light, ref TransformComponent transform, int index)
         {
-            // Получаем позицию света
             Vector3 position = transform.Position;
-
-            // Обновляем данные в UBO
             PointLightData pointLight;
 
             switch (index)
@@ -227,7 +218,6 @@ namespace OpenglLib
             pointLight.FalloffExponent = light.FalloffExponent;
             pointLight.Enabled = light.Enabled;
 
-            // Записываем обратно в UBO
             switch (index)
             {
                 case 0: _uboData.PointLight0 = pointLight; break;
@@ -243,7 +233,7 @@ namespace OpenglLib
 
         public void Resize(Vector2 size)
         {
-            // Размер окна не влияет на UBO освещения
+            
         }
     }
 }

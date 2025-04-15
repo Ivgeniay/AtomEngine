@@ -23,7 +23,7 @@ namespace Editor
                 {
                     if (Worlds.Count == 0)
                     {
-                        WorldData newWorld = SceneFileHelper.CreateWorldData();
+                        WorldData newWorld = SceneFileHelper.CreateDefauldWorldData();
                         Worlds.Add(newWorld);
                         _currentWorldData = newWorld;
                     }
@@ -356,7 +356,7 @@ namespace Editor
             return name;
         }
 
-        private Dictionary<uint, List<uint>> worldReservedIdMap = new Dictionary<uint, List<uint>>();
+        [JsonIgnore] private Dictionary<uint, List<uint>> worldReservedIdMap = new Dictionary<uint, List<uint>>();
         internal uint GetAndReserveId(uint worldId)
         {
             uint id = GetAvailableId(worldId, CurrentWorldData.Entities);

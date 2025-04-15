@@ -1,5 +1,6 @@
 ﻿using EngineLib;
-using System.Numerics; 
+using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace AtomEngine
 {
@@ -83,5 +84,58 @@ namespace AtomEngine
                 FarPlane
             );
         }
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 192)]
+    public struct CameraData
+    {
+        [FieldOffset(0)]
+        public Vector3 Position;
+
+        [FieldOffset(16)]
+        public Vector3 Front;
+
+        [FieldOffset(32)]
+        public Vector3 Up;
+
+        [FieldOffset(44)]
+        public float Fov;
+
+        [FieldOffset(48)]
+        public float AspectRatio;
+
+        [FieldOffset(52)]
+        public float NearPlane;
+
+        [FieldOffset(56)]
+        public float FarPlane;
+
+        [FieldOffset(60)]
+        public float Enabled;
+
+        [FieldOffset(64)]
+        public Matrix4x4 ViewMatrix;
+
+        [FieldOffset(128)]
+        public Matrix4x4 ProjectionMatrix;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 784)]
+    public struct CamerasUboData
+    {
+        [FieldOffset(0)]
+        public CameraData Camera0;
+
+        [FieldOffset(192)]
+        public CameraData Camera1;
+
+        [FieldOffset(384)]
+        public CameraData Camera2;
+
+        [FieldOffset(576)]
+        public CameraData Camera3;
+
+        [FieldOffset(768)]
+        public int ActiveCameraIndex;
     }
 }

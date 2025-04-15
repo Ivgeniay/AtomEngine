@@ -5,6 +5,7 @@ using System.Numerics;
 using Newtonsoft.Json;
 using AtomEngine;
 using System;
+using OpenglLib;
 
 namespace Editor
 {
@@ -106,7 +107,7 @@ namespace Editor
                 return (false, string.Empty);
             }
         }
-        public static WorldData CreateWorldData()
+        public static WorldData CreateDefauldWorldData()
         {
             var newScene = new WorldData
             {
@@ -176,7 +177,7 @@ namespace Editor
                     },
                     new EntityData
                     {
-                        Id = 1,
+                        Id = 2,
                         Name = "GlobalLightSettings",
                         Version = 0,
                         Components = new Dictionary<string, IComponent>
@@ -197,7 +198,7 @@ namespace Editor
                     },
                     new EntityData
                     {
-                        Id = 2,
+                        Id = 3,
                         Name = "Cube",
                         Version = 0,
                         Components = new Dictionary<string, IComponent>
@@ -210,18 +211,56 @@ namespace Editor
                                 }
                             },
                             {
-                                typeof(ColliderComponent).FullName,
-                                new ColliderComponent()
+                                typeof(MaterialComponent).FullName,
+                                new MaterialComponent()
                             },
                             {
                                 typeof(MeshComponent).FullName,
                                 new MeshComponent()
-                            }
+                            },
+                            {
+                                typeof(ColliderComponent).FullName,
+                                new ColliderComponent()
+                            },
                         }
                     }
-                }
+                },
+                
             };
             return newScene;
+        }
+
+        public static List<SystemData> CreateDefaultSystems()
+        {
+            return new List<SystemData>
+            {
+                new SystemData
+                {
+                    SystemFullTypeName = "OpenglLib.ViewRenderSystem",
+                    ExecutionOrder = 1,
+                    IncludInWorld = new List<uint>{ 0 },
+                    Dependencies = new List<SystemData> { },
+                    Category = SystemCategory.Render,
+                },
+
+                new SystemData
+                {
+                    SystemFullTypeName = "OpenglLib.LightUboRenderSystem",
+                    ExecutionOrder = 2,
+                    IncludInWorld = new List<uint>{ 0 },
+                    Dependencies = new List<SystemData> { },
+                    Category = SystemCategory.Render,
+                },
+
+                new SystemData
+                {
+                    SystemFullTypeName = "OpenglLib.CameraUboRenderSystem",
+                    ExecutionOrder = 0,
+                    IncludInWorld = new List<uint>{ 0 },
+                    Dependencies = new List<SystemData> { },
+                    Category = SystemCategory.Render,
+                },
+            };
         }
     }
 }

@@ -641,8 +641,9 @@ namespace Editor
             }
 
             OnScenUnload?.Invoke();
-            WorldData standartWorldData = SceneFileHelper.CreateWorldData();
+            WorldData standartWorldData = SceneFileHelper.CreateDefauldWorldData();
             CurrentScene = new ProjectScene(new List<WorldData>() { standartWorldData }, standartWorldData);
+            CurrentScene.Systems = SceneFileHelper.CreateDefaultSystems();
             OnSceneInitialize?.Invoke(CurrentScene);
         }
         internal async Task HandleOpenScene()
