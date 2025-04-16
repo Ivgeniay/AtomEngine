@@ -1,5 +1,6 @@
 ﻿#include "embedded:Resources/Graphics/RS/Light.rs"
 #include "embedded:Resources/Graphics/RS/Const.rs"
+#include "embedded:Resources/Graphics/RS/Camera.rs"
 
 struct PBRMaterial {
     vec3 albedo;
@@ -24,7 +25,6 @@ uniform sampler2D normalMap;
 uniform sampler2D metallicMap;
 uniform sampler2D roughnessMap;
 uniform sampler2D aoMap;
-uniform vec3 cameraPos;
 
 float DistributionGGX(vec3 N, vec3 H, float roughness) {
     float a = roughness * roughness;
@@ -147,7 +147,7 @@ vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 
     
     vec3 viewDir;
     if (calculateViewDirPerPixel) {
-        viewDir = normalize(cameraPos - fragPos);
+        viewDir = normalize(cameraData.cameras[cameraData.activeCameraIndex].position - fragPos);
     } else {
         viewDir = normalize(viewDirIn);
     }

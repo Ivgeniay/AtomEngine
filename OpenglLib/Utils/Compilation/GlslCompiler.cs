@@ -122,7 +122,7 @@ namespace OpenglLib
                     CacheAttributes(gl, program, result);
                     CacheUniforms(gl, program, result);
                     CacheUniformBlocks(gl, program, result);
-                    CacheSamplerUniforms(gl, program, result);
+                    CacheSamplerUniforms(gl, program, result, vertexSource, fragmentSource);
 
                     gl.DeleteShader(vertexShader);
                     gl.DeleteShader(fragmentShader);
@@ -217,9 +217,9 @@ namespace OpenglLib
             result.Log.AppendLine($"===================");
 
         }
-        private static void CacheSamplerUniforms(GL gl, uint handle, CompilationGlslCodeResult result)
+        private static void CacheSamplerUniforms(GL gl, uint handle, CompilationGlslCodeResult result, string verterSource, string fragmentSource)
         {
-            Shader.CacheSamplerUniforms(gl, handle, result.SamplerInfo, result.UniformLocations);
+            Shader.CacheSamplerUniforms(gl, handle, result.SamplerInfo, result.UniformLocations, verterSource, fragmentSource);
 
             result.Log.AppendLine($"======== UNIFORM BLOCKS ======");
             foreach (var kvp in result.SamplerInfo)
@@ -237,7 +237,7 @@ namespace OpenglLib
         public readonly Dictionary<string, int> UniformLocations = new Dictionary<string, int>();
         public readonly Dictionary<string, uint> AttributeLocations = new Dictionary<string, uint>();
         public readonly Dictionary<string, UniformInfo> UniformInfo = new Dictionary<string, UniformInfo>();
-        public readonly Dictionary<string, UniformInfo> SamplerInfo = new Dictionary<string, UniformInfo>();
+        public readonly Dictionary<string, UniformSamplerInfo> SamplerInfo = new Dictionary<string, UniformSamplerInfo>();
         public readonly List<UniformBlockData> UniformBlocks = new List<UniformBlockData>();
         public bool Success { get; set; }
         public string ShaderVersion { get; set; } = string.Empty;

@@ -39,8 +39,8 @@ namespace AtomEngine
 
     public enum LightType
     {
-        Directional,
-        Point
+        Directional = 0,
+        Point = 1,
     }
 
     [StructLayout(LayoutKind.Explicit, Size = 128)]

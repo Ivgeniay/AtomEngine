@@ -1,14 +1,10 @@
-﻿using AtomEngine;
-using AtomEngine.RenderEntity;
-using EngineLib;
+﻿using AtomEngine.RenderEntity;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using OpenglLib.Buffers;
-using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-using System.Collections.ObjectModel;
+using Silk.NET.Maths;
 using System.Text;
-using System.Xml.Linq;
+using AtomEngine;
+using EngineLib;
 
 namespace OpenglLib
 {
@@ -24,7 +20,7 @@ namespace OpenglLib
         protected readonly Dictionary<string, uint> _attributeLocations = new Dictionary<string, uint>();
         protected readonly Dictionary<string, UniformInfo> _uniformInfo = new Dictionary<string, UniformInfo>();
         protected readonly List<UniformBlockData> _uniformBlocks = new List<UniformBlockData>();
-        protected readonly Dictionary<string, UniformInfo> _samplerUniforms = new Dictionary<string, UniformInfo>();
+        protected readonly Dictionary<string, UniformSamplerInfo> _samplerUniforms = new Dictionary<string, UniformSamplerInfo>();
 
         //protected AutoUBOHub autoUBOHub;
 
@@ -58,9 +54,16 @@ namespace OpenglLib
 
             CacheAttributes(_gl, handle, _attributeLocations);
             CacheUniforms(_gl, handle, _uniformLocations, _uniformInfo);
-            CacheSamplerUniforms(_gl, handle, _samplerUniforms, _uniformLocations);
+            CacheSamplerUniforms(_gl, handle, _samplerUniforms, _uniformLocations, vertexSource, fragmentSource);
             CacheUniformBlocks(_gl, handle, _uniformBlocks);
 
+            foreach(var kvp in _samplerUniforms)
+            {
+                if (kvp.Value.BindingPoint.HasValue)
+                {
+                    _shaderTextureManager.ReserveTextureUnit(kvp.Value.Name, kvp.Value.BindingPoint.Value);
+                }
+            }
             if (_uniformBlocks.Count > 0)
             {
                 for(int i = 0;  i < _uniformBlocks.Count; i++)
@@ -655,6 +658,48 @@ namespace OpenglLib
         
         }
 
+        internal unsafe static void CacheSamplerUniforms(
+            GL _gl,
+            uint handle,
+            Dictionary<string, UniformSamplerInfo> _samplerUniforms,
+            Dictionary<string, int> _uniformLocations,
+            string vertexSource,
+            string fragmentSource
+            )
+        {
+            _gl.GetProgram(handle, GLEnum.ActiveUniforms, out int uniformCount);
+
+            if (uniformCount == 0) return;
+
+            Dictionary<string, int> bindingPoints = new Dictionary<string, int>();
+
+            ParseShaderBindingPoints(vertexSource, bindingPoints);
+            ParseShaderBindingPoints(fragmentSource, bindingPoints);
+
+            for (uint i = 0; i < uniformCount; i++)
+            {
+                string uniformName = _gl.GetActiveUniform(handle, i, out int size, out UniformType type);
+                if (!GlslParser.IsSamplerType(type)) continue;
+
+                int location = _gl.GetUniformLocation(handle, uniformName);
+                int? bindingPoint = null;
+                if (bindingPoints.TryGetValue(uniformName, out int binding))
+                {
+                    bindingPoint = binding;
+                }
+
+                _uniformLocations[uniformName] = location;
+                _samplerUniforms[uniformName] = new UniformSamplerInfo
+                {
+                    Location = location,
+                    Size = size,
+                    Type = type,
+                    Name = uniformName,
+                    BindingPoint = bindingPoint,
+                };
+            }
+        }
+
         internal static void CacheSamplerUniforms(
             GL _gl, 
             uint handle,
@@ -679,7 +724,6 @@ namespace OpenglLib
                     Type = type,
                     Name = uniformName
                 };
-                
             }
         }
 
@@ -691,13 +735,33 @@ namespace OpenglLib
 
         
         public static explicit operator uint(Shader shader) => shader.handle;
+        
         public void ReserveTextureUnit(string uniformName, int textureUnit) => 
             _shaderTextureManager.ReserveTextureUnit(uniformName, textureUnit);
         public void ReserveTextureUnit(int location, int textureUnit) => 
             _shaderTextureManager.ReserveTextureUnit(location, textureUnit);
 
 
+        private static void ParseShaderBindingPoints(string shaderSource, Dictionary<string, int> bindingPoints)
+        {
+            if (string.IsNullOrEmpty(shaderSource))
+                return;
+            var regex = new System.Text.RegularExpressions.Regex(
+                @"layout\s*\(\s*(?:.*?binding\s*=\s*(\d+).*?|binding\s*=\s*(\d+).*?)\s*\)\s*uniform\s+(\w+)\s+(\w+)",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
 
+            var matches = regex.Matches(shaderSource);
+            foreach (System.Text.RegularExpressions.Match match in matches)
+            {
+                string bindingStr = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
+                string samplerName = match.Groups[4].Value;
+
+                if (int.TryParse(bindingStr, out int bindingPoint))
+                {
+                    bindingPoints[samplerName] = bindingPoint;
+                }
+            }
+        }
         protected class ShaderTextureManager
         {
             private Shader _shader;

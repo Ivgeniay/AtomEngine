@@ -1,21 +1,19 @@
-﻿using AtomEngine.RenderEntity;
+﻿using Newtonsoft.Json;
 using AtomEngine;
-using Newtonsoft.Json;
 using EngineLib;
 
-namespace OpenglLib
+namespace OpenglLib.ECS.Components
 {
+
     [TooltipCategoryComponent(ComponentCategory.Render)]
     [GLDependable]
-    public partial struct MaterialComponent : IComponent
+    public partial struct ShadowMaterialComponent : IComponent
     {
         public Entity Owner { get; set; }
-
         public Material Material;
-        [JsonProperty]
-        private string MaterialGUID;
+        [JsonProperty] private string MaterialGUID;
 
-        public MaterialComponent(Entity owner)
+        public ShadowMaterialComponent(Entity owner)
         {
             Owner = owner;
         }

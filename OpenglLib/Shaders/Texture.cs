@@ -20,6 +20,8 @@ namespace OpenglLib
         public string Path { get; set; }
         public TextureType Type { get; }
 
+        public PixelFormat PixelDataFormat { get; private set; } = PixelFormat.Rgba;
+        public PixelType PixelDataType { get; private set; } = PixelType.UnsignedByte;
 
         public TextureUnit TextureUnit { get; private set; } = TextureUnit.Texture0;
         public TextureTarget Target { get; set; } = TextureTarget.Texture2D;
@@ -60,6 +62,13 @@ namespace OpenglLib
                     _image = Image.Load<Rgba32>(stream);
                 }
             }
+        }
+
+        public unsafe Texture(GL gl, byte[] textureData, int width, int height,
+                     PixelFormat pixelFormat = PixelFormat.Rgba,
+                     PixelType pixelType = PixelType.UnsignedByte,
+                     TextureType type = TextureType.None)
+        {
         }
 
         private void LoadImage(string path)

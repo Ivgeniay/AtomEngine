@@ -14,6 +14,7 @@ namespace OpenglLib
         protected MeshFactory _meshFactory;
         protected MaterialFactory _materialFactory;
         protected UboService _uboService;
+        protected FBOService _fboService;
 
         public override Task InitializeAsync()
         {
@@ -21,6 +22,7 @@ namespace OpenglLib
             _meshFactory = ServiceHub.Get<MeshFactory>();
             _materialFactory = ServiceHub.Get<MaterialFactory>();
             _uboService = ServiceHub.Get<UboService>();
+            _fboService = ServiceHub.Get<FBOService>();
 
             return base.InitializeAsync();
         }
@@ -29,6 +31,7 @@ namespace OpenglLib
         {
             _gl = gl;
             _uboService.SetGL(gl);
+            _fboService.SetGL(gl);
             _isGLInitialized = true;
         }
 
@@ -113,6 +116,7 @@ namespace OpenglLib
             _meshFactory.Dispose();
             _materialFactory.Dispose();
             _uboService.Dispose();
+            _fboService.Dispose();
 
             _resourceCache.Clear();
             _objectToGuidCache.Clear();

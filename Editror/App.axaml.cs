@@ -115,6 +115,7 @@ namespace Editor
                 ServiceHub.RegisterService<ComponentService>();
                 ServiceHub.RegisterService<LoadingManager>();
                 ServiceHub.RegisterService<UboService>();
+                ServiceHub.RegisterService<FBOService>();
                 ServiceHub.RegisterService<BindingPointService>();
 
                 ServiceHub.RegisterService<OpenGlExcludeSerializationTypeService>();

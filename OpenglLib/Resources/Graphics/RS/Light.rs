@@ -1,6 +1,4 @@
-﻿#include "embedded:Resources/Graphics/RS/Const.rs"
-
-const int MAX_DIRECTIONAL_LIGHTS = 4;
+﻿const int MAX_DIRECTIONAL_LIGHTS = 4;
 const int MAX_POINT_LIGHTS = 8;
 
 struct DirectionalLight {

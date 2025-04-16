@@ -9,18 +9,14 @@ namespace OpenglLib
     public static class IncludeProcessor
     {
         private static readonly Regex IncludeRegex = new Regex(@"#include\s+""([^""]+)""");
+        private static readonly Regex VersionRegex = new Regex(@"#version\s+\d+\s+\w*");
 
         public static void RegisterContentProvider(IContentProvider provider)
         {
             FileLoader.RegisterContentProvider(provider);
         }
 
-        public static string ProcessIncludes(string source, string sourcePath, HashSet<string> processedPaths, bool collectRsFiles, out List<RSFileInfo> rsFiles)
-        {
-            rsFiles = collectRsFiles ? new List<RSFileInfo>() : null;
-            return ProcessIncludesInternal(source, sourcePath, processedPaths, rsFiles);
-        }
-
+        // Базовые методы ProcessIncludes остаются без изменений
         public static string ProcessIncludes(string source, string sourcePath, HashSet<string> processedPaths)
         {
             return ProcessIncludesInternal(source, sourcePath, processedPaths, null);
@@ -32,71 +28,10 @@ namespace OpenglLib
             return ProcessIncludesInternal(source, sourcePath, processedPaths, rsFiles);
         }
 
-        public static string ProcessIncludesWithoutDuplication(string source, string sourcePath)
+        public static string ProcessIncludes(string source, string sourcePath, HashSet<string> processedPaths, bool collectRsFiles, out List<RSFileInfo> rsFiles)
         {
-            return ProcessIncludesWithoutDuplication(source, sourcePath, out _);
-        }
-
-        public static string ProcessIncludesWithoutDuplication(string source, string sourcePath, out List<RSFileInfo> rsFiles)
-        {
-            rsFiles = new List<RSFileInfo>();
-            var includeGraph = new IncludeDependencyGraph();
-
-            AnalyzeIncludes(source, sourcePath, includeGraph, rsFiles);
-
-            includeGraph.CheckForCyclicDependencies();
-
-            return GenerateProcessedCode(source, sourcePath, includeGraph);
-        }
-
-        public static string ProcessShaderWithSections(string shaderSource, string shaderPath, out List<RSFileInfo> rsFiles)
-        {
-            rsFiles = new List<RSFileInfo>();
-
-            if (shaderSource.Contains("#vertex") && shaderSource.Contains("#fragment"))
-            {
-                int vertexPos = shaderSource.IndexOf("#vertex");
-                int fragmentPos = shaderSource.IndexOf("#fragment");
-
-                if (vertexPos < fragmentPos)
-                {
-                    string vertexMarker = "#vertex";
-                    string vertexSection = shaderSource.Substring(vertexPos + vertexMarker.Length, fragmentPos - vertexPos - vertexMarker.Length);
-                    string fragmentSection = shaderSource.Substring(fragmentPos + "#fragment".Length);
-
-                    List<RSFileInfo> vertexRsFiles;
-                    List<RSFileInfo> fragmentRsFiles;
-
-                    string processedVertexSection = ProcessIncludesWithoutDuplication(vertexSection, shaderPath, out vertexRsFiles);
-                    string processedFragmentSection = ProcessIncludesWithoutDuplication(fragmentSection, shaderPath, out fragmentRsFiles);
-
-                    rsFiles.AddRange(vertexRsFiles);
-                    rsFiles.AddRange(fragmentRsFiles);
-
-                    return $"#vertex\n{processedVertexSection}\n#fragment\n{processedFragmentSection}";
-                }
-                else
-                {
-                    string fragmentMarker = "#fragment";
-                    string fragmentSection = shaderSource.Substring(fragmentPos + fragmentMarker.Length, vertexPos - fragmentPos - fragmentMarker.Length);
-                    string vertexSection = shaderSource.Substring(vertexPos + "#vertex".Length);
-
-                    List<RSFileInfo> vertexRsFiles;
-                    List<RSFileInfo> fragmentRsFiles;
-
-                    string processedFragmentSection = ProcessIncludesWithoutDuplication(fragmentSection, shaderPath, out fragmentRsFiles);
-                    string processedVertexSection = ProcessIncludesWithoutDuplication(vertexSection, shaderPath, out vertexRsFiles);
-
-                    rsFiles.AddRange(fragmentRsFiles);
-                    rsFiles.AddRange(vertexRsFiles);
-
-                    return $"#fragment\n{processedFragmentSection}\n#vertex\n{processedVertexSection}";
-                }
-            }
-            else
-            {
-                return ProcessIncludesWithoutDuplication(shaderSource, shaderPath, out rsFiles);
-            }
+            rsFiles = collectRsFiles ? new List<RSFileInfo>() : null;
+            return ProcessIncludesInternal(source, sourcePath, processedPaths, rsFiles);
         }
 
         private static string ProcessIncludesInternal(string source, string sourcePath, HashSet<string> processedPaths, List<RSFileInfo> rsFiles)
@@ -140,291 +75,924 @@ namespace OpenglLib
             });
         }
 
-        private class IncludeDependencyGraph
+        // Класс для представления файла
+        private class FileInfo
         {
-            public class IncludeNode
-            {
-                public string Path { get; set; }
-                public string Content { get; set; }
-                public string ProcessedContent { get; set; }
-                public bool IsRsFile { get; set; }
-                public RSFileInfo RsInfo { get; set; }
-                public List<string> Dependencies { get; set; }
-                public List<IncludeLocation> IncludeLocations { get; set; }
-                public bool Visited { get; set; } = false;
-                public bool InStack { get; set; } = false;
-                public bool IncludesAnalyzed { get; set; } = false;
+            public string Path { get; set; }
+            public string Content { get; set; }
+            public List<string> Dependencies { get; } = new List<string>();
+            public List<IncludeInfo> Includes { get; } = new List<IncludeInfo>();
+            public bool IsProcessed { get; set; }
+            public bool IsRsFile { get; set; }
+            public RSFileInfo RsInfo { get; set; }
+            public string ProcessedContent { get; set; }
+            public int DependencyLevel { get; set; } = 0;
 
-                public IncludeNode()
-                {
-                    Dependencies = new List<string>();
-                    IncludeLocations = new List<IncludeLocation>();
-                }
-            }
-
-            public class IncludeLocation
-            {
-                public string SourceFile { get; set; }
-                public int Position { get; set; }
-                public Match RegexMatch { get; set; }
-            }
-
-            private Dictionary<string, IncludeNode> nodes = new Dictionary<string, IncludeNode>();
-            private HashSet<string> includedInResult = new HashSet<string>();
-
-            public IncludeNode AddNode(string path, string content)
-            {
-                if (!nodes.TryGetValue(path, out var node))
-                {
-                    node = new IncludeNode
-                    {
-                        Path = path,
-                        Content = content,
-                        ProcessedContent = content,
-                        IncludesAnalyzed = false
-                    };
-                    nodes[path] = node;
-                }
-                return node;
-            }
-
-            public void UpdateNodeWithRsInfo(string path, RSFileInfo rsInfo)
-            {
-                if (nodes.TryGetValue(path, out var node))
-                {
-                    node.IsRsFile = true;
-                    node.RsInfo = rsInfo;
-                    node.ProcessedContent = rsInfo.ProcessedCode;
-                }
-            }
-
-            public void AddDependency(string fromPath, string toPath)
-            {
-                if (nodes.TryGetValue(fromPath, out var fromNode) &&
-                    !fromNode.Dependencies.Contains(toPath))
-                {
-                    fromNode.Dependencies.Add(toPath);
-                }
-            }
-
-            public void AddIncludeLocation(string targetPath, string sourcePath, int position, Match match)
-            {
-                if (nodes.TryGetValue(targetPath, out var node))
-                {
-                    node.IncludeLocations.Add(new IncludeLocation
-                    {
-                        SourceFile = sourcePath,
-                        Position = position,
-                        RegexMatch = match
-                    });
-                }
-            }
-
-            public void CheckForCyclicDependencies()
-            {
-                foreach (var node in nodes.Values)
-                {
-                    node.Visited = false;
-                    node.InStack = false;
-                }
-
-                foreach (var node in nodes.Values)
-                {
-                    if (!node.Visited && IsCyclicUtil(node))
-                    {
-                        throw new CircularDependencyError($"Cyclic dependency detected: {node.Path}");
-                    }
-                }
-            }
-
-            private bool IsCyclicUtil(IncludeNode node)
-            {
-                node.Visited = true;
-                node.InStack = true;
-
-                foreach (var depPath in node.Dependencies)
-                {
-                    if (nodes.TryGetValue(depPath, out var depNode))
-                    {
-                        if (!depNode.Visited)
-                        {
-                            if (IsCyclicUtil(depNode))
-                                return true;
-                        }
-                        else if (depNode.InStack)
-                        {
-                            return true;
-                        }
-                    }
-                }
-
-                node.InStack = false;
-                return false;
-            }
-
-            public Dictionary<string, IncludeNode> GetNodes()
-            {
-                return nodes;
-            }
-
-            public bool IsIncludedInResult(string path)
-            {
-                return includedInResult.Contains(path);
-            }
-
-            public void MarkAsIncluded(string path)
-            {
-                includedInResult.Add(path);
-            }
-
-            public int GetUsageCount(string path)
-            {
-                return nodes.TryGetValue(path, out var node) ? node.IncludeLocations.Count : 0;
-            }
+            // Для обнаружения циклов
+            public bool InCurrentPath { get; set; }
         }
 
-        private static void AnalyzeIncludes(string source, string sourcePath, IncludeDependencyGraph graph, List<RSFileInfo> rsFiles)
+        // Класс для представления включения
+        private class IncludeInfo
         {
-            var node = graph.AddNode(sourcePath, source);
-
-            if (node.IncludesAnalyzed)
-            {
-                return;
-            }
-
-            // Помечаем узел как анализируемый перед началом анализа
-            // чтобы избежать циклической рекурсии
-            node.IncludesAnalyzed = true;
-
-            var matches = IncludeRegex.Matches(source);
-
-            foreach (Match match in matches)
-            {
-                var includePath = match.Groups[1].Value;
-                string fullPath;
-                string includeContent;
-
-                try
-                {
-                    fullPath = FileLoader.ResolvePath(sourcePath, includePath);
-
-                    graph.AddDependency(sourcePath, fullPath);
-                    graph.AddIncludeLocation(fullPath, sourcePath, match.Index, match);
-
-                    // Проверяем, существует ли узел для этого включения
-                    if (!graph.GetNodes().TryGetValue(fullPath, out var existingNode))
-                    {
-                        // Загружаем содержимое файла
-                        includeContent = FileLoader.LoadFile(fullPath);
-
-                        if (fullPath.EndsWith(".rs", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var rsInfo = RSParser.ParseContent(includeContent, fullPath);
-                            rsFiles.Add(rsInfo);
-
-                            // Создаем новый узел с исходным содержимым
-                            var newNode = graph.AddNode(fullPath, includeContent);
-                            graph.UpdateNodeWithRsInfo(fullPath, rsInfo);
-
-                            // ВАЖНО: Анализируем включения в исходном содержимом файла RS, 
-                            // а не в обработанном (rsInfo.ProcessedCode)
-                            AnalyzeIncludes(includeContent, fullPath, graph, rsFiles);
-                        }
-                        else
-                        {
-                            // Для обычных файлов просто добавляем узел и рекурсивно обрабатываем
-                            graph.AddNode(fullPath, includeContent);
-                            AnalyzeIncludes(includeContent, fullPath, graph, rsFiles);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    throw new ShaderError($"Error processing include: '{includePath}': {ex.Message}");
-                }
-            }
+            public int Position { get; set; }
+            public string SourcePath { get; set; }
+            public string IncludePath { get; set; }
+            public string FullPath { get; set; }
+            public Match Match { get; set; }
         }
 
-        private static string GenerateProcessedCode(string source, string sourcePath, IncludeDependencyGraph graph)
+        // Метод для обработки шейдера без дублирования включений
+        public static string ProcessIncludesWithoutDuplication(string source, string sourcePath)
         {
-            var result = new System.Text.StringBuilder();
-            var nodes = graph.GetNodes();
+            return ProcessIncludesWithoutDuplication(source, sourcePath, out _);
+        }
 
-            // Сначала добавляем все файлы, используемые более одного раза
-            foreach (var node in nodes.Values)
+        public static string ProcessIncludesWithoutDuplication(string source, string sourcePath, out List<RSFileInfo> rsFiles)
+        {
+            rsFiles = new List<RSFileInfo>();
+
+            // Извлекаем директиву #version, если она существует
+            var versionMatch = VersionRegex.Match(source);
+            string versionDirective = null;
+            string sourceWithoutVersion = source;
+
+            if (versionMatch.Success)
             {
-                int usageCount = graph.GetUsageCount(node.Path);
+                versionDirective = versionMatch.Value;
+                // Удаляем все директивы #version из исходного кода
+                sourceWithoutVersion = VersionRegex.Replace(source, string.Empty);
+            }
 
-                if (usageCount > 1 && !graph.IsIncludedInResult(node.Path))
+            // Создаем словарь файлов для отслеживания всех включений
+            var files = new Dictionary<string, FileInfo>();
+
+            // Добавляем исходный файл (без директивы #version)
+            files[sourcePath] = new FileInfo
+            {
+                Path = sourcePath,
+                Content = sourceWithoutVersion,
+                ProcessedContent = sourceWithoutVersion
+            };
+
+            // Строим граф включений
+            BuildIncludeGraph(sourcePath, files, rsFiles);
+
+            // Проверяем наличие циклических зависимостей
+            foreach (var file in files.Values)
+            {
+                if (HasCycle(file.Path, files, new HashSet<string>()))
                 {
-                    result.AppendLine($"// Included from: {node.Path}");
-                    result.AppendLine(node.ProcessedContent);
-                    result.AppendLine();
-
-                    graph.MarkAsIncluded(node.Path);
+                    throw new CircularDependencyError($"Cyclic dependency detected in file: {file.Path}");
                 }
             }
 
-            // Затем обрабатываем исходный файл
-            ProcessSourceWithIncludes(source, sourcePath, graph, result);
+            // Вычисляем уровни зависимостей для определения порядка включения
+            CalculateDependencyLevels(files);
+
+            // Генерируем результат
+            var result = new StringBuilder();
+
+            // Если есть директива #version, добавляем её в начало
+            if (versionDirective != null)
+            {
+                result.AppendLine(versionDirective);
+                result.AppendLine();
+            }
+
+            // Обрабатываем общие включения в порядке уровней зависимостей
+            var includedFiles = new HashSet<string>();
+            ProcessCommonIncludes(files, includedFiles, result);
+
+            // Обрабатываем основной файл
+            var processedSource = ProcessFileIncludes(sourcePath, files, includedFiles);
+            result.Append(processedSource);
 
             return result.ToString();
         }
 
-        private static void ProcessSourceWithIncludes(string source, string sourcePath, IncludeDependencyGraph graph, System.Text.StringBuilder result)
+        // Метод для обработки шейдера с секциями
+        public static string ProcessShaderWithSections(string shaderSource, string shaderPath, out List<RSFileInfo> rsFiles)
         {
-            // Заменяем все включения непосредственно в исходном тексте
-            int currentPos = 0;
-            var matches = IncludeRegex.Matches(source);
+            rsFiles = new List<RSFileInfo>();
 
-            foreach (Match match in matches)
+            if (shaderSource.Contains("#vertex") && shaderSource.Contains("#fragment"))
             {
-                // Добавляем текст до текущего включения
-                result.Append(source.Substring(currentPos, match.Index - currentPos));
+                int vertexPos = shaderSource.IndexOf("#vertex");
+                int fragmentPos = shaderSource.IndexOf("#fragment");
 
-                var includePath = match.Groups[1].Value;
-                string fullPath;
+                StringBuilder resultBuilder = new StringBuilder();
 
-                try
+                if (vertexPos < fragmentPos)
                 {
-                    fullPath = FileLoader.ResolvePath(sourcePath, includePath);
+                    // Сначала вершинный, затем фрагментный шейдер
+                    string vertexMarker = "#vertex";
+                    string vertexSection = shaderSource.Substring(vertexPos + vertexMarker.Length, fragmentPos - vertexPos - vertexMarker.Length);
+                    string fragmentSection = shaderSource.Substring(fragmentPos + "#fragment".Length);
 
-                    if (graph.IsIncludedInResult(fullPath))
-                    {
-                        // Файл уже включен, заменяем директиву комментарием
-                        result.AppendLine($"// #include \"{includePath}\" (already included)");
-                    }
-                    else if (graph.GetNodes().TryGetValue(fullPath, out var node))
-                    {
-                        // Однократно используемый файл - включаем его содержимое
-                        result.AppendLine($"// Included from: {includePath}");
-                        result.Append(node.ProcessedContent);
+                    List<RSFileInfo> vertexRsFiles = new List<RSFileInfo>();
+                    List<RSFileInfo> fragmentRsFiles = new List<RSFileInfo>();
 
-                        graph.MarkAsIncluded(fullPath);
-                    }
-                    else
-                    {
-                        // Файл не найден, оставляем директиву без изменений
-                        result.Append(match.Value);
-                    }
+                    resultBuilder.AppendLine("#vertex");
+                    resultBuilder.Append(ProcessIncludesWithoutDuplication(vertexSection, shaderPath + ".vertex", out vertexRsFiles));
+
+                    resultBuilder.AppendLine("#fragment");
+                    resultBuilder.Append(ProcessIncludesWithoutDuplication(fragmentSection, shaderPath + ".fragment", out fragmentRsFiles));
+
+                    // Добавляем уникальные RS-файлы
+                    AddUniqueRsFiles(rsFiles, vertexRsFiles);
+                    AddUniqueRsFiles(rsFiles, fragmentRsFiles);
                 }
-                catch
+                else
                 {
-                    // В случае ошибки оставляем директиву
-                    result.Append(match.Value);
+                    // Сначала фрагментный, затем вершинный шейдер
+                    string fragmentMarker = "#fragment";
+                    string fragmentSection = shaderSource.Substring(fragmentPos + fragmentMarker.Length, vertexPos - fragmentPos - fragmentMarker.Length);
+                    string vertexSection = shaderSource.Substring(vertexPos + "#vertex".Length);
+
+                    List<RSFileInfo> vertexRsFiles = new List<RSFileInfo>();
+                    List<RSFileInfo> fragmentRsFiles = new List<RSFileInfo>();
+
+                    resultBuilder.AppendLine("#fragment");
+                    resultBuilder.Append(ProcessIncludesWithoutDuplication(fragmentSection, shaderPath + ".fragment", out fragmentRsFiles));
+
+                    resultBuilder.AppendLine("#vertex");
+                    resultBuilder.Append(ProcessIncludesWithoutDuplication(vertexSection, shaderPath + ".vertex", out vertexRsFiles));
+
+                    // Добавляем уникальные RS-файлы
+                    AddUniqueRsFiles(rsFiles, fragmentRsFiles);
+                    AddUniqueRsFiles(rsFiles, vertexRsFiles);
                 }
 
-                currentPos = match.Index + match.Length;
+                return resultBuilder.ToString();
             }
-
-            // Добавляем оставшийся текст
-            if (currentPos < source.Length)
+            else
             {
-                result.Append(source.Substring(currentPos));
+                return ProcessIncludesWithoutDuplication(shaderSource, shaderPath, out rsFiles);
             }
         }
 
+        // Строит граф включений
+        private static void BuildIncludeGraph(string rootPath, Dictionary<string, FileInfo> files, List<RSFileInfo> rsFiles)
+        {
+            // Используем очередь для итеративного обхода
+            var queue = new Queue<string>();
+            queue.Enqueue(rootPath);
+
+            while (queue.Count > 0)
+            {
+                var currentPath = queue.Dequeue();
+
+                if (!files.TryGetValue(currentPath, out var file))
+                    continue;
+
+                // Пропускаем уже обработанные файлы
+                if (file.IsProcessed)
+                    continue;
+
+                // Помечаем файл как обработанный
+                file.IsProcessed = true;
+
+                // Ищем все включения в текущем файле
+                var matches = IncludeRegex.Matches(file.Content);
+
+                foreach (Match match in matches)
+                {
+                    var includePath = match.Groups[1].Value;
+
+                    try
+                    {
+                        string fullPath = FileLoader.ResolvePath(currentPath, includePath);
+
+                        // Создаем информацию о включении
+                        var includeInfo = new IncludeInfo
+                        {
+                            Position = match.Index,
+                            SourcePath = currentPath,
+                            IncludePath = includePath,
+                            FullPath = fullPath,
+                            Match = match
+                        };
+
+                        // Добавляем включение в текущий файл
+                        file.Includes.Add(includeInfo);
+
+                        // Добавляем зависимость
+                        if (!file.Dependencies.Contains(fullPath))
+                        {
+                            file.Dependencies.Add(fullPath);
+                        }
+
+                        // Если файл уже загружен, пропускаем
+                        if (files.ContainsKey(fullPath))
+                            continue;
+
+                        // Загружаем содержимое файла
+                        string includeContent;
+                        try
+                        {
+                            includeContent = FileLoader.LoadFile(fullPath);
+
+                            // Удаляем директиву #version из включаемых файлов
+                            includeContent = VersionRegex.Replace(includeContent, string.Empty);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new ShaderError($"Error loading file: '{fullPath}': {ex.Message}");
+                        }
+
+                        // Создаем новый узел для включаемого файла
+                        var includeFile = new FileInfo
+                        {
+                            Path = fullPath,
+                            Content = includeContent,
+                            ProcessedContent = includeContent
+                        };
+
+                        // Специальная обработка для RS-файлов
+                        if (fullPath.EndsWith(".rs", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var rsInfo = RSParser.ParseContent(includeContent, fullPath);
+                            includeFile.IsRsFile = true;
+                            includeFile.RsInfo = rsInfo;
+                            includeFile.ProcessedContent = rsInfo.ProcessedCode;
+
+                            // Добавляем в список уникальных RS-файлов
+                            if (!rsFiles.Any(rs => rs.SourcePath == fullPath))
+                            {
+                                rsFiles.Add(rsInfo);
+                            }
+                        }
+
+                        // Добавляем файл в словарь
+                        files[fullPath] = includeFile;
+
+                        // Добавляем файл в очередь для обработки
+                        queue.Enqueue(fullPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new ShaderError($"Error processing include: '{includePath}': {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        // Проверяет наличие циклических зависимостей
+        private static bool HasCycle(string filePath, Dictionary<string, FileInfo> files, HashSet<string> inPath)
+        {
+            if (!files.TryGetValue(filePath, out var file))
+                return false;
+
+            if (inPath.Contains(filePath))
+                return true;
+
+            inPath.Add(filePath);
+
+            foreach (var dep in file.Dependencies)
+            {
+                if (HasCycle(dep, files, new HashSet<string>(inPath)))
+                    return true;
+            }
+
+            return false;
+        }
+
+        // Вычисляет уровни зависимостей для определения порядка включения
+        private static void CalculateDependencyLevels(Dictionary<string, FileInfo> files)
+        {
+            bool changed;
+            do
+            {
+                changed = false;
+
+                foreach (var file in files.Values)
+                {
+                    foreach (var depPath in file.Dependencies)
+                    {
+                        if (files.TryGetValue(depPath, out var depFile))
+                        {
+                            // Зависимость должна иметь уровень на 1 ниже, чем зависящий от неё файл
+                            int newLevel = file.DependencyLevel + 1;
+                            if (depFile.DependencyLevel < newLevel)
+                            {
+                                depFile.DependencyLevel = newLevel;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            } while (changed);
+        }
+
+        // Обрабатывает общие включения
+        private static void ProcessCommonIncludes(Dictionary<string, FileInfo> files, HashSet<string> includedFiles, StringBuilder result)
+        {
+            // Находим файлы, которые используются несколькими другими файлами
+            var referenceCount = new Dictionary<string, int>();
+
+            foreach (var file in files.Values)
+            {
+                foreach (var dep in file.Dependencies)
+                {
+                    if (referenceCount.ContainsKey(dep))
+                        referenceCount[dep]++;
+                    else
+                        referenceCount[dep] = 1;
+                }
+            }
+
+            // Добавляем только файлы, используемые несколько раз, в порядке уровней зависимостей
+            var multiReferencedFiles = files.Values
+                .Where(f => referenceCount.TryGetValue(f.Path, out var count) && count > 1)
+                .OrderByDescending(f => f.DependencyLevel)
+                .Select(f => f.Path)
+                .ToList();
+
+            foreach (var path in multiReferencedFiles)
+            {
+                var file = files[path];
+
+                // Добавляем файл в результат
+                result.AppendLine($"// Included from: {path}");
+                result.AppendLine(file.ProcessedContent);
+                result.AppendLine();
+
+                includedFiles.Add(path);
+            }
+        }
+
+        // Обрабатывает включения в одном файле
+        private static string ProcessFileIncludes(string filePath, Dictionary<string, FileInfo> files, HashSet<string> includedFiles)
+        {
+            if (!files.TryGetValue(filePath, out var file))
+                return string.Empty;
+
+            var content = file.Content;
+            var result = new StringBuilder();
+            int currentPos = 0;
+
+            // Сортируем включения по позиции для корректной обработки
+            var sortedIncludes = file.Includes.OrderBy(incl => incl.Position).ToList();
+
+            foreach (var include in sortedIncludes)
+            {
+                // Добавляем текст до текущего включения
+                result.Append(content.Substring(currentPos, include.Position - currentPos));
+
+                // Обрабатываем включение
+                if (includedFiles.Contains(include.FullPath))
+                {
+                    // Файл уже включен, добавляем комментарий
+                    result.AppendLine($"// #include \"{include.IncludePath}\" (already included)");
+                }
+                else if (files.TryGetValue(include.FullPath, out var includeFile))
+                {
+                    // Добавляем комментарий и содержимое файла
+                    result.AppendLine($"// Included from: {include.IncludePath}");
+
+                    // Рекурсивно обрабатываем включения в этом файле
+                    string processedInclude = ProcessFileIncludes(include.FullPath, files, includedFiles);
+                    result.Append(processedInclude);
+
+                    includedFiles.Add(include.FullPath);
+                }
+                else
+                {
+                    // Файл не найден, оставляем директиву включения
+                    result.Append(include.Match.Value);
+                }
+
+                currentPos = include.Position + include.Match.Length;
+            }
+
+            // Добавляем оставшийся текст
+            if (currentPos < content.Length)
+            {
+                result.Append(content.Substring(currentPos));
+            }
+
+            return result.ToString();
+        }
+
+        // Добавляет уникальные RS-файлы в список
+        private static void AddUniqueRsFiles(List<RSFileInfo> targetList, List<RSFileInfo> sourceList)
+        {
+            var existingPaths = new HashSet<string>(targetList.Select(file => file.SourcePath));
+
+            foreach (var file in sourceList)
+            {
+                if (!existingPaths.Contains(file.SourcePath))
+                {
+                    targetList.Add(file);
+                    existingPaths.Add(file.SourcePath);
+                }
+            }
+        }
     }
+
+
+
+
+    //public static class IncludeProcessor
+    //{
+    //    private static readonly Regex IncludeRegex = new Regex(@"#include\s+""([^""]+)""");
+    //    private static readonly Regex VersionRegex = new Regex(@"#version\s+\d+\s+\w*");
+
+    //    public static void RegisterContentProvider(IContentProvider provider)
+    //    {
+    //        FileLoader.RegisterContentProvider(provider);
+    //    }
+
+    //    // Базовые методы ProcessIncludes остаются неизменными
+    //    public static string ProcessIncludes(string source, string sourcePath, HashSet<string> processedPaths)
+    //    {
+    //        return ProcessIncludesInternal(source, sourcePath, processedPaths, null);
+    //    }
+
+    //    public static string ProcessIncludes(string source, string sourcePath, HashSet<string> processedPaths, out List<RSFileInfo> rsFiles)
+    //    {
+    //        rsFiles = new List<RSFileInfo>();
+    //        return ProcessIncludesInternal(source, sourcePath, processedPaths, rsFiles);
+    //    }
+
+    //    public static string ProcessIncludes(string source, string sourcePath, HashSet<string> processedPaths, bool collectRsFiles, out List<RSFileInfo> rsFiles)
+    //    {
+    //        rsFiles = collectRsFiles ? new List<RSFileInfo>() : null;
+    //        return ProcessIncludesInternal(source, sourcePath, processedPaths, rsFiles);
+    //    }
+
+    //    private static string ProcessIncludesInternal(string source, string sourcePath, HashSet<string> processedPaths, List<RSFileInfo> rsFiles)
+    //    {
+    //        processedPaths ??= new HashSet<string>();
+
+    //        if (processedPaths.Contains(sourcePath))
+    //            throw new CircularDependencyError($"Cyclic dependency detected: {sourcePath}");
+
+    //        processedPaths.Add(sourcePath);
+
+    //        return IncludeRegex.Replace(source, match => {
+    //            var includePath = match.Groups[1].Value;
+    //            string fullPath;
+    //            string includeContent;
+
+    //            try
+    //            {
+    //                fullPath = FileLoader.ResolvePath(sourcePath, includePath);
+    //                includeContent = FileLoader.LoadFile(fullPath);
+    //            }
+    //            catch (Exception ex)
+    //            {
+    //                throw new ShaderError($"Error processing include: '{includePath}': {ex.Message}");
+    //            }
+
+    //            try
+    //            {
+    //                if (fullPath.EndsWith(".rs", StringComparison.OrdinalIgnoreCase) && rsFiles != null)
+    //                {
+    //                    var rsInfo = RSParser.ParseContent(includeContent, fullPath);
+    //                    rsFiles.Add(rsInfo);
+    //                    return rsInfo.ProcessedCode;
+    //                }
+    //                return ProcessIncludesInternal(includeContent, fullPath, new HashSet<string>(processedPaths), rsFiles);
+    //            }
+    //            catch (Exception ex)
+    //            {
+    //                throw new ShaderError($"Error processing include: '{includePath}': {ex.Message}");
+    //            }
+    //        });
+    //    }
+
+    //    // Класс для представления файла
+    //    private class FileInfo
+    //    {
+    //        public string Path { get; set; }
+    //        public string Content { get; set; }
+    //        public List<string> Dependencies { get; } = new List<string>();
+    //        public List<IncludeInfo> Includes { get; } = new List<IncludeInfo>();
+    //        public bool IsProcessed { get; set; }
+    //        public bool IsRsFile { get; set; }
+    //        public RSFileInfo RsInfo { get; set; }
+    //        public string ProcessedContent { get; set; }
+    //        public int DependencyLevel { get; set; } = 0;
+
+    //        // Для обнаружения циклов
+    //        public bool InCurrentPath { get; set; }
+    //    }
+
+    //    // Класс для представления включения
+    //    private class IncludeInfo
+    //    {
+    //        public int Position { get; set; }
+    //        public string SourcePath { get; set; }
+    //        public string IncludePath { get; set; }
+    //        public string FullPath { get; set; }
+    //        public Match Match { get; set; }
+    //    }
+
+    //    // Метод для обработки шейдера без дублирования включений
+    //    public static string ProcessIncludesWithoutDuplication(string source, string sourcePath)
+    //    {
+    //        return ProcessIncludesWithoutDuplication(source, sourcePath, out _);
+    //    }
+
+    //    public static string ProcessIncludesWithoutDuplication(string source, string sourcePath, out List<RSFileInfo> rsFiles)
+    //    {
+    //        rsFiles = new List<RSFileInfo>();
+
+    //        // Извлекаем директиву #version, если она существует
+    //        var versionMatch = VersionRegex.Match(source);
+    //        string versionDirective = null;
+    //        if (versionMatch.Success)
+    //        {
+    //            versionDirective = versionMatch.Value;
+    //            // Не удаляем директиву из исходного кода - мы её сохраним на месте
+    //        }
+
+    //        // Создаем словарь файлов для отслеживания всех включений
+    //        var files = new Dictionary<string, FileInfo>();
+
+    //        // Добавляем исходный файл
+    //        files[sourcePath] = new FileInfo
+    //        {
+    //            Path = sourcePath,
+    //            Content = source,
+    //            ProcessedContent = source
+    //        };
+
+    //        // Строим граф включений
+    //        BuildIncludeGraph(sourcePath, files, rsFiles);
+
+    //        // Проверяем наличие циклических зависимостей
+    //        foreach (var file in files.Values)
+    //        {
+    //            if (HasCycle(file.Path, files, new HashSet<string>()))
+    //            {
+    //                throw new CircularDependencyError($"Cyclic dependency detected in file: {file.Path}");
+    //            }
+    //        }
+
+    //        // Вычисляем уровни зависимостей для определения порядка включения
+    //        CalculateDependencyLevels(files);
+
+    //        // Генерируем результат
+    //        var result = new StringBuilder();
+
+    //        // Если есть директива #version, добавляем её в начало
+    //        if (versionDirective != null)
+    //        {
+    //            result.AppendLine(versionDirective);
+    //            result.AppendLine();
+    //        }
+
+    //        // Обрабатываем общие включения в порядке уровней зависимостей
+    //        var includedFiles = new HashSet<string>();
+    //        ProcessCommonIncludes(files, includedFiles, result);
+
+    //        // Обрабатываем основной файл
+    //        var processedSource = ProcessFileIncludes(sourcePath, files, includedFiles, versionDirective);
+    //        result.Append(processedSource);
+
+    //        return result.ToString();
+    //    }
+
+    //    // Метод для обработки шейдера с секциями
+    //    public static string ProcessShaderWithSections(string shaderSource, string shaderPath, out List<RSFileInfo> rsFiles)
+    //    {
+    //        rsFiles = new List<RSFileInfo>();
+
+    //        if (shaderSource.Contains("#vertex") && shaderSource.Contains("#fragment"))
+    //        {
+    //            int vertexPos = shaderSource.IndexOf("#vertex");
+    //            int fragmentPos = shaderSource.IndexOf("#fragment");
+
+    //            StringBuilder resultBuilder = new StringBuilder();
+
+    //            if (vertexPos < fragmentPos)
+    //            {
+    //                // Сначала вершинный, затем фрагментный шейдер
+    //                string vertexMarker = "#vertex";
+    //                string vertexSection = shaderSource.Substring(vertexPos + vertexMarker.Length, fragmentPos - vertexPos - vertexMarker.Length);
+    //                string fragmentSection = shaderSource.Substring(fragmentPos + "#fragment".Length);
+
+    //                List<RSFileInfo> vertexRsFiles = new List<RSFileInfo>();
+    //                List<RSFileInfo> fragmentRsFiles = new List<RSFileInfo>();
+
+    //                resultBuilder.AppendLine("#vertex");
+    //                resultBuilder.Append(ProcessIncludesWithoutDuplication(vertexSection, shaderPath + ".vertex", out vertexRsFiles));
+
+    //                resultBuilder.AppendLine("#fragment");
+    //                resultBuilder.Append(ProcessIncludesWithoutDuplication(fragmentSection, shaderPath + ".fragment", out fragmentRsFiles));
+
+    //                // Добавляем уникальные RS-файлы
+    //                AddUniqueRsFiles(rsFiles, vertexRsFiles);
+    //                AddUniqueRsFiles(rsFiles, fragmentRsFiles);
+    //            }
+    //            else
+    //            {
+    //                // Сначала фрагментный, затем вершинный шейдер
+    //                string fragmentMarker = "#fragment";
+    //                string fragmentSection = shaderSource.Substring(fragmentPos + fragmentMarker.Length, vertexPos - fragmentPos - fragmentMarker.Length);
+    //                string vertexSection = shaderSource.Substring(vertexPos + "#vertex".Length);
+
+    //                List<RSFileInfo> vertexRsFiles = new List<RSFileInfo>();
+    //                List<RSFileInfo> fragmentRsFiles = new List<RSFileInfo>();
+
+    //                resultBuilder.AppendLine("#fragment");
+    //                resultBuilder.Append(ProcessIncludesWithoutDuplication(fragmentSection, shaderPath + ".fragment", out fragmentRsFiles));
+
+    //                resultBuilder.AppendLine("#vertex");
+    //                resultBuilder.Append(ProcessIncludesWithoutDuplication(vertexSection, shaderPath + ".vertex", out vertexRsFiles));
+
+    //                // Добавляем уникальные RS-файлы
+    //                AddUniqueRsFiles(rsFiles, fragmentRsFiles);
+    //                AddUniqueRsFiles(rsFiles, vertexRsFiles);
+    //            }
+
+    //            return resultBuilder.ToString();
+    //        }
+    //        else
+    //        {
+    //            return ProcessIncludesWithoutDuplication(shaderSource, shaderPath, out rsFiles);
+    //        }
+    //    }
+
+    //    // Строит граф включений
+    //    private static void BuildIncludeGraph(string rootPath, Dictionary<string, FileInfo> files, List<RSFileInfo> rsFiles)
+    //    {
+    //        // Используем очередь для итеративного обхода
+    //        var queue = new Queue<string>();
+    //        queue.Enqueue(rootPath);
+
+    //        while (queue.Count > 0)
+    //        {
+    //            var currentPath = queue.Dequeue();
+
+    //            if (!files.TryGetValue(currentPath, out var file))
+    //                continue;
+
+    //            // Пропускаем уже обработанные файлы
+    //            if (file.IsProcessed)
+    //                continue;
+
+    //            // Помечаем файл как обработанный
+    //            file.IsProcessed = true;
+
+    //            // Ищем все включения в текущем файле
+    //            var matches = IncludeRegex.Matches(file.Content);
+
+    //            foreach (Match match in matches)
+    //            {
+    //                var includePath = match.Groups[1].Value;
+
+    //                try
+    //                {
+    //                    string fullPath = FileLoader.ResolvePath(currentPath, includePath);
+
+    //                    // Создаем информацию о включении
+    //                    var includeInfo = new IncludeInfo
+    //                    {
+    //                        Position = match.Index,
+    //                        SourcePath = currentPath,
+    //                        IncludePath = includePath,
+    //                        FullPath = fullPath,
+    //                        Match = match
+    //                    };
+
+    //                    // Добавляем включение в текущий файл
+    //                    file.Includes.Add(includeInfo);
+
+    //                    // Добавляем зависимость
+    //                    if (!file.Dependencies.Contains(fullPath))
+    //                    {
+    //                        file.Dependencies.Add(fullPath);
+    //                    }
+
+    //                    // Если файл уже загружен, пропускаем
+    //                    if (files.ContainsKey(fullPath))
+    //                        continue;
+
+    //                    // Загружаем содержимое файла
+    //                    string includeContent;
+    //                    try
+    //                    {
+    //                        includeContent = FileLoader.LoadFile(fullPath);
+    //                    }
+    //                    catch (Exception ex)
+    //                    {
+    //                        throw new ShaderError($"Error loading file: '{fullPath}': {ex.Message}");
+    //                    }
+
+    //                    // Создаем новый узел для включаемого файла
+    //                    var includeFile = new FileInfo
+    //                    {
+    //                        Path = fullPath,
+    //                        Content = includeContent,
+    //                        ProcessedContent = includeContent
+    //                    };
+
+    //                    // Специальная обработка для RS-файлов
+    //                    if (fullPath.EndsWith(".rs", StringComparison.OrdinalIgnoreCase))
+    //                    {
+    //                        var rsInfo = RSParser.ParseContent(includeContent, fullPath);
+    //                        includeFile.IsRsFile = true;
+    //                        includeFile.RsInfo = rsInfo;
+    //                        includeFile.ProcessedContent = rsInfo.ProcessedCode;
+
+    //                        // Добавляем в список уникальных RS-файлов
+    //                        if (!rsFiles.Any(rs => rs.SourcePath == fullPath))
+    //                        {
+    //                            rsFiles.Add(rsInfo);
+    //                        }
+    //                    }
+
+    //                    // Добавляем файл в словарь
+    //                    files[fullPath] = includeFile;
+
+    //                    // Добавляем файл в очередь для обработки
+    //                    queue.Enqueue(fullPath);
+    //                }
+    //                catch (Exception ex)
+    //                {
+    //                    throw new ShaderError($"Error processing include: '{includePath}': {ex.Message}");
+    //                }
+    //            }
+    //        }
+    //    }
+
+    //    // Проверяет наличие циклических зависимостей
+    //    private static bool HasCycle(string filePath, Dictionary<string, FileInfo> files, HashSet<string> inPath)
+    //    {
+    //        if (!files.TryGetValue(filePath, out var file))
+    //            return false;
+
+    //        if (inPath.Contains(filePath))
+    //            return true;
+
+    //        inPath.Add(filePath);
+
+    //        foreach (var dep in file.Dependencies)
+    //        {
+    //            if (HasCycle(dep, files, new HashSet<string>(inPath)))
+    //                return true;
+    //        }
+
+    //        return false;
+    //    }
+
+    //    // Вычисляет уровни зависимостей для определения порядка включения
+    //    private static void CalculateDependencyLevels(Dictionary<string, FileInfo> files)
+    //    {
+    //        bool changed;
+    //        do
+    //        {
+    //            changed = false;
+
+    //            foreach (var file in files.Values)
+    //            {
+    //                foreach (var depPath in file.Dependencies)
+    //                {
+    //                    if (files.TryGetValue(depPath, out var depFile))
+    //                    {
+    //                        // Зависимость должна иметь уровень на 1 ниже, чем зависящий от неё файл
+    //                        int newLevel = file.DependencyLevel + 1;
+    //                        if (depFile.DependencyLevel < newLevel)
+    //                        {
+    //                            depFile.DependencyLevel = newLevel;
+    //                            changed = true;
+    //                        }
+    //                    }
+    //                }
+    //            }
+    //        } while (changed);
+    //    }
+
+    //    // Обрабатывает общие включения
+    //    private static void ProcessCommonIncludes(Dictionary<string, FileInfo> files, HashSet<string> includedFiles, StringBuilder result)
+    //    {
+    //        // Находим файлы, которые используются несколькими другими файлами
+    //        var referenceCount = new Dictionary<string, int>();
+
+    //        foreach (var file in files.Values)
+    //        {
+    //            foreach (var dep in file.Dependencies)
+    //            {
+    //                if (referenceCount.ContainsKey(dep))
+    //                    referenceCount[dep]++;
+    //                else
+    //                    referenceCount[dep] = 1;
+    //            }
+    //        }
+
+    //        // Добавляем только файлы, используемые несколько раз, в порядке уровней зависимостей
+    //        var multiReferencedFiles = files.Values
+    //            .Where(f => referenceCount.TryGetValue(f.Path, out var count) && count > 1)
+    //            .OrderByDescending(f => f.DependencyLevel)
+    //            .Select(f => f.Path)
+    //            .ToList();
+
+    //        foreach (var path in multiReferencedFiles)
+    //        {
+    //            var file = files[path];
+
+    //            // Добавляем файл в результат
+    //            result.AppendLine($"// Included from: {path}");
+    //            result.AppendLine(file.ProcessedContent);
+    //            result.AppendLine();
+
+    //            includedFiles.Add(path);
+    //        }
+    //    }
+
+    //    // Обрабатывает включения в одном файле
+    //    private static string ProcessFileIncludes(string filePath, Dictionary<string, FileInfo> files, HashSet<string> includedFiles, string versionDirective)
+    //    {
+    //        if (!files.TryGetValue(filePath, out var file))
+    //            return string.Empty;
+
+    //        var content = file.Content;
+    //        var result = new StringBuilder();
+    //        int currentPos = 0;
+
+    //        // Обрабатываем директиву #version
+    //        if (versionDirective != null)
+    //        {
+    //            var versionMatch = VersionRegex.Match(content);
+    //            if (versionMatch.Success)
+    //            {
+    //                // Добавляем текст до директивы #version
+    //                if (versionMatch.Index > 0)
+    //                {
+    //                    result.Append(content.Substring(0, versionMatch.Index));
+    //                }
+
+    //                // Добавляем директиву #version
+    //                result.AppendLine(versionMatch.Value);
+
+    //                // Обновляем позицию
+    //                currentPos = versionMatch.Index + versionMatch.Length;
+    //            }
+    //        }
+
+    //        // Сортируем включения по позиции для корректной обработки
+    //        var sortedIncludes = file.Includes.OrderBy(incl => incl.Position).ToList();
+
+    //        foreach (var include in sortedIncludes)
+    //        {
+    //            // Добавляем текст до текущего включения
+    //            result.Append(content.Substring(currentPos, include.Position - currentPos));
+
+    //            // Обрабатываем включение
+    //            if (includedFiles.Contains(include.FullPath))
+    //            {
+    //                // Файл уже включен, добавляем комментарий
+    //                result.AppendLine($"// #include \"{include.IncludePath}\" (already included)");
+    //            }
+    //            else if (files.TryGetValue(include.FullPath, out var includeFile))
+    //            {
+    //                // Добавляем комментарий и содержимое файла
+    //                result.AppendLine($"// Included from: {include.IncludePath}");
+
+    //                // Рекурсивно обрабатываем включения в этом файле
+    //                string processedInclude = ProcessFileIncludes(include.FullPath, files, includedFiles, null);
+    //                result.Append(processedInclude);
+
+    //                includedFiles.Add(include.FullPath);
+    //            }
+    //            else
+    //            {
+    //                // Файл не найден, оставляем директиву включения
+    //                result.Append(include.Match.Value);
+    //            }
+
+    //            currentPos = include.Position + include.Match.Length;
+    //        }
+
+    //        // Добавляем оставшийся текст
+    //        if (currentPos < content.Length)
+    //        {
+    //            result.Append(content.Substring(currentPos));
+    //        }
+
+    //        return result.ToString();
+    //    }
+
+    //    // Добавляет уникальные RS-файлы в список
+    //    private static void AddUniqueRsFiles(List<RSFileInfo> targetList, List<RSFileInfo> sourceList)
+    //    {
+    //        var existingPaths = new HashSet<string>(targetList.Select(file => file.SourcePath));
+
+    //        foreach (var file in sourceList)
+    //        {
+    //            if (!existingPaths.Contains(file.SourcePath))
+    //            {
+    //                targetList.Add(file);
+    //                existingPaths.Add(file.SourcePath);
+    //            }
+    //        }
+    //    }
+    //}
+
 
 
 

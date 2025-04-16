@@ -170,7 +170,10 @@ namespace Editor
                                     Enabled = 1,
                                     CastShadows = true,
                                     LightId = 0,
-                                    IsDirty = true
+                                    IsDirty = true,
+                                    Radius = 10f,
+                                    FalloffExponent = 5f,
+                                    Type = LightType.Directional,
                                 }
                             }
                         }

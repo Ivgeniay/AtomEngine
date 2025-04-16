@@ -7,8 +7,6 @@ namespace OpenglLib
 {
     public class CameraUboRenderSystem : IRenderSystem
     {
-        public const int MAX_CAMERAS = 4;
-
         public IWorld World { get; set; }
 
         private QueryEntity queryCameraEntities;
@@ -45,7 +43,7 @@ namespace OpenglLib
 
             bool dataChanged = false;
 
-            for (int i = 0; i < MAX_CAMERAS; i++)
+            for (int i = 0; i < LightParams.MAX_CAMERAS; i++)
             {
                 CameraData emptyCamera = new CameraData();
                 emptyCamera.Enabled = 0.0f;
@@ -60,7 +58,7 @@ namespace OpenglLib
             }
 
             int activeCameraIndex = -1;
-            int cameraCount = Math.Min(cameraEntities.Length, MAX_CAMERAS);
+            int cameraCount = Math.Min(cameraEntities.Length, LightParams.MAX_CAMERAS);
 
             for (int i = 0; i < cameraCount; i++)
             {
