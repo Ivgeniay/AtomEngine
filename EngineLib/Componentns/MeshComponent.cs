@@ -36,6 +36,13 @@ namespace AtomEngine
         [JsonProperty]
         private string MeshInternalIndex;
 
+        public MeshComponent(Entity owner)
+        {
+            Owner = owner;
+            Mesh = null;
+            MeshInternalIndex = string.Empty;
+        }
+
         public MeshComponent(Entity owner, MeshBase mesh)
         {
             Owner = owner;

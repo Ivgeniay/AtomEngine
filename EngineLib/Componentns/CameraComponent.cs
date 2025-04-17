@@ -64,6 +64,16 @@ namespace AtomEngine
         [IgnoreChangingScene]
         public bool IsActive;
 
+        public CameraComponent(Entity owner)
+        {
+            Owner = owner;
+            FieldOfView = 45;
+            AspectRatio = 1.777f;
+            NearPlane = 0.1f;
+            FarPlane = 45;
+            CameraUp = new Vector3(0, 1, 0);
+            CameraFront = new Vector3(0, 0, 1);
+        }
         public CameraComponent(Entity owner, float fieldOfView = 45.0f, float aspectRatio = 16f / 9f,
                              float nearPlane = 0.1f, float farPlane = 200.0f)
         {
@@ -71,9 +81,18 @@ namespace AtomEngine
             FieldOfView = fieldOfView;
             AspectRatio = aspectRatio;
             NearPlane = nearPlane;
-            FarPlane = farPlane; 
+            FarPlane = farPlane;
+            CameraUp = new Vector3(0, 1, 0);
+            CameraFront = new Vector3(0, 0, 1);
         }
-        
+        /*
+        FieldOfView = 45,
+        AspectRatio = 1.777f,
+        NearPlane = 0.1f,
+        FarPlane = 45,
+        CameraUp = new Vector3(0, 1, 0),
+        CameraFront = new Vector3(0, 0, 1)
+         */
 
         public Matrix4x4 CreateProjectionMatrix()
         {

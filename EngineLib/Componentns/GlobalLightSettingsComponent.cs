@@ -20,7 +20,16 @@ namespace AtomEngine
         [DefaultBool(true)]
         public bool IsDirty = true;
 
-        public GlobalLightSettingsComponent(Entity entity) => Owner = entity;
+        public GlobalLightSettingsComponent(Entity entity)
+        {
+            Owner = entity;
+            AmbientColor = new Vector3(1, 1, 1);
+            AmbientIntensity = 1;
+            ShadowBias = 0.085f;
+            PcfKernelSize = 3;
+            ShadowIntensity = 0.7f;
+            IsDirty = true;
+        }
 
         public void MakeClean()
         {

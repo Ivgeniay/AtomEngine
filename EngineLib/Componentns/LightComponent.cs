@@ -1,6 +1,5 @@
-﻿using System;
+﻿using System.Runtime.InteropServices;
 using System.Numerics;
-using System.Runtime.InteropServices;
 
 namespace AtomEngine
 {
@@ -30,6 +29,15 @@ namespace AtomEngine
         public LightComponent(Entity entity)
         {
             Owner = entity;
+            Color = new Vector3(1, 1, 1);
+            Intensity = 10;
+            Enabled = 1;
+            CastShadows = true;
+            LightId = 0;
+            IsDirty = true;
+            Radius = 10f;
+            FalloffExponent = 10f;
+            Type = LightType.Directional;
         }
         public void MakeClean()
         {

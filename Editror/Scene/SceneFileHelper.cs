@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using AtomEngine;
 using System;
 using OpenglLib;
+using OpenglLib.ECS.Components;
 
 namespace Editor
 {
@@ -133,15 +134,7 @@ namespace Editor
                             },
                             {
                                 typeof(CameraComponent).FullName,
-                                new CameraComponent()
-                                {
-                                    FieldOfView = 45,
-                                    AspectRatio = 1.777f,
-                                    NearPlane = 0.1f,
-                                    FarPlane = 45,
-                                    CameraUp = new Vector3(0, 1, 0),
-                                    CameraFront = new Vector3(0, 0, 1)
-                                }
+                                new CameraComponent(new Entity(0,0))
                             }
                         }
                     },
@@ -163,18 +156,11 @@ namespace Editor
                             },
                             {
                                 typeof(LightComponent).FullName,
-                                new LightComponent
-                                {
-                                    Color = new Vector3(1,1,1),
-                                    Intensity = 10,
-                                    Enabled = 1,
-                                    CastShadows = true,
-                                    LightId = 0,
-                                    IsDirty = true,
-                                    Radius = 10f,
-                                    FalloffExponent = 5f,
-                                    Type = LightType.Directional,
-                                }
+                                new LightComponent(new Entity(1,0))
+                            },
+                            {
+                                typeof(ShadowMaterialComponent).FullName,
+                                new ShadowMaterialComponent(new Entity(1,0))
                             }
                         }
                     },
@@ -187,15 +173,11 @@ namespace Editor
                         {
                             {
                                 typeof(GlobalLightSettingsComponent).FullName,
-                                new GlobalLightSettingsComponent
-                                {
-                                    AmbientColor = new Vector3(1,1,1),
-                                    AmbientIntensity = 1,
-                                    ShadowBias = 0.085f,
-                                    PcfKernelSize = 3,
-                                    ShadowIntensity = 0.7f,
-                                    IsDirty = true
-                                }
+                                new GlobalLightSettingsComponent(new Entity(2,0))
+                            },
+                            {
+                                typeof(ShadowMapComponent).FullName,
+                                new ShadowMapComponent(new Entity(2,0))
                             }
                         }
                     },
@@ -208,18 +190,15 @@ namespace Editor
                         {
                             {
                                 typeof(TransformComponent).FullName,
-                                new TransformComponent()
-                                {
-                                    Scale = new Vector3(1, 1, 1),
-                                }
+                                new TransformComponent(new Entity(3,0))
                             },
                             {
                                 typeof(MaterialComponent).FullName,
-                                new MaterialComponent()
+                                new MaterialComponent(new Entity(3,0))
                             },
                             {
                                 typeof(MeshComponent).FullName,
-                                new MeshComponent()
+                                new MeshComponent(new Entity(3,0))
                             },
                             {
                                 typeof(ColliderComponent).FullName,
@@ -228,7 +207,7 @@ namespace Editor
                         }
                     }
                 },
-                
+
             };
             return newScene;
         }
@@ -239,7 +218,15 @@ namespace Editor
             {
                 new SystemData
                 {
-                    SystemFullTypeName = "OpenglLib.ViewRenderSystem",
+                    SystemFullTypeName = "OpenglLib.ShadowMapSystem",
+                    ExecutionOrder = 0,
+                    IncludInWorld = new List<uint>{ 0 },
+                    Dependencies = new List<SystemData> { },
+                    Category = SystemCategory.Render,
+                },
+                new SystemData
+                {
+                    SystemFullTypeName = "OpenglLib.ShadowMapBindingSystem",
                     ExecutionOrder = 1,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
@@ -258,12 +245,22 @@ namespace Editor
                 new SystemData
                 {
                     SystemFullTypeName = "OpenglLib.CameraUboRenderSystem",
-                    ExecutionOrder = 0,
+                    ExecutionOrder = 3,
+                    IncludInWorld = new List<uint>{ 0 },
+                    Dependencies = new List<SystemData> { },
+                    Category = SystemCategory.Render,
+                },
+
+                new SystemData
+                {
+                    SystemFullTypeName = "OpenglLib.ViewRenderSystem",
+                    ExecutionOrder = 4,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
                     Category = SystemCategory.Render,
                 },
             };
         }
+    
     }
 }

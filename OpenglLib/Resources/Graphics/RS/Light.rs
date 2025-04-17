@@ -33,8 +33,63 @@ layout(std140, binding = 1) uniform LightsUBO {
     float shadowIntensity;
 } lights;
 
-uniform sampler2D directionalShadowMaps[MAX_DIRECTIONAL_LIGHTS];
+uniform sampler2DArray shadowMapsArray;
 
+float calculatePointLightAttenuation(PointLight light, vec3 fragPos) {
+    float distance = length(light.position - fragPos);
+    if (distance > light.radius)
+        return 0.0;
+    float normalizedDistance = distance / light.radius;
+    float attenuation = pow(1.0 - normalizedDistance, light.falloffExponent);
+    
+    return attenuation;
+}
+
+float calculateDirectionalShadow(DirectionalLight dirLight, vec4 fragPosLightSpace) {
+    if (dirLight.castShadows < 0.5 || dirLight.enabled < 0.5)
+        return 0.0;
+    
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    
+    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
+        projCoords.y < 0.0 || projCoords.y > 1.0)
+        return 0.0;
+    
+    int lightIndex = -1;
+    for (int i = 0; i < lights.numDirectionalLights; i++) {
+        if (lights.directionalLights[i].lightId == dirLight.lightId) {
+            lightIndex = i;
+            break;
+        }
+    }
+    
+    if (lightIndex == -1)
+        return 0.0;
+    
+    float currentDepth = projCoords.z;
+    float bias = lights.shadowBias;
+    float shadow = 0.0;
+    
+    int kernelSize = lights.pcfKernelSize;
+    vec2 texelSize = 1.0 / vec2(textureSize(shadowMapsArray, 0));
+    
+    for (int x = -kernelSize; x <= kernelSize; ++x) {
+        for (int y = -kernelSize; y <= kernelSize; ++y) {
+            float pcfDepth = texture(shadowMapsArray, 
+                                vec3(projCoords.xy + vec2(x, y) * texelSize, lightIndex)).r;
+            shadow += (currentDepth - bias > pcfDepth) ? 1.0 : 0.0;
+        }
+    }
+    
+    float totalSamples = (2.0 * kernelSize + 1.0) * (2.0 * kernelSize + 1.0);
+    shadow /= totalSamples;
+    shadow *= lights.shadowIntensity;
+    
+    return shadow;
+}
+
+/*
 float calculatePointLightAttenuation(PointLight light, vec3 fragPos) {
     float distance = length(light.position - fragPos);
     if (distance > light.radius)
@@ -88,3 +143,4 @@ float calculateDirectionalShadow(DirectionalLight dirLight, vec4 fragPosLightSpa
     
     return shadow;
 }
+*/
