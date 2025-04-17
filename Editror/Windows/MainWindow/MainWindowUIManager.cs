@@ -381,5 +381,10 @@ namespace Editor
         {
             _windowService.OpenStartedWindow();
         }
+
+        internal void Dispose()
+        {
+            _sceneViewController?.Dispose();
+        }
     }
 }

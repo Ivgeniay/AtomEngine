@@ -90,6 +90,7 @@ namespace Editor
         {
             if (material == null)
             {
+
                 DebLogger.Error("Error assign shader to material. Material asset is not exist");
                 return;
             }
@@ -123,27 +124,28 @@ namespace Editor
                 var result = GlslCompiler.TryToCompile(fileEvent, false);
 
                 List<string> exeptionUniformList = new List<string>();
-                foreach (var item in result.UniformBlocks)
-                {
-                    foreach(var member in item.Members)
-                    {
-                        if (GlslParser.IsMatrixType(member.Type))
-                            continue;
+                //foreach (var item in result.UniformBlocks)
+                //{
+                //    foreach(var member in item.Members)
+                //    {
+                //        if (GlslParser.IsMatrixType(member.Type))
+                //            continue;
 
-                        Type t = GlslParser.MapUniformTypeToSystemType(member.Type);
-                        material.AddContainer(new MaterialUboUniformDataContainer()
-                        {
-                            Name = member.Name,
-                            Value = GlslParser.GetDefaultValueForType(member.Type),
-                            TypeName = t.ToString(),
-                        });
-                        exeptionUniformList.Add(member.Name);
-                    }
-                }
+                //        Type t = GlslParser.MapUniformTypeToSystemType(member.Type);
+                //        material.AddContainer(new MaterialUboUniformDataContainer()
+                //        {
+                //            Name = member.Name,
+                //            Value = GlslParser.GetDefaultValueForType(member.Type),
+                //            TypeName = t.ToString(),
+                //        });
+                //        exeptionUniformList.Add(member.Name);
+                //    }
+                //}
 
                 foreach (var uniformItem in result.UniformInfo)
                 {
-                    if (exeptionUniformList.Contains(uniformItem.Key)) continue;
+                    if (uniformItem.Value.Location < 0)
+                        continue;
 
                     if (GlslParser.IsSamplerType(uniformItem.Value.Type))
                         continue;

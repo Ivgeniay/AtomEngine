@@ -431,6 +431,7 @@ namespace Editor
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
+            _uIManager.Dispose();
             ServiceHub.Dispose();
         }
     }

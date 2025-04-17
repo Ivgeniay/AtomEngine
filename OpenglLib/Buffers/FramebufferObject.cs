@@ -14,8 +14,12 @@ namespace OpenglLib.Buffers
         private int _height;
         private bool _isDisposed;
 
+        private uint _depthTextureArray;
+        private int _layers;
+
         public uint Handle => _handle;
         public uint DepthTexture => _depthTexture;
+        public uint DepthTextureArray => _depthTextureArray;
         public int X => _x;
         public int Y => _y;
         public int Width => _width;
@@ -33,7 +37,18 @@ namespace OpenglLib.Buffers
             CreateFramebuffer();
         }
 
-        private unsafe void CreateFramebuffer()
+        public FramebufferObject(GL gl, int width, int height, int layers)
+        {
+            _gl = gl;
+            _width = width;
+            _height = height;
+            _layers = layers;
+            _isDisposed = false;
+
+            CreateFramebufferArray();
+        }
+
+        public unsafe void CreateFramebuffer()
         {
             _handle = _gl.GenFramebuffer();
             _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _handle);
@@ -66,12 +81,89 @@ namespace OpenglLib.Buffers
             _gl.DrawBuffer(DrawBufferMode.None);
             _gl.ReadBuffer(ReadBufferMode.None);
 
-            if (_gl.CheckFramebufferStatus(FramebufferTarget.Framebuffer) != GLEnum.FramebufferComplete)
+            GLEnum status = _gl.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+            if (status != GLEnum.FramebufferComplete)
             {
-                throw new Exception("Framebuffer is not complete!");
+                throw new Exception($"Framebuffer is not complete! Status: {status}");
             }
 
             _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        }
+
+        private unsafe void CreateFramebufferArray()
+        {
+            _depthTextureArray = _gl.GenTexture();
+            _gl.BindTexture(TextureTarget.Texture2DArray, _depthTextureArray);
+
+            _gl.TexImage3D(
+                TextureTarget.Texture2DArray,
+                0,
+                (int)InternalFormat.DepthComponent32f,
+                (uint)_width,
+                (uint)_height,
+                (uint)_layers,
+                0,
+                PixelFormat.DepthComponent,
+                PixelType.Float,
+                null
+            );
+
+            _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+            _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+            _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
+            _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
+
+            float[] borderColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+            fixed (float* borderColorPtr = borderColor)
+            {
+                _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureBorderColor, borderColorPtr);
+            }
+
+            _handle = _gl.GenFramebuffer();
+            _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _handle);
+
+            _gl.FramebufferTextureLayer(
+                FramebufferTarget.Framebuffer,
+                FramebufferAttachment.DepthAttachment,
+                _depthTextureArray,
+                0,
+                0 
+            );
+
+            _gl.DrawBuffer(DrawBufferMode.None);
+            _gl.ReadBuffer(ReadBufferMode.None);
+
+            GLEnum status = _gl.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+            if (status != GLEnum.FramebufferComplete)
+            {
+                throw new Exception($"Framebuffer array is not complete! Status: {status}");
+            }
+
+            _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        }
+
+        public void BindLayer(int layer)
+        {
+            if (layer < 0 || layer >= _layers)
+                throw new ArgumentOutOfRangeException(nameof(layer), $"Layer must be between 0 and {_layers - 1}");
+
+            _gl.BindFramebuffer(FramebufferTarget.Framebuffer, _handle);
+
+            _gl.FramebufferTextureLayer(
+                FramebufferTarget.Framebuffer,
+                FramebufferAttachment.DepthAttachment,
+                _depthTextureArray,
+                0,
+                layer
+            );
+
+            GLEnum status = _gl.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+            if (status != GLEnum.FramebufferComplete)
+            {
+                throw new Exception($"Framebuffer array is not complete for layer {layer}! Status: {status}");
+            }
+
+            _gl.Viewport(0, 0, (uint)_width, (uint)_height);
         }
 
         public void Bind()
@@ -84,6 +176,9 @@ namespace OpenglLib.Buffers
         {
             _gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             _gl.Viewport(0, 0, (uint)screenWidth, (uint)screenHeight);
+            
+            _gl.DrawBuffer(DrawBufferMode.Back);
+            _gl.ReadBuffer(ReadBufferMode.Back);
         }
 
         public unsafe void Resize(int width, int height, int x = 0, int y = 0)

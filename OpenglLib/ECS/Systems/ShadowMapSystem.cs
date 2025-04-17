@@ -18,7 +18,7 @@ namespace OpenglLib
 
         private FBOService _fboService;
         private GL _gl;
-        private uint _fboHandle;
+        private FramebufferObject _fbo;
         private uint _shadowMapArrayTexture;
         private int _shadowMapSize = 2048;
         private bool _initialized = false;
@@ -54,60 +54,24 @@ namespace OpenglLib
             _gl = gl;
             int maxShadowMaps = LightParams.MAX_DIRECTIONAL_LIGHTS + LightParams.MAX_POINT_LIGHTS;
 
-            _shadowMapArrayTexture = gl.GenTexture();
-            gl.BindTexture(TextureTarget.Texture2DArray, _shadowMapArrayTexture);
-
-            unsafe
+            try
             {
-                gl.TexImage3D(
-                    TextureTarget.Texture2DArray,
-                    0,
-                    (int)InternalFormat.DepthComponent32f,
-                    (uint)_shadowMapSize,
-                    (uint)_shadowMapSize,
-                    (uint)maxShadowMaps,
-                    0,
-                    PixelFormat.DepthComponent,
-                    PixelType.Float,
-                    null
-                );
+                _fbo = new FramebufferObject(gl, _shadowMapSize, _shadowMapSize, maxShadowMaps);
+                _initialized = true;
             }
-
-            gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-            gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-            gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
-            gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
-
-            float[] borderColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-            unsafe
+            catch (Exception ex)
             {
-                fixed (float* borderColorPtr = borderColor)
-                {
-                    gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureBorderColor, borderColorPtr);
-                }
+                DebLogger.Error($"Failed to initialize shadow map array: {ex.Message}");
+                _initialized = false;
             }
-
-            _fboHandle = gl.GenFramebuffer();
-            gl.BindFramebuffer(FramebufferTarget.Framebuffer, _fboHandle);
-
-            gl.DrawBuffer(DrawBufferMode.None);
-            gl.ReadBuffer(ReadBufferMode.None);
-
-            if (gl.CheckFramebufferStatus(FramebufferTarget.Framebuffer) != GLEnum.FramebufferComplete)
-            {
-                throw new Exception("Shadow map framebuffer is not complete!");
-            }
-
-            gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-            _initialized = true;
         }
 
         private void CleanupShadowMapArray()
         {
-            if (_initialized && _gl != null)
+            if (_initialized && _fbo != null)
             {
-                _gl.DeleteFramebuffer(_fboHandle);
-                _gl.DeleteTexture(_shadowMapArrayTexture);
+                _fbo.Dispose();
+                _fbo = null;
                 _initialized = false;
             }
         }
@@ -190,7 +154,7 @@ namespace OpenglLib
             if (!_initialized)
             {
                 InitializeShadowMapArray(gl);
-                shadowMapComponent.ShadowMapArrayTextureId = _shadowMapArrayTexture;
+                shadowMapComponent.ShadowMapArrayTextureId = _fbo.DepthTextureArray; ;
             }
 
             HashSet<int> activeLightIds = new HashSet<int>();
@@ -209,11 +173,15 @@ namespace OpenglLib
                 }
             }
 
+            unsafe
+            {
+                int currentFb;
+                _gl.GetInteger(GLEnum.DrawFramebufferBinding, &currentFb);
+            }
+
             Span<int> viewport = stackalloc int[4];
             gl.GetInteger(GLEnum.Viewport, viewport);
-
-            gl.BindFramebuffer(FramebufferTarget.Framebuffer, _fboHandle);
-            gl.Viewport(0, 0, (uint)_shadowMapSize, (uint)_shadowMapSize);
+            int prevFBO = gl.GetInteger(GLEnum.FramebufferBinding);
 
             foreach (var lightEntity in activeLightEntities)
             {
@@ -244,44 +212,54 @@ namespace OpenglLib
                     continue;
                 }
 
-                gl.FramebufferTextureLayer(
-                    FramebufferTarget.Framebuffer,
-                    FramebufferAttachment.DepthAttachment,
-                    _shadowMapArrayTexture,
-                    0,
-                    layerIndex
-                );
-
-                if (gl.CheckFramebufferStatus(FramebufferTarget.Framebuffer) != GLEnum.FramebufferComplete)
+                try
                 {
-                    DebLogger.Error($"Shadow map framebuffer is not complete for layer {layerIndex}!");
-                    continue;
+                    _fbo.BindLayer(layerIndex);
+                    gl.Clear(ClearBufferMask.DepthBufferBit);
+
+                    Material shadowMaterial = shadowMaterialComponent.Material;
+                    shadowMaterial.Use();
+                    shadowMaterial.SetUniform("lightSpaceMatrix", lightComponent.LightSpaceMatrix);
+
+                    foreach (var entity in rendererEntities)
+                    {
+                        ref var transform = ref this.GetComponent<TransformComponent>(entity);
+                        ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);
+
+                        if (meshComponent.Mesh == null)
+                            continue;
+
+                        shadowMaterial.SetUniform("modelPosition", transform.Position.ToSilk());
+                        shadowMaterial.SetUniform("modelRotation", transform.Rotation.ToSilk());
+                        shadowMaterial.SetUniform("modelScale", transform.Scale.ToSilk());
+
+                        meshComponent.Mesh.Draw(shadowMaterial.Shader);
+                    }
                 }
-
-                gl.Clear(ClearBufferMask.DepthBufferBit);
-
-                Material shadowMaterial = shadowMaterialComponent.Material;
-                shadowMaterial.Use();
-                shadowMaterial.SetUniform("lightSpaceMatrix", lightComponent.LightSpaceMatrix);
-
-                foreach (var entity in rendererEntities)
+                catch (Exception ex)
                 {
-                    ref var transform = ref this.GetComponent<TransformComponent>(entity);
-                    ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);
-
-                    if (meshComponent.Mesh == null)
-                        continue;
-
-                    shadowMaterial.SetUniform("modelPosition", transform.Position.ToSilk());
-                    shadowMaterial.SetUniform("modelRotation", transform.Rotation.ToSilk());
-                    shadowMaterial.SetUniform("modelScale", transform.Scale.ToSilk());
-
-                    meshComponent.Mesh.Draw(shadowMaterial.Shader);
+                    DebLogger.Error($"Error rendering shadow map for light {lightComponent.LightId}: {ex.Message}");
                 }
             }
 
-            gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            gl.DrawBuffer(DrawBufferMode.None);
+            gl.ReadBuffer(ReadBufferMode.None);
+
+            int curFBO = gl.GetInteger(GLEnum.FramebufferBinding);
+
+            _fbo.Unbind(viewport[2], viewport[3]);
+
+            gl.BindFramebuffer(FramebufferTarget.Framebuffer, (uint)prevFBO);
             gl.Viewport(viewport[0], viewport[1], (uint)viewport[2], (uint)viewport[3]);
+        }
+
+        void CheckGLError(GL gl, string location)
+        {
+            GLEnum error = gl.GetError();
+            if (error != GLEnum.NoError)
+            {
+                DebLogger.Error($"OpenGL error at {location}: {error}");
+            }
         }
 
         public void Resize(Vector2 size)

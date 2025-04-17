@@ -149,150 +149,190 @@ namespace OpenglLib
                 return;
             }
 
-            switch (_uniformInfo[name].Type)
+            if (_uniformInfo.TryGetValue(name, out var uniInfo))
             {
-                case UniformType.Float:
-                    _gl.Uniform1(location, Convert.ToSingle(value));
-                    break;
-                case UniformType.Int:
-                    _gl.Uniform1(location, Convert.ToInt32(value));
-                    break;
-                case UniformType.Bool:
-                    _gl.Uniform1(location, Convert.ToBoolean(value) ? 1 : 0);
-                    break;
-                case UniformType.Double:
-                    _gl.Uniform1(location, Convert.ToDouble(value));
-                    break;
+                switch (uniInfo.Type)
+                {
+                    case UniformType.Float:
+                        _gl.Uniform1(location, Convert.ToSingle(value));
+                        return;
+                    case UniformType.Int:
+                        _gl.Uniform1(location, Convert.ToInt32(value));
+                        return;
+                    case UniformType.Bool:
+                        _gl.Uniform1(location, Convert.ToBoolean(value) ? 1 : 0);
+                        return;
+                    case UniformType.Double:
+                        _gl.Uniform1(location, Convert.ToDouble(value));
+                        return;
 
-                case UniformType.FloatVec2:
-                    var vec2 = (Vector2D<float>)value;
-                    _gl.Uniform2(location, vec2.X, vec2.Y);
-                    break;
-                case UniformType.FloatVec3:
-                    var vec3 = (Vector3D<float>)value;
-                    _gl.Uniform3(location, vec3.X, vec3.Y, vec3.Z);
-                    break;
-                case UniformType.FloatVec4:
-                    var vec4 = (Vector4D<float>)value;
-                    _gl.Uniform4(location, vec4.X, vec4.Y, vec4.Z, vec4.W);
-                    break;
+                    case UniformType.FloatVec2:
+                        var vec2 = (Vector2D<float>)value;
+                        _gl.Uniform2(location, vec2.X, vec2.Y);
+                        return;
+                    case UniformType.FloatVec3:
+                        var vec3 = (Vector3D<float>)value;
+                        _gl.Uniform3(location, vec3.X, vec3.Y, vec3.Z);
+                        return;
+                    case UniformType.FloatVec4:
+                        var vec4 = (Vector4D<float>)value;
+                        _gl.Uniform4(location, vec4.X, vec4.Y, vec4.Z, vec4.W);
+                        return;
 
-                case UniformType.IntVec2:
-                    var ivec2 = (Vector2D<int>)value;
-                    _gl.Uniform2(location, ivec2.X, ivec2.Y);
-                    break;
-                case UniformType.IntVec3:
-                    var ivec3 = (Vector3D<int>)value;
-                    _gl.Uniform3(location, ivec3.X, ivec3.Y, ivec3.Z);
-                    break;
-                case UniformType.IntVec4:
-                    var ivec4 = (Vector4D<int>)value;
-                    _gl.Uniform4(location, ivec4.X, ivec4.Y, ivec4.Z, ivec4.W);
-                    break;
+                    case UniformType.IntVec2:
+                        var ivec2 = (Vector2D<int>)value;
+                        _gl.Uniform2(location, ivec2.X, ivec2.Y);
+                        return;
+                    case UniformType.IntVec3:
+                        var ivec3 = (Vector3D<int>)value;
+                        _gl.Uniform3(location, ivec3.X, ivec3.Y, ivec3.Z);
+                        return;
+                    case UniformType.IntVec4:
+                        var ivec4 = (Vector4D<int>)value;
+                        _gl.Uniform4(location, ivec4.X, ivec4.Y, ivec4.Z, ivec4.W);
+                        return;
 
-                case UniformType.FloatMat2:
-                    unsafe
-                    {
-                        if (value is Matrix2X2<float> mat2)
+                    case UniformType.FloatMat2:
+                        unsafe
                         {
-                            _gl.UniformMatrix2(location, 1, false, (float*)&mat2);
+                            if (value is Matrix2X2<float> mat2)
+                            {
+                                _gl.UniformMatrix2(location, 1, false, (float*)&mat2);
+                            }
                         }
-                    }
-                    break;
-                case UniformType.FloatMat3:
-                    unsafe
-                    {
-                        if (value is Matrix3X3<float> mat3)
+                        return;
+                    case UniformType.FloatMat3:
+                        unsafe
                         {
-                            _gl.UniformMatrix3(location, 1, false, (float*)&mat3);
+                            if (value is Matrix3X3<float> mat3)
+                            {
+                                _gl.UniformMatrix3(location, 1, false, (float*)&mat3);
+                            }
                         }
-                    }
-                    break;
-                case UniformType.FloatMat4:
-                    unsafe
-                    {
-                        if (value is Matrix4X4<float> mat4)
+                        return;
+                    case UniformType.FloatMat4:
+                        unsafe
                         {
-                            _gl.UniformMatrix4(location, 1, false, (float*)&mat4);
+                            if (value is Matrix4X4<float> mat4)
+                            {
+                                _gl.UniformMatrix4(location, 1, false, (float*)&mat4);
+                            }
+                            else if (value is System.Numerics.Matrix4x4 mat4x4)
+                            {
+                                var silk = mat4x4.ToSilk();
+                                _gl.UniformMatrix4(location, 1, false, (float*)&silk);
+                            }
                         }
-                        else if (value is System.Numerics.Matrix4x4 mat4x4)
+                        return;
+                    case UniformType.FloatMat2x3:
+                        unsafe
                         {
-                            var silk = mat4x4.ToSilk();
-                            _gl.UniformMatrix4(location, 1, false, (float*)&silk);
+                            if (value is Matrix2X3<float> mat2x3)
+                            {
+                                _gl.UniformMatrix2x3(location, 1, false, (float*)&mat2x3);
+                            }
                         }
-                    }
-                    break;
-                case UniformType.FloatMat2x3:
-                    unsafe
-                    {
-                        if (value is Matrix2X3<float> mat2x3)
+                        return;
+                    case UniformType.FloatMat2x4:
+                        unsafe
                         {
-                            _gl.UniformMatrix2x3(location, 1, false, (float*)&mat2x3);
+                            if (value is Matrix2X4<float> mat2x4)
+                                _gl.UniformMatrix2x4(location, 1, false, (float*)&mat2x4);
                         }
-                    }
-                    break;
-                case UniformType.FloatMat2x4:
-                    unsafe
-                    {
-                        if (value is Matrix2X4<float> mat2x4)
-                            _gl.UniformMatrix2x4(location, 1, false, (float*)&mat2x4);
-                    }
-                    break;
-                case UniformType.FloatMat3x2:
-                    unsafe
-                    {
-                        if (value is Matrix3X2<float> mat3x2)
-                            _gl.UniformMatrix3x2(location, 1, false, (float*)&mat3x2);
+                        return;
+                    case UniformType.FloatMat3x2:
+                        unsafe
+                        {
+                            if (value is Matrix3X2<float> mat3x2)
+                                _gl.UniformMatrix3x2(location, 1, false, (float*)&mat3x2);
 
-                        else if (value is System.Numerics.Matrix3x2 mat3x2Num)
-                        {
-                            var silk = mat3x2Num.ToSilk();
-                            _gl.UniformMatrix3x2(location, 1, false, (float*)&mat3x2Num);
+                            else if (value is System.Numerics.Matrix3x2 mat3x2Num)
+                            {
+                                var silk = mat3x2Num.ToSilk();
+                                _gl.UniformMatrix3x2(location, 1, false, (float*)&mat3x2Num);
+                            }
                         }
-                    }
-                    break;
-                case UniformType.FloatMat3x4:
-                    unsafe
-                    {
-                        if (value is Matrix3X4<float> mat3x4)
+                        return;
+                    case UniformType.FloatMat3x4:
+                        unsafe
                         {
-                            _gl.UniformMatrix3x4(location, 1, false, (float*)&mat3x4);
+                            if (value is Matrix3X4<float> mat3x4)
+                            {
+                                _gl.UniformMatrix3x4(location, 1, false, (float*)&mat3x4);
+                            }
                         }
-                    }
-                    break;
-                case UniformType.FloatMat4x2:
-                    unsafe
-                    {
-                        if (value is Matrix4X2<float> mat4x2)
+                        return;
+                    case UniformType.FloatMat4x2:
+                        unsafe
                         {
-                            _gl.UniformMatrix4x2(location, 1, false, (float*)&mat4x2);
+                            if (value is Matrix4X2<float> mat4x2)
+                            {
+                                _gl.UniformMatrix4x2(location, 1, false, (float*)&mat4x2);
+                            }
                         }
-                    }
-                    break;
-                case UniformType.FloatMat4x3:
-                    unsafe
-                    {
-                        if (value is Matrix4X3<float> mat4x3)
+                        return;
+                    case UniformType.FloatMat4x3:
+                        unsafe
                         {
-                            _gl.UniformMatrix4x3(location, 1, false, (float*)&mat4x3);
+                            if (value is Matrix4X3<float> mat4x3)
+                            {
+                                _gl.UniformMatrix4x3(location, 1, false, (float*)&mat4x3);
+                            }
                         }
-                    }
-                    break;
-
-                case UniformType.Sampler1D:
-                case UniformType.Sampler2D:
-                case UniformType.Sampler3D:
-                case UniformType.SamplerCube:
-                case UniformType.Sampler1DShadow:
-                case UniformType.Sampler2DShadow:
-                case UniformType.SamplerCubeShadow:
-                    _gl.Uniform1(location, Convert.ToInt32(value));
-                    break;
-
-                default:
-                    throw new ArgumentException(
-                        $"Unsupported uniform type. Uniform: {name}, Type: {_uniformInfo[name].Type}");
+                        return;
+                }
             }
+
+            if (_samplerUniforms.TryGetValue(name, out var sampInfo))
+            {
+                switch(sampInfo.Type)
+                {
+                    case UniformType.Sampler1D:
+                    case UniformType.Sampler2D:
+                    case UniformType.Sampler1DArray:
+                    case UniformType.Sampler2DArray:
+                    case UniformType.Sampler3D:
+                    case UniformType.SamplerCube:
+                    case UniformType.Sampler1DShadow:
+                    case UniformType.Sampler2DShadow:
+                    case UniformType.Sampler2DRect:
+                    case UniformType.Sampler2DRectShadow:
+                    case UniformType.SamplerBuffer:
+                    case UniformType.Sampler1DArrayShadow:
+                    case UniformType.Sampler2DArrayShadow:
+                    case UniformType.SamplerCubeShadow:
+                    case UniformType.IntSampler1D:
+                    case UniformType.IntSampler2D:
+                    case UniformType.IntSampler3D:
+                    case UniformType.IntSamplerCube:
+                    case UniformType.IntSampler2DRect:
+                    case UniformType.IntSampler1DArray:
+                    case UniformType.IntSampler2DArray:
+                    case UniformType.IntSamplerBuffer:
+                    case UniformType.UnsignedIntSampler1D:
+                    case UniformType.UnsignedIntSampler2D:
+                    case UniformType.UnsignedIntSampler3D:
+                    case UniformType.UnsignedIntSamplerCube:
+                    case UniformType.UnsignedIntSampler2DRect:
+                    case UniformType.UnsignedIntSampler1DArray:
+                    case UniformType.UnsignedIntSampler2DArray:
+                    case UniformType.UnsignedIntSamplerBuffer:
+                    case UniformType.SamplerCubeMapArray:
+                    case UniformType.SamplerCubeMapArrayShadow:
+                    case UniformType.IntSamplerCubeMapArray:
+                    case UniformType.UnsignedIntSamplerCubeMapArray:
+                    case UniformType.Sampler2DMultisample:
+                    case UniformType.IntSampler2DMultisample:
+                    case UniformType.UnsignedIntSampler2DMultisample:
+                    case UniformType.Sampler2DMultisampleArray:
+                    case UniformType.IntSampler2DMultisampleArray:
+                    case UniformType.UnsignedIntSampler2DMultisampleArray:
+                        _gl.Uniform1(location, Convert.ToInt32(value));
+                        return;
+                }
+            }
+            throw new ArgumentException(
+                        $"Unsupported uniform type. Uniform: {name}, Type: {_uniformInfo[name].Type}");
         }
 
         #region Textures

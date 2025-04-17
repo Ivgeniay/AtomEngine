@@ -640,6 +640,7 @@ namespace Editor
             {
                 world.Dispose();
             }
+            _worldManager.Dispose();
 
             _sceneWorlds.Clear();
             _componentRenderCache.Clear();

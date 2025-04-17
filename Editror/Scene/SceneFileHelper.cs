@@ -184,21 +184,64 @@ namespace Editor
                     new EntityData
                     {
                         Id = 3,
+                        Name = "PBRMaterial",
+                        Version = 0,
+                        Components = new Dictionary<string, IComponent>
+                        {
+                            {
+                                typeof(PBRMaterialComponent).FullName,
+                                new PBRMaterialComponent(new Entity(10,0))
+                            }
+                        }
+                    },
+                    new EntityData
+                    {
+                        Id = 10,
                         Name = "Cube",
                         Version = 0,
                         Components = new Dictionary<string, IComponent>
                         {
                             {
                                 typeof(TransformComponent).FullName,
-                                new TransformComponent(new Entity(3,0))
+                                new TransformComponent(new Entity(10,0))
                             },
                             {
                                 typeof(MaterialComponent).FullName,
-                                new MaterialComponent(new Entity(3,0))
+                                new MaterialComponent(new Entity(10,0))
                             },
                             {
                                 typeof(MeshComponent).FullName,
-                                new MeshComponent(new Entity(3,0))
+                                new MeshComponent(new Entity(10,0))
+                            },
+                            {
+                                typeof(ColliderComponent).FullName,
+                                new ColliderComponent()
+                            },
+                        }
+                    },
+                    new EntityData
+                    {
+                        Id = 11,
+                        Name = "Platrform",
+                        Version = 0,
+                        Components = new Dictionary<string, IComponent>
+                        {
+                            {
+                                typeof(TransformComponent).FullName,
+                                new TransformComponent(new Entity(10,0))
+                                {
+                                    Position = new Vector3(0, -3, 0),
+                                    Rotation = new Vector3(0, 0, 0),
+                                    Scale = new Vector3(10, 0.1f, 10)
+                                }
+                            },
+                            {
+                                typeof(MaterialComponent).FullName,
+                                new MaterialComponent(new Entity(10,0))
+                            },
+                            {
+                                typeof(MeshComponent).FullName,
+                                new MeshComponent(new Entity(10,0))
                             },
                             {
                                 typeof(ColliderComponent).FullName,
@@ -253,8 +296,17 @@ namespace Editor
 
                 new SystemData
                 {
-                    SystemFullTypeName = "OpenglLib.ViewRenderSystem",
+                    SystemFullTypeName = "OpenglLib.PBRMaterialUboRenderSystem",
                     ExecutionOrder = 4,
+                    IncludInWorld = new List<uint>{ 0 },
+                    Dependencies = new List<SystemData> { },
+                    Category = SystemCategory.Render,
+                },
+
+                new SystemData
+                {
+                    SystemFullTypeName = "OpenglLib.ViewRenderSystem",
+                    ExecutionOrder = 5,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
                     Category = SystemCategory.Render,

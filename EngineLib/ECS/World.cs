@@ -404,13 +404,18 @@ namespace AtomEngine
         
         public void Update(double deltaTime)
         {
-            //BvhPool.UpdateDirtyNodes();
-
             if (_initialize_systems.Count > 0)
             {
                 foreach (var system in _initialize_systems)
                 {
-                    system.Initialize();
+                    try
+                    {
+                        system.Initialize();
+                    }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Error($"Initializing {system.GetType().Name} was crashed {ex}");
+                    }
                 }
                 _initialize_systems.Clear();
             }
@@ -423,7 +428,14 @@ namespace AtomEngine
             {
                 foreach (var system in _initialize_systems)
                 {
-                    system.Initialize();
+                    try
+                    {
+                        system.Initialize();
+                    }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Error($"Initializing {system.GetType().Name} was crashed {ex}");
+                    }
                 }
                 _initialize_systems.Clear();
             }
@@ -457,7 +469,16 @@ namespace AtomEngine
                     .ToList();
 
             foreach (var system in sortedPhysicSystems)
-                system.FixedUpdate();
+            {
+                try
+                {
+                    system.FixedUpdate();
+                }
+                catch (Exception ex)
+                {
+                    DebLogger.Error($"FixedUpadete of {system.GetType().Name} was crashed {ex}");
+                }
+            }
         }
 
         public void Render(double deltaTime, object? context)
@@ -466,7 +487,14 @@ namespace AtomEngine
             {
                 foreach (var system in initialize_render_systems)
                 {
-                    system.Initialize();
+                    try
+                    {
+                        system.Initialize();
+                    }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Error($"Initializing {system.GetType().Name} was crashed {ex}");
+                    }
                 }
                 initialize_render_systems.Clear();
             }
@@ -480,7 +508,17 @@ namespace AtomEngine
                 .ToList();
 
             foreach (var system in sortedRenderSystems)
-                system.Render(deltaTime, context);
+            {
+                try
+                {
+                    system.Render(deltaTime, context);
+                }
+                catch (Exception ex)
+                {
+                    DebLogger.Error($"Render {system.GetType().Name} was crashed {ex}");
+                }
+
+            }
         }
         public void Resize(Vector2 size)
         {

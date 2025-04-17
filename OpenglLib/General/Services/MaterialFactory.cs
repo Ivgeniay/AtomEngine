@@ -190,14 +190,6 @@ namespace OpenglLib
                             )
                             material.SetUniform(materialUniformDataContainer.Name, materialUniformDataContainer.Value);
                     }
-                    else if (container is MaterialUboUniformDataContainer materialUboUniformDataContainer)
-                    {
-                        if (
-                            !string.IsNullOrWhiteSpace(materialUboUniformDataContainer.Name) &&
-                            materialUboUniformDataContainer.Value != null
-                            )
-                            forUbos[materialUboUniformDataContainer.Name] = materialUboUniformDataContainer.Value;
-                    }
                     else if (container is MaterialSamplerDataContainer materialSamplerDataContainer)
                     {
                         if (
@@ -209,10 +201,6 @@ namespace OpenglLib
                         }
                     }
                 }
-                if (forUbos.Count() > 0) material.Shader.SetUbo(forUbos);
-
-                //SetUniformValues(instance, materialAsset.UniformValues);
-                //SetTextures(material, materialAsset.TextureReferences);
 
                 return material;
             }

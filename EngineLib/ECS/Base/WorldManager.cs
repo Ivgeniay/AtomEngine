@@ -1,5 +1,6 @@
 ﻿
 
+
 namespace AtomEngine
 {
     public class WorldManager
@@ -59,6 +60,14 @@ namespace AtomEngine
         public void FixedUpdate()
         {
             CurrentWorld.FixedUpdate();
+        }
+
+        public void Dispose()
+        {
+            foreach(IWorld world in worlds)
+            {
+                world.Dispose();
+            }
         }
     }
 }
