@@ -15,10 +15,13 @@ namespace Editor
         public override Task InitializeAsync()
         {
             return Task.Run(async () => {
-                string assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
-                CacheAllMaterials(assetsPath);
-
                 await base.InitializeAsync();
+
+                string assetsPath = directoryExplorer.GetPath<AssetsDirectory>();
+                string embeddedAssetsPath = directoryExplorer.GetPath<EmbeddedResourcesDirectory>();
+                CacheAllMaterials(assetsPath);
+                CacheAllMaterials(embeddedAssetsPath);
+
 
                 eventHub.Subscribe<FileEventCreated>(FileCreateHandler);
                 eventHub.Subscribe<FileEventDeleted>(FileDeletedHandler);

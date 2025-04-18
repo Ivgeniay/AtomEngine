@@ -10,7 +10,8 @@ namespace EngineLib
         protected Dictionary<string, string> _guidToPathMap = new();
         protected Dictionary<string, MetadataType> _extensionToTypeMap = new();
 
-        protected EventHub eventHub;
+        protected EventHub _eventHub;
+        protected DirectoryExplorer _directoryExplorer;
 
         protected bool _isInitialized = false;
 
@@ -53,7 +54,8 @@ namespace EngineLib
 
         public virtual Task InitializeAsync()
         {
-            eventHub = ServiceHub.Get<EventHub>();
+            _eventHub = ServiceHub.Get<EventHub>();
+            _directoryExplorer = ServiceHub.Get<DirectoryExplorer>();
             InitializeExtensionMappings();
 
             return Task.CompletedTask;
@@ -79,7 +81,7 @@ namespace EngineLib
             _guidToPathMap[metadata.Guid] = filePath;
 
             if (withInvoke)
-                eventHub.SendEvent<MetadataCachedEvent>(new MetadataCachedEvent
+                _eventHub.SendEvent<MetadataCachedEvent>(new MetadataCachedEvent
                 {
                     Metadata = metadata,
                 });

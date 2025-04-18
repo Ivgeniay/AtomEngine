@@ -48,5 +48,59 @@ namespace AtomEngine
             Owner = owner;
             Mesh = mesh;
         }
+
+        public static MeshComponent CreateMesh(Entity owner, string guid, string meshIndex)
+        {
+            return new MeshComponent(owner)
+            {
+                MeshGUID = guid,
+                MeshInternalIndex = meshIndex
+            };
+        }
+
+        public static MeshComponent CreateCube(Entity owner)
+        {
+            return new MeshComponent(owner)
+            {
+                MeshGUID = "cube-model-1",
+                MeshInternalIndex = "0"
+            };
+        }
+
+        public static MeshComponent CreateCone(Entity owner)
+        {
+            return new MeshComponent(owner)
+            {
+                MeshGUID = "cone-model-1",
+                MeshInternalIndex = "0"
+            };
+        }
+
+        public static MeshComponent CreateCylinder(Entity owner)
+        {
+            return new MeshComponent(owner)
+            {
+                MeshGUID = "cylinder-model-1",
+                MeshInternalIndex = "0"
+            };
+        }
+
+        public static MeshComponent CreateSphere(Entity owner)
+        {
+            return new MeshComponent(owner)
+            {
+                MeshGUID = "sphere-model-1",
+                MeshInternalIndex = "0"
+            };
+        }
+
+        public static MeshComponent CreateTorus(Entity owner)
+        {
+            return new MeshComponent(owner)
+            {
+                MeshGUID = "torus-model-1",
+                MeshInternalIndex = "0"
+            };
+        }
     }
 }

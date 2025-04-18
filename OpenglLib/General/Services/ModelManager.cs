@@ -8,9 +8,10 @@ namespace OpenglLib
         public string[] _meshExtensionsPattern = new string[] { "*.obj" };
         protected Dictionary<string, string> _guidPathMap = new Dictionary<string, string>();
         protected Dictionary<string, string> _cacheMeshes = new Dictionary<string, string>();
-
+        protected MetadataManager _metadataManager;
         public virtual Task InitializeAsync()
         {
+            _metadataManager = ServiceHub.Get<MetadataManager>();
             return Task.CompletedTask;
         }
 
@@ -24,7 +25,7 @@ namespace OpenglLib
 
         public string LoadModel(string path)
         {
-            if (!File.Exists(path))
+            if (!FileLoader.IsExist(path))
             {
                 if (_cacheMeshes.TryGetValue(path, out string mat)) _cacheMeshes.Remove(path);
 
@@ -37,9 +38,9 @@ namespace OpenglLib
                 return meshText;
             }
 
-            var metadata = ServiceHub.Get<MetadataManager>().GetMetadata(path);
+            var metadata = _metadataManager.GetMetadata(path);
 
-            string sourceText = File.ReadAllText(path);
+            string sourceText = FileLoader.LoadFile(path);
             _cacheMeshes[path] = sourceText;
             _guidPathMap[metadata.Guid] = path;
 
@@ -47,6 +48,13 @@ namespace OpenglLib
         }
         public string? GetPath(string guid)
         {
+            if (_guidPathMap.TryGetValue(guid, out string path))
+            {
+                return path;
+            }
+
+            path = _metadataManager.GetPathByGuid(guid);
+            LoadModel(path);
             return _guidPathMap[guid];
         }
         public string? GetGuid(string path)

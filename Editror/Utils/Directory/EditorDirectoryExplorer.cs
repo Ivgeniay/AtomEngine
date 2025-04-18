@@ -19,6 +19,7 @@ namespace Editor
                 ResisterPath<ConfigurationsDirectory>(Path.Combine(paths[typeof(BaseDirectory)], "Configurations"));
                 ResisterPath<CSharp_AssemblyDirectory>(Path.Combine(paths[typeof(BaseDirectory)], "Project"));
                 ResisterPath<CacheDirectory>(Path.Combine(paths[typeof(BaseDirectory)], "Cache"));
+                ResisterPath<EmbeddedResourcesDirectory>(Path.Combine(paths[typeof(CacheDirectory)], "Resources"));
                 ResisterPath<ExePathDirectory>(Path.Combine(paths[typeof(BaseDirectory)], "Execution"));
 
                 await base.InitializeAsync();

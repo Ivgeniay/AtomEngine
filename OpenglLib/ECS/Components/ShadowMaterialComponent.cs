@@ -17,5 +17,22 @@ namespace OpenglLib.ECS.Components
         {
             Owner = owner;
         }
+
+        public static ShadowMaterialComponent CreateShadowMaterial(Entity owner, string guid)
+        {
+            return new ShadowMaterialComponent
+            {
+                Owner = owner,
+                MaterialGUID = guid
+            };
+        }
+        public static ShadowMaterialComponent CreateDefaultShadowMaterial(Entity owner)
+        {
+            return new ShadowMaterialComponent
+            {
+                Owner = owner,
+                MaterialGUID = "shadow-shader-material"
+            };
+        }
     }
 }

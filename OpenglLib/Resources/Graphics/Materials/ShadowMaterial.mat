@@ -1,0 +1,37 @@
+{
+  "Guid": "46910ffd-016c-4267-9f43-f5293681742c",
+  "ShaderGuid": "shadow-shader",
+  "ShaderRepresentationTypeName": "",
+  "Values": [
+    {
+      "Type": "Uniform",
+      "Name": "modelPosition",
+      "TypeName": "Silk.NET.Maths.Vector3D`1[System.Single]",
+      "Value": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      }
+    },
+    {
+      "Type": "Uniform",
+      "Name": "modelRotation",
+      "TypeName": "Silk.NET.Maths.Vector3D`1[System.Single]",
+      "Value": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      }
+    },
+    {
+      "Type": "Uniform",
+      "Name": "modelScale",
+      "TypeName": "Silk.NET.Maths.Vector3D`1[System.Single]",
+      "Value": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      }
+    }
+  ]
+}

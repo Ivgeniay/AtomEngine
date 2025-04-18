@@ -14,8 +14,8 @@ namespace Editor
         public override Task InitializeAsync()
         {
             return Task.Run(async () => {
-                string assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
-                CacheAllModel(assetsPath);
+                //string assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
+                //CacheAllModel(assetsPath);
 
                 await base.InitializeAsync();
             });

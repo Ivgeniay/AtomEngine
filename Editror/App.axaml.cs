@@ -65,6 +65,7 @@ namespace Editor
                 // Проверка директор
                 ServiceHub.RegisterService<EditorDirectoryExplorer>();
                 ServiceHub.AddMapping<DirectoryExplorer, EditorDirectoryExplorer>();
+                ServiceHub.RegisterService<EmbeddedResourceManager>();
                 // Загрузка конфигураций
                 ServiceHub.RegisterService<Configuration>();
                 ServiceHub.RegisterService<EventHub>();

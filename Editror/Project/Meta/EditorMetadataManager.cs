@@ -14,6 +14,7 @@ namespace Editor
     public class EditorMetadataManager : MetadataManager
     {
         private string _assetsPath;
+        private string _embeddedResourcesPath;
 
         public override Task InitializeAsync()
         {
@@ -26,7 +27,8 @@ namespace Editor
             {
                 await base.InitializeAsync();
 
-                _assetsPath = ServiceHub.Get<EditorDirectoryExplorer>().GetPath<AssetsDirectory>();
+                _assetsPath = _directoryExplorer.GetPath<AssetsDirectory>();
+                _embeddedResourcesPath = _directoryExplorer.GetPath<EmbeddedResourcesDirectory>();
                 try
                 {
                     ScanAssetsDirectory();
@@ -48,16 +50,6 @@ namespace Editor
         }
         protected override FileMetadata CreateMetadataWithType(string filePath, MetadataType type)
         {
-            //FileMetadata metadata = type switch
-            //{
-            //    MetadataType.Texture => new TextureMetadata(),
-            //    MetadataType.Model => new ModelMetadata(),
-            //    MetadataType.Audio => new AudioMetadata(),
-            //    MetadataType.ShaderSource => new ShaderSourceMetadata(),
-            //    MetadataType.Script => new ScriptMetadata(),
-            //    MetadataType.Shader => new ShaderMetadata(),
-            //    _ => new FileMetadata()
-            //};
             Type metadataType = ConverterMetadata.GetTypeByMetadataType(type);
             FileMetadata metadata = (FileMetadata)Activator.CreateInstance(metadataType);
 
@@ -65,10 +57,11 @@ namespace Editor
             metadata.AssetType = type;
             metadata.LastModified = DateTime.UtcNow;
             metadata.Version = 1;
+            //metadata.ContentHash = filePath.Contains("embedded") ? filePath.GetHashCode().ToString() : CalculateFileHash(filePath);
             metadata.ContentHash = CalculateFileHash(filePath);
             metadata.Name = Path.GetFileNameWithoutExtension(filePath);
 
-            eventHub.SendEvent<MetadataCreateEvent>(new MetadataCreateEvent
+            _eventHub.SendEvent<MetadataCreateEvent>(new MetadataCreateEvent
             {
                 Metadata = metadata,
             });
@@ -125,7 +118,8 @@ namespace Editor
         }
         public override FileMetadata LoadMetadata(string metaFilePath)
         {
-            string metaJson = File.ReadAllText(metaFilePath);
+            //string metaJson = File.ReadAllText(metaFilePath);
+            string metaJson = FileLoader.LoadFile(metaFilePath);
 
             if (metaFilePath.EndsWith("TestGlslCodeRep.g.cs.meta"))
             {
@@ -226,7 +220,7 @@ namespace Editor
                 metadata.Version++;
                 SaveMetadata(filePath, metadata);
 
-                eventHub.SendEvent<MetadataChandedEvent>(new MetadataChandedEvent
+                _eventHub.SendEvent<MetadataChandedEvent>(new MetadataChandedEvent
                 {
                     Metadata = metadata,
                 });
@@ -264,7 +258,7 @@ namespace Editor
 
             if (metadata != null)
             {
-                eventHub.SendEvent<MetadataDeletedEvent>(new MetadataDeletedEvent
+                _eventHub.SendEvent<MetadataDeletedEvent>(new MetadataDeletedEvent
                 {
                     Metadata = metadata,
                 });
@@ -294,7 +288,7 @@ namespace Editor
                 CacheMetadata(metadata, newPath);
             }
 
-            eventHub.SendEvent<MetadataChandedEvent>(new MetadataChandedEvent
+            _eventHub.SendEvent<MetadataChandedEvent>(new MetadataChandedEvent
             {
                 Metadata = metadata,
             });
@@ -307,12 +301,17 @@ namespace Editor
             if (_metadataCache.TryGetValue(filePath, out var metadata))
                 return metadata;
 
+            if (!FileLoader.IsExist(filePath))
+                throw new FileError("File not exist");
+
             string metaFilePath = filePath + META_EXTENSION;
-            if (File.Exists(metaFilePath))
+            //if (File.Exists(metaFilePath))
+            if (FileLoader.IsExist(metaFilePath))
             {
                 try
                 {
-                    string metaJson = File.ReadAllText(metaFilePath);
+                    //string metaJson = File.ReadAllText(metaFilePath);
+                    string metaJson = FileLoader.LoadFile(metaFilePath);
                     metadata = JsonConvert.DeserializeObject<FileMetadata>(metaJson);
                     _metadataCache[filePath] = metadata;
                     _guidToPathMap[metadata.Guid] = filePath;
@@ -370,16 +369,22 @@ namespace Editor
                 return;
             }
 
-            var allFiles = Directory.GetFiles(_assetsPath, "*.*", SearchOption.AllDirectories)
+            var allFilesInAssets = FileLoader.SearchFilesByMask(_assetsPath, "*.*", true, FileSearchMode.FileSystemOnly)
                 .Where(file => !file.EndsWith(META_EXTENSION))
                 .ToList();
+
+            var allFilesInEmbeddedAssets = FileLoader.SearchFilesByMask(_embeddedResourcesPath, "*.*", true, FileSearchMode.FileSystemOnly)
+                .Where(file => !file.EndsWith(META_EXTENSION))
+                .ToList();
+
+            var allFiles = allFilesInEmbeddedAssets.Concat(allFilesInAssets).ToList();
 
             foreach (var filePath in allFiles)
             {
                 string metaFilePath = filePath + META_EXTENSION;
                 FileMetadata metadata;
 
-                if (File.Exists(metaFilePath))
+                if (FileLoader.IsExist(metaFilePath))
                 {
                     try
                     {
@@ -413,9 +418,8 @@ namespace Editor
             foreach (var metaFilePath in allMetaFiles)
             {
                 string originalFilePath = metaFilePath.Substring(0, metaFilePath.Length - META_EXTENSION.Length);
-                if (!File.Exists(originalFilePath))
+                if (!FileLoader.IsExist(originalFilePath, FileSearchMode.FileSystemOnly))
                 {
-                    DebLogger.Info($"Удаление осиротевшего метафайла: {metaFilePath}");
                     File.Delete(metaFilePath);
                 }
             }

@@ -132,7 +132,100 @@ namespace EngineLib
             throw new FileNotFoundError($"Could not resolve path for: {includePath} relative to {basePath}");
         }
 
+        public static List<string> SearchFilesByMask(string path, string mask, bool depthSearch, FileSearchMode searchMode = FileSearchMode.BothSearch)
+        {
+            var result = new List<string>();
+            Exception lastException = null;
 
+            bool isEmbeddedPath = path.StartsWith(EmbeddedPrefix);
+            string normalPath = isEmbeddedPath ? path.Substring(EmbeddedPrefix.Length) : path;
+
+            if (!isEmbeddedPath && (searchMode == FileSearchMode.FileSystemOnly || searchMode == FileSearchMode.BothSearch))
+            {
+                var fileProvider = ContentProviders.FirstOrDefault(p => p is FileSystemContentProvider);
+                if (fileProvider != null)
+                {
+                    try
+                    {
+                        var files = fileProvider.SearchFilesByMask(path, mask, depthSearch);
+                        result.AddRange(files);
+                    }
+                    catch (Exception ex)
+                    {
+                        lastException = ex;
+                        DebLogger.Debug($"Error searching files in filesystem: {ex.Message}");
+                    }
+                }
+            }
+
+            if (isEmbeddedPath || searchMode == FileSearchMode.EmbeddedOnly || searchMode == FileSearchMode.BothSearch)
+            {
+                var embeddedProvider = ContentProviders.FirstOrDefault(p => p is EmbeddedContentProvider);
+                if (embeddedProvider != null)
+                {
+                    try
+                    {
+                        string embeddedPath = isEmbeddedPath ? path : $"{EmbeddedPrefix}{normalPath}";
+                        var files = embeddedProvider.SearchFilesByMask(embeddedPath, mask, depthSearch);
+                        result.AddRange(files);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (lastException == null)
+                            lastException = ex;
+                        DebLogger.Debug($"Error searching files in embedded resources: {ex.Message}");
+                    }
+                }
+            }
+
+            if (result.Count == 0 && lastException != null)
+                throw new FileNotFoundError($"Error searching files by mask '{mask}' in path '{path}': {lastException.Message}");
+
+            return result;
+        }
+
+        public static bool IsExist(string path, FileSearchMode searchMode = FileSearchMode.BothSearch)
+        {
+            bool isEmbeddedPath = path.StartsWith(EmbeddedPrefix);
+            string normalPath = isEmbeddedPath ? path.Substring(EmbeddedPrefix.Length) : path;
+
+            if (!isEmbeddedPath && (searchMode == FileSearchMode.FileSystemOnly || searchMode == FileSearchMode.BothSearch))
+            {
+                var fileProvider = ContentProviders.FirstOrDefault(p => p is FileSystemContentProvider);
+                if (fileProvider != null)
+                {
+                    try
+                    {
+                        if (fileProvider.IsExist(path))
+                            return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Debug($"Error checking file existence in filesystem: {ex.Message}");
+                    }
+                }
+            }
+
+            if (isEmbeddedPath || searchMode == FileSearchMode.EmbeddedOnly || searchMode == FileSearchMode.BothSearch)
+            {
+                var embeddedProvider = ContentProviders.FirstOrDefault(p => p is EmbeddedContentProvider);
+                if (embeddedProvider != null)
+                {
+                    try
+                    {
+                        string embeddedPath = isEmbeddedPath ? path : $"{EmbeddedPrefix}{normalPath}";
+                        if (embeddedProvider.IsExist(embeddedPath))
+                            return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Debug($"Error checking file existence in embedded resources: {ex.Message}");
+                    }
+                }
+            }
+
+            return false;
+        }
     }
 
     public enum FileSearchMode
@@ -147,6 +240,8 @@ namespace EngineLib
         bool CanProvideContent(string path);
         string GetContent(string path);
         string ResolvePath(string basePath, string includePath);
+        List<string> SearchFilesByMask(string path, string mask, bool depthSearch);
+        bool IsExist(string path);
     }
 
     public class FileSystemContentProvider : IContentProvider
@@ -168,6 +263,48 @@ namespace EngineLib
         {
             var sourceDir = Path.GetDirectoryName(basePath);
             return Path.GetFullPath(Path.Combine(sourceDir, includePath));
+        }
+
+        public List<string> SearchFilesByMask(string path, string mask, bool depthSearch)
+        {
+            if (!Directory.Exists(path))
+                throw new DirectoryNotFoundException($"Directory not found: {path}");
+
+            var result = new List<string>();
+
+            string pattern = mask.Replace(".", "\\.").Replace("*", ".*").Replace("?", ".");
+            var regex = new System.Text.RegularExpressions.Regex($"^{pattern}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            foreach (var file in Directory.GetFiles(path))
+            {
+                string fileName = Path.GetFileName(file);
+                if (regex.IsMatch(fileName))
+                {
+                    result.Add(file);
+                }
+            }
+
+            if (depthSearch)
+            {
+                foreach (var directory in Directory.GetDirectories(path))
+                {
+                    try
+                    {
+                        var subDirFiles = SearchFilesByMask(directory, mask, true);
+                        result.AddRange(subDirFiles);
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        public bool IsExist(string path)
+        {
+            return File.Exists(path);
         }
     }
 
@@ -229,6 +366,155 @@ namespace EngineLib
             }
 
             return includePath;
+        }
+
+        /// <summary>
+        /// Условность: Путь с большой буквы, имя файла с большой буквы, расширения с маленькой.
+        /// embedded:Resources/Geometry/Standart/Models/Cone.obj.meta ->
+        /// EngineLib.Resources.Geometry.Standart.Models.Cone.obj.meta
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="mask"></param>
+        /// <param name="depthSearch"></param>
+        /// <returns></returns>
+        public List<string> SearchFilesByMask(string path, string mask, bool depthSearch)
+        {
+            var result = new List<string>();
+
+            if (!path.StartsWith(FileLoader.EmbeddedPrefix))
+                path = $"{FileLoader.EmbeddedPrefix}{path}";
+
+            string resourcePathPrefix = path.Substring(FileLoader.EmbeddedPrefix.Length).Replace('\\', '/');
+            if (!string.IsNullOrEmpty(resourcePathPrefix) && !resourcePathPrefix.EndsWith("/"))
+                resourcePathPrefix += "/";
+
+            string pattern = mask.Replace(".", "\\.").Replace("*", ".*").Replace("?", ".");
+            var regex = new System.Text.RegularExpressions.Regex($"^{pattern}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            foreach (var assembly in _assemblies)
+            {
+                var namespaceName = assembly.GetName().Name;
+                var allResources = assembly.GetManifestResourceNames();
+                string namespacePrefix = $"{namespaceName}.{resourcePathPrefix.Replace('/', '.')}";
+
+                foreach (var resource in allResources)
+                {
+                    if (!resource.StartsWith(namespacePrefix))
+                        continue;
+
+                    string relativePath = resource.Substring(namespaceName.Length + 1);
+
+                    var parts = relativePath.Split('.');
+
+                    int fileNameIndex = -1;
+                    for (int i = parts.Length - 1; i >= 0; i--)
+                    {
+                        if (parts[i].Length > 0 && char.IsUpper(parts[i][0]))
+                        {
+                            fileNameIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (fileNameIndex >= 0)
+                    {
+                        string fileName = string.Join(".", parts.Skip(fileNameIndex));
+                        if (regex.IsMatch(fileName))
+                        {
+                            string dirPath = string.Join("/", parts.Take(fileNameIndex));
+                            string resourcePath = $"{dirPath}/{fileName}";
+
+                            if (!depthSearch)
+                            {
+                                string searchDirNormalized = resourcePathPrefix.TrimEnd('/');
+                                string fileDirNormalized = dirPath;
+
+                                if (fileDirNormalized != searchDirNormalized)
+                                    continue;
+                            }
+
+                            result.Add($"{FileLoader.EmbeddedPrefix}{resourcePath}");
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+        //public List<string> SearchFilesByMask(string path, string mask, bool depthSearch)
+        //{
+        //    var result = new List<string>();
+
+        //    if (!path.StartsWith(FileLoader.EmbeddedPrefix))
+        //        path = $"{FileLoader.EmbeddedPrefix}{path}";
+
+        //    string resourcePathPrefix = path.Substring(FileLoader.EmbeddedPrefix.Length).Replace('\\', '/');
+        //    if (!string.IsNullOrEmpty(resourcePathPrefix) && !resourcePathPrefix.EndsWith("/"))
+        //        resourcePathPrefix += "/";
+
+        //    string pattern = mask.Replace(".", "\\.").Replace("*", ".*").Replace("?", ".");
+        //    var regex = new System.Text.RegularExpressions.Regex($"^{pattern}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        //    foreach (var assembly in _assemblies)
+        //    {
+        //        var namespaceName = assembly.GetName().Name;
+        //        var allResources = assembly.GetManifestResourceNames();
+
+        //        foreach (var resource in allResources)
+        //        {
+        //            if (!resource.StartsWith($"{namespaceName}.{resourcePathPrefix.Replace('/', '.')}"))
+        //                continue;
+
+        //            string relativePath = resource.Substring(namespaceName.Length + 1);
+        //            string[] pathParts = relativePath.Split('.');
+
+        //            string extension = pathParts.Length > 0 ? pathParts[pathParts.Length - 1] : "";
+        //            string fileName = pathParts.Length > 1 ? pathParts[pathParts.Length - 2] : "";
+        //            string fullFileName = $"{fileName}.{extension}";
+
+        //            if (regex.IsMatch(fullFileName))
+        //            {
+        //                string resourceRelPath = relativePath.Replace('.', '/');
+        //                result.Add($"{FileLoader.EmbeddedPrefix}{resourceRelPath}");
+        //            }
+        //            if (!depthSearch)
+        //            {
+        //                string resourcePath = relativePath.Replace('.', '/');
+        //                if (resourcePath.Substring(resourcePathPrefix.Length).Contains('/'))
+        //                    continue;
+        //            }
+        //        }
+        //    }
+
+        //    return result;
+        //}
+
+        public bool IsExist(string path)
+        {
+            if (!path.StartsWith(FileLoader.EmbeddedPrefix))
+                throw new ArgumentException($"Path must start with {FileLoader.EmbeddedPrefix}", nameof(path));
+
+            var resourcePath = path.Substring(FileLoader.EmbeddedPrefix.Length);
+
+            foreach (var assembly in _assemblies)
+            {
+                try
+                {
+                    var namespaceName = assembly.GetName().Name;
+                    var resourceName = $"{namespaceName}.{resourcePath.Replace('/', '.').Replace('\\', '.')}";
+
+                    using (var stream = assembly.GetManifestResourceStream(resourceName))
+                    {
+                        if (stream != null)
+                        {
+                            return true;
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            return false;
         }
     }
 

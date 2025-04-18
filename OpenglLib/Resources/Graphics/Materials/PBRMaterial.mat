@@ -1,0 +1,73 @@
+{
+  "Guid": "0a62d6ce-9df4-4130-878c-d7a4d5e51282",
+  "ShaderGuid": "pbr-shader",
+  "ShaderRepresentationTypeName": "",
+  "Values": [
+    {
+      "Type": "Uniform",
+      "Name": "modelPosition",
+      "TypeName": "Silk.NET.Maths.Vector3D`1[System.Single]",
+      "Value": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      }
+    },
+    {
+      "Type": "Uniform",
+      "Name": "modelRotation",
+      "TypeName": "Silk.NET.Maths.Vector3D`1[System.Single]",
+      "Value": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      }
+    },
+    {
+      "Type": "Uniform",
+      "Name": "modelScale",
+      "TypeName": "Silk.NET.Maths.Vector3D`1[System.Single]",
+      "Value": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      }
+    },
+    {
+      "Type": "Sampler",
+      "Name": "albedoMap",
+      "TypeName": "Sampler2D",
+      "TextureGuid": "558b385e-2002-4bc6-8db5-eb0d4f2ce599"
+    },
+    {
+      "Type": "Sampler",
+      "Name": "aoMap",
+      "TypeName": "Sampler2D",
+      "TextureGuid": ""
+    },
+    {
+      "Type": "Sampler",
+      "Name": "metallicMap",
+      "TypeName": "Sampler2D",
+      "TextureGuid": ""
+    },
+    {
+      "Type": "Sampler",
+      "Name": "normalMap",
+      "TypeName": "Sampler2D",
+      "TextureGuid": ""
+    },
+    {
+      "Type": "Sampler",
+      "Name": "roughnessMap",
+      "TypeName": "Sampler2D",
+      "TextureGuid": ""
+    },
+    {
+      "Type": "Sampler",
+      "Name": "shadowMapsArray",
+      "TypeName": "Sampler2DArray",
+      "TextureGuid": ""
+    }
+  ]
+}

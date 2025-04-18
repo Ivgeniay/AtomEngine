@@ -9,6 +9,7 @@ namespace OpenglLib
         public const string MATERIAL_EXT_MASK = "*.mat";
 
         protected EventHub eventHub;
+        protected DirectoryExplorer directoryExplorer;
         protected MetadataManager metadataManager;
         protected Dictionary<string, MaterialAsset> _cacheMaterialAssets = new Dictionary<string, MaterialAsset>();
 
@@ -16,6 +17,7 @@ namespace OpenglLib
         {
             eventHub = ServiceHub.Get<EventHub>();
             metadataManager = ServiceHub.Get<MetadataManager>();
+            directoryExplorer = ServiceHub.Get<DirectoryExplorer>();
             return Task.CompletedTask;
         }
 
@@ -177,11 +179,11 @@ namespace OpenglLib
             if (fileName.IndexOf(".") > -1) fileName = fileName.Substring(0, fileName.IndexOf("."));
             material.ShaderRepresentationTypeName = $"OpenglLib.{fileName}";
         }
-        protected void CacheAllMaterials(string rootDirectory)
+        protected void CacheAllMaterials(string directory)
         {
             try
             {
-                var matFiles = Directory.GetFiles(rootDirectory, MATERIAL_EXT_MASK, SearchOption.AllDirectories);
+                var matFiles = Directory.GetFiles(directory, MATERIAL_EXT_MASK, SearchOption.AllDirectories);
                 foreach (var matFile in matFiles)
                 {
                     try

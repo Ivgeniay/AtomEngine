@@ -160,7 +160,7 @@ namespace Editor
                             },
                             {
                                 typeof(ShadowMaterialComponent).FullName,
-                                new ShadowMaterialComponent(new Entity(1,0))
+                                ShadowMaterialComponent.CreateShadowMaterial(new Entity(1,0), "shadow-shader-material")
                             }
                         }
                     },
@@ -207,11 +207,11 @@ namespace Editor
                             },
                             {
                                 typeof(MaterialComponent).FullName,
-                                new MaterialComponent(new Entity(10,0))
+                                MaterialComponent.CreateMaterial(new Entity(10,0), "pbr-shader-material")
                             },
                             {
                                 typeof(MeshComponent).FullName,
-                                new MeshComponent(new Entity(10,0))
+                                MeshComponent.CreateCube(new Entity(10,0))
                             },
                             {
                                 typeof(ColliderComponent).FullName,
@@ -225,10 +225,10 @@ namespace Editor
                         Name = "Platrform",
                         Version = 0,
                         Components = new Dictionary<string, IComponent>
-                        {
+                        { 
                             {
                                 typeof(TransformComponent).FullName,
-                                new TransformComponent(new Entity(10,0))
+                                new TransformComponent(new Entity(11,0))
                                 {
                                     Position = new Vector3(0, -3, 0),
                                     Rotation = new Vector3(0, 0, 0),
@@ -237,11 +237,11 @@ namespace Editor
                             },
                             {
                                 typeof(MaterialComponent).FullName,
-                                new MaterialComponent(new Entity(10,0))
+                                MaterialComponent.CreateMaterial(new Entity(11,0), "pbr-shader-material")
                             },
                             {
                                 typeof(MeshComponent).FullName,
-                                new MeshComponent(new Entity(10,0))
+                                MeshComponent.CreateCube(new Entity(11,0))
                             },
                             {
                                 typeof(ColliderComponent).FullName,
