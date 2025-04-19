@@ -380,7 +380,7 @@ namespace OpenglLib
             SetTextures(material.MaterialAsset.Guid, textureReferences);
         public virtual void SetTexture(MaterialAsset materialAsset, string samplerName, string textureGuid)
         {
-            var materials = _materials.Where(e => e.MaterialAsset.Guid == materialAsset.Guid);
+            var materials = _materials.Where(e => e.MaterialAsset.Guid == materialAsset.Guid).ToList();
             foreach (var material in materials)
             {
                 SetTexture(material, samplerName, textureGuid);

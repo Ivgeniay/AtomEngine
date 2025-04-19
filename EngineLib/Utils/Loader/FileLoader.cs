@@ -37,7 +37,6 @@ namespace EngineLib
                 }
             }
 
-            // Ищем в embedded-ресурсах, если указан embedded-префикс или не нашли в файловой системе
             if (content == null &&
                 (isEmbeddedPath || searchMode == FileSearchMode.EmbeddedOnly || searchMode == FileSearchMode.BothSearch))
             {
@@ -63,6 +62,60 @@ namespace EngineLib
                     throw new FileNotFoundError($"Error loading file: '{path}': {lastException.Message}, {lastException}");
                 else
                     throw new FileNotFoundError($"File not found: {path}");
+            }
+
+            return content;
+        }
+
+        public static byte[] LoadBinaryFile(string path, FileSearchMode searchMode = FileSearchMode.BothSearch)
+        {
+            byte[] content = null;
+            Exception lastException = null;
+
+            bool isEmbeddedPath = path.StartsWith(EmbeddedPrefix);
+            string normalPath = isEmbeddedPath ? path.Substring(EmbeddedPrefix.Length) : path;
+
+            if (!isEmbeddedPath && (searchMode == FileSearchMode.FileSystemOnly || searchMode == FileSearchMode.BothSearch))
+            {
+                var fileProvider = ContentProviders.FirstOrDefault(p => p is FileSystemContentProvider);
+                if (fileProvider != null)
+                {
+                    try
+                    {
+                        content = fileProvider.GetBinaryContent(path);
+                    }
+                    catch (Exception ex)
+                    {
+                        lastException = ex;
+                    }
+                }
+            }
+
+            if (content == null &&
+                (isEmbeddedPath || searchMode == FileSearchMode.EmbeddedOnly || searchMode == FileSearchMode.BothSearch))
+            {
+                var embeddedProvider = ContentProviders.FirstOrDefault(p => p is EmbeddedContentProvider);
+                if (embeddedProvider != null)
+                {
+                    try
+                    {
+                        string embeddedPath = isEmbeddedPath ? path : $"{EmbeddedPrefix}{normalPath}";
+                        content = embeddedProvider.GetBinaryContent(embeddedPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (lastException == null)
+                            lastException = ex;
+                    }
+                }
+            }
+
+            if (content == null)
+            {
+                if (lastException != null)
+                    throw new FileNotFoundError($"Error loading binary file: '{path}': {lastException.Message}");
+                else
+                    throw new FileNotFoundError($"Binary file not found: {path}");
             }
 
             return content;
@@ -242,6 +295,7 @@ namespace EngineLib
         string ResolvePath(string basePath, string includePath);
         List<string> SearchFilesByMask(string path, string mask, bool depthSearch);
         bool IsExist(string path);
+        byte[] GetBinaryContent(string path);
     }
 
     public class FileSystemContentProvider : IContentProvider
@@ -300,6 +354,14 @@ namespace EngineLib
             }
 
             return result;
+        }
+
+        public byte[] GetBinaryContent(string path)
+        {
+            if (!File.Exists(path))
+                throw new FileNotFoundError($"Binary file not found: {path}");
+
+            return File.ReadAllBytes(path);
         }
 
         public bool IsExist(string path)
@@ -441,53 +503,38 @@ namespace EngineLib
 
             return result;
         }
-        //public List<string> SearchFilesByMask(string path, string mask, bool depthSearch)
-        //{
-        //    var result = new List<string>();
 
-        //    if (!path.StartsWith(FileLoader.EmbeddedPrefix))
-        //        path = $"{FileLoader.EmbeddedPrefix}{path}";
+        public byte[] GetBinaryContent(string path)
+        {
+            if (!path.StartsWith(FileLoader.EmbeddedPrefix))
+                throw new ArgumentException($"Path must start with {FileLoader.EmbeddedPrefix}", nameof(path));
 
-        //    string resourcePathPrefix = path.Substring(FileLoader.EmbeddedPrefix.Length).Replace('\\', '/');
-        //    if (!string.IsNullOrEmpty(resourcePathPrefix) && !resourcePathPrefix.EndsWith("/"))
-        //        resourcePathPrefix += "/";
+            var resourcePath = path.Substring(FileLoader.EmbeddedPrefix.Length);
 
-        //    string pattern = mask.Replace(".", "\\.").Replace("*", ".*").Replace("?", ".");
-        //    var regex = new System.Text.RegularExpressions.Regex($"^{pattern}$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            foreach (var assembly in _assemblies)
+            {
+                try
+                {
+                    var namespaceName = assembly.GetName().Name;
+                    var resourceName = $"{namespaceName}.{resourcePath.Replace('/', '.').Replace('\\', '.')}";
 
-        //    foreach (var assembly in _assemblies)
-        //    {
-        //        var namespaceName = assembly.GetName().Name;
-        //        var allResources = assembly.GetManifestResourceNames();
+                    using (var stream = assembly.GetManifestResourceStream(resourceName))
+                    {
+                        if (stream != null)
+                        {
+                            using (var memoryStream = new MemoryStream())
+                            {
+                                stream.CopyTo(memoryStream);
+                                return memoryStream.ToArray();
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
 
-        //        foreach (var resource in allResources)
-        //        {
-        //            if (!resource.StartsWith($"{namespaceName}.{resourcePathPrefix.Replace('/', '.')}"))
-        //                continue;
-
-        //            string relativePath = resource.Substring(namespaceName.Length + 1);
-        //            string[] pathParts = relativePath.Split('.');
-
-        //            string extension = pathParts.Length > 0 ? pathParts[pathParts.Length - 1] : "";
-        //            string fileName = pathParts.Length > 1 ? pathParts[pathParts.Length - 2] : "";
-        //            string fullFileName = $"{fileName}.{extension}";
-
-        //            if (regex.IsMatch(fullFileName))
-        //            {
-        //                string resourceRelPath = relativePath.Replace('.', '/');
-        //                result.Add($"{FileLoader.EmbeddedPrefix}{resourceRelPath}");
-        //            }
-        //            if (!depthSearch)
-        //            {
-        //                string resourcePath = relativePath.Replace('.', '/');
-        //                if (resourcePath.Substring(resourcePathPrefix.Length).Contains('/'))
-        //                    continue;
-        //            }
-        //        }
-        //    }
-
-        //    return result;
-        //}
+            throw new FileNotFoundError($"Embedded binary resource not found: {resourcePath}");
+        }
 
         public bool IsExist(string path)
         {

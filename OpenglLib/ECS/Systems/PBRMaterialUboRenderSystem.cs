@@ -19,7 +19,7 @@ namespace OpenglLib
             World = world;
 
             queryMaterialEntities = this.CreateEntityQuery()
-                .With<PBRMaterialComponent>()
+                .With<PBRSettingsMaterialComponent>()
                 ;
 
             _materialUboData = new MaterialUboData();
@@ -62,7 +62,7 @@ namespace OpenglLib
             if (entities.Length == 0) return;
 
             Entity currentEntity = entities[0];
-            ref var material = ref this.GetComponent<PBRMaterialComponent>(currentEntity);
+            ref var material = ref this.GetComponent<PBRSettingsMaterialComponent>(currentEntity);
 
             if (material.IsDirty || _isDirty)
             {

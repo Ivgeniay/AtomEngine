@@ -112,7 +112,7 @@ namespace Editor
         {
             var newScene = new WorldData
             {
-                WorldName = "New Scene",
+                WorldName = "World 1",
                 IsDirty = false,
                 Entities = new List<EntityData>
                 {
@@ -149,7 +149,7 @@ namespace Editor
                                 typeof(TransformComponent).FullName,
                                 new TransformComponent
                                 {
-                                    Position = Vector3.UnitX,
+                                    Position = new Vector3(5, 3, 0),
                                     Rotation = new Vector3(0, -90, 0),
                                     Scale = new Vector3(1, 1, 1),
                                 }
@@ -161,6 +161,10 @@ namespace Editor
                             {
                                 typeof(ShadowMaterialComponent).FullName,
                                 ShadowMaterialComponent.CreateShadowMaterial(new Entity(1,0), "shadow-shader-material")
+                            },
+                            {
+                                typeof(IconComponent).FullName,
+                                IconComponent.CreateIconComponent(new Entity(1,0), "icon-shader-material", "plane1x1xorientation-model-1", "0")
                             }
                         }
                     },
@@ -184,13 +188,13 @@ namespace Editor
                     new EntityData
                     {
                         Id = 3,
-                        Name = "PBRMaterial",
+                        Name = "PBRSettingsMaterial",
                         Version = 0,
                         Components = new Dictionary<string, IComponent>
                         {
                             {
-                                typeof(PBRMaterialComponent).FullName,
-                                new PBRMaterialComponent(new Entity(10,0))
+                                typeof(PBRSettingsMaterialComponent).FullName,
+                                new PBRSettingsMaterialComponent(new Entity(10,0))
                             }
                         }
                     },
@@ -206,12 +210,13 @@ namespace Editor
                                 new TransformComponent(new Entity(10,0))
                             },
                             {
-                                typeof(MaterialComponent).FullName,
-                                MaterialComponent.CreateMaterial(new Entity(10,0), "pbr-shader-material")
-                            },
-                            {
-                                typeof(MeshComponent).FullName,
-                                MeshComponent.CreateCube(new Entity(10,0))
+                                typeof(PBRComponent).FullName,
+                                PBRComponent.CreateMaterial(
+                                    new Entity(11,0),
+                                    "1ead8990-318b-47da-b0ae-be0c40a6c1df",
+                                    "cube-model-1",
+                                    "0")
+                                //"pbr-shader-material"
                             },
                             {
                                 typeof(ColliderComponent).FullName,
@@ -232,16 +237,17 @@ namespace Editor
                                 {
                                     Position = new Vector3(0, -3, 0),
                                     Rotation = new Vector3(0, 0, 0),
-                                    Scale = new Vector3(10, 0.1f, 10)
+                                    Scale = new Vector3(2, 1f, 2)
                                 }
                             },
                             {
-                                typeof(MaterialComponent).FullName,
-                                MaterialComponent.CreateMaterial(new Entity(11,0), "pbr-shader-material")
-                            },
-                            {
-                                typeof(MeshComponent).FullName,
-                                MeshComponent.CreateCube(new Entity(11,0))
+                                typeof(PBRComponent).FullName,
+                                PBRComponent.CreateMaterial(
+                                    new Entity(11,0), 
+                                    "1ead8990-318b-47da-b0ae-be0c40a6c1df",
+                                    "plane10x10-model-1",
+                                    "0")
+                                //"pbr-shader-material"
                             },
                             {
                                 typeof(ColliderComponent).FullName,
@@ -250,7 +256,7 @@ namespace Editor
                         }
                     }
                 },
-
+                WorldId = 0
             };
             return newScene;
         }
@@ -261,55 +267,71 @@ namespace Editor
             {
                 new SystemData
                 {
-                    SystemFullTypeName = "OpenglLib.ShadowMapSystem",
+                    SystemFullTypeName = typeof(ShadowMapSystem).FullName,
                     ExecutionOrder = 0,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
                     Category = SystemCategory.Render,
+                    Guid = "system_0"
                 },
                 new SystemData
                 {
-                    SystemFullTypeName = "OpenglLib.ShadowMapBindingSystem",
+                    SystemFullTypeName = typeof(ShadowMapBindingSystem).FullName,
                     ExecutionOrder = 1,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
                     Category = SystemCategory.Render,
+                    Guid = "system_1"
                 },
 
                 new SystemData
                 {
-                    SystemFullTypeName = "OpenglLib.LightUboRenderSystem",
+                    SystemFullTypeName = typeof(LightUboRenderSystem).FullName,
                     ExecutionOrder = 2,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
                     Category = SystemCategory.Render,
+                    Guid = "system_2"
                 },
 
                 new SystemData
                 {
-                    SystemFullTypeName = "OpenglLib.CameraUboRenderSystem",
+                    SystemFullTypeName = typeof(CameraUboRenderSystem).FullName,
                     ExecutionOrder = 3,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
                     Category = SystemCategory.Render,
+                    Guid = "system_3"
                 },
 
                 new SystemData
                 {
-                    SystemFullTypeName = "OpenglLib.PBRMaterialUboRenderSystem",
+                    SystemFullTypeName = typeof(PBRMaterialUboRenderSystem).FullName,
                     ExecutionOrder = 4,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
                     Category = SystemCategory.Render,
+                    Guid = "system_4"
                 },
 
                 new SystemData
                 {
-                    SystemFullTypeName = "OpenglLib.ViewRenderSystem",
+                    SystemFullTypeName = typeof(ViewRenderSystem).FullName,
                     ExecutionOrder = 5,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
                     Category = SystemCategory.Render,
+                    Guid = "system_5"
+                },
+
+                new SystemData
+                {
+                    SystemFullTypeName = typeof(IconRenderSystem).FullName,
+                    ExecutionOrder = 6,
+                    IncludInWorld = new List<uint>{ 0 },
+                    Dependencies = new List<SystemData> { },
+                    Category = SystemCategory.Render,
+                    Guid = "system_6"
                 },
             };
         }

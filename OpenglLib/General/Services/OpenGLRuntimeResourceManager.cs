@@ -112,16 +112,19 @@ namespace OpenglLib
 
         public override void Dispose()
         {
-            _textureFactory.Dispose();
-            _meshFactory.Dispose();
-            _materialFactory.Dispose();
-            _uboService.Dispose();
-            _fboService.Dispose();
+            if (_isGLInitialized)
+            {
+                _textureFactory.Dispose();
+                _meshFactory.Dispose();
+                _materialFactory.Dispose();
+                _uboService.Dispose();
+                _fboService.Dispose();
 
-            _resourceCache.Clear();
-            _objectToGuidCache.Clear();
+                _resourceCache.Clear();
+                _objectToGuidCache.Clear();
 
-            _isGLInitialized = false;
+                _isGLInitialized = false;
+            }
         }
     }
 

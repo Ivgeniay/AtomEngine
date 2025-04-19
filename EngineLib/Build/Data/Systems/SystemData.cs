@@ -7,6 +7,7 @@
         public List<SystemData> Dependencies { get; set; } = new List<SystemData>();
         public List<uint> IncludInWorld { get; set; } = new List<uint>();
         public SystemCategory Category { get; set; }
+        public string Guid { get; set; } = System.Guid.NewGuid().ToString();
 
         public SystemData Clone()
         {

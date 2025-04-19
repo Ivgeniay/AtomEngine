@@ -18,6 +18,7 @@ namespace OpenglLib
         private Image<Rgba32> _image;
         private bool _generateMipmaps = true;
         public string Path { get; set; }
+        public uint Handle { get { return _handle; } }
         public TextureType Type { get; }
 
         public PixelFormat PixelDataFormat { get; private set; } = PixelFormat.Rgba;

@@ -4,7 +4,7 @@ using AtomEngine;
 
 namespace OpenglLib
 {
-    public struct PBRMaterialComponent : IComponent
+    public struct PBRSettingsMaterialComponent : IComponent
     {
         public Entity Owner { get; set; }
 
@@ -42,7 +42,7 @@ namespace OpenglLib
 
         public bool IsDirty;
 
-        public PBRMaterialComponent(Entity entity)
+        public PBRSettingsMaterialComponent(Entity entity)
         {
             Owner = entity;
             Albedo = new Vector3(1.0f, 1.0f, 1.0f);

@@ -1,4 +1,5 @@
 ﻿using EngineLib;
+using Newtonsoft.Json;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
@@ -137,6 +138,11 @@ namespace AtomEngine
 
         [FieldOffset(128)]
         public Matrix4x4 ProjectionMatrix;
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
 
     [StructLayout(LayoutKind.Explicit, Size = 784)]
@@ -156,5 +162,10 @@ namespace AtomEngine
 
         [FieldOffset(768)]
         public int ActiveCameraIndex;
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
 }

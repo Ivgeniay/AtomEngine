@@ -106,6 +106,7 @@ namespace OpenglLib
 
             if (dataChanged || _isDirty)
             {
+                //var c = _camerasUboData.ToString();
                 _uboService.SetUboDataByBindingPoint(3, _camerasUboData);
                 _isDirty = false;
             }

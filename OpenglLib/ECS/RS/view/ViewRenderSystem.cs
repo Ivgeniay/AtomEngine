@@ -13,8 +13,7 @@ namespace OpenglLib
             World = world;
             queryRendererEntities = this.CreateEntityQuery()
                 .With<TransformComponent>()
-                .With<MaterialComponent>()
-                .With<MeshComponent>()
+                .With<PBRComponent>()
                 ;
         }
 
@@ -27,10 +26,9 @@ namespace OpenglLib
             foreach (var entity in rendererEntities)
             {
                 ref var transform = ref this.GetComponent<TransformComponent>(entity);
-                ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);
-                ref var materialComponent = ref this.GetComponent<MaterialComponent>(entity);
+                ref var materialComponent = ref this.GetComponent<PBRComponent>(entity);
 
-                if (meshComponent.Mesh == null || materialComponent.Material?.Shader == null)
+                if (materialComponent.Mesh == null || materialComponent.Material == null || materialComponent.Material?.Shader == null)
                     continue;
 
                 var shader = materialComponent.Material.Shader;
@@ -41,9 +39,10 @@ namespace OpenglLib
                 material.SetUniform("modelRotation", transform.Rotation.ToSilk());
                 material.SetUniform("modelScale", transform.Scale.ToSilk());
 
-                meshComponent.Mesh.Draw(shader);
+                materialComponent.Mesh.Draw(shader);
             }
         }
+
 
         public void Resize(Vector2 size)
         { }

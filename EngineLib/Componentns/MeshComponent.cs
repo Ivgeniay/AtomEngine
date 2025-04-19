@@ -67,6 +67,24 @@ namespace AtomEngine
             };
         }
 
+        public static MeshComponent CreatePlane10x10(Entity owner)
+        {
+            return new MeshComponent(owner)
+            {
+                MeshGUID = "plane10x10-model-1",
+                MeshInternalIndex = "0"
+            };
+        }
+
+        public static MeshComponent CreatePlane1x1(Entity owner)
+        {
+            return new MeshComponent(owner)
+            {
+                MeshGUID = "plane1x1-model-1",
+                MeshInternalIndex = "0"
+            };
+        }
+
         public static MeshComponent CreateCone(Entity owner)
         {
             return new MeshComponent(owner)

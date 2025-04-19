@@ -1,6 +1,4 @@
-﻿#include "embedded:Resources/Graphics/RS/Const.rs"
-
-uniform vec3 modelPosition;
+﻿uniform vec3 modelPosition;
 uniform vec3 modelRotation;
 uniform vec3 modelScale;
 

@@ -1,8 +1,6 @@
-﻿using AtomEngine.RenderEntity;
+﻿using Newtonsoft.Json;
 using AtomEngine;
-using Newtonsoft.Json;
 using EngineLib;
-using OpenglLib.ECS.Components;
 
 namespace OpenglLib
 {
@@ -39,4 +37,6 @@ namespace OpenglLib
             };
         }
     }
+
+
 }

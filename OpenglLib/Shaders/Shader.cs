@@ -22,8 +22,6 @@ namespace OpenglLib
         protected readonly List<UniformBlockData> _uniformBlocks = new List<UniformBlockData>();
         protected readonly Dictionary<string, UniformSamplerInfo> _samplerUniforms = new Dictionary<string, UniformSamplerInfo>();
 
-        //protected AutoUBOHub autoUBOHub;
-
         protected string VertexSource;
         protected string FragmentSource;
 
@@ -57,13 +55,10 @@ namespace OpenglLib
             CacheSamplerUniforms(_gl, handle, _samplerUniforms, _uniformLocations, vertexSource, fragmentSource);
             CacheUniformBlocks(_gl, handle, _uniformBlocks);
 
-            foreach(var kvp in _samplerUniforms)
-            {
-                if (kvp.Value.BindingPoint.HasValue)
-                {
-                    _shaderTextureManager.ReserveTextureUnit(kvp.Value.Name, kvp.Value.BindingPoint.Value);
-                }
-            }
+            var hasBindingPointSamplers = _samplerUniforms.Where(e => e.Value.BindingPoint.HasValue);
+            foreach (var kvp in hasBindingPointSamplers)
+                _shaderTextureManager.ReserveTextureUnit(kvp.Value.Name, kvp.Value.BindingPoint.Value);
+
             if (_uniformBlocks.Count > 0)
             {
                 for(int i = 0;  i < _uniformBlocks.Count; i++)
@@ -88,6 +83,7 @@ namespace OpenglLib
         public override void Use()
         {
             _gl.UseProgram(handle);
+            _shaderTextureManager.ActivateAllTextures();
         }
 
         public override void SetUbo(Dictionary<string, object> uniformValues)
@@ -769,7 +765,6 @@ namespace OpenglLib
 
         public override void Dispose()
         {
-            //autoUBOHub?.Dispose();
             _gl.DeleteProgram(handle);
         }
 
@@ -805,6 +800,7 @@ namespace OpenglLib
         protected class ShaderTextureManager
         {
             private Shader _shader;
+            private readonly Dictionary<TextureUnit, TextureBinding> _boundTextures = new Dictionary<TextureUnit, TextureBinding>();
             private readonly Dictionary<string, int> _textureUnitMap = new Dictionary<string, int>();
             private readonly HashSet<int> _reservedUnits = new HashSet<int>();
             private int _nextTextureUnit = 0;
@@ -887,15 +883,38 @@ namespace OpenglLib
                 TextureUnit unit = GetTextureUnitForUniform(uniformName);
                 if (!_shader._uniformLocations.TryGetValue(uniformName, out int location))
                 {
-#if DEBUG
                     DebLogger.Error($"Not exist {uniformName} into {_shader}");
-#endif
                     return;
                 }
 
                 _shader._gl.ActiveTexture(unit);
                 texture.Bind();
                 _shader._gl.Uniform1(location, unit - TextureUnit.Texture0);
+
+                _boundTextures[unit] = new TextureBinding
+                {
+                    Handle = texture.Handle,
+                    Target = texture.Target,
+                    TextureObject = texture
+                };
+            }
+
+            public void ActivateTextureUnit(TextureUnit unit)
+            {
+                if (_boundTextures.TryGetValue(unit, out TextureBinding binding))
+                {
+                    _shader._gl.ActiveTexture(unit);
+                    _shader._gl.BindTexture(binding.Target, binding.Handle);
+                }
+            }
+
+            public void ActivateAllTextures()
+            {
+                foreach (var kvp in _boundTextures)
+                {
+                    _shader._gl?.ActiveTexture(kvp.Key);
+                    _shader._gl?.BindTexture(kvp.Value.Target, kvp.Value.Handle);
+                }
             }
 
             public void Reset()
@@ -905,6 +924,12 @@ namespace OpenglLib
                 _nextTextureUnit = 0;
             }
 
+            private struct TextureBinding
+            {
+                public uint Handle;
+                public TextureTarget Target;
+                public Texture TextureObject;
+            }
         }
     }
 

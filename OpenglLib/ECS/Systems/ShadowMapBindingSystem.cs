@@ -19,8 +19,7 @@ namespace OpenglLib
 
             queryRendererEntities = this.CreateEntityQuery()
                 .With<TransformComponent>()
-                .With<MaterialComponent>()
-                .With<MeshComponent>()
+                .With<PBRComponent>()
                 ;
 
             queryShadowMapEntities = this.CreateEntityQuery()
@@ -53,11 +52,11 @@ namespace OpenglLib
 
             foreach (var entity in rendererEntities)
             {
-                ref var materialComponent = ref this.GetComponent<MaterialComponent>(entity);
-                if (materialComponent.Material == null || materialComponent.Material?.Shader == null)
+                ref var pbrComponent = ref this.GetComponent<PBRComponent>(entity);
+                if (pbrComponent.Material == null || pbrComponent.Material?.Shader == null)
                     continue;
 
-                Material material = materialComponent.Material;
+                Material material = pbrComponent.Material;
                 material.Use();
                 material.SetUniform("shadowMapsArray", SHADOW_TEXTURE_UNIT);
             }

@@ -35,8 +35,7 @@ namespace OpenglLib
 
             queryRendererEntities = this.CreateEntityQuery()
                 .With<TransformComponent>()
-                .With<MaterialComponent>()
-                .With<MeshComponent>()
+                .With<PBRComponent>()
                 ;
 
             queryShadowMapEntities = this.CreateEntityQuery()
@@ -173,15 +172,12 @@ namespace OpenglLib
                 }
             }
 
-            unsafe
-            {
-                int currentFb;
-                _gl.GetInteger(GLEnum.DrawFramebufferBinding, &currentFb);
-            }
-
             Span<int> viewport = stackalloc int[4];
             gl.GetInteger(GLEnum.Viewport, viewport);
             int prevFBO = gl.GetInteger(GLEnum.FramebufferBinding);
+
+            bool depthTestEnabled = gl.IsEnabled(EnableCap.DepthTest);
+            gl.Enable(EnableCap.DepthTest);
 
             foreach (var lightEntity in activeLightEntities)
             {
@@ -224,16 +220,16 @@ namespace OpenglLib
                     foreach (var entity in rendererEntities)
                     {
                         ref var transform = ref this.GetComponent<TransformComponent>(entity);
-                        ref var meshComponent = ref this.GetComponent<MeshComponent>(entity);
+                        ref var pbrComponent = ref this.GetComponent<PBRComponent>(entity);
 
-                        if (meshComponent.Mesh == null)
+                        if (pbrComponent.Mesh == null)
                             continue;
 
                         shadowMaterial.SetUniform("modelPosition", transform.Position.ToSilk());
                         shadowMaterial.SetUniform("modelRotation", transform.Rotation.ToSilk());
                         shadowMaterial.SetUniform("modelScale", transform.Scale.ToSilk());
 
-                        meshComponent.Mesh.Draw(shadowMaterial.Shader);
+                        pbrComponent.Mesh.Draw(shadowMaterial.Shader);
                     }
                 }
                 catch (Exception ex)
@@ -248,6 +244,9 @@ namespace OpenglLib
             int curFBO = gl.GetInteger(GLEnum.FramebufferBinding);
 
             _fbo.Unbind(viewport[2], viewport[3]);
+
+            if (depthTestEnabled) gl.Enable(EnableCap.DepthTest);
+            else gl.Disable(EnableCap.DepthTest);
 
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, (uint)prevFBO);
             gl.Viewport(viewport[0], viewport[1], (uint)viewport[2], (uint)viewport[3]);

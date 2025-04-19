@@ -59,7 +59,7 @@ namespace Editor
         private TaskCompletionSource<bool> _disposeTcs;
 
         private Entity _editorCameraEntity;
-
+        private CancellationTokenSource _renderLoopCts;
         public Action<object> OnClose { get; set; }
 
         public SceneViewController()
@@ -74,9 +74,6 @@ namespace Editor
 
             _sceneManager.OnSceneInitialize += SetScene;
             _sceneManager.OnScenUnload += UnloadScene;
-
-            BVHTree.Instance.Initialize(SceneManager.EntityCompProvider);
-
             _worldManager = new WorldManager();
         }
 
@@ -250,15 +247,11 @@ namespace Editor
             }
             var systemDict = _worldSystems[worldData.WorldName];
 
-            var gridSystem = new EditorGridRenderSystem(world, _gl);
+            var gridSystem = new EditorGridRenderSystem(world);
             world.AddSystem(gridSystem);
             systemDict[typeof(EditorGridRenderSystem).FullName] = gridSystem;
 
-            var aabbSystem = new EditorAABBRenderSystem(world, _gl, SceneManager.EntityCompProvider);
-            world.AddSystem(aabbSystem);
-            systemDict[typeof(EditorAABBRenderSystem).FullName] = aabbSystem;
-
-            var frustumSystem = new EditorCameraFrustumRenderSystem(world, _gl);
+            var frustumSystem = new EditorCameraFrustumRenderSystem(world);
             world.AddSystem(frustumSystem);
             systemDict[typeof(EditorCameraFrustumRenderSystem).FullName] = frustumSystem;
 
@@ -283,33 +276,8 @@ namespace Editor
                     addComponentMethod.Invoke(world, new object[] { entity, component });
 
                     ProcessGLDependentComponent(world, entity, ref component);
-
-                    if (typeof(MeshComponent).IsAssignableFrom(componentType))
-                    {
-                        var mesh = GetMeshFromComponent((MeshComponent)component);
-                        if (mesh?.BoundingVolume != null)
-                        {
-                            BVHTree.Instance.AddEntity(entityData.Id);
-                        }
-                    }
                 }
             }
-        }
-
-        private MeshBase GetMeshFromComponent(MeshComponent meshComponent)
-        {
-            var type = meshComponent.GetType();
-            var fields = type
-                .GetFields(BindingFlags.Public | BindingFlags.Instance)
-                .FirstOrDefault(e => typeof(MeshBase).IsAssignableFrom(e.FieldType));
-
-            if (fields != null)
-            {
-                var value = fields.GetValue(meshComponent);
-                if (value != null) return value as MeshBase;
-            }
-
-            return null;
         }
 
         public void UnloadScene()
@@ -322,7 +290,7 @@ namespace Editor
             });
         }
 
-        private CancellationTokenSource _renderLoopCts;
+        
         public void Open()
         {
             if (_glController == null)
@@ -381,7 +349,8 @@ namespace Editor
             {
                 while (!token.IsCancellationRequested)
                 {
-                    await Task.Delay(16, token);
+                    //await Task.Delay(16, token);
+                    await Task.Delay(24, token);
 
                     if (_isOpen && _isGlInitialized)
                     {
@@ -504,17 +473,12 @@ namespace Editor
             });
         }
 
-        private void Render()
-        {
-            _glController?.Invalidate();
-        }
-
         public void EnqueueGLCommand(Action<GL> command)
         {
             _glCommands.Enqueue(new OpenGLCommand { Execute = command });
         }
 
-        private void OnPointerReleased(object sender, PointerReleasedEventArgs e)
+        private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             if (e.InitialPressMouseButton == MouseButton.Left)
             {
@@ -535,16 +499,16 @@ namespace Editor
             ref var editorCamera = ref _currentEditorWorld.GetComponent<EditorCameraComponent>(_editorCameraEntity);
 
             var rayDirection = CalculateRayDirection(x, y, transform, camera, editorCamera.IsPerspective);
-            var ray = new BVHTree.BvhRay(transform.Position, rayDirection);
+            //var ray = new BVHTree.BvhRay(transform.Position, rayDirection);
 
-            if (ray.Raycast(out var hit))
-            {
-                var entity = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == hit.EntityId);
-                if (entity != null)
-                {
-                    OnEntitySelected?.Invoke(entity.Id);
-                }
-            }
+            //if (ray.Raycast(out var hit))
+            //{
+            //    var entity = _sceneManager.CurrentScene.CurrentWorldData.Entities.FirstOrDefault(e => e.Id == hit.EntityId);
+            //    if (entity != null)
+            //    {
+            //        OnEntitySelected?.Invoke(entity.Id);
+            //    }
+            //}
         }
 
         private Vector3 CalculateRayDirection(float normalizedX, float normalizedY, TransformComponent transform, CameraComponent camera, bool isPerspective)
@@ -611,11 +575,6 @@ namespace Editor
 
             Status.SetStatus($"Camera projection: {(_isPerspective ? "Perspective" : "Orthographic")}");
         }
-
-        private void PrepareToSave()
-        {
-            FreeCache();
-        }
         
         private void WorldSelected(uint worldId, string worldName)
         {
@@ -637,9 +596,8 @@ namespace Editor
         public void FreeCache()
         {
             foreach (var world in _sceneWorlds.Values)
-            {
                 world.Dispose();
-            }
+
             _worldManager.Dispose();
 
             _sceneWorlds.Clear();
@@ -647,11 +605,9 @@ namespace Editor
             _sceneManager.DisposeAllReservedId();
             _cameraQueries.Clear();
             _worldSystems.Clear();
-            BVHTree.Instance?.FreeCache();
             _isDataInitialized = false;
 
             _editorCameraEntity = new Entity(uint.MaxValue, uint.MaxValue);
-            materialMapping.Clear();
         }
 
         public void EntityCreated(uint worldId, uint entityId)
@@ -696,7 +652,6 @@ namespace Editor
                 {
                     world.DestroyEntity(new Entity(entityId, 0));
                 }
-                BVHTree.Instance.RemoveEntity(entityId);
             });
         }
 
@@ -718,11 +673,6 @@ namespace Editor
                         addComponentMethod.Invoke(world, new object[] { entity, component });
 
                         ProcessGLDependentComponent(world, entity, ref component);
-
-                        if (componentType == typeof(MeshComponent))
-                        {
-                            BVHTree.Instance.AddEntity(entityId);
-                        }
                     }
                 }
             });
@@ -744,11 +694,6 @@ namespace Editor
                     {
                         var removeComponentMethod = typeof(World).GetMethod("RemoveComponent").MakeGenericMethod(componentType);
                         removeComponentMethod.Invoke(world, new object[] { entity });
-
-                        if (componentType == typeof(MeshComponent))
-                        {
-                            BVHTree.Instance.RemoveEntity(entityId);
-                        }
                     }
                 }
             });
@@ -777,25 +722,22 @@ namespace Editor
 
                         ProcessGLDependentComponent(world, entity, ref component);
 
-                        if (componentType == typeof(TransformComponent))
-                        {
-                            BVHTree.Instance.UpdateEntity(entityId);
-                        }
                     }
                 }
             });
         }
 
-        private Dictionary<uint, Material> materialMapping = new Dictionary<uint, Material>();
         private void ProcessGLDependentComponent(World world, Entity entity, ref IComponent component)
         {
             var componentType = component.GetType();
-            
+
             if (IsGLDependableComponent(component))
             {
+                Material material = null;
                 var materialFields = FindFieldsByBaseType(componentType, typeof(Material));
-                foreach (var materialField in materialFields)
+                if (materialFields.Count > 0)
                 {
+                    var materialField = materialFields[0];
                     var materialGuidField = componentType.GetField(materialField.Name + "GUID",
                         BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -804,7 +746,7 @@ namespace Editor
                         string materialGuid = (string)materialGuidField.GetValue(component);
                         if (!string.IsNullOrEmpty(materialGuid))
                         {
-                            var material = _resourceManager.LoadMaterialResource(materialGuid);
+                            material = _resourceManager.LoadMaterialResource(materialGuid);
                             if (material != null && material.Shader != null)
                             {
                                 world.ModifyComponent(entity.Id, componentType, (e) =>
@@ -812,47 +754,110 @@ namespace Editor
                                     materialField.SetValue(e, material);
                                     return e;
                                 });
-                                materialMapping[entity.Id] = material;
                             }
                         }
                     }
                 }
 
-                if (materialMapping.TryGetValue(entity.Id, out Material outMaterial))
+                var meshFields = FindFieldsByBaseType(componentType, typeof(MeshBase));
+                if (meshFields.Count > 0)
                 {
-                    var meshFields = FindFieldsByBaseType(componentType, typeof(MeshBase));
-                    foreach (var meshField in meshFields)
+                    var meshField = meshFields[0];
+                    var meshGuidField = componentType.GetField(meshField.Name + "GUID",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    var meshIndexatorField = componentType.GetField(meshField.Name + "InternalIndex",
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+
+                    if (meshGuidField != null && meshIndexatorField != null)
                     {
-                        var meshGuidField = componentType.GetField(meshField.Name + "GUID",
-                            BindingFlags.NonPublic | BindingFlags.Instance);
-                        var meshIndexatorField = componentType.GetField(meshField.Name + "InternalIndex",
-                            BindingFlags.NonPublic | BindingFlags.Instance);
+                        string meshGuid = (string)meshGuidField.GetValue(component);
+                        string strIndex = (string)meshIndexatorField.GetValue(component);
 
-                        if (meshGuidField != null && meshIndexatorField != null)
+                        if (!string.IsNullOrEmpty(meshGuid) && !string.IsNullOrEmpty(strIndex))
                         {
-                            string meshGuid = (string)meshGuidField.GetValue(component);
-                            string strIndex = (string)meshIndexatorField.GetValue(component);
+                            int index = int.Parse(strIndex);
+                            var shader = material?.Shader;
+                            var mesh = _resourceManager.LoadMeshResource(meshGuid, index, shader);
 
-                            if (!string.IsNullOrEmpty(meshGuid) && !string.IsNullOrEmpty(strIndex))
+                            if (mesh != null)
                             {
-                                int index = int.Parse(strIndex);
-
-                                var mesh = _resourceManager.LoadMeshResource(meshGuid, index, outMaterial.Shader);
-                                if (mesh != null)
+                                world.ModifyComponent(entity.Id, componentType, (e) =>
                                 {
-                                    world.ModifyComponent(entity.Id, componentType, (e) =>
-                                    {
-                                        meshField.SetValue(e, mesh);
-                                        return e;
-                                    });
-                                }
+                                    meshField.SetValue(e, mesh);
+                                    return e;
+                                });
                             }
                         }
                     }
-
                 }
             }
         }
+        //private void ProcessGLDependentComponent(World world, Entity entity, ref IComponent component)
+        //{
+        //    var componentType = component.GetType();
+
+        //    if (IsGLDependableComponent(component))
+        //    {
+        //        var materialFields = FindFieldsByBaseType(componentType, typeof(Material));
+        //        foreach (var materialField in materialFields)
+        //        {
+        //            var materialGuidField = componentType.GetField(materialField.Name + "GUID",
+        //                BindingFlags.NonPublic | BindingFlags.Instance);
+
+        //            if (materialGuidField != null)
+        //            {
+        //                string materialGuid = (string)materialGuidField.GetValue(component);
+        //                if (!string.IsNullOrEmpty(materialGuid))
+        //                {
+        //                    var material = _resourceManager.LoadMaterialResource(materialGuid);
+        //                    if (material != null && material.Shader != null)
+        //                    {
+        //                        world.ModifyComponent(entity.Id, componentType, (e) =>
+        //                        {
+        //                            materialField.SetValue(e, material);
+        //                            return e;
+        //                        });
+        //                        materialMapping[entity.Id] = material;
+        //                    }
+        //                }
+        //            }
+        //        }
+
+        //        if (materialMapping.TryGetValue(entity.Id, out Material outMaterial))
+        //        {
+        //            var meshFields = FindFieldsByBaseType(componentType, typeof(MeshBase));
+        //            foreach (var meshField in meshFields)
+        //            {
+        //                var meshGuidField = componentType.GetField(meshField.Name + "GUID",
+        //                    BindingFlags.NonPublic | BindingFlags.Instance);
+        //                var meshIndexatorField = componentType.GetField(meshField.Name + "InternalIndex",
+        //                    BindingFlags.NonPublic | BindingFlags.Instance);
+
+        //                if (meshGuidField != null && meshIndexatorField != null)
+        //                {
+        //                    string meshGuid = (string)meshGuidField.GetValue(component);
+        //                    string strIndex = (string)meshIndexatorField.GetValue(component);
+
+        //                    if (!string.IsNullOrEmpty(meshGuid) && !string.IsNullOrEmpty(strIndex))
+        //                    {
+        //                        int index = int.Parse(strIndex);
+
+        //                        var mesh = _resourceManager.LoadMeshResource(meshGuid, index, outMaterial.Shader);
+        //                        if (mesh != null)
+        //                        {
+        //                            world.ModifyComponent(entity.Id, componentType, (e) =>
+        //                            {
+        //                                meshField.SetValue(e, mesh);
+        //                                return e;
+        //                            });
+        //                        }
+        //                    }
+        //                }
+        //            }
+
+        //        }
+        //    }
+        //}
 
         private bool IsGLDependableComponent(IComponent component)
         {
@@ -1011,28 +1016,14 @@ namespace Editor
             _sceneManager.DisposeAllReservedId();
             _isDataInitialized = false;
 
-            foreach (var world in _sceneWorlds.Values)
-            {
-                world.Dispose();
-            }
             _sceneWorlds.Clear();
             _worldSystems.Clear();
             _cameraQueries.Clear();
-
-            if (_glController != null)
-            {
-                _renderCanvas.Children.Remove(_glController);
-                GLController.OnGLInitialized -= OnGLInitialized;
-                GLController.OnRender -= OnRender;
-                _glController.Dispose();
-                _glController = null;
-            }
 
             _isGlInitialized = false;
             _isRendering = false;
 
             _resourceManager?.Dispose();
-            //_sceneManager.OnSceneBeforeSave -= PrepareToSave;
 
             _sceneManager.OnComponentChange -= ComponentChange;
             _sceneManager.OnComponentAdded -= ComponentAdded;
@@ -1044,12 +1035,18 @@ namespace Editor
             _sceneManager.OnSystemAddedToWorld -= SystemAddedToWorld;
             _sceneManager.OnSystemRemovedFromWorld -= SystemRemovedFromWorld;
 
-
             _renderTimer?.Stop();
             _isOpen = false;
             _isGlInitialized = false;
 
-            BVHTree.Instance?.FreeCache();
+            if (_glController != null)
+            {
+                _renderCanvas.Children.Remove(_glController);
+                GLController.OnGLInitialized -= OnGLInitialized;
+                GLController.OnRender -= OnRender;
+                _glController.Dispose();
+                _glController = null;
+            }
 
             GC.Collect();
             GC.WaitForPendingFinalizers();

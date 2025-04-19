@@ -8,6 +8,15 @@ namespace EngineLib
         protected DirectoryExplorer _directoryExplorer;
         protected HashSet<string> _extractedResources = new HashSet<string>();
 
+        protected string[] binaryExtensions = {
+            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".ico", ".tif", ".tiff",
+            ".mp3", ".wav", ".ogg", ".mp4", ".avi", ".mov", ".wmv",
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+            ".zip", ".rar", ".7z", ".tar", ".gz",
+            ".exe", ".dll", ".so", ".obj", ".o", ".bin",
+            ".fbx", ".dae", ".3ds", ".blend"
+        };
+
         public string ResourcesPath => _resourcesPath;
 
         public virtual async Task InitializeAsync()
@@ -50,18 +59,27 @@ namespace EngineLib
                         if (!Directory.Exists(targetFileDirectory))
                             Directory.CreateDirectory(targetFileDirectory);
 
-                        if (File.Exists(targetFilePath) && !overwrite)
+                        if (FileLoader.IsExist(targetFilePath) && !overwrite)
                         {
-                            DebLogger.Debug($"Skipping extraction of {embeddedFilePath} as it already exists at {targetFilePath}");
                             _extractedResources.Add(targetFilePath);
                             continue;
                         }
 
-                        string content = FileLoader.LoadFile(embeddedFilePath, FileSearchMode.EmbeddedOnly);
-                        await File.WriteAllTextAsync(targetFilePath, content);
+                        string extension = Path.GetExtension(targetFilePath).ToLowerInvariant();
+                        bool isBinaryFile = IsBinaryFileExtension(extension);
+
+                        if (isBinaryFile)
+                        {
+                            byte[] binaryContent = FileLoader.LoadBinaryFile(embeddedFilePath, FileSearchMode.EmbeddedOnly);
+                            await File.WriteAllBytesAsync(targetFilePath, binaryContent);
+                        }
+                        else
+                        {
+                            string content = FileLoader.LoadFile(embeddedFilePath, FileSearchMode.EmbeddedOnly);
+                            await File.WriteAllTextAsync(targetFilePath, content);
+                        }
 
                         _extractedResources.Add(targetFilePath);
-                        DebLogger.Debug($"Extracted {embeddedFilePath} to {targetFilePath}");
                     }
                     catch (Exception ex)
                     {
@@ -83,5 +101,9 @@ namespace EngineLib
 
             return _extractedResources.Contains(fullPath) || File.Exists(fullPath);
         }
+
+        private bool IsBinaryFileExtension(string extension) =>
+            binaryExtensions.Contains(extension);
     }
+
 }

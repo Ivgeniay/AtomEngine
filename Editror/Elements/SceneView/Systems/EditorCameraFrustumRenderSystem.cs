@@ -11,18 +11,16 @@ namespace Editor
     {
         public IWorld World { get; set; }
 
-        private readonly IEntityComponentInfoProvider _componentProvider;
-        private readonly GL _gl;
+        private GL _gl;
         private CameraFrustumShader _shader;
         private Vector4 _defaultColor = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
         private QueryEntity _queryCameras;
         private QueryEntity _queryEditorCamera;
 
-        public EditorCameraFrustumRenderSystem(IWorld world, GL gl)
+        public EditorCameraFrustumRenderSystem(IWorld world)
         {
             World = world;
-            _gl = gl;
 
             _queryCameras = world.CreateEntityQuery()
                 .Without<EditorCameraComponent>()
@@ -33,24 +31,26 @@ namespace Editor
                 .With<TransformComponent>()
                 .With<CameraComponent>()
                 .With<EditorCameraComponent>();
-
-            try
-            {
-                _shader = new CameraFrustumShader(_gl);
-                _shader.SetColor(_defaultColor);
-            }
-            catch (Exception ex)
-            {
-                DebLogger.Error($"Ошибка инициализации CameraFrustumShader: {ex.Message}");
-            }
         }
 
         public void Initialize() { }
 
         public void Render(double deltaTime, object? context)
         {
+            if (context == null) return;
+            if (context is GL) _gl = (GL)context;
             if (_shader == null)
-                return;
+            {
+                try
+                {
+                    _shader = new CameraFrustumShader(_gl);
+                    _shader.SetColor(_defaultColor);
+                }
+                catch (Exception ex)
+                {
+                    DebLogger.Error($"Ошибка инициализации CameraFrustumShader: {ex.Message}");
+                }
+            }
 
             var editorCameras = _queryEditorCamera.Build();
             if (editorCameras.Length == 0) return;
@@ -69,17 +69,7 @@ namespace Editor
                 ? editorCamera.CreateProjectionMatrix()
                 : CreateOrthographicMatrix(editorCamera, editorTransform, editorCameraExt);
 
-            //GLEnum blendingEnabled = _gl.GetBoolean(GetPName.Blend) ? GLEnum.True : GLEnum.False;
-            //GLEnum depthTestEnabled = _gl.GetBoolean(GetPName.DepthTest) ? GLEnum.True : GLEnum.False;
-            //GLEnum cullFaceEnabled = _gl.GetBoolean(GetPName.CullFace) ? GLEnum.True : GLEnum.False;
-
-            //_gl.Enable(EnableCap.Blend);
-            //_gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-            //_gl.Enable(EnableCap.DepthTest);
-            //_gl.DepthFunc(DepthFunction.Lequal);
-            //_gl.Disable(EnableCap.CullFace);
-
-            _shader.Use();
+            _shader?.Use();
 
             foreach (var cameraEntity in cameras)
             {
@@ -87,20 +77,11 @@ namespace Editor
                 ref var cameraComponent = ref World.GetComponent<CameraComponent>(cameraEntity);
 
                 Vector3[] frustumCorners = CalculateFrustumCorners(transformComponent, cameraComponent);
-                _shader.UpdateFrustumVertices(frustumCorners);
-                _shader.SetMVP(Matrix4x4.Identity, view, projection);
-                _shader.SetColor(_defaultColor);
-                _shader.Draw();
+                _shader?.UpdateFrustumVertices(frustumCorners);
+                _shader?.SetMVP(Matrix4x4.Identity, view, projection);
+                _shader?.SetColor(_defaultColor);
+                _shader?.Draw();
             }
-
-            //if (blendingEnabled == GLEnum.False) _gl.Disable(EnableCap.Blend);
-            //else _gl.Enable(EnableCap.Blend);
-
-            //if (depthTestEnabled == GLEnum.False) _gl.Disable(EnableCap.DepthTest);
-            //else _gl.Enable(EnableCap.DepthTest);
-
-            //if (cullFaceEnabled == GLEnum.True) _gl.Enable(EnableCap.CullFace);
-            //else _gl.Disable(EnableCap.CullFace);
         }
 
         private Vector3[] CalculateFrustumCorners(TransformComponent transform, CameraComponent camera)

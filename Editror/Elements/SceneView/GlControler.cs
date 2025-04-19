@@ -9,7 +9,7 @@ namespace Editor
 {
     internal class GLController : OpenGlControlBase
     {
-        private static GL _gl;
+        private static GL? _gl;
         private bool _isInitialized = false;
         public static event Action<GL>? OnGLInitialized;
         public static event Action? OnGLDeInitialized;
@@ -23,6 +23,12 @@ namespace Editor
             base.OnOpenGlInit(gl);
 
             _gl = GL.GetApi(gl.GetProcAddress);
+            if (_gl == null)
+            {
+                DebLogger.Error("Context equals null");
+                return;
+            }
+
             _isInitialized = true;
 
             _gl.Enable(EnableCap.DepthTest);
@@ -30,7 +36,6 @@ namespace Editor
             _gl.CullFace(TriangleFace.Front);
             _gl.DepthFunc(DepthFunction.Lequal);
 
-            // Расчет фактического расширения окна
             var scalingFactor = VisualRoot?.RenderScaling ?? 1.0;
             ScaledWidth = (uint)(Bounds.Width * scalingFactor);
             ScaledHeight = (uint)(Bounds.Height * scalingFactor);
@@ -40,6 +45,10 @@ namespace Editor
 
         protected override void OnOpenGlDeinit(GlInterface gl)
         {
+            if (_isInitialized)
+            {
+                OnGLDeInitialized?.Invoke();
+            }
         }
 
         protected override void OnOpenGlRender(GlInterface gl, int fb)

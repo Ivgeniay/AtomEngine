@@ -1,0 +1,39 @@
+{
+  "Guid": "5b72bfef-21bc-4dd9-9661-48ed59d94b94",
+  "ShaderGuid": "icon-shader",
+  "ShaderRepresentationTypeName": "",
+  "Values": [
+    {
+      "Type": "Uniform",
+      "Name": "iconRotation",
+      "TypeName": "Silk.NET.Maths.Vector3D`1[System.Single]",
+      "Value": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      }
+    },
+    {
+      "Type": "Uniform",
+      "Name": "iconSize",
+      "TypeName": "System.Single",
+      "Value": 10.0
+    },
+    {
+      "Type": "Uniform",
+      "Name": "modelPosition",
+      "TypeName": "Silk.NET.Maths.Vector3D`1[System.Single]",
+      "Value": {
+        "X": 0.0,
+        "Y": 0.0,
+        "Z": 0.0
+      }
+    },
+    {
+      "Type": "Sampler",
+      "Name": "iconTexture",
+      "TypeName": "Sampler2D",
+      "TextureGuid": "icon_light_texture-1"
+    }
+  ]
+}
