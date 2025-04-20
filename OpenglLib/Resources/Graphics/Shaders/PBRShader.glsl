@@ -58,6 +58,7 @@ in VS_OUT {
 layout(location = 0) out vec4 FragColor;
 
 void main() {
+
     vec3 color = calculatePBR(
         fs_in.FragPos,
         fs_in.Normal,
@@ -66,8 +67,11 @@ void main() {
         fs_in.TexCoord,
         fs_in.ViewDir
     );
+
     
-	//float depthValue = texture(shadowMapsArray, vec3(fs_in.TexCoord, 0)).r;
-    //FragColor = vec4(vec3(depthValue), 1.0);
-    FragColor = vec4(color, getAlpha());
+	float depthValue = texture(shadowMapsArray, vec3(fs_in.TexCoord, 0)).r;
+    depthValue = 1.0 - (1.0 - depthValue) * 25.0;
+    FragColor = vec4(depthValue);
+
+    //FragColor = vec4(color, getAlpha());
 }

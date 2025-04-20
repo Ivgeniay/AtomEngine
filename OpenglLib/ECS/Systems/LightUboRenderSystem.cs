@@ -190,88 +190,89 @@ namespace OpenglLib
             directionalLight.Enabled = light.Enabled;
             directionalLight.LightId = light.LightId;
 
-            //if (light.CastShadows)
-            //{
-            //    CameraComponent activeCamera = default;
-            //    TransformComponent cameraTransform = default;
-            //    bool foundActiveCamera = false;
-
-            //    Entity[] cameraEntities = queryCameraEntities.Build();
-            //    foreach (var entity in cameraEntities)
-            //    {
-            //        ref var camera = ref this.GetComponent<CameraComponent>(entity);
-            //        if (camera.IsActive)
-            //        {
-            //            activeCamera = camera;
-            //            cameraTransform = this.GetComponent<TransformComponent>(entity);
-            //            foundActiveCamera = true;
-            //            break;
-            //        }
-            //    }
-
-            //    float nearPlane = foundActiveCamera ? activeCamera.NearPlane : _shadowNearPlane;
-            //    float farPlane = foundActiveCamera ? activeCamera.FarPlane : _shadowFarPlane;
-
-            //    float orthoSize = _shadowOrthoSize;
-            //    if (foundActiveCamera)
-            //    {
-            //        float distance = Vector3.Distance(cameraTransform.Position, Vector3.Zero);
-            //        float aspectRatio = activeCamera.AspectRatio;
-            //        float fovY = activeCamera.FieldOfView * (MathF.PI / 180.0f);
-            //        float halfHeight = distance * MathF.Tan(fovY / 2.0f);
-            //        float halfWidth = halfHeight * aspectRatio;
-
-            //        orthoSize = MathF.Max(halfWidth, halfHeight) * 2.0f;
-            //    }
-
-            //    Vector3 up = Vector3.UnitY;
-            //    if (Math.Abs(Vector3.Dot(direction, up)) > 0.99f)
-            //        up = Vector3.UnitZ;
-
-            //    Vector3 right = Vector3.Cross(up, direction);
-            //    right = Vector3.Normalize(right);
-            //    up = Vector3.Cross(direction, right);
-            //    up = Vector3.Normalize(up);
-
-            //    Vector3 targetPos = foundActiveCamera ? cameraTransform.Position : Vector3.Zero;
-            //    Vector3 lightPos = targetPos - direction * farPlane * 0.5f;
-
-            //    Matrix4x4 lightView = Matrix4x4.CreateLookAt(lightPos, targetPos, up);
-
-            //    Matrix4x4 lightProjection = Matrix4x4.CreateOrthographicOffCenter(
-            //        -orthoSize, orthoSize,
-            //        -orthoSize, orthoSize,
-            //        nearPlane, farPlane);
-
-            //    directionalLight.LightSpaceMatrix = lightView * lightProjection;
-            //}
-            //light.LightSpaceMatrix = directionalLight.LightSpaceMatrix;
             if (light.CastShadows)
             {
-                Vector3 n_direction = Vector3.Normalize(direction);
+                CameraComponent activeCamera = default;
+                TransformComponent cameraTransform = default;
+                bool foundActiveCamera = false;
+
+                Entity[] cameraEntities = queryCameraEntities.Build();
+                foreach (var entity in cameraEntities)
+                {
+                    ref var camera = ref this.GetComponent<CameraComponent>(entity);
+                    if (camera.IsActive)
+                    {
+                        activeCamera = camera;
+                        cameraTransform = this.GetComponent<TransformComponent>(entity);
+                        foundActiveCamera = true;
+                        break;
+                    }
+                }
+
+                float nearPlane = foundActiveCamera ? activeCamera.NearPlane : _shadowNearPlane;
+                float farPlane = foundActiveCamera ? activeCamera.FarPlane : _shadowFarPlane;
+
+                float orthoSize = _shadowOrthoSize;
+                if (foundActiveCamera)
+                {
+                    float distance = Vector3.Distance(cameraTransform.Position, Vector3.Zero);
+                    float aspectRatio = activeCamera.AspectRatio;
+                    float fovY = activeCamera.FieldOfView * (MathF.PI / 180.0f);
+                    float halfHeight = distance * MathF.Tan(fovY / 2.0f);
+                    float halfWidth = halfHeight * aspectRatio;
+
+                    orthoSize = MathF.Max(halfWidth, halfHeight) * 2.0f;
+                }
+                float halfOrthoSize = orthoSize/2;
 
                 Vector3 up = Vector3.UnitY;
-                if (Math.Abs(Vector3.Dot(n_direction, up)) > 0.99f)
+                if (Math.Abs(Vector3.Dot(direction, up)) > 0.99f)
                     up = Vector3.UnitZ;
 
-                Vector3 right = Vector3.Cross(up, n_direction);
+                Vector3 right = Vector3.Cross(up, direction);
                 right = Vector3.Normalize(right);
-                up = Vector3.Cross(n_direction, right);
+                up = Vector3.Cross(direction, right);
                 up = Vector3.Normalize(up);
 
-                Vector3 sceneCenter = Vector3.Zero; 
-                float sceneRadius = 20.0f; 
-                Vector3 lightPos = sceneCenter - n_direction * sceneRadius;
-                Matrix4x4 lightView = Matrix4x4.CreateLookAt(lightPos, sceneCenter, up);
-                float orthoSize = sceneRadius;
+                Vector3 targetPos = foundActiveCamera ? cameraTransform.Position : Vector3.Zero;
+                Vector3 lightPos = targetPos - direction * farPlane * 0.5f;
+
+                Matrix4x4 lightView = Matrix4x4.CreateLookAt(lightPos, targetPos, up);
+
                 Matrix4x4 lightProjection = Matrix4x4.CreateOrthographicOffCenter(
-                    -orthoSize, orthoSize,
-                    -orthoSize, orthoSize,
-                    0.1f, sceneRadius * 2.0f);
+                    -halfOrthoSize, halfOrthoSize,
+                    -halfOrthoSize, halfOrthoSize,
+                    nearPlane, farPlane);
 
                 directionalLight.LightSpaceMatrix = lightView * lightProjection;
             }
             light.LightSpaceMatrix = directionalLight.LightSpaceMatrix;
+            //if (light.CastShadows)
+            //{
+            //    Vector3 n_direction = Vector3.Normalize(direction);
+
+            //    Vector3 up = Vector3.UnitY;
+            //    if (Math.Abs(Vector3.Dot(n_direction, up)) > 0.99f)
+            //        up = Vector3.UnitZ;
+
+            //    Vector3 right = Vector3.Cross(up, n_direction);
+            //    right = Vector3.Normalize(right);
+            //    up = Vector3.Cross(n_direction, right);
+            //    up = Vector3.Normalize(up);
+
+            //    Vector3 sceneCenter = Vector3.Zero; 
+            //    float sceneRadius = 20.0f; 
+            //    Vector3 lightPos = sceneCenter - n_direction * sceneRadius;
+            //    Matrix4x4 lightView = Matrix4x4.CreateLookAt(lightPos, sceneCenter, up);
+            //    float orthoSize = sceneRadius;
+            //    Matrix4x4 lightProjection = Matrix4x4.CreateOrthographicOffCenter(
+            //        -orthoSize, orthoSize,
+            //        -orthoSize, orthoSize,
+            //        0.1f, sceneRadius * 2.0f);
+
+            //    directionalLight.LightSpaceMatrix = lightView * lightProjection;
+            //}
+            //light.LightSpaceMatrix = directionalLight.LightSpaceMatrix;
 
             switch (index)
             {

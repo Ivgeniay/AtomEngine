@@ -18,7 +18,7 @@ namespace OpenglLib
 
         private FBOService _fboService;
         private GL _gl;
-        private FramebufferObject _fbo;
+        private FramebufferObjectDepth _fbo;
         private uint _shadowMapArrayTexture;
         private int _shadowMapSize = 2048;
         private bool _initialized = false;
@@ -55,7 +55,7 @@ namespace OpenglLib
 
             try
             {
-                _fbo = new FramebufferObject(gl, _shadowMapSize, _shadowMapSize, maxShadowMaps);
+                _fbo = new FramebufferObjectDepth(gl, _shadowMapSize, _shadowMapSize, maxShadowMaps);
                 _initialized = true;
             }
             catch (Exception ex)
@@ -177,7 +177,16 @@ namespace OpenglLib
             int prevFBO = gl.GetInteger(GLEnum.FramebufferBinding);
 
             bool depthTestEnabled = gl.IsEnabled(EnableCap.DepthTest);
+            bool cullFaceEnabled = gl.IsEnabled(EnableCap.CullFace);
+            int originalCullFaceMode = gl.GetInteger(GLEnum.CullFaceMode);
+
+            gl.Enable(EnableCap.CullFace);
+            gl.CullFace(GLEnum.Front);
+
             gl.Enable(EnableCap.DepthTest);
+            gl.CullFace(GLEnum.Front);
+            gl.ClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+            gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             foreach (var lightEntity in activeLightEntities)
             {
@@ -211,6 +220,7 @@ namespace OpenglLib
                 try
                 {
                     _fbo.BindLayer(layerIndex);
+                    gl.ClearDepth(1.0f);
                     gl.Clear(ClearBufferMask.DepthBufferBit);
 
                     Material shadowMaterial = shadowMaterialComponent.Material;
@@ -247,6 +257,15 @@ namespace OpenglLib
 
             if (depthTestEnabled) gl.Enable(EnableCap.DepthTest);
             else gl.Disable(EnableCap.DepthTest);
+            if (cullFaceEnabled)
+            {
+                gl.Enable(EnableCap.CullFace);
+                gl.CullFace((GLEnum)originalCullFaceMode);
+            }
+            else
+            {
+                gl.Disable(EnableCap.CullFace);
+            }
 
             gl.BindFramebuffer(FramebufferTarget.Framebuffer, (uint)prevFBO);
             gl.Viewport(viewport[0], viewport[1], (uint)viewport[2], (uint)viewport[3]);

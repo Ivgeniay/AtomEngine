@@ -6,6 +6,8 @@ using EngineLib;
 using Avalonia;
 using System;
 using OpenglLib;
+using System.Numerics;
+using static AtomEngine.AtomMath;
 
 namespace Editor
 {

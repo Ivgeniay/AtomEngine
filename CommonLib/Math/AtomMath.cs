@@ -89,6 +89,89 @@ namespace AtomEngine
                 -q.X * v.X - q.Y * v.Y - q.Z * v.Z
             );
         }
-    
+
+
+
+
+
+        public static Matrix4x4 GetXRotationFromRad(float rotRadX)
+        {
+            return new Matrix4x4(
+                1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, (float)Math.Cos(rotRadX), (float)-Math.Sin(rotRadX), 0.0f,
+                0.0f, (float)Math.Sin(rotRadX), (float)Math.Cos(rotRadX), 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f
+            );
+        }
+        public static Matrix4x4 GetYRotationFromRad(float rotRadY)
+        {
+            return new Matrix4x4(
+                (float)Math.Cos(rotRadY), 0.0f, (float)Math.Sin(rotRadY), 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                (float)-Math.Sin(rotRadY), 0.0f, (float)Math.Cos(rotRadY), 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f
+            );
+        }
+        public static Matrix4x4 GetZRotationFromRad(float rotRadZ)
+        {
+            return new Matrix4x4(
+                (float)Math.Cos(rotRadZ), (float)-Math.Sin(rotRadZ), 0.0f, 0.0f,
+                (float)Math.Sin(rotRadZ), (float)Math.Cos(rotRadZ), 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,            
+                0.0f, 0.0f, 0.0f, 1.0f
+            );
+        }
+        public static Matrix4x4 RotateFromRad(float rotRadX, float rotRadY, float rotRadZ)
+        {
+            return GetZRotationFromRad(rotRadZ) * GetYRotationFromRad(rotRadY) * GetXRotationFromRad(rotRadX);
+        }
+
+        public static Matrix4x4 GetXRotationFromEuler(float eulerX) => GetXRotationFromRad(eulerX.DegreesToRadians());
+        public static Matrix4x4 GetYRotationFromEuler(float eulerY) => GetYRotationFromRad(eulerY.DegreesToRadians());
+        public static Matrix4x4 GetZRotationFromEuler(float eulerZ) => GetZRotationFromRad(eulerZ.DegreesToRadians());
+
+        public static Matrix4x4 RotateFromEuler(float eulerX, float eulerY, float eulerZ, EulerOrder order = EulerOrder.ZYX)
+        {
+            var rx = GetXRotationFromEuler(eulerX);
+            var ry = GetYRotationFromEuler(eulerY);
+            var rz = GetZRotationFromEuler(eulerZ);
+
+            return order switch
+            {
+                EulerOrder.XYZ => rx * ry * rz,
+                EulerOrder.XZY => rx * rz * ry,
+                EulerOrder.YXZ => ry * rx * rz,
+                EulerOrder.YZX => ry * rz * rx,
+                EulerOrder.ZXY => rz * rx * ry,
+                EulerOrder.ZYX => rz * ry * rx,
+                _ => rz * ry * rx,
+            };
+        }
+        public static Matrix4x4 RotateFromEuler(Vector3 eulers, EulerOrder order = EulerOrder.ZYX) => RotateFromEuler(eulers.X, eulers.Y, eulers.Z, order);
+
+
+        public static Matrix4x4 Translate(Vector3 position)
+        {
+            return new Matrix4x4(
+                1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f,
+                position.X, position.Y, position.Z, 1.0f
+            );
+        }
+        public static Matrix4x4 Scale(Vector3 scale)
+        {
+            return new Matrix4x4(
+                scale.X, 0.0f, 0.0f, 0.0f,
+                0.0f, scale.Y, 0.0f, 0.0f,
+                0.0f, 0.0f, scale.Z, 0.0f,
+                0.0f, 0.0f, 0.0f, 1.0f
+            );
+        }
+
+        public static Matrix4x4 ModelMatrix(Vector3 position, Vector3 eulerRotation, Vector3 scale) =>
+            Scale(scale) * RotateFromEuler(eulerRotation, EulerOrder.ZYX) * Translate(position);
+
+        public enum EulerOrder { XYZ, XZY, YXZ, YZX, ZXY, ZYX }
     }
 }

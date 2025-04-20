@@ -250,7 +250,6 @@ void main() {
     gl_Position = vec4(p, 1.0);
 }
 ";
-        //vec2 grid = abs(fract(coord / scale - 0.5) - 0.5) / derivative * {widthMultiplier};
         private readonly string _fragmentShaderSource = @$"
 #version 330 core
 out vec4 FragColor;
@@ -307,7 +306,6 @@ void main() {{
 }}
 ";
 
-        //private const string widthMultiplier = "1.0";
         private const string useDerivative = @$"
 vec2 derivative = fwidth(coord);
 vec2 grid = abs(fract(coord / scale - 0.5) - 0.5) /derivative * {widthMultiplier};

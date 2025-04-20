@@ -73,22 +73,27 @@ namespace AtomEngine
 
         public Matrix4x4 GetTranslationMatrix()
         {
-            _translationMatrixCache = Matrix4x4.CreateTranslation(Position);
+            //_translationMatrixCache = Matrix4x4.CreateTranslation(Position);
+            _translationMatrixCache = AtomMath.Translate(Position);
             IsDirtyPos = false;
             return _translationMatrixCache;
         }
         public Matrix4x4 GetScaleMatrix()
         {
-            _scaleMatrixCache = Matrix4x4.CreateScale(Scale);
+            //_scaleMatrixCache = Matrix4x4.CreateScale(Scale);
+            _scaleMatrixCache = AtomMath.Scale(Scale);
             IsDirtyScale = false;
             return _scaleMatrixCache;
         }
         public Matrix4x4 GetRotationMatrix()
         {
-            
-            _rotationMatrixCache = Matrix4x4.CreateRotationZ(Rotation.Z.DegreesToRadians()) *
-                                Matrix4x4.CreateRotationX(Rotation.X.DegreesToRadians()) *
-                                Matrix4x4.CreateRotationY(Rotation.Y.DegreesToRadians());
+            //_rotationMatrixCache = Matrix4x4.CreateRotationZ(Rotation.Z.DegreesToRadians()) *
+            //                    Matrix4x4.CreateRotationX(Rotation.X.DegreesToRadians()) *
+            //                    Matrix4x4.CreateRotationY(Rotation.Y.DegreesToRadians());
+            //IsDirtyRot = false;
+            //return _rotationMatrixCache;
+
+            _rotationMatrixCache = AtomMath.RotateFromEuler(_rotation);
             IsDirtyRot = false;
             return _rotationMatrixCache;
         } 
@@ -98,9 +103,9 @@ namespace AtomEngine
             if (IsDirtyPos || IsDirtyScale || IsDirtyRot)
             {
                 Matrix4x4 result = Matrix4x4.Identity;
+                result *= GetScaleMatrix();
                 result *= GetRotationMatrix();
                 result *= GetTranslationMatrix();
-                result *= GetScaleMatrix();
                 _modelMatrixCache = result;
             }
 
@@ -112,7 +117,3 @@ namespace AtomEngine
         }
     }
 }
-
-/*
- * Третья система ISystem должна следить за изменениями состояний HierarchyComponent у Entity. К примеру есть у Entity изменился родитель, то система должна должна сдвинуть 
- */

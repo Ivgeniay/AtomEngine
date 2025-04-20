@@ -167,7 +167,13 @@ vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 
             
             if (light.castShadows > 0.5) {
                 vec4 fragPosLightSpace = light.lightSpaceMatrix * vec4(fragPos, 1.0);
-                float shadow = calculateDirectionalShadow(light, fragPosLightSpace);
+                //float shadow = calculateDirectionalShadow(light, fragPosLightSpace);
+                float shadow = calculateDirectionalShadowWithAdaptivePCF(
+                    light, 
+                    fragPosLightSpace, 
+                    i, 
+                    cameraData.cameras[cameraData.activeCameraIndex].position, 
+                    fragPos);
                 lightContrib *= (1.0 - shadow);
             }
             
@@ -178,10 +184,17 @@ vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 
     for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
         if (i >= lights.numPointLights)
             break;
-            
+
         PointLight light = lights.pointLights[i];
         if (light.enabled > 0.5) {
-            Lo += calculatePointLightPBR(light, normalValue, fragPos, viewDir, mat);
+            vec3 lightContrib = calculatePointLightPBR(light, normalValue, fragPos, viewDir, mat);
+        
+            if (light.castShadows > 0.5) {
+                float shadow = calculatePointShadow(light, fragPos, i);
+                lightContrib *= (1.0 - shadow);
+            }
+        
+            Lo += lightContrib;
         }
     }
     

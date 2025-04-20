@@ -3,7 +3,7 @@ using Silk.NET.OpenGL;
 
 namespace OpenglLib.Buffers
 {
-    public class FramebufferObject : IDisposable
+    public class FramebufferObjectDepth : IDisposable
     {
         private uint _handle;
         private GL _gl;
@@ -25,7 +25,7 @@ namespace OpenglLib.Buffers
         public int Width => _width;
         public int Height => _height;
 
-        public FramebufferObject(GL gl, int width, int height, int x = 0, int y = 0)
+        public FramebufferObjectDepth(GL gl, int width, int height, int x = 0, int y = 0)
         {
             _gl = gl;
             _x = x;
@@ -37,7 +37,7 @@ namespace OpenglLib.Buffers
             CreateFramebuffer();
         }
 
-        public FramebufferObject(GL gl, int width, int height, int layers)
+        public FramebufferObjectDepth(GL gl, int width, int height, int layers)
         {
             _gl = gl;
             _width = width;
@@ -108,10 +108,13 @@ namespace OpenglLib.Buffers
                 null
             );
 
-            _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-            _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+            _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+            _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
             _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
+
+            _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureCompareMode, (int)GLEnum.CompareRefToTexture);
+            _gl.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureCompareFunc, (int)GLEnum.Lequal);
 
             float[] borderColor = { 1.0f, 1.0f, 1.0f, 1.0f };
             fixed (float* borderColorPtr = borderColor)
@@ -264,7 +267,7 @@ namespace OpenglLib.Buffers
 
     public class FBOService : IService
     {
-        private readonly Dictionary<string, FramebufferObject> _fboByName = new Dictionary<string, FramebufferObject>();
+        private readonly Dictionary<string, FramebufferObjectDepth> _fboByName = new Dictionary<string, FramebufferObjectDepth>();
         private readonly object _lock = new object();
         private GL _gl;
 
@@ -278,7 +281,7 @@ namespace OpenglLib.Buffers
             _gl = gl;
         }
 
-        public FramebufferObject GetOrCreateFBO(string name, int width, int height, int x = 0, int y = 0)
+        public FramebufferObjectDepth GetOrCreateFBO(string name, int width, int height, int x = 0, int y = 0)
         {
             lock (_lock)
             {
@@ -288,13 +291,13 @@ namespace OpenglLib.Buffers
                     return existingFBO;
                 }
 
-                var fbo = new FramebufferObject(_gl, width, height, x, y);
+                var fbo = new FramebufferObjectDepth(_gl, width, height, x, y);
                 _fboByName[name] = fbo;
                 return fbo;
             }
         }
 
-        public FramebufferObject GetExistingFBO(string name)
+        public FramebufferObjectDepth GetExistingFBO(string name)
         {
             lock (_lock)
             {
