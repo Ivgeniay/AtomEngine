@@ -160,36 +160,26 @@ float calculatePointShadow(PointLight light, vec3 fragPos, int lightIndex) {
     
     float shadow = 0.0;
     
-    // Генерируем базис для семплирования в пространстве вокруг направления
     vec3 tangent = vec3(1.0, 0.0, 0.0);
     if (abs(direction.x) > 0.99) tangent = vec3(0.0, 1.0, 0.0);
     tangent = normalize(cross(direction, tangent));
     vec3 bitangent = normalize(cross(direction, tangent));
     
-    // PCF для точечного источника света
     for (int x = -adaptiveKernel; x <= adaptiveKernel; ++x) {
         for (int y = -adaptiveKernel; y <= adaptiveKernel; ++y) {
-            // Создаем смещенное направление для PCF
             vec3 offset = tangent * (float(x) * texelSize) + bitangent * (float(y) * texelSize);
-            // Ограничиваем влияние смещения, чтобы сохранить направление примерно тем же
-            offset *= 0.02; // Этот коэффициент можно настроить
+            offset *= 0.02;
             vec3 sampleDir = normalize(direction + offset);
             
-            // Чтение значения глубины из кубической карты теней
             float closestDepth = texture(pointShadowMapsArray, vec4(sampleDir, lightIndex)).r;
             
-            // Преобразуем глубину из нелинейного в линейное пространство
-            closestDepth *= light.radius; // Если ваша карта теней хранит нормализованные значения
+            closestDepth *= light.radius; 
             
-            // Добавляем бинарный результат сравнения глубины (в тени или нет)
             shadow += (currentDepth - bias > closestDepth) ? 1.0 : 0.0;
         }
     }
     
-    // Нормализация результата и применение интенсивности
     shadow = shadow * invTotalSamples * lights.shadowIntensity;
-    
-    // Смягчение теней на границе радиуса действия света
     float fadeStart = light.radius * 0.85;
     if (distance > fadeStart) {
         float fadeLength = light.radius - fadeStart;

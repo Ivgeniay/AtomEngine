@@ -68,10 +68,15 @@ namespace Editor
             }
         }
 
+        float fastMult = 6;
         private void ProcessKeyboardInput(ref TransformComponent transform, ref CameraComponent camera,
             ref EditorCameraComponent editorCamera, float deltaTime)
         {
             Vector3 inputDirection = Vector3.Zero;
+            float isFast = 1;
+
+            if (Input.IsKeyDown(AtomEngine.Key.LeftShift)) isFast = fastMult;
+            else isFast = 1;
 
             if (Input.IsKeyDown(AtomEngine.Key.W))
                 inputDirection += Vector3.Normalize(editorCamera.Target - transform.Position);
@@ -89,7 +94,7 @@ namespace Editor
             if (inputDirection != Vector3.Zero)
             {
                 inputDirection = Vector3.Normalize(inputDirection);
-                editorCamera.CurrentVelocity += inputDirection * editorCamera.MoveSpeed * deltaTime * 100.0f;
+                editorCamera.CurrentVelocity += inputDirection * editorCamera.MoveSpeed * isFast * deltaTime * 100.0f;
             }
         }
 

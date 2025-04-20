@@ -224,7 +224,7 @@ namespace Editor
             var editorCamComp = new EditorCameraComponent
             {
                 Target = Vector3.Zero,
-                MoveSpeed = 0.1f,
+                MoveSpeed = 0.2f,
                 RotationSpeedX = 0.001f,
                 RotationSpeedY = 0.01f,
                 IsPerspective = _isPerspective,

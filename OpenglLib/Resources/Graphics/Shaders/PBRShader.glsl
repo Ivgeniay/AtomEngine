@@ -69,9 +69,9 @@ void main() {
     );
 
     
-	float depthValue = texture(shadowMapsArray, vec3(fs_in.TexCoord, 0)).r;
-    depthValue = 1.0 - (1.0 - depthValue) * 25.0;
-    FragColor = vec4(depthValue);
+	//float depthValue = texture(shadowMapsArray, vec3(fs_in.TexCoord, 0)).r;
+    //depthValue = 1.0 - (1.0 - depthValue) * 25.0;
+    //FragColor = vec4(depthValue);
 
-    //FragColor = vec4(color, getAlpha());
+    FragColor = vec4(color, getAlpha());
 }
