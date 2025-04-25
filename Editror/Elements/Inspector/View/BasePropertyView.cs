@@ -1,14 +1,16 @@
-﻿using Avalonia;
-using Avalonia.Controls;
-using Avalonia.Layout;
-using EngineLib;
+﻿using System.Reactive.Disposables;
 using System.Reflection;
+using Avalonia.Controls;
+using EngineLib;
+using Avalonia;
+using System;
 
 namespace Editor
 {
     internal abstract class BasePropertyView : IInspectorView
     {
         protected readonly PropertyDescriptor descriptor;
+        protected readonly CompositeDisposable disposables = new CompositeDisposable();
 
         protected BasePropertyView(PropertyDescriptor descriptor)
         {
@@ -19,6 +21,7 @@ namespace Editor
 
         protected Grid CreateBaseLayout()
         {
+
             var grid = new Grid
             {
                 Margin = new Thickness(4, 0),
@@ -46,9 +49,18 @@ namespace Editor
             if (context is FieldInfo field) return IsSupportDirtyField((FieldInfo)context);
             return false;
         }
+         
         protected bool IsSupportDirtyField(FieldInfo fieldInfo) =>
             fieldInfo.GetCustomAttribute<SupportDirtyAttribute>() == null;
 
+        protected void RegisterObserver<T>(ComponentFieldObserver<T> observer)
+        {
+            disposables.Add(observer);
+        }
 
+        public void Dispose()
+        {
+            disposables.Dispose();
+        }
     }
 }

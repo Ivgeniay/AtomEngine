@@ -323,11 +323,12 @@ namespace Editor
 
         private uint GetAvailableId(uint worldId, List<EntityData> entities)
         {
-            var sortedEntities = entities.OrderBy(e => e.Id).Select(e => e.Id).ToList();
+            List<uint> sortedEntities = entities.Select(e => e.Id).ToList();
             if (worldReservedIdMap.ContainsKey(worldId))
             {
                 sortedEntities.AddRange(worldReservedIdMap[worldId]);
             }
+            sortedEntities = sortedEntities.OrderBy(e => e).ToList();
 
             uint expectedId = 0;
             foreach (var id in sortedEntities)

@@ -10,6 +10,8 @@ namespace Editor
     {
         public FloatView(PropertyDescriptor descriptor) : base(descriptor) { }
 
+
+
         public override Control GetView()
         {
             float value = (float)descriptor.Value;
@@ -29,6 +31,23 @@ namespace Editor
                 }
             };
             Validation(field, true);
+
+            //if (descriptor.Context is EntityInspectorContext context)
+            //{
+            //    var observer = new ComponentFieldObserver<float>(
+            //        context.EntityId,
+            //        context.Component,
+            //        descriptor.Name,
+            //        newValue =>
+            //        {
+            //            if (Math.Abs(field.Value - newValue) > float.Epsilon)
+            //            {
+            //                field.Value = newValue;
+            //            }
+            //        });
+
+            //    RegisterObserver(observer);
+            //}
 
             return field;
         }

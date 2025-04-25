@@ -8,6 +8,10 @@ using System;
 using OpenglLib;
 using System.Numerics;
 using static AtomEngine.AtomMath;
+using Avalonia.Media;
+using Avalonia.Threading;
+using System.ComponentModel.Design;
+using System.Threading.Tasks;
 
 namespace Editor
 {
@@ -413,9 +417,12 @@ namespace Editor
                     else DebLogger.Error(result);
                 })
             });
+
+            EditorUpdateSystem.RenderStart();
+            //EditorUpdateSystem.UpdateDataStart();
         }
 
-        private void InitializeComponent()
+        private void InitializeComponent() 
         {
             AvaloniaXamlLoader.Load(this);
 
@@ -435,6 +442,212 @@ namespace Editor
             base.OnClosed(e);
             _uIManager.Dispose();
             ServiceHub.Dispose();
+        }
+    }
+
+    public static class EditorUpdateSystem
+    {
+        private static readonly DispatcherTimer _renderTimer;
+        private static readonly DispatcherTimer _dataUpdateTimer;
+        private static bool _needsSceneUpdate = false;
+        private static bool _needsDataUpdate = false;
+        private static readonly List<IComponentObserver> _componentObservers = new List<IComponentObserver>();
+
+        public static event EventHandler? SceneUpdateRequested;
+        public static event EventHandler? DataUpdateRequested;
+
+        static EditorUpdateSystem()
+        {
+            _renderTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1.0 / 50)
+            };
+
+            _dataUpdateTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1.0 / 2)
+            };
+
+            _renderTimer.Tick += OnRenderTimerTick;
+            _dataUpdateTimer.Tick += OnDataUpdateTick;
+        }
+
+        public static double UpdateFrequency
+        {
+            get => 1.0 / _renderTimer.Interval.TotalSeconds;
+            set => _renderTimer.Interval = TimeSpan.FromSeconds(1.0 / value);
+        }
+
+        public static void RenderStart() => _renderTimer.Start();
+        public static void UpdateDataStart() => _dataUpdateTimer.Start();
+        public static void RenderStop() => _renderTimer.Stop();
+        public static void UpdateDataStop() => _dataUpdateTimer.Stop();
+        public static bool IsRenderRunning => _renderTimer.IsEnabled;
+
+        public static void RequestSceneUpdate()
+        {
+            _needsSceneUpdate = true;
+        }
+
+        public static void RequestDataUpdate()
+        {
+            _needsDataUpdate = true;
+        }
+
+        public static void UpdateSceneNow()
+        {
+            SceneUpdateRequested?.Invoke(null, EventArgs.Empty);
+        }
+
+        public static void CheckComponentNow()
+        {
+            DataUpdateRequested?.Invoke(null, EventArgs.Empty);
+        }
+
+        public static void RegisterComponentObserver(IComponentObserver observer)
+        {
+            if (!_componentObservers.Contains(observer))
+            {
+                _componentObservers.Add(observer);
+                observer.ComponentChanged += OnComponentChanged;
+            }
+        }
+
+        public static void UnregisterComponentObserver(IComponentObserver observer)
+        {
+            if (_componentObservers.Contains(observer))
+            {
+                _componentObservers.Remove(observer);
+                observer.ComponentChanged -= OnComponentChanged;
+            }
+        }
+
+        public static void UnregisterAllObservers()
+        {
+            foreach (var observer in _componentObservers)
+            {
+                observer.ComponentChanged -= OnComponentChanged;
+            }
+            _componentObservers.Clear();
+        }
+
+        private static void OnComponentChanged(object? sender, ComponentChangedEventArgs e)
+        {
+            RequestDataUpdate();
+        }
+
+        private static void OnRenderTimerTick(object? sender, EventArgs e)
+        {
+            if (_needsSceneUpdate)
+            {
+                _needsSceneUpdate = false;
+
+                EditorSetter.Invoke(() =>
+                {
+                    SceneUpdateRequested?.Invoke(null, EventArgs.Empty);
+                });
+            }
+        }
+
+        private static void OnDataUpdateTick(object? sender, EventArgs e)
+        {
+            //if (_needsDataUpdate)
+            //{
+                _needsDataUpdate = false;
+                EditorSetter.Invoke(() =>
+                {
+                    DataUpdateRequested?.Invoke(null, EventArgs.Empty);
+                });
+            //}
+
+            //CheckComponentChanges();
+        }
+
+        private static void CheckComponentChanges()
+        {
+            foreach (var observer in _componentObservers)
+            {
+                observer.CheckForChanges();
+            }
+        }
+
+        public static void Dispose()
+        {
+            _componentObservers.Clear();
+            _renderTimer.Stop();
+        }
+    }
+
+    public interface IComponentObserver
+    {
+        void CheckForChanges();
+        event EventHandler<ComponentChangedEventArgs> ComponentChanged;
+    }
+
+    public class ComponentChangedEventArgs : EventArgs
+    {
+        public object Component { get; }
+        public string PropertyName { get; }
+
+        public ComponentChangedEventArgs(object component, string propertyName)
+        {
+            Component = component;
+            PropertyName = propertyName;
+        }
+    }
+
+    public static class EditorSetter
+    {
+        public static void Invoke(Action action)
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                action();
+            }
+            else
+            {
+                Dispatcher.UIThread.Invoke(() =>
+                {
+                    action();
+                });
+            }
+        }
+
+        public static async Task InvokeAsync(Action action)
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                try
+                {
+                    action();
+                    await Task.CompletedTask;
+                }
+                catch (Exception ex)
+                {
+                    DebLogger.Error(ex);
+                    await Task.FromException(ex);
+                }
+            }
+            else
+            {
+                await Dispatcher.UIThread.InvokeAsync(action);
+            }
+        }
+        
+
+        public static void Post(Action action, DispatcherPriority priority = default)
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                action();
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
+                    action();
+                }, priority);
+            }
         }
     }
 }

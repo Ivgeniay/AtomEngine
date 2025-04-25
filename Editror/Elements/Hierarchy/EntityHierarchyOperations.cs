@@ -6,6 +6,7 @@ using System.Linq;
 using AtomEngine;
 using System;
 using Key = Avalonia.Input.Key;
+using System.Collections.Generic;
 
 namespace Editor
 {
@@ -58,15 +59,18 @@ namespace Editor
                         entity.Name = textBox.Text;
                         _controller.OnEntityRenamed(entity);
 
-                        if (_controller.EntitiesList.ItemsSource is ObservableCollection<EntityHierarchyItem> collection)
-                        {
-                            var index = collection.IndexOf(entity);
-                            if (index != -1)
-                            {
-                                collection.RemoveAt(index);
-                                collection.Insert(index, entity);
-                            }
-                        }
+                        //if (_controller.EntitiesList.ItemsSource is ObservableCollection<EntityHierarchyItem> collection)
+                        //if (_controller.EntitiesList.ItemsSource is List<EntityHierarchyItem> collection)
+                        //{
+                        //    //var collection = _controller.EntitiesList.ItemsSource;
+                        //    //Type t = collection.GetType();
+                        //    var index = collection.IndexOf(entity);
+                        //    if (index != -1)
+                        //    {
+                        //        collection.RemoveAt(index);
+                        //        collection.Insert(index, entity);
+                        //    }
+                        //}
                     }
                     popup.IsOpen = false;
                     _controller.Children.Remove(popup);

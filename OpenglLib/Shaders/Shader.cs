@@ -63,7 +63,7 @@ namespace OpenglLib
             {
                 for(int i = 0;  i < _uniformBlocks.Count; i++)
                 {
-                    var str = _uniformBlocks[i].ToString();
+                    //var str = _uniformBlocks[i].ToString();
                     var ubo = _uboService.GetOrCreateUbo(_uniformBlocks[i]);
                     if (!_uniformBlocks[i].BindingPoint.HasValue)
                     {
@@ -86,28 +86,8 @@ namespace OpenglLib
             _shaderTextureManager.ActivateAllTextures();
         }
 
-        public override void SetUbo(Dictionary<string, object> uniformValues)
-        {
-            bool anyFound = false;
 
-            foreach (var kvp in uniformValues)
-            {
-                foreach(var block in _uniformBlocks)
-                {
-                    foreach (var member in block.Members)
-                    {
-                        if (member.Name == kvp.Key)
-                        {
-                            _uboService.SetUniform(block.Name, kvp.Key, kvp.Value);
-                            anyFound = true;
-                        }
-                    }
-                }
-            }
-
-            if (anyFound) _uboService.UpdateAll();
-        }
-
+        #region Uniforms
         public override void SetUniform(string name, object value)
         {
             if (name == null)
@@ -330,6 +310,39 @@ namespace OpenglLib
             throw new ArgumentException(
                         $"Unsupported uniform type. Uniform: {name}, Type: {_uniformInfo[name].Type}");
         }
+        #endregion
+
+        #region UBO
+        public void SetUboByBindingPoint(uint bindingPoint, Dictionary<string, object> uniformValues)
+        {
+            if (_uniformBlocks.Any(e => e.BindingPoint.HasValue && e.BindingPoint.Value == bindingPoint))
+            {
+                _uboService.SetUboDataByBindingPoint(bindingPoint, uniformValues);
+            }
+        }
+        public void SetUboByBindingPoint<T>(uint bindingPoint, T data) where T : struct
+        {
+            if (_uniformBlocks.Any(e => e.BindingPoint.HasValue && e.BindingPoint.Value == bindingPoint))
+            {
+                _uboService.SetUboDataByBindingPoint(bindingPoint, data);
+            }
+        }
+        public void Update(uint bindingPoint)
+        {
+            if (_uniformBlocks.Any(e => e.BindingPoint.HasValue && e.BindingPoint.Value == bindingPoint))
+            {
+                _uboService.Update(bindingPoint);
+            }
+        }
+        public void UpdateAll()
+        {
+            foreach (var block in _uniformBlocks)
+            {
+                if (block.BindingPoint.HasValue)
+                    _uboService.Update((uint)block.BindingPoint.Value);
+            }
+        }
+        #endregion
 
         #region Textures
         public void SetTexture(string uniformName, Texture texture)
@@ -1002,4 +1015,6 @@ namespace OpenglLib
             return JsonConvert.SerializeObject(this);
         }
     }
+
+
 }

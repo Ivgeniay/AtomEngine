@@ -104,6 +104,14 @@ namespace OpenglLib.Buffers
             }
         }
 
+        public void SetUniforms(Dictionary<string, object> values)
+        {
+            foreach (var pair in values)
+            {
+                SetUniform(pair.Key, pair.Value);
+            }
+        }
+
         public void SetRawByte(int offset, byte value)
         {
             if (offset < 0 || offset >= _buffer.Length)

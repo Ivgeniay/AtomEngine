@@ -130,7 +130,20 @@ vec3 calculatePointLightPBR(PointLight light, vec3 normal, vec3 fragPos, vec3 vi
     return (kD * mat.albedo / PI + specular) * light.color * light.intensity * attenuation * NdotL;
 }
 
+float calculateSimpleShadow(DirectionalLight light, vec4 fragPosLightSpace, int lightIndex) {
+    if (light.castShadows < 0.5) return 0.0;
+    
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    
+    float currentDepth = projCoords.z;
+    float closestDepth = texture(shadowMapsArray, vec3(projCoords.xy, lightIndex)).r;
+    
+    return (currentDepth > closestDepth + 0.001) ? 1.0 : 0.0;
+}
+
 vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 texCoord, vec3 viewDirIn) {
+    
     vec3 albedoValue = useAlbedoMap ? texture(albedoMap, texCoord).rgb : material.albedo;
     float metallicValue = useMetallicMap ? texture(metallicMap, texCoord).r : material.metallic;
     float roughnessValue = useRoughnessMap ? texture(roughnessMap, texCoord).r : material.roughness;
@@ -142,6 +155,7 @@ vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 
     mat.roughness = max(roughnessValue, 0.04);
     mat.ao = aoValue;
     mat.alpha = material.alpha;
+
     
     vec3 normalValue = useNormalMap ? getNormalFromMap(texCoord, normal, tangent, bitangent) : normalize(normal);
     
@@ -160,7 +174,7 @@ vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 
     for (int i = 0; i < MAX_DIRECTIONAL_LIGHTS; i++) {
         if (i >= lights.numDirectionalLights)
             break;
-            
+
         DirectionalLight light = lights.directionalLights[i];
         if (light.enabled > 0.5) {
             vec3 lightContrib = calculateDirectionalLightPBR(light, normalValue, viewDir, mat);
@@ -174,6 +188,7 @@ vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 
                     i, 
                     cameraData.cameras[cameraData.activeCameraIndex].position, 
                     fragPos);
+                //return vec3((1.0 - shadow));
                 lightContrib *= (1.0 - shadow);
             }
             
@@ -197,7 +212,7 @@ vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 
             Lo += lightContrib;
         }
     }
-    
+
     vec3 ambient = lights.ambientColor * lights.ambientIntensity * mat.albedo * mat.ao;
     vec3 color = ambient + Lo;
     
@@ -206,6 +221,8 @@ vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 
     
     return color;
 }
+
+
 
 float getAlpha() {
     return material.alpha;

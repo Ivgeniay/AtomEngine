@@ -153,10 +153,10 @@ namespace Editor
                         var delegateType = typeof(Action<>).MakeGenericType(eventType);
                         var invokeMethod = delegateType.GetMethod("Invoke");
 
-                        Dispatcher.UIThread.Invoke(new Action(() =>
+                        EditorSetter.Invoke(() =>
                         {
                             invokeMethod.Invoke(subscriber, new object[] { evt });
-                        }));
+                        });
                     }
                 });
 
@@ -172,14 +172,13 @@ namespace Editor
                     DebLogger.Fatal($"Необработанное исключение AppDomain: {exception.Message}\n{exception.StackTrace}");
                 };
 
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                await EditorSetter.InvokeAsync(() =>
                 {
                     mainWindow = new MainWindow();
                     desktop.MainWindow = mainWindow;
                     mainWindow.Show();
                     loadingWindow.Close();
                 });
-
             }
             catch (Exception ex)
             {

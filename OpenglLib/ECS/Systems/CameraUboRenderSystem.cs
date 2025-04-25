@@ -7,11 +7,30 @@ namespace OpenglLib
 {
     public class CameraUboRenderSystem : IRenderSystem
     {
+        const uint UBO_BINDING_POINT = 3;
+
+        const string UBO_NAME = "CamerasUBO";
+
+        private readonly string[] CAMERA_DOMAINS = new string[LightParams.MAX_CAMERAS];
+
+        const string POSITION_SUBDOMAIN = "position";
+        const string FRONT_SUBDOMAIN = "front";
+        const string UP_SUBDOMAIN = "up";
+        const string FOV_SUBDOMAIN = "fov";
+        const string ASPECT_RATIO_SUBDOMAIN = "aspectRatio";
+        const string NEAR_PLANE_SUBDOMAIN = "nearPlane";
+        const string FAR_PLANE_SUBDOMAIN = "farPlane";
+        const string ENABLED_SUBDOMAIN = "enabled";
+        const string VIEW_MATRIX_SUBDOMAIN = "viewMatrix";
+        const string PROJECTION_MATRIX_SUBDOMAIN = "projectionMatrix";
+
+        const string ACTIVE_CAMERA_INDEX_DOMAIN = "activeCameraIndex";
+
         public IWorld World { get; set; }
 
         private QueryEntity queryCameraEntities;
         private UboService _uboService;
-        private CamerasUboData _camerasUboData;
+        private Dictionary<string, object> valuePairs = new Dictionary<string, object>();
         private bool _isDirty = true;
 
         public CameraUboRenderSystem(IWorld world)
@@ -23,18 +42,44 @@ namespace OpenglLib
                 .With<TransformComponent>()
                 ;
 
-            _camerasUboData = new CamerasUboData();
-            _camerasUboData.ActiveCameraIndex = 0;
+            for (int i = 0; i < LightParams.MAX_CAMERAS; i++)
+            {
+                CAMERA_DOMAINS[i] = $"{UBO_NAME}.cameras[{i}]";
+            }
+            valuePairs[$"{UBO_NAME}.{ACTIVE_CAMERA_INDEX_DOMAIN}"] = 0;
         }
 
         public void Initialize()
         {
             _uboService = ServiceHub.Get<UboService>();
+            InitializeCameras();
+        }
+
+        private void InitializeCameras()
+        {
+            for (int i = 0; i < LightParams.MAX_CAMERAS; i++)
+            {
+                string cameraRoot = CAMERA_DOMAINS[i];
+
+                valuePairs[$"{cameraRoot}.{POSITION_SUBDOMAIN}"] = Vector3.Zero;
+                valuePairs[$"{cameraRoot}.{FRONT_SUBDOMAIN}"] = new Vector3(0, 0, 1);
+                valuePairs[$"{cameraRoot}.{UP_SUBDOMAIN}"] = new Vector3(0, 1, 0);
+                valuePairs[$"{cameraRoot}.{FOV_SUBDOMAIN}"] = MathF.PI / 4f;
+                valuePairs[$"{cameraRoot}.{ASPECT_RATIO_SUBDOMAIN}"] = 16f / 9f;
+                valuePairs[$"{cameraRoot}.{NEAR_PLANE_SUBDOMAIN}"] = 0.1f;
+                valuePairs[$"{cameraRoot}.{FAR_PLANE_SUBDOMAIN}"] = 200f;
+                valuePairs[$"{cameraRoot}.{ENABLED_SUBDOMAIN}"] = 0.0f;
+                valuePairs[$"{cameraRoot}.{VIEW_MATRIX_SUBDOMAIN}"] = Matrix4x4.Identity;
+                valuePairs[$"{cameraRoot}.{PROJECTION_MATRIX_SUBDOMAIN}"] = Matrix4x4.Identity;
+            }
+
+            _uboService.SetUboDataByBindingPoint(UBO_BINDING_POINT, valuePairs);
+            _uboService.Update(UBO_BINDING_POINT);
         }
 
         public void Render(double deltaTime, object? context)
         {
-            if (!_uboService.HasUboByBindingPoint(3))
+            if (!_uboService.HasUboByBindingPoint(UBO_BINDING_POINT))
                 return;
 
             Entity[] cameraEntities = queryCameraEntities.Build();
@@ -45,16 +90,8 @@ namespace OpenglLib
 
             for (int i = 0; i < LightParams.MAX_CAMERAS; i++)
             {
-                CameraData emptyCamera = new CameraData();
-                emptyCamera.Enabled = 0.0f;
-
-                switch (i)
-                {
-                    case 0: _camerasUboData.Camera0 = emptyCamera; break;
-                    case 1: _camerasUboData.Camera1 = emptyCamera; break;
-                    case 2: _camerasUboData.Camera2 = emptyCamera; break;
-                    case 3: _camerasUboData.Camera3 = emptyCamera; break;
-                }
+                string cameraRoot = CAMERA_DOMAINS[i];
+                valuePairs[$"{cameraRoot}.{ENABLED_SUBDOMAIN}"] = 0.0f;
             }
 
             int activeCameraIndex = -1;
@@ -65,29 +102,22 @@ namespace OpenglLib
                 ref var camera = ref this.GetComponent<CameraComponent>(cameraEntities[i]);
                 ref var transform = ref this.GetComponent<TransformComponent>(cameraEntities[i]);
 
-                CameraData cameraData = new CameraData();
-                cameraData.Position = transform.Position;
-                cameraData.Front = camera.CameraFront;
-                cameraData.Up = camera.CameraUp;
-                cameraData.Fov = camera.FieldOfView * (MathF.PI / 180f);
-                cameraData.AspectRatio = camera.AspectRatio;
-                cameraData.NearPlane = camera.NearPlane;
-                cameraData.FarPlane = camera.FarPlane;
-                cameraData.Enabled = camera.IsActive ? 1.0f : 0.0f;
-                cameraData.ViewMatrix = camera.ViewMatrix;
-                cameraData.ProjectionMatrix = camera.CreateProjectionMatrix();
+                string cameraRoot = CAMERA_DOMAINS[i];
+
+                valuePairs[$"{cameraRoot}.{POSITION_SUBDOMAIN}"] = transform.Position;
+                valuePairs[$"{cameraRoot}.{FRONT_SUBDOMAIN}"] = camera.CameraFront;
+                valuePairs[$"{cameraRoot}.{UP_SUBDOMAIN}"] = camera.CameraUp;
+                valuePairs[$"{cameraRoot}.{FOV_SUBDOMAIN}"] = camera.FieldOfView * (MathF.PI / 180f);
+                valuePairs[$"{cameraRoot}.{ASPECT_RATIO_SUBDOMAIN}"] = camera.AspectRatio;
+                valuePairs[$"{cameraRoot}.{NEAR_PLANE_SUBDOMAIN}"] = camera.NearPlane;
+                valuePairs[$"{cameraRoot}.{FAR_PLANE_SUBDOMAIN}"] = camera.FarPlane;
+                valuePairs[$"{cameraRoot}.{ENABLED_SUBDOMAIN}"] = camera.IsActive ? 1.0f : 0.0f;
+                valuePairs[$"{cameraRoot}.{VIEW_MATRIX_SUBDOMAIN}"] = camera.ViewMatrix;
+                valuePairs[$"{cameraRoot}.{PROJECTION_MATRIX_SUBDOMAIN}"] = camera.CreateProjectionMatrix();
 
                 if (camera.IsActive && activeCameraIndex == -1)
                 {
                     activeCameraIndex = i;
-                }
-
-                switch (i)
-                {
-                    case 0: _camerasUboData.Camera0 = cameraData; break;
-                    case 1: _camerasUboData.Camera1 = cameraData; break;
-                    case 2: _camerasUboData.Camera2 = cameraData; break;
-                    case 3: _camerasUboData.Camera3 = cameraData; break;
                 }
 
                 dataChanged = true;
@@ -98,32 +128,21 @@ namespace OpenglLib
                 activeCameraIndex = 0;
             }
 
-            if (_camerasUboData.ActiveCameraIndex != activeCameraIndex && activeCameraIndex != -1)
+            if (dataChanged ||
+                (activeCameraIndex != -1 && !valuePairs[$"{UBO_NAME}.{ACTIVE_CAMERA_INDEX_DOMAIN}"].Equals(activeCameraIndex)) ||
+                _isDirty)
             {
-                _camerasUboData.ActiveCameraIndex = activeCameraIndex;
-                dataChanged = true;
-            }
-
-            if (dataChanged || _isDirty)
-            {
-                //var c = _camerasUboData.ToString();
-                _uboService.SetUboDataByBindingPoint(3, _camerasUboData);
+                valuePairs[$"{UBO_NAME}.{ACTIVE_CAMERA_INDEX_DOMAIN}"] = activeCameraIndex;
+                _uboService.SetUboDataByBindingPoint(UBO_BINDING_POINT, valuePairs);
+                _uboService.Update(UBO_BINDING_POINT);
                 _isDirty = false;
             }
         }
 
         public void Resize(Vector2 size)
         {
-            float aspectRatio = size.X / size.Y;
-
-            Entity[] cameraEntities = queryCameraEntities.Build();
-            foreach (var entity in cameraEntities)
-            {
-                ref var camera = ref this.GetComponent<CameraComponent>(entity);
-                camera.AspectRatio = aspectRatio;
-            }
-
-            _isDirty = true;
         }
     }
+
+
 }

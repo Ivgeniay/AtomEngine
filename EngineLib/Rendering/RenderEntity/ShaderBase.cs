@@ -5,7 +5,6 @@
         protected uint handle;
         public uint Handle => handle;
         public abstract void Use();
-        public abstract void SetUbo(Dictionary<string, object> uniformValues);
         public abstract void SetUniform(string name, object value);
         public abstract void Dispose();
 

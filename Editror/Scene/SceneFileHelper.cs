@@ -150,7 +150,7 @@ namespace Editor
                                 new TransformComponent
                                 {
                                     Position = new Vector3(5, 3, 0),
-                                    Rotation = new Vector3(0, -90, 0),
+                                    Rotation = new Vector3(75, -10, 0),
                                     Scale = new Vector3(1, 1, 1),
                                 }
                             },
@@ -178,10 +178,6 @@ namespace Editor
                             {
                                 typeof(GlobalLightSettingsComponent).FullName,
                                 new GlobalLightSettingsComponent(new Entity(2,0))
-                            },
-                            {
-                                typeof(ShadowMapComponent).FullName,
-                                new ShadowMapComponent(new Entity(2,0))
                             }
                         }
                     },
@@ -274,9 +270,10 @@ namespace Editor
                     Category = SystemCategory.Render,
                     Guid = "system_0"
                 },
+
                 new SystemData
                 {
-                    SystemFullTypeName = typeof(ShadowMapBindingSystem).FullName,
+                    SystemFullTypeName = typeof(LightUboRenderSystem).FullName,
                     ExecutionOrder = 1,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
@@ -286,7 +283,7 @@ namespace Editor
 
                 new SystemData
                 {
-                    SystemFullTypeName = typeof(LightUboRenderSystem).FullName,
+                    SystemFullTypeName = typeof(CameraUboRenderSystem).FullName,
                     ExecutionOrder = 2,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
@@ -296,7 +293,7 @@ namespace Editor
 
                 new SystemData
                 {
-                    SystemFullTypeName = typeof(CameraUboRenderSystem).FullName,
+                    SystemFullTypeName = typeof(PBRMaterialUboRenderSystem).FullName,
                     ExecutionOrder = 3,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
@@ -306,7 +303,7 @@ namespace Editor
 
                 new SystemData
                 {
-                    SystemFullTypeName = typeof(PBRMaterialUboRenderSystem).FullName,
+                    SystemFullTypeName = typeof(ViewRenderSystem).FullName,
                     ExecutionOrder = 4,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
@@ -316,22 +313,12 @@ namespace Editor
 
                 new SystemData
                 {
-                    SystemFullTypeName = typeof(ViewRenderSystem).FullName,
+                    SystemFullTypeName = typeof(IconRenderSystem).FullName,
                     ExecutionOrder = 5,
                     IncludInWorld = new List<uint>{ 0 },
                     Dependencies = new List<SystemData> { },
                     Category = SystemCategory.Render,
                     Guid = "system_5"
-                },
-
-                new SystemData
-                {
-                    SystemFullTypeName = typeof(IconRenderSystem).FullName,
-                    ExecutionOrder = 6,
-                    IncludInWorld = new List<uint>{ 0 },
-                    Dependencies = new List<SystemData> { },
-                    Category = SystemCategory.Render,
-                    Guid = "system_6"
                 },
             };
         }

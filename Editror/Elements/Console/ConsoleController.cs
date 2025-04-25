@@ -329,8 +329,7 @@ namespace Editor
             //}, encoding: System.Text.Encoding.UTF8);
 
 
-
-            Dispatcher.UIThread.Invoke(new Action(() =>
+            EditorSetter.Invoke(() =>
             {
                 if (_logEntries.Count > MaxLogEntries)
                 {
@@ -340,7 +339,7 @@ namespace Editor
                         _logPanel.Children.RemoveAt(0);
                     }
                 }
-            }));
+            });
 
             AddLogEntryToPanel(entry);
             ScrollToEnd();
@@ -348,8 +347,10 @@ namespace Editor
 
         private void AddLogEntryToPanel(LogEntry entry)
         {
-            if (Dispatcher.UIThread.CheckAccess()) AddLogEntryToPanelCore(entry);
-            else Dispatcher.UIThread.Post(() => AddLogEntryToPanelCore(entry));
+            EditorSetter.Post(() =>
+            {
+                AddLogEntryToPanelCore(entry);
+            });
         }
 
         private void AddLogEntryToPanelCore(LogEntry entry)
@@ -455,8 +456,10 @@ namespace Editor
 
         private void ScrollToEnd()
         {
-            if (Dispatcher.UIThread.CheckAccess()) ScrollToEndCore();
-            else Dispatcher.UIThread.Post(() => ScrollToEndCore());
+            EditorSetter.Post(() =>
+            {
+                ScrollToEndCore();
+            });
         }
 
         private void ScrollToEndCore() => _scrollViewer.ScrollToEnd();
@@ -510,7 +513,7 @@ namespace Editor
             DebLogger.AddLogger(this);
             _isOpen = true;
 
-            Dispatcher.UIThread.Invoke(new Action(() =>
+            EditorSetter.Invoke(() =>
             {
                 var logs = DebLogger.GetLogs();
                 foreach (var log in logs)
@@ -520,7 +523,7 @@ namespace Editor
                         Log(log.Message, log.Level, log);
                     }
                 }
-            }));
+            });
         }
 
         public void Close()

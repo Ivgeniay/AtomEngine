@@ -343,42 +343,27 @@ namespace Editor
                 }
             };
 
-            _renderLoopCts = new CancellationTokenSource();
-            var token = _renderLoopCts.Token;
-            Task.Run(async () =>
+            EditorUpdateSystem.SceneUpdateRequested += (s, e) =>
             {
-                while (!token.IsCancellationRequested)
+                if (!_isRendering)
                 {
-                    //await Task.Delay(16, token);
-                    await Task.Delay(24, token);
-
-                    if (_isOpen && _isGlInitialized)
+                    _isRendering = true;
+                    try
                     {
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            if (!_isRendering)
-                            {
-                                _isRendering = true;
-                                try
-                                {
-                                    _glController?.RequestNextFrameRendering();
-                                }
-                                catch (Exception ex)
-                                {
-                                    DebLogger.Error($"Ошибка при запросе перерисовки: {ex.Message}");
-                                }
-                                finally
-                                {
-                                    _isRendering = false;
-                                }
-                            }
-                        }, DispatcherPriority.Render);
+                        _glController?.RequestNextFrameRendering();
+                        EditorUpdateSystem.RequestSceneUpdate();
+                    }
+                    catch (Exception ex)
+                    {
+                        DebLogger.Error($"Ошибка при запросе перерисовки: {ex.Message}");
+                    }
+                    finally
+                    {
+                        _isRendering = false;
                     }
                 }
-            }, token);
-
-
-            //_renderTimer.Start();
+            };
+            EditorUpdateSystem.RequestSceneUpdate();
             _isOpen = true;
             this.Focus();
         }

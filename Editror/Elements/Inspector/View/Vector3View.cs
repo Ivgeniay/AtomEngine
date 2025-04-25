@@ -1,6 +1,7 @@
 ﻿using Avalonia.Controls;
 using System.Numerics;
 using Silk.NET.Maths;
+using System;
 
 namespace Editor.Elements.Inspector.View
 {
@@ -19,6 +20,21 @@ namespace Editor.Elements.Inspector.View
             {
                 descriptor.OnValueChanged?.Invoke(e);
             };
+
+            if (descriptor.Context is EntityInspectorContext context)
+            {
+                var observer = new ComponentFieldObserver<Vector3>(
+                    context.EntityId,
+                    context.Component,
+                    descriptor.Name,
+                    newValue =>
+                    {
+                        field.Value = newValue;
+                    });
+
+                RegisterObserver(observer);
+            }
+
             return field;
         }
     }

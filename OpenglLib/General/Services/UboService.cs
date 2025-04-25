@@ -1,7 +1,8 @@
 ﻿using EngineLib;
+using Newtonsoft.Json.Linq;
+using System.Runtime.InteropServices;
 using OpenglLib.Buffers;
 using Silk.NET.OpenGL;
-using System.Runtime.InteropServices;
 
 namespace OpenglLib
 {
@@ -170,10 +171,23 @@ namespace OpenglLib
             {
                 if (!_ubosByBindingPoint.TryGetValue(bindingPoint, out var ubo))
                 {
-                    throw new InvalidOperationError($"UBO с binding point {bindingPoint} не найден");
+                    throw new InvalidOperationError($"UBO with binding point {bindingPoint} not found");
                 }
 
                 SetData(ubo, data);
+            }
+        }
+
+        public void SetUboDataByBindingPoint(uint bindingPoint, Dictionary<string, object> data)
+        {
+            lock (_lock)
+            {
+                if (!_ubosByBindingPoint.TryGetValue(bindingPoint, out var ubo))
+                {
+                    throw new InvalidOperationError($"UBO with binding point {bindingPoint} not found");
+                }
+                ubo.SetUniforms(data);
+                ubo.Update();
             }
         }
 
@@ -211,7 +225,7 @@ namespace OpenglLib
             {
                 if (!_ubosByName.TryGetValue(blockName, out var ubo))
                 {
-                    throw new InvalidOperationError($"UBO с именем {blockName} не найден");
+                    throw new InvalidOperationError($"UBO with name {blockName} not found");
                 }
 
                 ubo.SetUniform(uniformName, value);
@@ -224,13 +238,25 @@ namespace OpenglLib
             {
                 if (!_ubosByBindingPoint.TryGetValue(bindingPoint, out var ubo))
                 {
-                    throw new InvalidOperationError($"UBO с binding point {bindingPoint} не найден");
+                    throw new InvalidOperationError($"UBO with binding point {bindingPoint} not found");
                 }
 
                 ubo.SetUniform(uniformName, value);
             }
         }
 
+        public void Update(uint bindingPoint)
+        {
+            lock (_lock)
+            {
+                if (!_ubosByBindingPoint.TryGetValue(bindingPoint, out var ubo))
+                {
+                    throw new InvalidOperationError($"UBO with binding point {bindingPoint} not found");
+                }
+
+                ubo.Update();
+            }
+        }
         public void UpdateAll()
         {
             lock (_lock)

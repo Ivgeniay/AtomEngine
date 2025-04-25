@@ -10,7 +10,7 @@ namespace AtomEngine
         public Vector3 AmbientColor;
         [DefaultFloat(0.1f)]
         public float AmbientIntensity;
-        [DefaultFloat(0.085f)]
+        [DefaultFloat(0.0085f)]
         public float ShadowBias;
         [DefaultInt(3)]
         public int PcfKernelSize;
@@ -25,7 +25,7 @@ namespace AtomEngine
             Owner = entity;
             AmbientColor = new Vector3(1, 1, 1);
             AmbientIntensity = 1;
-            ShadowBias = 0.085f;
+            ShadowBias = 0.0085f;
             PcfKernelSize = 3;
             ShadowIntensity = 0.7f;
             IsDirty = true;

@@ -123,8 +123,17 @@ namespace Editor
 
         private void Clean()
         {
+            foreach (var child in _container.Children)
+            {
+                if (child is Control control && control.DataContext is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
             _container.Children.Clear();
         }
+
+
 
         private void EnableDropInInspector()
         {
@@ -195,6 +204,7 @@ namespace Editor
 
         public void Dispose()
         {
+            FreeCache();
             OnClose?.Invoke(this);
         }
 
@@ -206,11 +216,11 @@ namespace Editor
 
         public void FreeCache()
         {
-            Dispatcher.UIThread.Invoke(new Action(() =>
+            EditorSetter.Invoke(() =>
             {
                 Clean();
                 _currentInspectable = null;
-            }));
+            });
         }
     }
 }

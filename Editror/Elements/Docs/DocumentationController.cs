@@ -171,7 +171,7 @@ namespace Editor
         {
             try
             {
-                Dispatcher.UIThread.Post(async () =>
+                EditorSetter.Post(async () =>
                 {
                     await LoadDocumentationViaReflection();
                     LoadLocalDocumentation();

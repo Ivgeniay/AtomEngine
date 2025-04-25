@@ -6,6 +6,7 @@ using System.Linq;
 using AtomEngine;
 using System;
 using EngineLib;
+using System.Collections.Generic;
 
 namespace Editor
 {
@@ -215,6 +216,12 @@ namespace Editor
         public void OnEntityRenamed(EntityHierarchyItem entity)
         {
             EntityRenamed?.Invoke(this, entity);
+            var index = _entities.IndexOf(entity);
+            if (index != -1)
+            {
+                _entities[index] = entity;
+            }
+            RefreshHierarchyVisibility();
         }
 
         public void OnEntityDeleted(EntityHierarchyItem entity)
@@ -229,10 +236,10 @@ namespace Editor
 
         public void FreeCache()
         {
-            Dispatcher.UIThread.Invoke(new Action(() =>
+            EditorSetter.Invoke(() =>
             {
                 _currentScene = null;
-            }));
+            });
         }
     }
 

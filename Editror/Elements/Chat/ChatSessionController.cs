@@ -207,7 +207,7 @@ namespace Editor
 
         public void AgentResponse(ChatMessage message)
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            EditorSetter.Post(() =>
             {
                 AddMessageToChat(message);
             });

@@ -14,7 +14,6 @@ namespace OpenglLib
 
         private QueryEntity queryLightEntities;
         private QueryEntity queryRendererEntities;
-        private QueryEntity queryShadowMapEntities;
 
         private FBOService _fboService;
         private GL _gl;
@@ -22,6 +21,10 @@ namespace OpenglLib
         private uint _shadowMapArrayTexture;
         private int _shadowMapSize = 2048;
         private bool _initialized = false;
+        private const int SHADOW_TEXTURE_UNIT = 10;
+
+        private Dictionary<int, int> _directionalLightLayerIndices = new Dictionary<int, int>();
+        private Dictionary<int, int> _pointLightLayerIndices = new Dictionary<int, int>();
 
         public ShadowMapSystem(IWorld world)
         {
@@ -36,10 +39,6 @@ namespace OpenglLib
             queryRendererEntities = this.CreateEntityQuery()
                 .With<TransformComponent>()
                 .With<PBRComponent>()
-                ;
-
-            queryShadowMapEntities = this.CreateEntityQuery()
-                .With<ShadowMapComponent>()
                 ;
         }
 
@@ -75,30 +74,55 @@ namespace OpenglLib
             }
         }
 
-        private int RegisterDirectionalLight(ref ShadowMapComponent component, int lightId)
+        private int RegisterDirectionalLight(int lightId)
         {
+            if (_directionalLightLayerIndices.TryGetValue(lightId, out int index))
+            {
+                return index;
+            }
+
             for (int i = 0; i < LightParams.MAX_DIRECTIONAL_LIGHTS; i++)
             {
-                if (component.LightIds[i] == -1)
+                if (!_directionalLightLayerIndices.ContainsValue(i))
                 {
-                    component.LightIds[i] = lightId;
-                    component.LightTypes[i] = LightType.Directional;
+                    _directionalLightLayerIndices[lightId] = i;
                     return i;
                 }
             }
             return -1;
         }
 
-        private int RegisterPointLight(ref ShadowMapComponent component, int lightId)
+        private int RegisterPointLight(int lightId)
         {
-            for (int i = LightParams.MAX_DIRECTIONAL_LIGHTS; i < ShadowMapComponent.MAX_SHADOW_MAPS; i++)
+            if (_pointLightLayerIndices.TryGetValue(lightId, out int index))
             {
-                if (component.LightIds[i] == -1)
+                return index;
+            }
+
+            for (int i = LightParams.MAX_DIRECTIONAL_LIGHTS; i < LightParams.MAX_DIRECTIONAL_LIGHTS + LightParams.MAX_POINT_LIGHTS; i++)
+            {
+                if (!_pointLightLayerIndices.ContainsValue(i))
                 {
-                    component.LightIds[i] = lightId;
-                    component.LightTypes[i] = LightType.Point;
+                    _pointLightLayerIndices[lightId] = i;
                     return i;
                 }
+            }
+            return -1;
+        }
+        private int GetDirectionalLightLayerIndex(int lightId)
+        {
+            if (_directionalLightLayerIndices.TryGetValue(lightId, out int index))
+            {
+                return index;
+            }
+            return -1;
+        }
+
+        private int GetPointLightLayerIndex(int lightId)
+        {
+            if (_pointLightLayerIndices.TryGetValue(lightId, out int index))
+            {
+                return index;
             }
             return -1;
         }
@@ -142,18 +166,9 @@ namespace OpenglLib
                 return;
             }
 
-            Entity[] mapEntities = queryShadowMapEntities.Build();
-            if (mapEntities.Length == 0)
-            {
-                return;
-            }
-
-            ref var shadowMapComponent = ref this.GetComponent<ShadowMapComponent>(mapEntities[0]);
-
             if (!_initialized)
             {
                 InitializeShadowMapArray(gl);
-                shadowMapComponent.ShadowMapArrayTextureId = _fbo.DepthTextureArray; ;
             }
 
             HashSet<int> activeLightIds = new HashSet<int>();
@@ -163,14 +178,31 @@ namespace OpenglLib
                 activeLightIds.Add(lightComponent.LightId);
             }
 
-            for (int i = 0; i < ShadowMapComponent.MAX_SHADOW_MAPS; i++)
+            List<int> inactiveLightIds = new List<int>();
+            foreach (var kvp in _directionalLightLayerIndices)
             {
-                if (shadowMapComponent.LightIds[i] != -1 && !activeLightIds.Contains(shadowMapComponent.LightIds[i]))
+                if (!activeLightIds.Contains(kvp.Key))
                 {
-                    shadowMapComponent.LightIds[i] = -1;
-                    shadowMapComponent.LightTypes[i] = (LightType)(-1);
+                    inactiveLightIds.Add(kvp.Key);
                 }
             }
+            foreach (var lightId in inactiveLightIds)
+            {
+                _directionalLightLayerIndices.Remove(lightId);
+            }
+            inactiveLightIds.Clear();
+            foreach (var kvp in _pointLightLayerIndices)
+            {
+                if (!activeLightIds.Contains(kvp.Key))
+                {
+                    inactiveLightIds.Add(kvp.Key);
+                }
+            }
+            foreach (var lightId in inactiveLightIds)
+            {
+                _pointLightLayerIndices.Remove(lightId);
+            }
+
 
             Span<int> viewport = stackalloc int[4];
             gl.GetInteger(GLEnum.Viewport, viewport);
@@ -185,8 +217,8 @@ namespace OpenglLib
 
             gl.Enable(EnableCap.DepthTest);
             gl.CullFace(GLEnum.Front);
-            gl.ClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-            gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            //gl.ClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+            //gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             foreach (var lightEntity in activeLightEntities)
             {
@@ -196,19 +228,19 @@ namespace OpenglLib
                 int layerIndex;
                 if (lightComponent.Type == LightType.Directional)
                 {
-                    layerIndex = shadowMapComponent.GetDirectionalLightIndex(lightComponent.LightId);
+                    layerIndex = GetDirectionalLightLayerIndex(lightComponent.LightId);
                     if (layerIndex == -1)
                     {
-                        layerIndex = RegisterDirectionalLight(ref shadowMapComponent, lightComponent.LightId);
+                        layerIndex = RegisterDirectionalLight(lightComponent.LightId);
                         if (layerIndex == -1) continue;
                     }
                 }
                 else if (lightComponent.Type == LightType.Point)
                 {
-                    layerIndex = shadowMapComponent.GetPointLightLayerIndex(lightComponent.LightId);
+                    layerIndex = GetPointLightLayerIndex(lightComponent.LightId);
                     if (layerIndex == -1)
                     {
-                        layerIndex = RegisterPointLight(ref shadowMapComponent, lightComponent.LightId);
+                        layerIndex = RegisterPointLight(lightComponent.LightId);
                         if (layerIndex == -1) continue;
                     }
                 }
@@ -224,6 +256,10 @@ namespace OpenglLib
                     gl.Clear(ClearBufferMask.DepthBufferBit);
 
                     Material shadowMaterial = shadowMaterialComponent.Material;
+
+                    if (shadowMaterial == null || shadowMaterial.Shader == null)
+                        continue;
+
                     shadowMaterial.Use();
                     shadowMaterial.SetUniform("lightSpaceMatrix", lightComponent.LightSpaceMatrix);
 
@@ -251,7 +287,22 @@ namespace OpenglLib
             gl.DrawBuffer(DrawBufferMode.None);
             gl.ReadBuffer(ReadBufferMode.None);
 
-            int curFBO = gl.GetInteger(GLEnum.FramebufferBinding);
+            var unit = TextureUnit.Texture0 + SHADOW_TEXTURE_UNIT;
+            gl.ActiveTexture(unit);
+            gl.BindTexture(TextureTarget.Texture2DArray, _fbo.DepthTextureArray);
+
+            foreach (var entity in rendererEntities)
+            {
+                ref var pbrComponent = ref this.GetComponent<PBRComponent>(entity);
+
+                if (pbrComponent.Material == null || pbrComponent.Material.Shader == null)
+                    continue;
+
+                Material material = pbrComponent.Material;
+                material.Use();
+                material.SetUniform("shadowMapsArray", SHADOW_TEXTURE_UNIT);
+            }
+
 
             _fbo.Unbind(viewport[2], viewport[3]);
 

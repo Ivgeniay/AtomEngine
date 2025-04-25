@@ -1,14 +1,23 @@
 ﻿const int MAX_DIRECTIONAL_LIGHTS = 4;
 const int MAX_POINT_LIGHTS = 8;
+const int MAX_SPOT_LIGHTS = 8;
+const int MAX_CASCADES = 4;
+
+struct CascadeData {
+    mat4 lightSpaceMatrix;
+    float splitDepth;
+};
 
 struct DirectionalLight {
     vec3 direction;
     vec3 color;
     float intensity;
     float castShadows;
+    //CascadeData cascades[MAX_CASCADES];
     mat4 lightSpaceMatrix;
     float enabled;
     int lightId;
+    int numCascades;
 };
 
 struct PointLight {
@@ -19,22 +28,39 @@ struct PointLight {
     float castShadows;
     float falloffExponent;
     float enabled;
+    int lightId;
+};
+
+struct SpotLight {
+    vec3 position;
+    vec3 direction;
+    vec3 color;
+    float intensity;
+    float innerCutoff;    
+    float outerCutoff;    
+    float radius;         
+    float castShadows;
+    mat4 lightSpaceMatrix;
+    float enabled;
+    int lightId;
 };
 
 layout(std140, binding = 1) uniform LightsUBO {
     DirectionalLight directionalLights[MAX_DIRECTIONAL_LIGHTS];
     PointLight pointLights[MAX_POINT_LIGHTS];
+    SpotLight spotLights[MAX_SPOT_LIGHTS];
     vec3 ambientColor;
     float ambientIntensity;
     int numDirectionalLights;
     int numPointLights;
+    int numSpotLights;
     float shadowBias;
     int pcfKernelSize;
     float shadowIntensity;
 } lights;
 
 layout(binding = 10) uniform sampler2DArray shadowMapsArray;
-uniform samplerCubeArray pointShadowMapsArray;
+layout(binding = 11) uniform samplerCubeArray pointShadowMapsArray;
 
 float calculatePointLightAttenuation(PointLight light, vec3 fragPos) {
     float distance = length(light.position - fragPos);
@@ -46,50 +72,8 @@ float calculatePointLightAttenuation(PointLight light, vec3 fragPos) {
     return attenuation;
 }
 
-float calculateDirectionalShadow(DirectionalLight dirLight, vec4 fragPosLightSpace) {
-    if (dirLight.castShadows < 0.5 || dirLight.enabled < 0.5)
-        return 0.0;
-    
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
-    
-    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
-        projCoords.y < 0.0 || projCoords.y > 1.0)
-        return 0.0;
-    
-    int lightIndex = -1;
-    for (int i = 0; i < lights.numDirectionalLights; i++) {
-        if (lights.directionalLights[i].lightId == dirLight.lightId) {
-            lightIndex = i;
-            break;
-        }
-    }
-    
-    if (lightIndex == -1)
-        return 0.0;
-    
-    float currentDepth = projCoords.z;
-    float bias = lights.shadowBias;
-    float shadow = 0.0;
-    
-    int kernelSize = lights.pcfKernelSize;
-    vec2 texelSize = 1.0 / vec2(textureSize(shadowMapsArray, 0));
-    
-    for (int x = -kernelSize; x <= kernelSize; ++x) {
-        for (int y = -kernelSize; y <= kernelSize; ++y) {
-            float pcfDepth = texture(shadowMapsArray, vec3(projCoords.xy + vec2(x, y) * texelSize, lightIndex)).r;
-            shadow += (currentDepth - bias > pcfDepth) ? 1.0 : 0.0;
-        }
-    }
-    
-    float totalSamples = (2.0 * kernelSize + 1.0) * (2.0 * kernelSize + 1.0);
-    shadow /= totalSamples;
-    shadow *= lights.shadowIntensity;
-    
-    return shadow;
-}
-
 float calculateDirectionalShadowWithAdaptivePCF(DirectionalLight dirLight, vec4 fragPosLightSpace, int lightIndex, vec3 viewPos, vec3 fragPos) {
+
     if (dirLight.castShadows < 0.5 || dirLight.enabled < 0.5)
         return 0.0;
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -153,6 +137,7 @@ float calculatePointShadow(PointLight light, vec3 fragPos, int lightIndex) {
     int kernelSize = lights.pcfKernelSize;
     
     float maxDistance = light.radius;
+    //F = 1/(Kc + Kd + kd^2)
     int adaptiveKernel = int(min(kernelSize, max(1, kernelSize * (1.0 - distance / maxDistance))));
     
     float totalSamples = (2.0 * adaptiveKernel + 1.0) * (2.0 * adaptiveKernel + 1.0);
