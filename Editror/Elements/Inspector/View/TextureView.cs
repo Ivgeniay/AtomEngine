@@ -34,7 +34,18 @@ namespace Editor
                 {
                     guid = asset.Guid;
                 }
-                descriptor.OnValueChanged(guid);
+                if (descriptor.Context is EntityInspectorContext entityContex)
+                {
+                    GLValueRedirection redirection = new GLValueRedirection()
+                    {
+                        GUID = guid
+                    };
+                    descriptor.OnValueChanged(redirection);
+                }
+                else
+                {
+                    descriptor.OnValueChanged(guid);
+                }
             };
 
             return imageField;

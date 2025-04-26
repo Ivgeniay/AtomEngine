@@ -184,7 +184,7 @@ vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 
                         light, 
                         fragPos, 
                         cameraData.cameras[cameraData.activeCameraIndex].position);
-                return vec3(shadow, shadow, shadow);
+                //return vec3(shadow, shadow, shadow);
                 lightContrib *= (1.0 - shadow);
             }
             

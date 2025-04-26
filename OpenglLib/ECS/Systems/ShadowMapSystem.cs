@@ -1,10 +1,9 @@
-﻿using AtomEngine;
-using EngineLib;
-using MathNet.Numerics.Statistics.Mcmc;
+﻿using OpenglLib.ECS.Components;
 using OpenglLib.Buffers;
-using OpenglLib.ECS.Components;
 using Silk.NET.OpenGL;
 using System.Numerics;
+using AtomEngine;
+using EngineLib;
 
 namespace OpenglLib
 {

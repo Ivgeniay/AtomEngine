@@ -194,7 +194,22 @@ namespace Editor
                         {
                             {
                                 typeof(PBRSettingsMaterialComponent).FullName,
-                                new PBRSettingsMaterialComponent(new Entity(10,0))
+                                new PBRSettingsMaterialComponent(new Entity(3,0))
+                            }
+                        }
+                    },
+                    new EntityData
+                    {
+                        Id = 4,
+                        Name = "SkyBox",
+                        Version = 0,
+                        Components = new Dictionary<string, IComponent>
+                        {
+                            {
+                                typeof(SkyBoxComponent).FullName,
+                                SkyBoxComponent.CreateDefault(new Entity(4,0), 
+                                materialGUID: "0f07d997-b39e-45c4-9e4d-5b523e338eb0", 
+                                textureGUID: "558b385e-2002-4bc6-8db5-eb0d4f2ce599")
                             }
                         }
                     },
@@ -323,6 +338,16 @@ namespace Editor
                     Dependencies = new List<SystemData> { },
                     Category = SystemCategory.Render,
                     Guid = "system_5"
+                },
+
+                new SystemData
+                {
+                    SystemFullTypeName = typeof(SkyBoxRenderSystem).FullName,
+                    ExecutionOrder = 6,
+                    IncludInWorld = new List<uint>{ 0 },
+                    Dependencies = new List<SystemData> { },
+                    Category = SystemCategory.Render,
+                    Guid = "system_6"
                 },
             };
         }

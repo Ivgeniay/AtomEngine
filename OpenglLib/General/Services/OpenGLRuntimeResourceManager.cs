@@ -43,7 +43,7 @@ namespace OpenglLib
 
             if (meta.AssetType == MetadataType.Texture)
             {
-                return LoadTextureResource(guid, context);
+                return LoadTextureResource(guid);
             }
             else if (meta.AssetType == MetadataType.Material)
             {
@@ -61,16 +61,14 @@ namespace OpenglLib
             return null;
         }
 
-        public virtual Texture LoadTextureResource(string guid, object context = null)
+        public virtual Texture LoadTextureResource(string guid)
         {
             if (!_isGLInitialized || _gl == null)
                 return null;
 
             try
             {
-                if (context == null) throw new NullReferenceError(nameof(context));
-                uint shaderProgram = Convert.ToUInt32(context);
-                var texture = _textureFactory.CreateTextureFromGuid(_gl, guid, shaderProgram);
+                var texture = _textureFactory.CreateTextureFromGuid(_gl, guid);
                 return texture;
             }
             catch (Exception e)

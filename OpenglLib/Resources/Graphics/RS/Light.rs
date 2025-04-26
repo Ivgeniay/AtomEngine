@@ -118,98 +118,6 @@ float calculateDirectionalShadowWithAdaptivePCF(DirectionalLight dirLight, vec4 
 
 
 float calculateCascadedDirectionalShadow(DirectionalLight light, vec3 fragPos, vec3 viewPos) {
-    // Добавляем отладочную информацию
-    
-    // 1. Проверим, что каскады вообще работают
-    if (light.castShadows < 0.5 || light.enabled < 0.5 || light.numCascades == 0)
-        return 0.0; // Никаких теней
-    
-    // 2. Вычисляем относительную глубину для выбора каскада
-    //float viewDistance = length(viewPos - fragPos);
-    //float viewDepth = viewDistance / cameraData.cameras[cameraData.activeCameraIndex].farPlane;
-
-    vec3 viewDir = normalize(cameraData.cameras[cameraData.activeCameraIndex].front);
-    float viewDepth = dot(fragPos - viewPos, viewDir) / cameraData.cameras[cameraData.activeCameraIndex].farPlane;
-    
-    // Просто для отладки - возвращаем значение глубины
-    // return viewDepth; // Если закомментировать этот return, увидим градиент глубины
-    
-    // 3. Выбираем каскад на основе глубины
-    int cascadeIndex = 0;
-    for (int i = 0; i < light.numCascades - 1; i++) {
-        if (viewDepth < light.cascades[i].splitDepth) {
-            cascadeIndex = i;
-            break;
-        }
-        cascadeIndex = i + 1;
-    }
-    
-    // 4. Визуализируем каскады разными цветами (для отладки)
-    //if (cascadeIndex == 0) return 0.25; // Первый каскад - светло-серый
-    //if (cascadeIndex == 1) return 0.5;  // Второй каскад - серый
-    //if (cascadeIndex == 2) return 0.75; // Третий каскад - темно-серый
-    //if (cascadeIndex == 3) return 1.0;  // Четвертый каскад - черный
-    
-    // 5. Используем матрицу соответствующего каскада
-    vec4 fragPosLightSpace = light.cascades[cascadeIndex].lightSpaceMatrix * vec4(fragPos, 1.0);
-    
-    // 6. Преобразуем в текстурные координаты
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
-    
-    // 7. Проверяем, находится ли фрагмент в области текстуры
-    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || 
-        projCoords.y < 0.0 || projCoords.y > 1.0)
-        return 0.0;
-    
-    // 8. Находим индекс слоя
-    int lightIndex = -1;
-    for (int i = 0; i < lights.numDirectionalLights; i++) {
-        if (lights.directionalLights[i].lightId == light.lightId) {
-            lightIndex = i;
-            break;
-        }
-    }
-    
-    if (lightIndex < 0)
-        return 0.0;
-    
-    // 9. Индекс слоя в текстурном массиве
-    int layerIndex = lightIndex * MAX_CASCADES + cascadeIndex;
-    
-    // 10. Для отладки - показать текстуру глубины напрямую
-    float shadowMapDepth = texture(shadowMapsArray, vec3(projCoords.xy, layerIndex)).r;
-    // return shadowMapDepth; // Раскомментируйте для визуализации карты глубины
-    
-    // 11. Обычная обработка теней с PCF
-    float currentDepth = projCoords.z;
-    float bias = lights.shadowBias;
-    
-    // 12. Для отладки - покажем простое сравнение без PCF
-    // return (currentDepth - bias > shadowMapDepth) ? 1.0 : 0.0;
-    
-    // 13. Полная PCF-обработка
-    float shadow = 0.0;
-    int kernelSize = lights.pcfKernelSize;
-    vec2 texelSize = 1.0 / vec2(textureSize(shadowMapsArray, 0));
-    
-    for (int x = -kernelSize; x <= kernelSize; ++x) {
-        for (int y = -kernelSize; y <= kernelSize; ++y) {
-            float pcfDepth = texture(shadowMapsArray, vec3(projCoords.xy + vec2(x, y) * texelSize, layerIndex)).r;
-            shadow += (currentDepth - bias > pcfDepth) ? 1.0 : 0.0;
-        }
-    }
-    
-    float totalSamples = (2.0 * kernelSize + 1.0) * (2.0 * kernelSize + 1.0);
-    shadow /= totalSamples;
-    shadow *= lights.shadowIntensity;
-    
-    return shadow;
-}
-
-
-/*
-float calculateCascadedDirectionalShadow(DirectionalLight light, vec3 fragPos, vec3 viewPos) {
     if (light.castShadows < 0.5 || light.enabled < 0.5 || light.numCascades == 0)
         return 0.0;
     
@@ -267,7 +175,7 @@ float calculateCascadedDirectionalShadow(DirectionalLight light, vec3 fragPos, v
     
     return shadow;
 }
-*/
+
 
 
 float calculatePointShadow(PointLight light, vec3 fragPos, int lightIndex) {

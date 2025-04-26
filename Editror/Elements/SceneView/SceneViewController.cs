@@ -775,74 +775,35 @@ namespace Editor
                         }
                     }
                 }
+
+                var textureFields = FindFieldsByBaseType(componentType, typeof(OpenglLib.Texture));
+                if (textureFields.Count > 0)
+                {
+                    foreach (var textureField in textureFields)
+                    {
+                        var textureGuidField = componentType.GetField(textureField.Name + "GUID", 
+                            BindingFlags.NonPublic | BindingFlags.Instance);
+
+                        if (textureGuidField != null)
+                        {
+                            string textureGuid = (string)textureGuidField.GetValue(component);
+                            if (!string.IsNullOrWhiteSpace(textureGuid))
+                            {
+                                var texture = _resourceManager.LoadTextureResource(textureGuid);
+                                if (texture != null)
+                                {
+                                    world.ModifyComponent(entity.Id, componentType, (e) =>
+                                    {
+                                        textureField.SetValue(e, texture);
+                                        return e;
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
-        //private void ProcessGLDependentComponent(World world, Entity entity, ref IComponent component)
-        //{
-        //    var componentType = component.GetType();
-
-        //    if (IsGLDependableComponent(component))
-        //    {
-        //        var materialFields = FindFieldsByBaseType(componentType, typeof(Material));
-        //        foreach (var materialField in materialFields)
-        //        {
-        //            var materialGuidField = componentType.GetField(materialField.Name + "GUID",
-        //                BindingFlags.NonPublic | BindingFlags.Instance);
-
-        //            if (materialGuidField != null)
-        //            {
-        //                string materialGuid = (string)materialGuidField.GetValue(component);
-        //                if (!string.IsNullOrEmpty(materialGuid))
-        //                {
-        //                    var material = _resourceManager.LoadMaterialResource(materialGuid);
-        //                    if (material != null && material.Shader != null)
-        //                    {
-        //                        world.ModifyComponent(entity.Id, componentType, (e) =>
-        //                        {
-        //                            materialField.SetValue(e, material);
-        //                            return e;
-        //                        });
-        //                        materialMapping[entity.Id] = material;
-        //                    }
-        //                }
-        //            }
-        //        }
-
-        //        if (materialMapping.TryGetValue(entity.Id, out Material outMaterial))
-        //        {
-        //            var meshFields = FindFieldsByBaseType(componentType, typeof(MeshBase));
-        //            foreach (var meshField in meshFields)
-        //            {
-        //                var meshGuidField = componentType.GetField(meshField.Name + "GUID",
-        //                    BindingFlags.NonPublic | BindingFlags.Instance);
-        //                var meshIndexatorField = componentType.GetField(meshField.Name + "InternalIndex",
-        //                    BindingFlags.NonPublic | BindingFlags.Instance);
-
-        //                if (meshGuidField != null && meshIndexatorField != null)
-        //                {
-        //                    string meshGuid = (string)meshGuidField.GetValue(component);
-        //                    string strIndex = (string)meshIndexatorField.GetValue(component);
-
-        //                    if (!string.IsNullOrEmpty(meshGuid) && !string.IsNullOrEmpty(strIndex))
-        //                    {
-        //                        int index = int.Parse(strIndex);
-
-        //                        var mesh = _resourceManager.LoadMeshResource(meshGuid, index, outMaterial.Shader);
-        //                        if (mesh != null)
-        //                        {
-        //                            world.ModifyComponent(entity.Id, componentType, (e) =>
-        //                            {
-        //                                meshField.SetValue(e, mesh);
-        //                                return e;
-        //                            });
-        //                        }
-        //                    }
-        //                }
-        //            }
-
-        //        }
-        //    }
-        //}
 
         private bool IsGLDependableComponent(IComponent component)
         {

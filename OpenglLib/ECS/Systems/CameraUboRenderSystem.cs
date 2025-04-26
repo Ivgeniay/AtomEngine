@@ -2,6 +2,7 @@
 using System.Numerics;
 using AtomEngine;
 using EngineLib;
+using Silk.NET.Assimp;
 
 namespace OpenglLib
 {
@@ -103,6 +104,8 @@ namespace OpenglLib
                 ref var transform = ref this.GetComponent<TransformComponent>(cameraEntities[i]);
 
                 string cameraRoot = CAMERA_DOMAINS[i];
+
+                //var viewMatrix = Matrix4x4.CreateLookAt(transform.Position, transform.Position + camera.CameraFront, camera.CameraUp);
 
                 valuePairs[$"{cameraRoot}.{POSITION_SUBDOMAIN}"] = transform.Position;
                 valuePairs[$"{cameraRoot}.{FRONT_SUBDOMAIN}"] = camera.CameraFront;

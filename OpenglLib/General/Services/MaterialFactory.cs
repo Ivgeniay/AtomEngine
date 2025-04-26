@@ -315,6 +315,7 @@ namespace OpenglLib
                 }
             }
         }
+        
         public virtual void SetUniformValue(MaterialAsset materialAsset, string name, object value)
         {
             var materials = _materials.Where(e => e.MaterialAsset.Guid == materialAsset.Guid);
@@ -336,10 +337,11 @@ namespace OpenglLib
                 SetUniformValue(material, name, value);
             }
         }
+        
         public virtual void SetUniformValue(Material material, string name, object value)
         {
             if (value == null || string.IsNullOrWhiteSpace(name) || material == null) return;
-            Type shaderType = material.Shader.GetType();
+            if (!_materials.Contains(material)) return;
 
             try
             {
@@ -348,7 +350,7 @@ namespace OpenglLib
             }
             catch (Exception ex)
             {
-                DebLogger.Warn($"Не удалось установить свойство {name} для {shaderType.Name}: {ex.Message}");
+                DebLogger.Warn($"Не удалось установить свойство {name} для {material.Shader.GetType().Name}: {ex.Message}");
             }
         }
 
@@ -407,7 +409,7 @@ namespace OpenglLib
             {
                 if (material.IsValid)
                 {
-                    Texture texture = _textureFactory.CreateTextureFromGuid(material.GLContext, textureGuid, material);
+                    Texture texture = _textureFactory.CreateTextureFromGuid(material.GLContext, textureGuid);
                     material.Use();
                     material.SetTexture(samplerName, texture);
                 }

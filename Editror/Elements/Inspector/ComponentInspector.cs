@@ -143,7 +143,7 @@ namespace Editor
                 {
                     SetValue(component, guidMember, redirection.GUID);
                 }
-                if (guidMember != null)
+                if (indexatorMember != null)
                 {
                     SetValue(component, indexatorMember, redirection.Indexator);
                 }

@@ -59,47 +59,18 @@ layout(location = 0) out vec4 FragColor;
 
 void main() {
 
-    
-    //vec3 color = calculatePBR(
-    //    fs_in.FragPos,
-    //    fs_in.Normal,
-    //    fs_in.Tangent,
-    //    fs_in.Bitangent,
-    //    fs_in.TexCoord,
-    //    fs_in.ViewDir
-    //);
-    
-
-    vec3 viewDir = normalize(cameraData.cameras[cameraData.activeCameraIndex].front);
-
-    // Вычисляем глубину вдоль направления взгляда вместо расстояния
-    float viewDepth = dot(fs_in.FragPos - cameraData.cameras[cameraData.activeCameraIndex].position, viewDir) /
-        cameraData.cameras[cameraData.activeCameraIndex].farPlane;
-
-    // Определяем каскад по глубине
-    int cascadeIndex = 0;
-    for (int i = 0; i < 4 && i < lights.directionalLights[0].numCascades - 1; i++) {
-        if (viewDepth < lights.directionalLights[0].cascades[i].splitDepth) {
-            cascadeIndex = i;
-            break;
-        }
-        cascadeIndex = i + 1;
-    }
-
-    // Цвета каскадов для отладки
-    vec3 cascadeColors[4] = vec3[4](
-        vec3(0.1, 0.9, 0.1),  // Каскад 0 - зеленый
-        vec3(0.1, 0.1, 0.9),  // Каскад 1 - синий  
-        vec3(0.9, 0.1, 0.1),  // Каскад 2 - красный
-        vec3(0.9, 0.9, 0.1)   // Каскад 3 - желтый
-        );
-
-    // Отображаем каскады разными цветами
-    FragColor = vec4(cascadeColors[cascadeIndex], 1.0);
+    vec3 color = calculatePBR(
+        fs_in.FragPos,
+        fs_in.Normal,
+        fs_in.Tangent,
+        fs_in.Bitangent,
+        fs_in.TexCoord,
+        fs_in.ViewDir
+    );
     
 	//float depthValue = texture(shadowMapsArray, vec3(fs_in.TexCoord, 0)).r;
     //depthValue = 1.0 - (1.0 - depthValue) * 25.0;
     //FragColor = vec4(depthValue);
 
-    //FragColor = vec4(color, getAlpha());
+    FragColor = vec4(color, getAlpha());
 }

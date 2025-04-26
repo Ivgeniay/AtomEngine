@@ -2,10 +2,7 @@
 using SixLabors.ImageSharp;
 using Silk.NET.Assimp;
 using Silk.NET.OpenGL;
-using System.Runtime.InteropServices;
 using System.Reflection;
-using AtomEngine.RenderEntity;
-using System.Resources;
 using SixLabors.ImageSharp.Processing;
 
 namespace OpenglLib
@@ -35,6 +32,9 @@ namespace OpenglLib
         public bool IsCompressed { get; set; } = false;
         public uint MaxSize { get; set; } = 2048;
 
+        public int Width { get; set; } = 0;
+        public int Height { get; set; } = 0;
+
         public unsafe Texture(GL gl, string path, TextureType type = TextureType.None)
         {
             _gl = gl;
@@ -43,7 +43,10 @@ namespace OpenglLib
             _handle = _gl.GenTexture();
             bool useEmbeddedResources = !(path.Contains("\\") || path.Contains("/"));
 
-            if (!useEmbeddedResources) _image = Image.Load<Rgba32>(path);
+            if (!useEmbeddedResources)
+            {
+                _image = Image.Load<Rgba32>(path);
+            }
             else
             {
                 var assembly = Assembly.GetExecutingAssembly();
@@ -63,6 +66,8 @@ namespace OpenglLib
                     _image = Image.Load<Rgba32>(stream);
                 }
             }
+            Width = _image.Width;
+            Height = _image.Height;
         }
 
         public unsafe Texture(GL gl, byte[] textureData, int width, int height,

@@ -6,10 +6,10 @@ namespace OpenglLib
 {
     public class TextureFactory : IService, IDisposable
     {
-        protected Dictionary<(string path, uint shaderProgram), Texture> _cacheTexture = new Dictionary<(string path, uint shaderProgram), Texture>();
+        protected Dictionary<string, Texture> _cacheTexture = new Dictionary<string, Texture>();
 
         public Task InitializeAsync() => Task.CompletedTask;
-        public Texture CreateTextureFromGuid(GL gl, string guid, uint shaderProgram)
+        public Texture CreateTextureFromGuid(GL gl, string guid)
         {
             if (string.IsNullOrEmpty(guid))
             {
@@ -24,11 +24,11 @@ namespace OpenglLib
             }
 
             var metadata = ServiceHub.Get<MetadataManager>().GetMetadata(texturePath) as TextureMetadata;
-            return CreateTextureFromPath(gl, texturePath, shaderProgram, metadata);
+            return CreateTextureFromPath(gl, texturePath, metadata);
         }
-        public Texture CreateTextureFromPath(GL gl, string texturePath, uint shaderProgram)
+        public Texture CreateTextureFromPath(GL gl, string texturePath)
         {
-            var key = (texturePath, shaderProgram);
+            var key = texturePath;
             if (_cacheTexture.TryGetValue(key, out Texture cacheTexture)) { return cacheTexture; }
 
             try
@@ -46,9 +46,9 @@ namespace OpenglLib
                 return null;
             }
         }
-        public Texture CreateTextureFromPath(GL gl, string texturePath, uint shaderProgram, TextureMetadata metadata)
+        public Texture CreateTextureFromPath(GL gl, string texturePath, TextureMetadata metadata)
         {
-            var key = (texturePath, shaderProgram);
+            var key = texturePath;
             if (_cacheTexture.TryGetValue(key, out Texture cacheTexture)) { return cacheTexture; }
 
             try
@@ -125,25 +125,10 @@ namespace OpenglLib
             _cacheTexture.Clear();
         }
 
-        public bool TryGetCachedTexture(string texturePath, uint shaderProgram, out Texture texture)
+        public bool TryGetCachedTexture(string texturePath, out Texture texture)
         {
-            return _cacheTexture.TryGetValue((texturePath, shaderProgram), out texture);
+            return _cacheTexture.TryGetValue(texturePath, out texture);
         }
 
-        public void RemoveTexturesForShaderProgram(uint shaderProgram)
-        {
-            var keysToRemove = _cacheTexture.Keys
-                .Where(key => key.shaderProgram == shaderProgram)
-                .ToList();
-
-            foreach (var key in keysToRemove)
-            {
-                if (_cacheTexture.TryGetValue(key, out var texture))
-                {
-                    texture.Dispose();
-                    _cacheTexture.Remove(key);
-                }
-            }
-        }
     }
 }
