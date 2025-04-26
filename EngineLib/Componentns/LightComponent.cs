@@ -49,6 +49,7 @@ namespace AtomEngine
     {
         Directional = 0,
         Point = 1,
+        Spot =2,
     }
 
     [StructLayout(LayoutKind.Explicit, Size = 128)]

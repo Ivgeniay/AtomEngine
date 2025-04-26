@@ -290,6 +290,16 @@ namespace OpenglLib
                 _gl = null;
             }
         }
+
+        public bool TryGetValue(uint bindingPoint, string uniformName, out object value)
+        {
+            if (!_ubosByBindingPoint.TryGetValue(bindingPoint, out var ubo))
+            {
+                throw new InvalidOperationError($"UBO with binding point {bindingPoint} not found");
+            }
+
+            return ubo.TryGetValue(uniformName, out value);
+        }
     }
 
     public interface IUboStruct

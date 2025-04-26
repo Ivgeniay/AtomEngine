@@ -14,8 +14,13 @@ namespace Editor
     {
         public override Task InitializeAsync()
         {
+            return Task.CompletedTask;
+        }
+
+        public override Task InitializeMaterialAssetManagerAsync()
+        {
             return Task.Run(async () => {
-                await base.InitializeAsync();
+                await base.InitializeMaterialAssetManagerAsync();
 
                 string assetsPath = directoryExplorer.GetPath<AssetsDirectory>();
                 string embeddedAssetsPath = directoryExplorer.GetPath<EmbeddedResourcesDirectory>();

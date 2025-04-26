@@ -178,6 +178,10 @@ namespace Editor
                             {
                                 typeof(GlobalLightSettingsComponent).FullName,
                                 new GlobalLightSettingsComponent(new Entity(2,0))
+                            },
+                            {
+                                typeof(ShadowMapComponent).FullName,
+                                new ShadowMapComponent(new Entity(2,0))
                             }
                         }
                     },

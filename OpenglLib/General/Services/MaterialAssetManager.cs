@@ -15,6 +15,11 @@ namespace OpenglLib
 
         public virtual Task InitializeAsync()
         {
+            return Task.CompletedTask;
+        }
+
+        public virtual Task InitializeMaterialAssetManagerAsync()
+        {
             eventHub = ServiceHub.Get<EventHub>();
             metadataManager = ServiceHub.Get<MetadataManager>();
             directoryExplorer = ServiceHub.Get<DirectoryExplorer>();

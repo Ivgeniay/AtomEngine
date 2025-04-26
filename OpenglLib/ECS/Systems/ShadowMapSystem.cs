@@ -14,17 +14,26 @@ namespace OpenglLib
 
         private QueryEntity queryLightEntities;
         private QueryEntity queryRendererEntities;
+        private QueryEntity queryShadowMapEntities;
 
         private FBOService _fboService;
+        private UboService _uboService;
         private GL _gl;
         private FramebufferObjectDepth _fbo;
-        private uint _shadowMapArrayTexture;
         private int _shadowMapSize = 2048;
         private bool _initialized = false;
-        private const int SHADOW_TEXTURE_UNIT = 10;
 
-        private Dictionary<int, int> _directionalLightLayerIndices = new Dictionary<int, int>();
-        private Dictionary<int, int> _pointLightLayerIndices = new Dictionary<int, int>();
+        private const string UBO_NAME = "LightsUBO";
+        private const string DIRECTION_SUBDOMAIN = "direction";
+        private const string COLOR_SUBDOMAIN = "color";
+        private const string INTENSITY_SUBDOMAIN = "intensity";
+        private const string CAST_SHADOWS_SUBDOMAIN = "castShadows";
+        private const string ENABLED_SUBDOMAIN = "enabled";
+        private const string LIGHT_ID_SUBDOMAIN = "lightId";
+        private const string NUM_CASCADES_SUBDOMAIN = "numCascades";
+        private const string LIGHT_SPACE_MATRIX_SUBDOMAIN = "lightSpaceMatrix";
+        private const string SPLIT_DEPTH_SUBDOMAIN = "splitDepth";
+        private const uint UBO_BINDING_POINT = 1;
 
         public ShadowMapSystem(IWorld world)
         {
@@ -33,24 +42,29 @@ namespace OpenglLib
             queryLightEntities = this.CreateEntityQuery()
                 .With<LightComponent>()
                 .With<TransformComponent>()
-                .With<ShadowMaterialComponent>()
-                ;
+                .With<ShadowMaterialComponent>();
 
             queryRendererEntities = this.CreateEntityQuery()
                 .With<TransformComponent>()
-                .With<PBRComponent>()
-                ;
+                .With<PBRComponent>();
+
+            queryShadowMapEntities = this.CreateEntityQuery()
+                .With<ShadowMapComponent>();
         }
 
         public void Initialize()
         {
             _fboService = ServiceHub.Get<FBOService>();
+            _uboService = ServiceHub.Get<UboService>();
         }
 
         private void InitializeShadowMapArray(GL gl)
         {
             _gl = gl;
-            int maxShadowMaps = LightParams.MAX_DIRECTIONAL_LIGHTS + LightParams.MAX_POINT_LIGHTS;
+
+            int maxShadowMaps = (LightParams.MAX_DIRECTIONAL_LIGHTS * LightParams.MAX_CASCADES) +
+                                LightParams.MAX_POINT_LIGHTS +
+                                LightParams.MAX_SPOT_LIGHTS;
 
             try
             {
@@ -74,56 +88,83 @@ namespace OpenglLib
             }
         }
 
-        private int RegisterDirectionalLight(int lightId)
+        private int RegisterCascadeLayer(ref ShadowMapComponent component, int lightId, LightType lightType, int cascadeIndex)
         {
-            if (_directionalLightLayerIndices.TryGetValue(lightId, out int index))
+            int existingIndex = -1;
+
+            if (lightType == LightType.Directional)
             {
-                return index;
+                existingIndex = component.GetDirectionalLightCascadeIndex(lightId, cascadeIndex);
+            }
+            else if (lightType == LightType.Point)
+            {
+                existingIndex = component.GetPointLightLayerIndex(lightId);
+            }
+            else if (lightType == LightType.Spot)
+            {
+                existingIndex = component.GetSpotLightLayerIndex(lightId);
             }
 
-            for (int i = 0; i < LightParams.MAX_DIRECTIONAL_LIGHTS; i++)
+            if (existingIndex >= 0)
             {
-                if (!_directionalLightLayerIndices.ContainsValue(i))
+                return existingIndex;
+            }
+
+            for (int i = 0; i < ShadowMapComponent.MAX_SHADOW_MAPS; i++)
+            {
+                if (component.LightIds[i] == -1)
                 {
-                    _directionalLightLayerIndices[lightId] = i;
+                    component.LightIds[i] = lightId;
+                    component.LightTypes[i] = lightType;
+                    component.CascadeIndices[i] = cascadeIndex;
                     return i;
                 }
             }
-            return -1;
+
+            return -1; 
         }
 
-        private int RegisterPointLight(int lightId)
+        private void ClearLayer(ref ShadowMapComponent component, int layerIndex)
         {
-            if (_pointLightLayerIndices.TryGetValue(lightId, out int index))
+            if (layerIndex >= 0 && layerIndex < ShadowMapComponent.MAX_SHADOW_MAPS)
             {
-                return index;
+                component.LightIds[layerIndex] = -1;
+                component.LightTypes[layerIndex] = (LightType)(-1);
+                component.CascadeIndices[layerIndex] = -1;
             }
+        }
 
-            for (int i = LightParams.MAX_DIRECTIONAL_LIGHTS; i < LightParams.MAX_DIRECTIONAL_LIGHTS + LightParams.MAX_POINT_LIGHTS; i++)
+        private void ClearLightLayers(ref ShadowMapComponent component, int lightId)
+        {
+            for (int i = 0; i < ShadowMapComponent.MAX_SHADOW_MAPS; i++)
             {
-                if (!_pointLightLayerIndices.ContainsValue(i))
+                if (component.LightIds[i] == lightId)
                 {
-                    _pointLightLayerIndices[lightId] = i;
+                    ClearLayer(ref component, i);
+                }
+            }
+        }
+
+        private int GetLightIndexInUBO(int lightId, LightType lightType)
+        {
+            string arrayName = lightType == LightType.Directional ?
+                "directionalLights" : (lightType == LightType.Point ? "pointLights" : "spotLights");
+
+            int maxLights = lightType == LightType.Directional ?
+                LightParams.MAX_DIRECTIONAL_LIGHTS :
+                (lightType == LightType.Point ? LightParams.MAX_POINT_LIGHTS : LightParams.MAX_SPOT_LIGHTS);
+
+            for (int i = 0; i < maxLights; i++)
+            {
+                string lightIdPath = $"{UBO_NAME}.{arrayName}[{i}].{LIGHT_ID_SUBDOMAIN}";
+
+                if (_uboService.TryGetValue(UBO_BINDING_POINT, lightIdPath, out object lightIdObj) &&
+                    lightIdObj is int id && id == lightId)
+                {
                     return i;
                 }
             }
-            return -1;
-        }
-        private int GetDirectionalLightLayerIndex(int lightId)
-        {
-            if (_directionalLightLayerIndices.TryGetValue(lightId, out int index))
-            {
-                return index;
-            }
-            return -1;
-        }
 
-        private int GetPointLightLayerIndex(int lightId)
-        {
-            if (_pointLightLayerIndices.TryGetValue(lightId, out int index))
-            {
-                return index;
-            }
             return -1;
         }
 
@@ -166,9 +207,18 @@ namespace OpenglLib
                 return;
             }
 
+            Entity[] mapEntities = queryShadowMapEntities.Build();
+            if (mapEntities.Length == 0)
+            {
+                return;
+            }
+
+            ref var shadowMapComponent = ref this.GetComponent<ShadowMapComponent>(mapEntities[0]);
+
             if (!_initialized)
             {
                 InitializeShadowMapArray(gl);
+                shadowMapComponent.ShadowMapArrayTextureId = _fbo.DepthTextureArray;
             }
 
             HashSet<int> activeLightIds = new HashSet<int>();
@@ -178,31 +228,14 @@ namespace OpenglLib
                 activeLightIds.Add(lightComponent.LightId);
             }
 
-            List<int> inactiveLightIds = new List<int>();
-            foreach (var kvp in _directionalLightLayerIndices)
+            for (int i = 0; i < ShadowMapComponent.MAX_SHADOW_MAPS; i++)
             {
-                if (!activeLightIds.Contains(kvp.Key))
+                if (shadowMapComponent.LightIds[i] != -1 &&
+                    !activeLightIds.Contains(shadowMapComponent.LightIds[i]))
                 {
-                    inactiveLightIds.Add(kvp.Key);
+                    ClearLayer(ref shadowMapComponent, i);
                 }
             }
-            foreach (var lightId in inactiveLightIds)
-            {
-                _directionalLightLayerIndices.Remove(lightId);
-            }
-            inactiveLightIds.Clear();
-            foreach (var kvp in _pointLightLayerIndices)
-            {
-                if (!activeLightIds.Contains(kvp.Key))
-                {
-                    inactiveLightIds.Add(kvp.Key);
-                }
-            }
-            foreach (var lightId in inactiveLightIds)
-            {
-                _pointLightLayerIndices.Remove(lightId);
-            }
-
 
             Span<int> viewport = stackalloc int[4];
             gl.GetInteger(GLEnum.Viewport, viewport);
@@ -212,102 +245,107 @@ namespace OpenglLib
             bool cullFaceEnabled = gl.IsEnabled(EnableCap.CullFace);
             int originalCullFaceMode = gl.GetInteger(GLEnum.CullFaceMode);
 
+            gl.Enable(EnableCap.DepthTest);
             gl.Enable(EnableCap.CullFace);
             gl.CullFace(GLEnum.Front);
-
-            gl.Enable(EnableCap.DepthTest);
-            gl.CullFace(GLEnum.Front);
-            //gl.ClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-            //gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            gl.ClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
             foreach (var lightEntity in activeLightEntities)
             {
                 ref var lightComponent = ref this.GetComponent<LightComponent>(lightEntity);
                 ref var shadowMaterialComponent = ref this.GetComponent<ShadowMaterialComponent>(lightEntity);
 
-                int layerIndex;
                 if (lightComponent.Type == LightType.Directional)
                 {
-                    layerIndex = GetDirectionalLightLayerIndex(lightComponent.LightId);
-                    if (layerIndex == -1)
+                    int lightIndex = GetLightIndexInUBO(lightComponent.LightId, LightType.Directional);
+                    if (lightIndex == -1) continue;
+
+                    string numCascadesPath = $"{UBO_NAME}.directionalLights[{lightIndex}].{NUM_CASCADES_SUBDOMAIN}";
+                    int numCascades = 1;
+
+                    if (_uboService.TryGetValue(UBO_BINDING_POINT, numCascadesPath, out object numCascadesObj) &&
+                        numCascadesObj is int numCascadesValue)
                     {
-                        layerIndex = RegisterDirectionalLight(lightComponent.LightId);
+                        numCascades = numCascadesValue;
+                    }
+
+                    for (int cascadeIdx = 0; cascadeIdx < numCascades; cascadeIdx++)
+                    {
+                        int layerIndex = RegisterCascadeLayer(
+                            ref shadowMapComponent,
+                            lightComponent.LightId,
+                            LightType.Directional,
+                            cascadeIdx);
+
                         if (layerIndex == -1) continue;
+
+                        try
+                        {
+                            _fbo.BindLayer(layerIndex);
+                            gl.Clear(ClearBufferMask.DepthBufferBit);
+
+                            string matrixPath = $"{UBO_NAME}.directionalLights[{lightIndex}].cascades[{cascadeIdx}].{LIGHT_SPACE_MATRIX_SUBDOMAIN}";
+
+                            if (!_uboService.TryGetValue(UBO_BINDING_POINT, matrixPath, out object matrixObj) ||
+                                !(matrixObj is Matrix4x4 lightSpaceMatrix))
+                            {
+                                continue;
+                            }
+
+                            Material shadowMaterial = shadowMaterialComponent.Material;
+                            shadowMaterial.Use();
+                            shadowMaterial.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
+
+                            foreach (var entity in rendererEntities)
+                            {
+                                ref var transform = ref this.GetComponent<TransformComponent>(entity);
+                                ref var pbrComponent = ref this.GetComponent<PBRComponent>(entity);
+
+                                if (pbrComponent.Mesh == null)
+                                    continue;
+
+                                shadowMaterial.SetUniform("modelPosition", transform.Position.ToSilk());
+                                shadowMaterial.SetUniform("modelRotation", transform.Rotation.ToSilk());
+                                shadowMaterial.SetUniform("modelScale", transform.Scale.ToSilk());
+
+                                pbrComponent.Mesh.Draw(shadowMaterial.Shader);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            DebLogger.Error($"Error rendering shadow map for light {lightComponent.LightId}, cascade {cascadeIdx}: {ex.Message}");
+                        }
                     }
                 }
                 else if (lightComponent.Type == LightType.Point)
                 {
-                    layerIndex = GetPointLightLayerIndex(lightComponent.LightId);
+                    int layerIndex = shadowMapComponent.GetPointLightLayerIndex(lightComponent.LightId);
                     if (layerIndex == -1)
                     {
-                        layerIndex = RegisterPointLight(lightComponent.LightId);
+                        layerIndex = RegisterCascadeLayer(
+                            ref shadowMapComponent,
+                            lightComponent.LightId,
+                            LightType.Point,
+                            -1);
+
                         if (layerIndex == -1) continue;
                     }
+
+                    // Рендеринг теней для точечного источника...
                 }
-                else
+                else if (lightComponent.Type == LightType.Spot)
                 {
-                    continue;
-                }
-
-                try
-                {
-                    _fbo.BindLayer(layerIndex);
-                    gl.ClearDepth(1.0f);
-                    gl.Clear(ClearBufferMask.DepthBufferBit);
-
-                    Material shadowMaterial = shadowMaterialComponent.Material;
-
-                    if (shadowMaterial == null || shadowMaterial.Shader == null)
-                        continue;
-
-                    shadowMaterial.Use();
-                    shadowMaterial.SetUniform("lightSpaceMatrix", lightComponent.LightSpaceMatrix);
-
-                    foreach (var entity in rendererEntities)
-                    {
-                        ref var transform = ref this.GetComponent<TransformComponent>(entity);
-                        ref var pbrComponent = ref this.GetComponent<PBRComponent>(entity);
-
-                        if (pbrComponent.Mesh == null)
-                            continue;
-
-                        shadowMaterial.SetUniform("modelPosition", transform.Position.ToSilk());
-                        shadowMaterial.SetUniform("modelRotation", transform.Rotation.ToSilk());
-                        shadowMaterial.SetUniform("modelScale", transform.Scale.ToSilk());
-
-                        pbrComponent.Mesh.Draw(shadowMaterial.Shader);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    DebLogger.Error($"Error rendering shadow map for light {lightComponent.LightId}: {ex.Message}");
                 }
             }
 
             gl.DrawBuffer(DrawBufferMode.None);
             gl.ReadBuffer(ReadBufferMode.None);
 
-            var unit = TextureUnit.Texture0 + SHADOW_TEXTURE_UNIT;
-            gl.ActiveTexture(unit);
-            gl.BindTexture(TextureTarget.Texture2DArray, _fbo.DepthTextureArray);
-
-            foreach (var entity in rendererEntities)
-            {
-                ref var pbrComponent = ref this.GetComponent<PBRComponent>(entity);
-
-                if (pbrComponent.Material == null || pbrComponent.Material.Shader == null)
-                    continue;
-
-                Material material = pbrComponent.Material;
-                material.Use();
-                material.SetUniform("shadowMapsArray", SHADOW_TEXTURE_UNIT);
-            }
-
-
             _fbo.Unbind(viewport[2], viewport[3]);
 
             if (depthTestEnabled) gl.Enable(EnableCap.DepthTest);
             else gl.Disable(EnableCap.DepthTest);
+
             if (cullFaceEnabled)
             {
                 gl.Enable(EnableCap.CullFace);
@@ -322,15 +360,6 @@ namespace OpenglLib
             gl.Viewport(viewport[0], viewport[1], (uint)viewport[2], (uint)viewport[3]);
         }
 
-        void CheckGLError(GL gl, string location)
-        {
-            GLEnum error = gl.GetError();
-            if (error != GLEnum.NoError)
-            {
-                DebLogger.Error($"OpenGL error at {location}: {error}");
-            }
-        }
-
         public void Resize(Vector2 size)
         {
         }
@@ -340,4 +369,114 @@ namespace OpenglLib
             CleanupShadowMapArray();
         }
     }
+
+    public static class CascadedShadowCalculator
+    {
+        public static float[] CalculateCascadeSplits(float nearPlane, float farPlane)
+        {
+            float[] splits = new float[LightParams.MAX_CASCADES];
+
+            for (int i = 0; i < LightParams.MAX_CASCADES; i++)
+            {
+                float p = (i + 1) / (float)LightParams.MAX_CASCADES;
+                float log = nearPlane * MathF.Pow(farPlane / nearPlane, p);
+                float uniform = nearPlane + (farPlane - nearPlane) * p;
+
+                splits[i] = MathF.Min(
+                    LightParams.CASCADE_DISTRIBUTION_LAMBDA * log +
+                    (1 - LightParams.CASCADE_DISTRIBUTION_LAMBDA) * uniform,
+                    LightParams.MAX_SHADOW_DISTANCE);
+            }
+
+            for (int i = 0; i < LightParams.MAX_CASCADES; i++)
+            {
+                splits[i] = splits[i] / farPlane;
+            }
+
+            return splits;
+        }
+
+        public static Vector3[] GetCascadeFrustumCorners(Vector3[] fullFrustum, float startDepth, float endDepth)
+        {
+            Vector3[] cascadeCorners = new Vector3[8];
+
+            for (int i = 0; i < 4; i++)
+            {
+                cascadeCorners[i] = Vector3.Lerp(fullFrustum[i], fullFrustum[i + 4], startDepth);
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                cascadeCorners[i + 4] = Vector3.Lerp(fullFrustum[i], fullFrustum[i + 4], endDepth);
+            }
+
+            return cascadeCorners;
+        }
+
+        public static Matrix4x4 CalculateLightSpaceMatrix(
+    Vector3[] frustumCorners,
+    Vector3 lightDirection,
+    Vector3 lightPosition) // Добавляем позицию света из трансформа
+        {
+            // 1. Используем позицию и направление света из компонента
+            // lightPosition - позиция источника света из TransformComponent
+            // lightDirection - направление света (нормализованное)
+
+            // 2. Находим границы фрустума для определения зоны видимости
+            Vector3 min = new Vector3(float.MaxValue);
+            Vector3 max = new Vector3(float.MinValue);
+
+            foreach (var corner in frustumCorners)
+            {
+                min = Vector3.Min(min, corner);
+                max = Vector3.Max(max, corner);
+            }
+
+            // 3. Создаем матрицу вида, смотрящую из позиции света в направлении света
+            Vector3 up = Vector3.UnitY;
+            if (Math.Abs(Vector3.Dot(lightDirection, up)) > 0.99f)
+                up = Vector3.UnitZ;
+
+            // Целевая точка - точка на луче света
+            Vector3 target = lightPosition + lightDirection * 100.0f;
+
+            // Создаем матрицу вида для источника света
+            Matrix4x4 lightView = Matrix4x4.CreateLookAt(
+                lightPosition,  // Позиция источника света
+                target,         // Целевая точка в направлении света
+                up              // Вектор вверх
+            );
+
+            // 4. Трансформируем углы фрустума в пространство света
+            Vector3 transformedMin = new Vector3(float.MaxValue);
+            Vector3 transformedMax = new Vector3(float.MinValue);
+
+            foreach (var corner in frustumCorners)
+            {
+                Vector3 transformed = Vector3.Transform(corner, lightView);
+                transformedMin = Vector3.Min(transformedMin, transformed);
+                transformedMax = Vector3.Max(transformedMax, transformed);
+            }
+
+            // 5. Добавляем отступы
+            float padding = 15.0f;
+            transformedMin.X -= padding;
+            transformedMin.Y -= padding;
+            transformedMax.X += padding;
+            transformedMax.Y += padding;
+
+            // 6. Создаем ортографическую проекцию
+            Matrix4x4 lightProjection = Matrix4x4.CreateOrthographicOffCenter(
+                transformedMin.X, transformedMax.X,
+                transformedMin.Y, transformedMax.Y,
+                0.1f, // Небольшой ближний план
+                transformedMax.Z - transformedMin.Z + padding * 2
+            );
+
+            // 7. Комбинируем матрицы
+            return lightView * lightProjection;
+        }
+
+    }
+
 }

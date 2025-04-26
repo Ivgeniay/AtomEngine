@@ -96,7 +96,10 @@ namespace Editor
                 ServiceHub.RegisterService<EditorModelManager>();
                 ServiceHub.AddMapping<ModelManager, EditorModelManager>();
                 ServiceHub.RegisterService<BuildManager>();
-                
+
+                ServiceHub.RegisterService<EditorMaterialAssetManager>();
+                ServiceHub.AddMapping<MaterialAssetManager, EditorMaterialAssetManager>();
+
                 // Фабрики
                 ServiceHub.RegisterService<TextureFactory>();
                 ServiceHub.RegisterService<EditorMaterialFactory>();
@@ -140,9 +143,7 @@ namespace Editor
                 await ServiceHub.Get<ScriptSyncSystem>().Compile();
                 await Task.Delay(100);
 
-                ServiceHub.RegisterService<EditorMaterialAssetManager>();
-                ServiceHub.AddMapping<MaterialAssetManager, EditorMaterialAssetManager>();
-                await ServiceHub.Get<EditorMaterialAssetManager>().InitializeAsync();
+                await ServiceHub.Get<EditorMaterialAssetManager>().InitializeMaterialAssetManagerAsync();
 
                 EventHub eventHub = ServiceHub.Get<EventHub>();
                 eventHub.RegisterErrorHandler<Exception>((ex, subscriber, evt) =>

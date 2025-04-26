@@ -180,15 +180,11 @@ vec3 calculatePBR(vec3 fragPos, vec3 normal, vec3 tangent, vec3 bitangent, vec2 
             vec3 lightContrib = calculateDirectionalLightPBR(light, normalValue, viewDir, mat);
             
             if (light.castShadows > 0.5) {
-                vec4 fragPosLightSpace = light.lightSpaceMatrix * vec4(fragPos, 1.0);
-                //float shadow = calculateDirectionalShadow(light, fragPosLightSpace);
-                float shadow = calculateDirectionalShadowWithAdaptivePCF(
-                    light, 
-                    fragPosLightSpace, 
-                    i, 
-                    cameraData.cameras[cameraData.activeCameraIndex].position, 
-                    fragPos);
-                //return vec3((1.0 - shadow));
+                float shadow = calculateCascadedDirectionalShadow(
+                        light, 
+                        fragPos, 
+                        cameraData.cameras[cameraData.activeCameraIndex].position);
+                return vec3(shadow, shadow, shadow);
                 lightContrib *= (1.0 - shadow);
             }
             

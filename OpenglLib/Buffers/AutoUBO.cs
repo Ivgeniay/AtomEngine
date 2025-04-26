@@ -20,6 +20,7 @@ namespace OpenglLib.Buffers
         public string BlockName { get => _blockName; }
         public int BlockSize { get => _blockSize; }
         public bool IsDirty { get; set; } = false;
+        public Dictionary<string, object> _values = new Dictionary<string, object>(); 
 
         public AutoUBO(GL gl, UniformBlockData blockData)
         {
@@ -95,6 +96,7 @@ namespace OpenglLib.Buffers
                 unsafe
                 {
                     WriteValueToBuffer(member.Offset, member.Type, value, member.MatrixStride);
+                    _values[name] = value;
                 }
                 IsDirty = true;
             }
@@ -401,6 +403,11 @@ namespace OpenglLib.Buffers
                 var bindingService = ServiceHub.Get<BindingPointService>();
                 bindingService.ReleaseGlobalBindingPoint(_bindingPoint.Value);
             }
+        }
+
+        public bool TryGetValue(string uniformName, out object value)
+        {
+            return _values.TryGetValue(uniformName, out value);
         }
     }
 

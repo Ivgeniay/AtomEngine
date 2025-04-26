@@ -1,9 +1,6 @@
-﻿using System.Runtime.InteropServices;
-using System.Numerics;
-using Silk.NET.OpenGL;
+﻿using System.Numerics;
 using AtomEngine;
 using EngineLib;
-using OpenglLib.Buffers;
 
 namespace OpenglLib
 {
@@ -21,8 +18,8 @@ namespace OpenglLib
         const string CAST_SHADOWS_SUBDOMAIN = "castShadows";
         const string ENABLED_SUBDOMAIN = "enabled";
         const string LIGHT_ID_SUBDOMAIN = "lightId";
-        const string NUM_CASCADES_SUBDOMAIN = "numCascades";
 
+        const string NUM_CASCADES_SUBDOMAIN = "numCascades";
         private readonly string[][] CASCADE_DOMAINS = new string[LightParams.MAX_DIRECTIONAL_LIGHTS][];
 
         const string LIGHT_SPACE_MATRIX_SUBDOMAIN = "lightSpaceMatrix";
@@ -146,13 +143,13 @@ namespace OpenglLib
                 valuePairs[$"{lightRoot}.{LIGHT_ID_SUBDOMAIN}"] = i;
             }
 
-            _uboService.SetUboDataByBindingPoint(UBO_BINDING_POINT, valuePairs);
-            _uboService.Update(UBO_BINDING_POINT);
         }
 
         public void Initialize()
         {
             _uboService = ServiceHub.Get<UboService>();
+            _uboService.SetUboDataByBindingPoint(UBO_BINDING_POINT, valuePairs);
+            _uboService.Update(UBO_BINDING_POINT);
         }
 
         public void Render(double deltaTime, object? context)
@@ -321,68 +318,31 @@ namespace OpenglLib
                     }
                 }
 
-                Matrix4x4 lightSpaceMatrix;
-
                 if (foundActiveCamera)
                 {
                     Vector3[] frustumCorners = CalculateFrustumCorners(activeCamera, cameraTransform);
 
-                    float maxShadowDistance = 100.0f;
-                    float shadowRatio = maxShadowDistance / activeCamera.FarPlane;
+                    float[] cascadeSplits = CascadedShadowCalculator.CalculateCascadeSplits(
+                        activeCamera.NearPlane, activeCamera.FarPlane);
 
-                    Vector3[] shadowFrustumCorners = new Vector3[8];
-                    for (int i = 0; i < 4; i++)
+                    int numCascades = LightParams.MAX_CASCADES;
+                    valuePairs[$"{lightRoot}.{NUM_CASCADES_SUBDOMAIN}"] = numCascades;
+
+                    for (int cascadeIdx = 0; cascadeIdx < numCascades; cascadeIdx++)
                     {
-                        shadowFrustumCorners[i] = frustumCorners[i];
-                        shadowFrustumCorners[i + 4] = Vector3.Lerp(
-                            frustumCorners[i],
-                            frustumCorners[i + 4],
-                            shadowRatio
-                        );
+                        float startSplit = cascadeIdx == 0 ? 0.0f : cascadeSplits[cascadeIdx - 1];
+                        float endSplit = cascadeSplits[cascadeIdx];
+
+                        Vector3[] cascadeFrustum = CascadedShadowCalculator.GetCascadeFrustumCorners(
+                            frustumCorners, startSplit, endSplit);
+
+                        Matrix4x4 lightSpaceMatrix = CascadedShadowCalculator.CalculateLightSpaceMatrix(
+                            cascadeFrustum, direction, transform.Position);
+
+                        string _cascadeRoot = CASCADE_DOMAINS[index][cascadeIdx];
+                        valuePairs[$"{_cascadeRoot}.{LIGHT_SPACE_MATRIX_SUBDOMAIN}"] = lightSpaceMatrix;
+                        valuePairs[$"{_cascadeRoot}.{SPLIT_DEPTH_SUBDOMAIN}"] = endSplit;
                     }
-
-                    Vector3 frustumCenter = Vector3.Zero;
-                    foreach (var corner in shadowFrustumCorners)
-                    {
-                        frustumCenter += corner;
-                    }
-                    frustumCenter /= 8.0f;
-
-                    Vector3 up = Vector3.UnitY;
-                    if (Math.Abs(Vector3.Dot(direction, up)) > 0.99f)
-                        up = Vector3.UnitZ;
-
-                    Matrix4x4 lightView = Matrix4x4.CreateLookAt(
-                        frustumCenter - direction * maxShadowDistance * 0.5f,
-                        frustumCenter,
-                        up
-                    );
-
-                    Vector3 min = Vector3.Transform(shadowFrustumCorners[0], lightView);
-                    Vector3 max = min;
-
-                    for (int i = 1; i < 8; i++)
-                    {
-                        Vector3 transformedCorner = Vector3.Transform(shadowFrustumCorners[i], lightView);
-                        min = Vector3.Min(min, transformedCorner);
-                        max = Vector3.Max(max, transformedCorner);
-                    }
-
-                    float padding = 5.0f;
-                    min.X -= padding;
-                    min.Y -= padding;
-                    max.X += padding;
-                    max.Y += padding;
-                    float zNear = 1.0f;
-                    float zFar = maxShadowDistance + padding * 2;
-
-                    Matrix4x4 lightProjection = Matrix4x4.CreateOrthographicOffCenter(
-                        min.X, max.X,
-                        min.Y, max.Y,
-                        zNear, zFar
-                    );
-
-                    lightSpaceMatrix = lightView * lightProjection;
                 }
                 else
                 {
@@ -405,15 +365,16 @@ namespace OpenglLib
                         0.1f, sceneRadius * 2.0f
                     );
 
-                    lightSpaceMatrix = lightView * lightProjection;
+                    Matrix4x4 lightSpaceMatrix = lightView * lightProjection;
+
+                    string _cascadeRoot = CASCADE_DOMAINS[index][0];
+                    valuePairs[$"{_cascadeRoot}.{LIGHT_SPACE_MATRIX_SUBDOMAIN}"] = lightSpaceMatrix;
+                    valuePairs[$"{_cascadeRoot}.{SPLIT_DEPTH_SUBDOMAIN}"] = 1.0f;
+
+                    valuePairs[$"{lightRoot}.{NUM_CASCADES_SUBDOMAIN}"] = 1;
                 }
 
                 string cascadeRoot = CASCADE_DOMAINS[index][0];
-                valuePairs[$"{cascadeRoot}.{LIGHT_SPACE_MATRIX_SUBDOMAIN}"] = lightSpaceMatrix;
-                valuePairs[$"{cascadeRoot}.{SPLIT_DEPTH_SUBDOMAIN}"] = 1.0f; 
-                valuePairs[$"{lightRoot}.{NUM_CASCADES_SUBDOMAIN}"] = 1;
-
-                light.LightSpaceMatrix = lightSpaceMatrix;
             }
         }
 
